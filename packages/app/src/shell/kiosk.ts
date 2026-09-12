@@ -22,6 +22,8 @@ export interface Flags {
   model: PoseModel | null;
   /** ?refine=0 关掉时域精化（One-Euro + 遮挡保持 + 质量兜底）。留着是为了能现场做 A/B */
   refine: boolean;
+  /** ?mute=1 彻底关声音（连 AudioContext 都不建）。运行中按 `m` 也能关（docs/29） */
+  mute: boolean;
 }
 
 /** MediaPipe 的三个 PoseLandmarker 档位。精度/延迟的实测差异见 docs/24 §3 */
@@ -59,6 +61,9 @@ export function readFlags(search = location.search): Flags {
     // 默认开。之所以给一个关的开关：精化是**唯一**会在观众和数据之间加延迟的东西，
     // 现场如果有人说"反应慢了"，要能在 3 秒内证明是不是它。
     refine: q.get('refine') !== '0',
+    // 默认开声音。`?mute=1` 是现场"三秒内让它闭嘴"的第一条路 ——
+    // 第二条是运行中按 `m`，不用重载（docs/29 §现场怎么调）。
+    mute: q.get('mute') === '1',
   };
 }
 

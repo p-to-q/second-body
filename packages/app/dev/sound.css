@@ -1,0 +1,114 @@
+/**
+ * 声音靶场的版式。和 archive.css 同一条规矩：
+ * 度量全部来自 type.css 的 --sb-*，这里不许出现写死的字号和颜色。
+ *
+ * 这一页有一件别的页面没有的事：它要把**听不见的东西画出来**。
+ * 所以唯一的视觉重点是电平表和取证图，其余（按钮、滑杆）一律压到最低。
+ */
+
+.sb-sound-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--sb-gutter);
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .sb-sound-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+.sb-sound-block {
+  padding-top: 1.2em;
+  border-top: 1px solid var(--sb-rule);
+}
+
+.sb-sound-block h2 {
+  font-size: var(--sb-size-small);
+  letter-spacing: var(--sb-tracking-label);
+  text-transform: uppercase;
+  color: var(--sb-ink-dim);
+  margin: 0 0 0.8em;
+}
+
+.sb-sound-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  margin: 0.35em 0;
+  font-size: var(--sb-size-small);
+}
+
+.sb-sound-row > label { flex: 0 0 8.5em; color: var(--sb-ink-dim); }
+.sb-sound-row input[type="range"] { flex: 1 1 auto; min-width: 0; accent-color: var(--sb-accent); }
+.sb-sound-row output {
+  flex: 0 0 4em;
+  font-family: var(--sb-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--sb-ink-dim);
+  text-align: right;
+}
+
+.sb-sound-btns { display: flex; flex-wrap: wrap; gap: 0.4em; margin: 0.5em 0; }
+
+.sb-sound-btns button {
+  font: inherit;
+  font-size: var(--sb-size-small);
+  padding: 0.3em 0.8em;
+  color: var(--sb-ink-dim);
+  background: none;
+  border: 1px solid var(--sb-rule);
+  cursor: pointer;
+}
+
+.sb-sound-btns button:hover { color: var(--sb-ink); border-color: var(--sb-ink-dim); }
+.sb-sound-btns button.is-on { color: var(--sb-paper); background: var(--sb-accent); border-color: var(--sb-accent); }
+
+/* ── 电平表 ──────────────────────────────────────────────────────────── */
+
+.sb-meter {
+  display: grid;
+  grid-template-columns: 5em 1fr 3.2em;
+  align-items: center;
+  gap: 0.6em;
+  margin: 0.3em 0;
+  font-size: var(--sb-size-small);
+}
+
+.sb-meter__name { color: var(--sb-ink-dim); }
+
+.sb-meter__bar {
+  height: 0.7em;
+  background: var(--sb-rule);
+  overflow: hidden;
+}
+
+/* transform 而不是 width：电平表每秒要动 60 次，不该每次都触发布局 */
+.sb-meter__fill {
+  height: 100%;
+  background: var(--sb-accent);
+  transform-origin: left center;
+  transform: scaleX(0);
+}
+
+.sb-meter__num {
+  font-family: var(--sb-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--sb-ink-dim);
+  text-align: right;
+}
+
+/* ── 取证卡片 ────────────────────────────────────────────────────────── */
+
+.sb-ev { padding: 1.2em 0; border-top: 1px solid var(--sb-rule); }
+.sb-ev h3 { margin: 0; font-size: var(--sb-size-body); }
+.sb-ev p { margin: 0.15em 0 0.7em; font-size: var(--sb-size-small); color: var(--sb-ink-dim); }
+
+/* 图必须能横着看完整；宽度自适应，高度固定 */
+.sb-ev canvas { display: block; width: 100%; height: auto; background: var(--sb-paper); }
+.sb-ev canvas + canvas { margin-top: 2px; }
+
+.sb-status {
+  font-family: var(--sb-mono);
+  font-size: var(--sb-size-small);
+  color: var(--sb-ink-dim);
+}

@@ -6,6 +6,7 @@
 >
 > 规则：**动完代码就更新这张表。** 证据一栏必须是"跑过的命令"或"截图路径"，不能是"应该可以"。
 
+最后更新：2026-09-13（声音四层落地后）
 最后更新：2026-09-13（T-17 慢回路服务端落地后）
 最后更新：2026-09-12（B 档身体方案 `mass` 落地后）
 最后更新：2026-09-12（T-16 kiosk 加固 + 录制页落地后）
@@ -87,6 +88,9 @@
 | **可选条目 < 3 → 螺旋退化成横向一排（docs/23 §S2）** | `stable` | 以前没做：两个条目也照样进螺旋，看起来像一个转不动的轮子。现在走同一条 DOM 列表路径（键盘/自动选择/退出动画全照常），只是排成一排。用新开关 `/dev/choose.html?n=2` 当场跑得到 —— 没有这个开关这条降级路径永远不会被验证。截图 `scratch/evidence/ui-choose-row-under3.png` |
 | **全部页面共用 `src/ui/type.css` + 极简页头（`src/ui/page.ts`）** | `stable` | `/dev/{index,parts,figure,mass,choose,stage,capture,degrade,anchor}.html` 与 `?selftest=1` 全部改成 `<link>` type.css，各自的字号/颜色常量删光（自检页原本把 §0 那一套抄了第二遍）。页头两种形态：文字页在文档流里，满屏 canvas 页压进左上角安全区并在 4 秒后淡下去（截图里不留调试文字）。截图 `scratch/evidence/ui-{index,selftest,figure,mass,stage,capture,degrade}.png` |
 | 形态空间排布（按 `axes` 绕质心成环） | `experimental` | `?roster=1` 下 23 个条目排成一圈（autonomous→wheelleg→patrol→field→…→orb）；旧版 parts.json 无 `axes` 时退回数组顺序，也验过 |
+| **声音四层（`src/sound/`，docs/29）** | `experimental` | 在场 / 运动 / 升档 / 慢回路等待，全部 Web Audio 合成，**零素材文件**（`assets/sound/README.md` 里论证了为什么）。离线取证 8 张：`scratch/evidence/sound-{presence,motion,tier,wait,act-follow,act-echo,act-resist,act-facing}.png`（波形 + 对数频谱，跑的是 `buildSoundGraph` 那一份图本身）。实测：运动层静止 −29.4 → 峰值 −20.3 dBFS（+9.1dB）；在场 −34.8 → −30.2；升档 −29.2 → −18.0；四个玩法在同一条运动曲线下 −19.0 ~ −21.8 各不相同。两段可听的 wav：`sound-motion.wav` / `sound-tier.wav`。**只在合成信号上跑过，没接过真人；也没在现场音响上放过**（docs/09 里因此多一条未知：房间声学） |
+| **声音靶场 `/dev/sound.html`** | `stable` | 上半手推每一个信号 + 四层电平表，下半 `OfflineAudioContext` 取证。截图 `scratch/evidence/sound-range.png`（静止）与 `sound-range-live.png`（speed 1.4 / jerk 15 / resist / 等待中 → 身体 1.00、等待 1.00）。`?mute=1` 下劫持 `window.AudioContext` 计数，点遍所有按钮后仍是 **0** |
+| **自动播放策略 / 现场关声** | `stable` | 主程序 `/?demo=1&debug=1&theme=patrol&seed=99` 开机日志 `sound=locked`，控制台**没有任何被拦截的音频警告**；点一下后转 `running`；按 `m` 打出「静音」「恢复」各一行。帧开销：一次控制 tick 中位 **4µs / p95 8µs**（真实 AudioContext，20×50 次取分位），`controlHz=30` 下两帧才发生一次 |
 | Web 部署（Vercel + serverless 慢回路） | `spec-only` | T-19，检查单在 `docs/13` §6 |
 
 ## 慢回路

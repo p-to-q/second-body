@@ -13,6 +13,7 @@
 | `16-SPEC-acts.md` | 玩法扩展点：Act / World / Director | 加新玩法 |
 | `17-SLOW-LOOP.md` | 慢回路服务端：端点、预算、血统池、失败矩阵、前端接口 | 接慢回路 |
 | `23-SPEC-ui.md` | **每个场景的 UI + 全部边界情况** | 任何碰画面的人 |
+| `29-SOUND.md` | 声音的四层、各绑哪个信号、现场怎么调、怎么关 | 任何碰声音的人 |
 | `packages/core/src/types.ts` | 运行时所有共享类型（**冻结**） | 所有人 |
 
 ## 背景（是 context，不是 contract）
