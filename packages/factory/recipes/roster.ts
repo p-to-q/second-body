@@ -51,8 +51,8 @@ export interface RosterEntry {
   coverage: 'full' | 'light';
   /** light 条目缺件时从哪个条目借 */
   base?: string;
-  /** 身体方案，见 docs/18。缺省 'rig' */
-  bodyPlan?: string;
+  /** 身体方案，见 docs/18。字符串 = 拓扑预设；对象 = 拓扑 + 比例 */
+  bodyPlan?: string | { kind?: string; limb?: number; torso?: number; head?: number; arm?: number; leg?: number };
   tierOfVariant: Record<string, Tier>;
   /** 取材说明。取材 ≠ 复制，写清楚出处是为了让自己保持诚实 */
   reference?: string;
@@ -96,14 +96,30 @@ const RE_ANCHOR: Record<string, number> = { digitigrade: 1, wheelleg: 1, autonom
  * 这一张表是 PRD §3 第三条主张（物种真的不同）成立与否的分界线 ——
  * 没有它，patrol / orb / furball 就只是穿着相应涂装的人。
  */
-const BODY_PLAN: Record<string, string> = {
-  patrol: 'quadruped',       // 四足机的语言长在人身上 —— 现在它真的是四足了
-  digitigrade: 'quadruped',  // 鸟腿：反关节 + 四点着地
-  wheelleg: 'quadruped',
-  petbot: 'quadruped',       // 机器宠物本来就该是四条腿
-  towering: 'towering',
-  compact: 'stub',           // "人形，但只有一米三"
-  droid: 'stub',             // 小怪物：大头短身
+const BODY_PLAN: Record<string, RosterEntry['bodyPlan']> = {
+  // ── 换拓扑 ────────────────────────────────────────────────────────────
+  patrol: 'quadruped',                                  // 四足机的语言长在人身上
+  digitigrade: { kind: 'quadruped', leg: 1.28, arm: 1.1 }, // 鸟腿：细长的反关节后腿
+  wheelleg: { kind: 'quadruped', limb: 0.85, torso: 1.1 },
+  petbot: { kind: 'quadruped', limb: 0.7, torso: 1.12 },   // 机器宠物：小一号的四足
+  compact: 'stub',                                      // "人形，但只有一米三"
+  droid: { kind: 'stub', head: 1.5 },                   // 小怪物：大头短身
+
+  // ── 只换比例（零素材成本，但物种一眼不同） ──────────────────────────────
+  orb: { limb: 0.2, torso: 2.2, head: 0.4 },            // 球：躯干吞掉一切，四肢退化成痕迹
+  furball: { limb: 0.25, torso: 2.0, head: 0.6 },       // 毛球：同上，但更圆
+  screenface: { head: 1.9, torso: 0.95, limb: 0.8 },    // 桌宠：脸就是全部
+  manipulator: { arm: 1.5, leg: 0.82, torso: 0.95 },    // 移动机械臂：长臂短腿
+  autonomous: { limb: 0.5, torso: 1.6, head: 0.7 },     // 无人车：一个会走的车身
+  xeno: { limb: 1.18, torso: 0.92, head: 1.15 },        // 异形：拉长 + 大颅
+  coral: { limb: 0.9, torso: 1.15 },                    // 珊瑚：团块感
+  athlete: { limb: 1.1, torso: 1.05, arm: 1.05 },       // 运动员：四肢有力
+  softwear: { limb: 0.95, torso: 1.12, head: 1.05 },    // 穿衣的：柔软的体量
+  industrial: { torso: 1.08, limb: 0.98 },              // 工业：宽一点的躯干
+  'char.dumpling': { limb: 0.35, torso: 1.7, head: 0.8 },
+  'char.ghost': { limb: 1.15, torso: 1.05 },
+  'char.idol': { head: 1.35, limb: 0.9 },               // 偶像：手办比例
+  // porcelain / char.paper 保持标准比例 —— 需要有一个基准，否则"不同"就没有参照
 };
 
 export const ARCHETYPES: RosterEntry[] = [
@@ -265,7 +281,9 @@ export const CHARACTERS: RosterEntry[] = [
 ];
 
 for (const e of ARCHETYPES) if (RE_ANCHOR[e.id]) e.seedSalt = RE_ANCHOR[e.id];
-for (const e of ARCHETYPES) if (BODY_PLAN[e.id]) e.bodyPlan = BODY_PLAN[e.id];
+for (const e of ROSTER_ALL_FOR_PLAN()) if (BODY_PLAN[e.id]) e.bodyPlan = BODY_PLAN[e.id];
+
+function ROSTER_ALL_FOR_PLAN(): RosterEntry[] { return [...ARCHETYPES, ...GUESTS, ...CHARACTERS]; }
 
 export const ROSTER: RosterEntry[] = [...ARCHETYPES, ...GUESTS, ...CHARACTERS];
 

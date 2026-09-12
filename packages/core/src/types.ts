@@ -154,10 +154,16 @@ export interface ThemeDef {
   coverage: 'full' | 'light';
   base?: string;
   /**
-   * 身体方案（docs/18-BODY-PLANS.md）。缺省 'rig' = 人形刚体挂载。
+   * 身体方案（docs/18-BODY-PLANS.md）。缺省 'rig' = 人形刚体挂载、标准比例。
    * 这是"物种真的不一样"与"同一具人体换皮"之间的那个字段。
+   *
+   * 字符串 = 预设拓扑（'quadruped' / 'towering' / 'stub' / 'inverted'）；
+   * 对象 = 拓扑 + 比例，可叠加（`{ kind: 'quadruped', limb: 0.7 }`）。
    */
-  bodyPlan?: string;
+  bodyPlan?: string | {
+    kind?: string;
+    limb?: number; torso?: number; head?: number; arm?: number; leg?: number;
+  };
 }
 
 export interface PartLibraryIndex {

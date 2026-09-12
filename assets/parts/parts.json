@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-09-12T10:08:35.013Z",
+  "generatedAt": "2026-09-12T10:27:48.792Z",
   "units": "meters",
   "convention": {
     "axis": "+Y",
@@ -51,7 +51,11 @@
         "humanLike": 0.9,
         "lifeLike": 0.2
       },
-      "coverage": "full"
+      "coverage": "full",
+      "bodyPlan": {
+        "torso": 1.08,
+        "limb": 0.98
+      }
     },
     {
       "id": "patrol",
@@ -88,7 +92,12 @@
         "humanLike": 0.7,
         "lifeLike": 0.75
       },
-      "coverage": "full"
+      "coverage": "full",
+      "bodyPlan": {
+        "limb": 1.18,
+        "torso": 0.92,
+        "head": 1.15
+      }
     },
     {
       "id": "coral",
@@ -106,7 +115,11 @@
         "humanLike": 0.35,
         "lifeLike": 0.7
       },
-      "coverage": "full"
+      "coverage": "full",
+      "bodyPlan": {
+        "limb": 0.9,
+        "torso": 1.15
+      }
     },
     {
       "id": "athlete",
@@ -125,7 +138,12 @@
         "lifeLike": 0.5
       },
       "coverage": "light",
-      "base": "porcelain"
+      "base": "porcelain",
+      "bodyPlan": {
+        "limb": 1.1,
+        "torso": 1.05,
+        "arm": 1.05
+      }
     },
     {
       "id": "softwear",
@@ -144,7 +162,12 @@
         "lifeLike": 0.55
       },
       "coverage": "light",
-      "base": "porcelain"
+      "base": "porcelain",
+      "bodyPlan": {
+        "limb": 0.95,
+        "torso": 1.12,
+        "head": 1.05
+      }
     },
     {
       "id": "compact",
@@ -184,7 +207,11 @@
       },
       "coverage": "light",
       "base": "porcelain",
-      "bodyPlan": "quadruped"
+      "bodyPlan": {
+        "kind": "quadruped",
+        "leg": 1.28,
+        "arm": 1.1
+      }
     },
     {
       "id": "wheelleg",
@@ -204,7 +231,11 @@
       },
       "coverage": "light",
       "base": "porcelain",
-      "bodyPlan": "quadruped"
+      "bodyPlan": {
+        "kind": "quadruped",
+        "limb": 0.85,
+        "torso": 1.1
+      }
     },
     {
       "id": "droid",
@@ -224,7 +255,10 @@
       },
       "coverage": "light",
       "base": "porcelain",
-      "bodyPlan": "stub"
+      "bodyPlan": {
+        "kind": "stub",
+        "head": 1.5
+      }
     },
     {
       "id": "petbot",
@@ -244,7 +278,11 @@
       },
       "coverage": "light",
       "base": "porcelain",
-      "bodyPlan": "quadruped"
+      "bodyPlan": {
+        "kind": "quadruped",
+        "limb": 0.7,
+        "torso": 1.12
+      }
     },
     {
       "id": "furball",
@@ -263,7 +301,12 @@
         "lifeLike": 0.95
       },
       "coverage": "light",
-      "base": "porcelain"
+      "base": "porcelain",
+      "bodyPlan": {
+        "limb": 0.25,
+        "torso": 2,
+        "head": 0.6
+      }
     },
     {
       "id": "screenface",
@@ -282,7 +325,12 @@
         "lifeLike": 0.8
       },
       "coverage": "light",
-      "base": "porcelain"
+      "base": "porcelain",
+      "bodyPlan": {
+        "head": 1.9,
+        "torso": 0.95,
+        "limb": 0.8
+      }
     },
     {
       "id": "orb",
@@ -301,7 +349,12 @@
         "lifeLike": 0.6
       },
       "coverage": "light",
-      "base": "porcelain"
+      "base": "porcelain",
+      "bodyPlan": {
+        "limb": 0.2,
+        "torso": 2.2,
+        "head": 0.4
+      }
     },
     {
       "id": "manipulator",
@@ -320,7 +373,12 @@
         "lifeLike": 0.15
       },
       "coverage": "light",
-      "base": "porcelain"
+      "base": "porcelain",
+      "bodyPlan": {
+        "arm": 1.5,
+        "leg": 0.82,
+        "torso": 0.95
+      }
     },
     {
       "id": "autonomous",
@@ -339,7 +397,12 @@
         "lifeLike": 0.25
       },
       "coverage": "light",
-      "base": "porcelain"
+      "base": "porcelain",
+      "bodyPlan": {
+        "limb": 0.5,
+        "torso": 1.6,
+        "head": 0.7
+      }
     },
     {
       "id": "field",
@@ -395,7 +458,12 @@
         "lifeLike": 0.95
       },
       "coverage": "light",
-      "base": "furball"
+      "base": "furball",
+      "bodyPlan": {
+        "limb": 0.35,
+        "torso": 1.7,
+        "head": 0.8
+      }
     },
     {
       "id": "char.ghost",
@@ -414,7 +482,11 @@
         "lifeLike": 0.7
       },
       "coverage": "light",
-      "base": "coral"
+      "base": "coral",
+      "bodyPlan": {
+        "limb": 1.15,
+        "torso": 1.05
+      }
     },
     {
       "id": "char.paper",
@@ -452,7 +524,11 @@
         "lifeLike": 0.6
       },
       "coverage": "light",
-      "base": "compact"
+      "base": "compact",
+      "bodyPlan": {
+        "head": 1.35,
+        "limb": 0.9
+      }
     }
   ],
   "materials": [

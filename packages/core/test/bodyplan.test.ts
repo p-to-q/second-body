@@ -134,3 +134,70 @@ test('退化输入：空骨架 / 缺关节 / NaN 都不抛', () => {
     for (const b of out.bones) assert.ok(b.p0.every(Number.isFinite) && b.p1.every(Number.isFinite));
   }
 });
+
+// ── 参数化比例：物种身份的另一半 ────────────────────────────────────────────
+
+test('比例 spec：球形物种真的是"巨大躯干 + 退化四肢"', () => {
+  const base = human();
+  const orb = remapSkeleton(base, { limb: 0.2, torso: 2.2, head: 0.4 });
+  const armBase = dist(base.joints.shoulderL, base.joints.handTipL);
+  const armOrb = dist(orb.joints.shoulderL, orb.joints.handTipL);
+  const torsoBase = dist(base.joints.pelvis, base.joints.chest);
+  const torsoOrb = dist(orb.joints.pelvis, orb.joints.chest);
+  assert.ok(armOrb < armBase * 0.35, `四肢没退化：${armBase.toFixed(2)} → ${armOrb.toFixed(2)}`);
+  assert.ok(torsoOrb > torsoBase * 1.8, `躯干没变大：${torsoBase.toFixed(2)} → ${torsoOrb.toFixed(2)}`);
+});
+
+test('比例 spec：arm / leg 可以分别叠加在 limb 之上', () => {
+  const base = human();
+  const longArms = remapSkeleton(base, { arm: 1.5, leg: 0.82 });
+  const a0 = dist(base.joints.shoulderL, base.joints.handTipL);
+  const a1 = dist(longArms.joints.shoulderL, longArms.joints.handTipL);
+  const l0 = dist(base.joints.hipL, base.joints.footIdxL);
+  const l1 = dist(longArms.joints.hipL, longArms.joints.footIdxL);
+  assert.ok(a1 > a0 * 1.4, `手臂没变长：${a0.toFixed(2)} → ${a1.toFixed(2)}`);
+  assert.ok(l1 < l0 * 0.9, `腿没变短：${l0.toFixed(2)} → ${l1.toFixed(2)}`);
+});
+
+test('比例 spec：全是 1 的 spec 等于不做（不白跑一趟）', () => {
+  const base = human();
+  const noop = remapSkeleton(base, { limb: 1, torso: 1 });
+  assert.equal(noop, base, '没有任何比例变化时应该原样返回');
+});
+
+test('拓扑 + 比例可以叠加，且顺序是先拓扑后比例', () => {
+  const base = human();
+  const q = remapSkeleton(base, 'quadruped');
+  const qSmall = remapSkeleton(base, { kind: 'quadruped', limb: 0.7 });
+  // 仍然是四足（躯干水平）
+  const trunk = dist(qSmall.joints.pelvis, qSmall.joints.chest);
+  const rise = Math.abs(qSmall.joints.chest[1] - qSmall.joints.pelvis[1]);
+  assert.ok(rise < trunk * 0.5, '叠加比例之后不再是四足了 —— 说明比例把拓扑冲掉了');
+  // 而且确实变小了
+  const legQ = dist(q.joints.hipL, q.joints.footIdxL);
+  const legS = dist(qSmall.joints.hipL, qSmall.joints.footIdxL);
+  assert.ok(legS < legQ * 0.85, `腿没变短：${legQ.toFixed(2)} → ${legS.toFixed(2)}`);
+});
+
+test('比例 spec 同样贴地、同样不产生 NaN', () => {
+  const specs = [
+    { limb: 0.2, torso: 2.2, head: 0.4 },
+    { arm: 1.5, leg: 0.82 },
+    { kind: 'quadruped', limb: 0.7 },
+    { head: 1.9 },
+  ];
+  for (const spec of specs) {
+    const out = remapSkeleton(human(), spec);
+    const y = lowestFoot(out);
+    assert.ok(Math.abs(y) < 1e-9, `${JSON.stringify(spec)} 没贴地: ${y}`);
+    for (const b of out.bones) assert.ok(b.p0.every(Number.isFinite) && b.p1.every(Number.isFinite));
+  }
+});
+
+test('未知 kind 按 rig 处理，但比例照常生效（外部数据可能带我们不认识的 plan）', () => {
+  const base = human();
+  const out = remapSkeleton(base, { kind: 'some-future-plan', torso: 1.5 });
+  const t0 = dist(base.joints.pelvis, base.joints.chest);
+  const t1 = dist(out.joints.pelvis, out.joints.chest);
+  assert.ok(t1 > t0 * 1.4, '未知拓扑时比例也该生效');
+});

@@ -13,6 +13,34 @@ export type BodyPlanId = 'rig' | 'quadruped' | 'towering' | 'stub' | 'inverted';
 
 export const BODY_PLANS: readonly BodyPlanId[] = ['rig', 'quadruped', 'towering', 'stub', 'inverted'];
 
+/**
+ * 参数化身体方案。
+ *
+ * 为什么需要它：光有拓扑（人形 / 四足）还不够 —— 23 个条目如果共用同一张身材表，
+ * 那它们仍然是"同一个身材换皮"。比例本身就是物种身份的一大半：
+ * 球是"巨大躯干 + 退化四肢"，桌宠是"大头 + 短身"，移动机械臂是"长臂"。
+ * 这些都不需要新素材，只需要几个数。
+ *
+ * `kind` 缺省 'rig' 时只改比例，不改拓扑；也可以和 'quadruped' 叠加。
+ */
+export interface BodyPlanSpec {
+  /** 拓扑。用 string 而不是 BodyPlanId 是故意的：parts.json 是外部数据，
+   *  里面可能出现我们还不认识的 plan —— 未知值按 'rig' 处理，不该让类型系统炸掉（P2）。 */
+  kind?: string;
+  /** 四肢整体缩放，1 = 不变 */
+  limb?: number;
+  /** 躯干缩放 */
+  torso?: number;
+  /** 头（neck→headCenter）缩放 */
+  head?: number;
+  /** 手臂额外缩放，叠在 limb 之上 */
+  arm?: number;
+  /** 腿额外缩放，叠在 limb 之上 */
+  leg?: number;
+}
+
+export type BodyPlan = BodyPlanId | BodyPlanSpec | string;
+
 // ── 工具 ────────────────────────────────────────────────────────────────────
 
 const J = (sk: Skeleton, n: string): Vec3 | null => {
@@ -134,16 +162,49 @@ function quadruped(sk: Skeleton): Skeleton {
 
 // ── 纯比例类重映射 ──────────────────────────────────────────────────────────
 
-/** 按比例改造：四肢缩放 limb、躯干缩放 torso，绕 pelvis 做 */
-function proportion(sk: Skeleton, limb: number, torso: number): Skeleton {
+/**
+ * 按比例改造，绕 pelvis 做。
+ *
+ * 注意这里是**逐链**缩放而不是整体缩放：手臂链从肩开始缩，腿链从胯开始缩，
+ * 头从颈开始缩。整体缩放会让四肢连着躯干一起飞出去，比例就不是比例了，是放大镜。
+ */
+function proportion(sk: Skeleton, spec: BodyPlanSpec): Skeleton {
   const root = J(sk, 'pelvis') ?? [0, 0, 0];
+  const torso = spec.torso ?? 1;
+  const limb = spec.limb ?? 1;
+  const armK = limb * (spec.arm ?? 1);
+  const legK = limb * (spec.leg ?? 1);
+  const headK = spec.head ?? 1;
+
   const out: Record<string, Vec3> = {};
-  const TORSO = new Set(['pelvis', 'chest', 'neck', 'headCenter', 'shoulderL', 'shoulderR', 'hipL', 'hipR']);
-  for (const k in sk.joints ?? {}) {
-    const p = sane(sk.joints[k]);
-    const k2 = TORSO.has(k) ? torso : limb;
-    out[k] = add(root, scale(sub(p, root), k2));
+  // 1) 躯干骨架（含肩胯颈）绕 pelvis 缩放
+  const TORSO = ['pelvis', 'chest', 'neck', 'shoulderL', 'shoulderR', 'hipL', 'hipR'];
+  for (const k of TORSO) {
+    const p = J(sk, k);
+    if (p) out[k] = add(root, scale(sub(p, root), torso));
   }
+  // 2) 头从 neck 出发单独缩
+  const neck = J(sk, 'neck'), head = J(sk, 'headCenter');
+  if (neck && head && out.neck) out.headCenter = add(out.neck, scale(sub(head, neck), headK));
+
+  // 3) 四肢：从新的肩/胯出发，沿原方向按各自系数长出来
+  const chains: [string, string[], number][] = [
+    ['shoulderL', ['shoulderL', 'elbowL', 'wristL', 'handTipL'], armK],
+    ['shoulderR', ['shoulderR', 'elbowR', 'wristR', 'handTipR'], armK],
+    ['hipL', ['hipL', 'kneeL', 'ankleL', 'footIdxL'], legK],
+    ['hipR', ['hipR', 'kneeR', 'ankleR', 'footIdxR'], legK],
+  ];
+  for (const [start, chain, k] of chains) {
+    let cursor = out[start];
+    for (let i = 0; i + 1 < chain.length; i++) {
+      const a = J(sk, chain[i]), b = J(sk, chain[i + 1]);
+      if (!a || !b || !cursor) { if (cursor) out[chain[i + 1]] = cursor; continue; }
+      cursor = add(cursor, scale(sub(b, a), k));
+      out[chain[i + 1]] = cursor;
+    }
+  }
+  // 兜底：没被算到的关节原样搬过来（P2：宁可不动，不要留空）
+  for (const kk in sk.joints ?? {}) if (!out[kk]) out[kk] = sane(sk.joints[kk]);
   return rebuild(sk, out);
 }
 
@@ -163,13 +224,39 @@ function inverted(sk: Skeleton): Skeleton {
 /**
  * 把人体骨架翻译成某个物种的身体。永不抛异常，未知 plan 按 'rig' 处理（P2）。
  */
-export function remapSkeleton(sk: Skeleton, plan: BodyPlanId | string = 'rig'): Skeleton {
+/** 预设：为了让常见的几种一句话能写出来 */
+const PRESETS: Record<string, BodyPlanSpec> = {
+  towering: { limb: 1.55, torso: 0.85 },
+  stub: { limb: 0.55, torso: 1.25, head: 1.2 },
+};
+
+const isSpec = (p: unknown): p is BodyPlanSpec =>
+  typeof p === 'object' && p !== null && !Array.isArray(p);
+
+/** 这个 spec 会不会真的改变比例？全是 1 就别白跑一趟 */
+const changesProportion = (s: BodyPlanSpec): boolean =>
+  [s.limb, s.torso, s.head, s.arm, s.leg].some((v) => v !== undefined && v !== 1);
+
+/**
+ * 把人体骨架翻译成某个物种的身体。永不抛异常，未知 plan 按 'rig' 处理（P2）。
+ *
+ * 顺序是固定的：**先改拓扑，再改比例**。反过来的话比例会被拓扑重映射冲掉 ——
+ * quadruped 会重新摆放所有插座，之前的缩放就白做了。
+ */
+export function remapSkeleton(sk: Skeleton, plan: BodyPlan = 'rig'): Skeleton {
   if (!sk || !Array.isArray(sk.bones) || !sk.bones.length) return sk;
-  switch (plan) {
-    case 'quadruped': return quadruped(sk);
-    case 'towering': return proportion(sk, 1.55, 0.85);
-    case 'stub': return proportion(sk, 0.55, 1.25);
-    case 'inverted': return inverted(sk);
-    default: return sk;                       // 'rig' 与任何未知值 = 恒等
+
+  const spec: BodyPlanSpec = isSpec(plan) ? plan : (PRESETS[plan] ?? { kind: plan as BodyPlanId });
+  const kind = spec.kind ?? (isSpec(plan) ? 'rig' : (PRESETS[plan] ? 'rig' : (plan as BodyPlanId)));
+
+  let out = sk;
+  switch (kind) {
+    case 'quadruped': out = quadruped(sk); break;
+    case 'inverted': out = inverted(sk); break;
+    case 'towering': out = proportion(sk, PRESETS.towering); break;
+    case 'stub': out = proportion(sk, PRESETS.stub); break;
+    default: break;                            // 'rig' 与任何未知值 = 不改拓扑
   }
+  if (changesProportion(spec) && kind !== 'towering' && kind !== 'stub') out = proportion(out, spec);
+  return out;
 }
