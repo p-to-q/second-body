@@ -44,9 +44,10 @@
 |---|---|---|
 | Vite + `three/webgpu` 渲染栈 | `stable` | `/dev/parts.html` 在 WebGPU 下正常出图 |
 | 主程序 `src/main.ts` | `stub` | 只有一行 console.log |
-| 摄像头采集 / MediaPipe | `spec-only` | T-01 |
+| 摄像头采集 / MediaPipe（`src/capture/webcam.ts`） | `experimental` | 整条路跑通但**没见过真人**：headless Chrome + `--use-fake-device-for-media-stream` 下 GPU delegate 起来、wasm 与两个模型加载、mask 产出、`latest()` 不抛也不阻塞（`scratch/evidence/capture-webcam-fakecam.png`）；权限被拒时不白屏且 `lastError=NotAllowedError`（`capture-permission-denied.png`）。**fps ≥ 30 未验证**（headless 软件渲染只有个位数），U1/U2 未实测 |
+| `/dev/capture.html` 调试页（33 点叠加 + fps/推理 Hz/置信度 + world xyz 量程/抖动） | `stable` | `scratch/evidence/capture-replay-demo.png`：33 点在位，fps 59 / 推理 31Hz |
 | Creature / Stage / 后期 | `spec-only` | T-07 / T-09 |
-| `?demo=1` 回放 | `spec-only` | T-16。**现场兜底依赖它，不能一直是 spec-only** |
+| `?demo=1` 回放（`src/capture/replay.ts`） | `experimental` | 与 `WebcamCapture` 同接口、可直接互换，`capture-replay-demo.png` 是它在播。**播的是合成占位数据** `assets/demo/pose-synthetic.json`（程序生成，不是录制）—— 真录制仍欠 T-16，现场兜底在那之前不算数 |
 | 慢回路（代理 + 热插拔） | `spec-only` | T-17 |
 | 开场选择页（dither 轮播） | `spec-only` | T-18。上游代码 MIT 可用，其 `public/` 素材不可用 |
 | Web 部署（Vercel + serverless 慢回路） | `spec-only` | T-19，检查单在 `docs/13` §6 |

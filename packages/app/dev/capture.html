@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh">
+<head><meta charset="utf-8"><title>Capture debug</title>
+<style>
+ html,body{margin:0;height:100%;background:#0b0b0c;overflow:hidden;font:12px ui-monospace,monospace;color:#9aa}
+ #wrap{position:fixed;inset:0}
+ video,canvas{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:contain}
+ video{background:#000}
+ #hud{position:fixed;left:10px;top:8px;z-index:3;white-space:pre;line-height:1.55;
+      width:max-content;text-shadow:0 1px 2px #000;pointer-events:none}
+ #hud b{color:#dfe6ef;font-weight:600}
+ #hud .warn{color:#e8a33d}
+ #hud .bad{color:#e8564a}
+ #axes{position:fixed;right:10px;top:8px;z-index:3;white-space:pre;line-height:1.55;
+       width:max-content;text-shadow:0 1px 2px #000;text-align:left}
+ #help{position:fixed;left:10px;bottom:8px;z-index:3;color:#667;white-space:pre;line-height:1.5}
+</style></head>
+<body>
+<div id="wrap"><video id="cam" playsinline muted></video><canvas id="ov"></canvas></div>
+<div id="hud">启动中…</div>
+<div id="axes"></div>
+<div id="help">R = 清空量程统计 ｜ ?demo=1 = 回放 ｜ ?clip=/demo/xxx.json = 指定回放文件</div>
+<script type="module" src="./capture.ts"></script>
+</body>
+</html>
