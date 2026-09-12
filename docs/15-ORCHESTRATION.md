@@ -1,164 +1,215 @@
-# 15 · Orchestration —— 并行推进的规则
+# 15 · Orchestration — the rules for running lines in parallel
 
-> 主线是**代码底座**，由多个子代理在各自 worktree 分支上推。
-> 素材工厂是**侧线**，在主目录跑（二进制大文件不适合分支合并）。
-> 这份文档是编排者的台账：谁在改什么、按什么顺序合、冲突怎么处理。
+> Originally written in Chinese. **This English text is now the source of truth**;
+> the Chinese version has been superseded rather than kept alongside it. The old
+> wording is recoverable from git history.
 
-## 1. 泳道
+> The main effort is the **code base**, pushed by several sub-agents on their own
+> worktree branches. The asset factory is a **side line** running in the main
+> working directory (large binaries do not merge well across branches).
+> This document is the orchestrator's ledger: who is changing what, in what order
+> it merges, and how conflicts get handled.
 
-| 线 | 分支 | 归属文件 | 卡 |
+## 1. Lanes
+
+| Line | Branch | Files it owns | Card |
 |---|---|---|---|
-| 主线 A · 采集 | worktree | `packages/app/src/capture/**`、`dev/capture.html` | T-01（顺带解 U1/U2） |
-| 主线 B · 骨架 | worktree | `packages/core/src/{skeleton,stabilize}.ts` + 对应测试 | T-02 / T-04 |
-| 主线 C · 运动 | worktree | `packages/core/src/motion.ts` + 测试 | T-06 |
-| 主线 D · 装配 | worktree | `packages/app/src/{assets,creature}/**`、`dev/figure.ts` | T-07 |
-| 主线 E · 选择页 | worktree | `packages/app/src/{choose,vendor}/**`、`dev/choose.html` | T-18 |
-| 侧线 F · 素材 | **主目录** | `assets/**`、`packages/factory/**` | T-13 + 新物种生成 |
+| Main A · capture | worktree | `packages/app/src/capture/**`, `dev/capture.html` | T-01 (resolves U1/U2 along the way) |
+| Main B · rig | worktree | `packages/core/src/{skeleton,stabilize}.ts` + tests | T-02 / T-04 |
+| Main C · motion | worktree | `packages/core/src/motion.ts` + tests | T-06 |
+| Main D · assembly | worktree | `packages/app/src/{assets,creature}/**`, `dev/figure.ts` | T-07 |
+| Main E · chooser | worktree | `packages/app/src/{choose,vendor}/**`, `dev/choose.html` | T-18 |
+| Side F · assets | **main working directory** | `assets/**`, `packages/factory/**` | T-13 + new species |
 
-## 2. 三条硬规则
+## 2. Three hard rules
 
-1. **冻结契约谁都不许改**：`packages/core/src/types.ts`、`tuning.ts`、`docs/03`、`docs/04`。
-   需要改就**停下来报告**"需要变更契约：<原因>"，由编排者统一改并广播。
-   唯一例外：主线 A 可以改 `docs/04 §1` 的轴向表，因为那是它实测出来的结论。
-2. **`packages/core/src/index.ts` 谁都不许动。** 它是唯一会被多条线同时碰到的文件，
-   由编排者在合并时统一补导出。这条规则让 5 条线的冲突面降到接近 0。
-3. **泳道外的文件不要顺手改。** 看到别处有 bug，写进收尾报告，不要动手。
+1. **Nobody touches a frozen contract**: `packages/core/src/types.ts`,
+   `tuning.ts`, `docs/03`, `docs/04`. If you need one changed, **stop and
+   report** `contract change needed: <reason>`; the orchestrator makes the change
+   once and broadcasts it. The single exception: main line A may edit the axis
+   table in `docs/04` §1, because that table is A's own measured result.
+2. **Nobody touches `packages/core/src/index.ts`.** It is the one file every line
+   would otherwise reach for; the orchestrator adds the exports at merge time.
+   This rule alone drops the conflict surface across five lines to nearly zero.
+3. **Do not fix things outside your lane on the way past.** See a bug elsewhere,
+   write it into your closing report; do not touch it.
 
-## 3. 合并顺序
+## 3. Merge order
 
 ```
-F 素材   ── 随时合，它只动 assets/ 和 factory/，和谁都不冲突
-B 骨架 ─┐
-C 运动 ─┼─→ 先合 core（B、C 只碰各自的文件）
-        │
-A 采集 ─┼─→ 再合 app 里互不重叠的三条（A / D / E）
-D 装配 ─┤
-E 选择页┘
-        └─→ 最后由编排者补 core/index.ts 的导出，跑一次 npm run check
+F assets  ── merge any time; it only touches assets/ and factory/, and conflicts with nobody
+B rig   ─┐
+C motion ┼─→ merge core first (B and C touch only their own files)
+         │
+A capture┼─→ then the three non-overlapping app lines (A / D / E)
+D assembly┤
+E chooser┘
+         └─→ finally the orchestrator adds the core/index.ts exports and runs npm run check once
 ```
 
-每条线合进来之前必须自己 `npm run check` 通过。合完再整体跑一次。
+Every line runs `npm run check` itself before merging in. Run it once more over
+the whole tree afterwards.
 
-## 4. 合并后才能做的事（依赖已经排好）
+## 4. Work that can only happen after merging (dependencies already ordered)
 
-- `T-09 Stage`（灯光/后期）依赖 D 装配
-- `T-16 kiosk + ?demo=1 回放` 依赖 A 采集
-- `T-17 慢回路` 依赖 D 装配（热插拔）+ F 素材（anchor 图要一起送进生成）
-- **主程序 `src/main.ts` 的组装**依赖 A+B+C+D+E 全部合完 —— 这是编排者的活，不发给子代理：
-  一帧的顺序在 `docs/06 §1` 已经写死了，照抄即可。
+- `T-09 Stage` (lighting / post) depends on D assembly
+- `T-16 kiosk + ?demo=1 replay` depends on A capture
+- `T-17 slow loop` depends on D assembly (hot swap) + F assets (the anchor image
+  has to be sent along with the generation request)
+- **Assembling the main program `packages/app/src/main.ts`** depends on A+B+C+D+E
+  all being merged. This is the orchestrator's own job, not a sub-agent's: the
+  order of operations within one frame is already fixed in `docs/06` §1, and it
+  just has to be followed.
 
-## 5. 收尾报告格式（所有线统一）
+## 5. Closing-report format (identical for every line)
 
 ```
 Status:     done / partial / blocked
-Scope:      改了什么
-Validation: 跑过的确切命令；没跑的写 Not run 加理由
-Risks:      可能还不对的地方
-Next:       一个具体的下一步
+Scope:      what changed
+Validation: the exact commands you ran; for anything you did not run, write Not run plus the reason
+Risks:      what might still be wrong
+Next:       one concrete next step
 ```
 
-**跑过才能说通过。** 没跑的检查写 `Not run` 加理由是完整的答案；说"应该能跑"不是。
+**You may only call something passing if you ran it.** A check written as
+`Not run`, with a reason, is a complete answer; "it should work" is not.
 
-## 6. 踩过的坑（编排者的错，记下来别再犯）
+## 6. Traps we fell into (the orchestrator's own mistakes, written down so they stop recurring)
 
-### 6.1 `pgrep -f "<字符串>"` 会匹配到等待自己的那条 shell
+### 6.1 `pgrep -f "<string>"` matches the very shell that is waiting on it
+
 ```bash
-until ! pgrep -f "cli.ts generate" >/dev/null; do sleep 10; done   # ❌ 永远不退出
+until ! pgrep -f "cli.ts generate" >/dev/null; do sleep 10; done   # ❌ never exits
 ```
-等待用的 shell 自己的命令行里就含 `cli.ts generate` 这个字符串，`pgrep -f` 匹配到自己。
-实际后果：两个代理各挂了 32 分钟和 26 分钟。正确写法：
+
+The waiting shell's own command line contains the string `cli.ts generate`, so
+`pgrep -f` matches itself. Real cost: two agents hung for 32 and 26 minutes. The
+correct forms:
+
 ```bash
-until ! pgrep -f "[c]li.ts generate" >/dev/null; do sleep 10; done  # ✅ 方括号骗过自身匹配
-# 或者按可执行文件过滤：ps -eo comm=,args= | awk '$1=="node" && /cli\.ts generate/'
+until ! pgrep -f "[c]li.ts generate" >/dev/null; do sleep 10; done  # ✅ the bracket defeats the self-match
+# or filter by executable: ps -eo comm=,args= | awk '$1=="node" && /cli\.ts generate/'
 ```
 
-### 6.2 两个代理共用一个工作目录 → git index 竞争
-素材线在主目录工作（二进制不适合分支合并），我又在同一个目录提交，
-结果它 `git add` 之后、`git commit` 之前被我的提交把 106 个文件一并带走了。
-文件没丢，但挂在了别人的信息下。
-**规则**：同一目录里同时只能有一个写者。不得已时用
-`git commit -o <pathspec>`（只提交指定路径，绕开共享 index）。
+### 6.2 Two agents sharing one working directory → a race on the git index
 
-### 6.3 多个 worktree 各自起 dev server，端口会串
-文档里写死 `5173`，但那个端口可能被另一个 worktree 占着；
-落到 5174 的服务读的是**那个 worktree 的 `assets/`**，而 worktree 里
-`assets/raw/` 是空的（被 gitignore）。写回类的中间件会把文件写进错误的目录。
-**规则**：任务卡里凡是要开 dev server 的，都必须先确认端口对应的是哪个目录。
+The asset line works in the main directory (binaries do not suit branch merges)
+and the orchestrator committed from that same directory. The result: after the
+asset line's `git add` but before its `git commit`, the orchestrator's commit
+swept up all 106 of its files. Nothing was lost, but the work was filed under
+someone else's name.
 
-### 6.4 代理 rebase 到"正在移动的 main"上，会暂存出删除冻结契约的变更
+**Rule**: one writer at a time per directory. When that is unavoidable, use
+`git commit -o <pathspec>` — it commits only the named paths and sidesteps the
+shared index.
 
-T-16 在整理提交时用了 `git reset --soft main`。而在它工作期间，
-编排者往 main 上落了一个新提交（A 档身体方案）。
-于是它的暂存区一度显示：**要删掉 `packages/core/src/bodyplan.ts`、
-并从冻结契约 `types.ts` 里移除 `bodyPlan` 字段**。
+### 6.3 Several worktrees each starting a dev server → the ports drift
 
-它没有提交那个状态，退回旧基线重做再 rebase —— 这是对的，而且它主动报了上来。
-但换一个不够警觉的代理，这一步会**静默删掉别人刚落地的东西**。
+The docs hard-code `5173`, but that port may already be held by another
+worktree. A server that lands on 5174 is reading **that worktree's** `assets/`,
+and inside a worktree `assets/raw/` is empty (it is gitignored). Any write-back
+middleware then writes files into the wrong directory.
 
-**规则**：
-- 代理整理提交时不要用 `git reset --soft main`（main 会动）。
-  用 `git reset --soft <自己分支的起点 sha>`，那个 sha 是不动的。
-- 提交前一律 `git diff --cached --stat` 看一眼：**出现自己泳道以外的文件就是错的**，
-  尤其是 `packages/core/src/types.ts` / `tuning.ts` 这两个冻结契约。
-- 编排者在有代理在跑时往 main 落提交，要意识到这会让所有分支的"相对 main"含义发生变化。
+**Rule**: any task card that starts a dev server must first confirm which
+directory the port actually corresponds to.
 
-### 6.5 任务卡里引用的文件，必须是**已提交**的文件
+### 6.4 An agent rebasing onto a *moving* `main` will stage the deletion of frozen contracts
 
-给 mass 那条线写的任务卡里有两处假前提：
-- "读 `docs/22-RESEARCH-procedural-bodies.md`，里面有可照抄的骨架和实测数字" ——
-  那份文档当时还是 untracked，worktree 是从提交分出去的，里面根本没有。
-- "读 `AGENTS.md`（尤其新加的 §craft 和 §plan）" —— 那两节在 `docs/02`，不在 `AGENTS.md`。
+T-16 used `git reset --soft main` while tidying its commits. During its run, the
+orchestrator had landed a new commit on `main` (the tier-A body plans). So for a
+moment its staging area read: **delete `packages/core/src/bodyplan.ts`, and
+remove the `bodyPlan` field from the frozen contract `types.ts`.**
 
-代理如实报了上来（"这两个前提是假的，所有数字是我自己测的"），没有假装读过。
-但它因此白花了一轮去重新调研。
+It did not commit that state — it went back to its old baseline, redid the work,
+and rebased, which was right, and it raised the issue itself. But a less alert
+agent would have **silently deleted something another line had just landed**.
 
-**规则**：发任务卡之前跑一次
+**Rules**:
+- When tidying commits, do not use `git reset --soft main` — `main` moves. Use
+  `git reset --soft <the sha your branch started from>`; that sha does not move.
+- Before committing, always run `git diff --cached --stat`: **any file outside
+  your own lane is a mistake**, and `packages/core/src/types.ts` and `tuning.ts`
+  above all.
+- An orchestrator landing commits on `main` while agents are running must realise
+  this changes what "relative to main" means on every branch.
+
+### 6.5 A file named in a task card has to be a file that is already **committed**
+
+The card written for the `mass` line contained two false premises:
+
+- "Read `docs/22-RESEARCH-procedural-bodies.md`, it has a skeleton you can copy
+  and measured numbers" — that document was still untracked at the time, and the
+  worktree had been branched from a commit, so it simply was not there.
+- "Read `AGENTS.md`, especially the new §craft and §plan" — those two sections
+  are in `docs/02`, not in `AGENTS.md`.
+
+The agent reported this honestly ("both premises are false; every number here is
+one I measured myself") rather than pretending to have read them. But it burned a
+round re-doing the research.
+
+**Rule**: before dispatching a card, run
+
 ```bash
-git status --porcelain docs/ packages/    # 有 ?? 就是还没提交
+git status --porcelain docs/ packages/    # a `??` means it is not committed yet
 ```
-凡是卡里点名要读的路径，都要确认它在 **worktree 能看到的那个提交**里。
-worktree 看不见你工作区里没提交的东西 —— 这一点很容易忘。
 
-**第二次踩，规则不够用**：`/making` 那条线报"`docs/26` 在仓库里不存在"，
-而我在主干上看得见它。查出来是时间差 —— worktree 从 `028513e`（23:28）分出去，
-`docs/26` 在 `e5b098e`（23:32）才落地，晚了四分钟。文件**是**提交了的，
-只是提交在派单之后。
+and confirm that every path the card names exists in **the commit the worktree
+can see**. A worktree cannot see what is sitting uncommitted in your working
+directory — which is very easy to forget.
 
-所以 `git status --porcelain` 不是判据，判据是**派单那一刻的 HEAD**：
+**Second occurrence; the rule was not enough.** The `/making` line reported that
+`docs/26` did not exist in the repository, while it was plainly visible on the
+trunk. The cause was a timing gap: the worktree was branched from `028513e`
+(23:28) and `docs/26` landed in `e5b098e` (23:32), four minutes later. The file
+*was* committed — the commit just happened after the card was dispatched.
+
+So `git status --porcelain` is not the test. The test is **HEAD at the moment of
+dispatch**:
+
 ```bash
-git log -1 --format=%h -- <卡里点名的每个路径>   # 这个提交必须是 HEAD 的祖先
-```
-顺序上只有一条：**先提交，再派单**，中间不要插别的活。
-
-**第三次踩。规矩改成硬的：任务卡开头必须带一段自检。**
-
-前两次我以为是"先提交再派单"就能解决，第三次证明不是 —— 声音音效那条线的 worktree
-基线停在 `9e2ed4b`，而合成声音层在 `f4fa630` 就已经合进 main 了。我派单时主干上明明有，
-它那边就是没有。worktree 从哪个提交分出去，不一定是我以为的那个。
-
-所以判据不能再是"我这边看得见"，必须是**代理自己在它那边验一遍**。
-从现在起，每张任务卡的第一段都写成这样：
-
-```
-## 先做一件事：确认基线
-<把卡里点名要读的路径、导出、符号，写成三到五条可执行的检查>
-**任何一条不成立，立刻停下来报告，不要开工。**
+git log -1 --format=%h -- <every path the card names>   # this commit must be an ancestor of HEAD
 ```
 
-代价对比很清楚：自检花代理三十秒；不自检，它要么白跑一轮（两次），
-要么在没有地基的情况下自己造一套平行地基（第三次差点发生，
-那会变成两个 AudioContext、两套静音、两个靶场页）。
+On ordering there is exactly one rule: **commit first, dispatch second**, with
+nothing in between.
 
-顺带说一句：那条线**停下来报告**是对的。AGENTS.md 写着"触及冻结契约或需要越界时停下来报告"，
-它照做了，而且把不依赖地基的那部分（事件清单）做完交了出来。
-重派时把那份清单带进新卡里，工作一点没白做。
-代价不是白跑一轮 —— 是那条线会在没有立意来源的情况下自己推一套，
-交回来的东西看着完整，实际对不上标准。这种错比报错难发现得多。
+**Third occurrence. The rule becomes hard: every task card opens with a
+self-check.**
 
-## 7. 编排者自己的清单
+After the first two I thought "commit before dispatching" was the fix. The third
+proved it was not. The sound-effects line's worktree baseline sat at `9e2ed4b`,
+while the synthesised sound layer had already merged into `main` at `f4fa630`.
+It was unmistakably on the trunk when I dispatched, and unmistakably absent on
+its side. **The commit a worktree was branched from is not necessarily the one
+you assume.**
 
-- [ ] 每条线回来先看 Validation 那一栏，再看 diff
-- [ ] 合完补 `core/index.ts` 导出，整体 `npm run check`
-- [ ] 更新 `docs/10-SURFACES.md`（唯一可信状态表）
-- [ ] 契约变更请求统一处理并广播给还在跑的线
-- [ ] 组装 `src/main.ts`，按 `docs/06 §1` 的一帧顺序
+So the test can no longer be "I can see it from here". It has to be **the agent
+verifying it on its own side**. From now on, every task card opens like this:
+
+```
+## First, one thing: confirm the baseline
+<three to five executable checks covering the paths, exports and symbols the card names>
+**If any one of them fails, stop and report immediately. Do not start work.**
+```
+
+The trade is plain: the self-check costs the agent thirty seconds. Skipping it
+costs either a wasted round (twice) or an agent building a second, parallel
+foundation because it could not see the first (nearly the third time — which
+would have meant two AudioContexts, two mute paths, two test pages).
+
+Worth adding: that line **stopping to report was correct**. `AGENTS.md` says to
+stop and report when you touch a frozen contract or need to go outside your lane,
+and it did, delivering the part that did not depend on the missing foundation
+(the event list). Re-dispatching carried that list into the new card, so none of
+the work was lost. The real cost is not the wasted round — it is that a line with
+no source for its intent will invent one, and what comes back looks complete
+while failing to match the standard. That kind of error is far harder to spot
+than an error message.
+
+## 7. The orchestrator's own checklist
+
+- [ ] For every line that returns, read the Validation section first, the diff second
+- [ ] After merging, add the `core/index.ts` exports and run `npm run check` over everything
+- [ ] Update `docs/10-SURFACES.md` (the only trustworthy status table)
+- [ ] Handle contract-change requests centrally and broadcast them to the lines still running
+- [ ] Assemble `packages/app/src/main.ts`, following the per-frame order in `docs/06` §1
