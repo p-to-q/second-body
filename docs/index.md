@@ -24,6 +24,7 @@
 | `08-OPEN-SOURCE-BASE.md` | 开源底座清单与取舍、Plan B |
 | `18-BODY-PLANS.md` | **头号设计缺陷**（物种雷同）的诊断与两档解法 |
 | `19/20/22-RESEARCH-*.md` | 调研：形体重定向 / 渲染性能与缓存 / 程序化身体表达 |
+| `24-RESEARCH-mocap.md` | 调研：MediaPipe Pose 精度 —— 上游弱点、可移植的后处理、换档取舍 |
 | `09-RISKS-AND-UNKNOWNS.md` | 不确定性登记册 + 现场风险 |
 | `13-DEPLOY.md` | 现场形态 vs 网页形态、Vercel、体积与隐私 |
 

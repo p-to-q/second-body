@@ -21,6 +21,7 @@ import { FilesetResolver, ImageSegmenter, PoseLandmarker } from '@mediapipe/task
 import type { Landmark, RawPose } from '../../../core/src/types.ts';
 import { CAPTURE } from '../../../core/src/tuning.ts';
 import { notePresence } from '../shell/idle.ts';
+import { readFlags, type PoseModel } from '../shell/kiosk.ts';
 import type { Capture } from './capture.ts';
 
 // 本地 wasm：打包进产物，现场断网也能起（Vite 把它们当静态资源发出去）
@@ -35,15 +36,32 @@ const CDN_WASM = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/was
  * 没有就回落到 Google 的模型 CDN。
  */
 const MODELS = {
-  pose: {
-    local: '/models/pose_landmarker_lite.task',
-    cdn: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task',
-  },
   segmenter: {
     local: '/models/selfie_segmenter.tflite',
     cdn: 'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite',
   },
 };
+
+/**
+ * 三个档位的姿态模型（`?model=lite|full|heavy`，docs/24 §3）。
+ * 官方 model card 的实测差：lite→full 的 3D MAE 45mm→39mm、PDJ +4 点，GPU 代价约 +20%；
+ * heavy 再好一点但 GPU 帧率掉到约一半。默认仍是 lite —— 现场机器的余量还没压测过（U9）。
+ *
+ * **换档是一个 URL 参数，不是一次重新构建**：逆光把 lite 打崩时，现场只能靠这个。
+ */
+const POSE_MODEL_FILES = {
+  lite: 'pose_landmarker_lite',
+  full: 'pose_landmarker_full',
+  heavy: 'pose_landmarker_heavy',
+} as const;
+
+function poseModelSource(which: PoseModel): { local: string; cdn: string } {
+  const base = POSE_MODEL_FILES[which] ?? POSE_MODEL_FILES.lite;
+  return {
+    local: `/models/${base}.task`,
+    cdn: `https://storage.googleapis.com/mediapipe-models/pose_landmarker/${base}/float16/latest/${base}.task`,
+  };
+}
 
 /**
  * 每多少个推理 tick 抠一次图。mask 只给慢回路用（docs/06 §5），
@@ -74,8 +92,11 @@ export class WebcamCapture implements Capture {
 
   /** 起来之后用的是哪条路，dev 页面拿来显示 */
   backend: 'GPU' | 'CPU' | null = null;
+  /** 实际加载的姿态模型档位（`?model=`；没指定就是默认档） */
+  readonly model: PoseModel;
 
-  constructor(video?: HTMLVideoElement) {
+  constructor(video?: HTMLVideoElement, model?: PoseModel) {
+    this.model = model ?? readFlags().model ?? 'lite';
     this.video = video ?? document.createElement('video');
     this.video.playsInline = true;
     this.video.muted = true;
@@ -135,7 +156,7 @@ export class WebcamCapture implements Capture {
   }
 
   async #openModels(): Promise<void> {
-    const poseModel = await resolveModel(MODELS.pose);
+    const poseModel = await resolveModel(poseModelSource(this.model));
 
     // wasm：先本地，失败再 CDN
     let fileset: Awaited<ReturnType<typeof FilesetResolver.forVisionTasks>>;

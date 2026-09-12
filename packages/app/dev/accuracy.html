@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh">
+<head><meta charset="utf-8"><title>Accuracy bench</title>
+<style>
+ :root{--bg:#0b0b0c;--fg:#9aa;--hi:#dfe6ef;--good:#5fbf7f;--warn:#e8a33d;--bad:#e8564a;--dim:#556}
+ html,body{margin:0;height:100%;background:var(--bg);overflow:hidden;
+           font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--fg)}
+ #grid{position:fixed;inset:0;display:grid;grid-template-columns:340px 1fr;grid-template-rows:1fr auto}
+ #left{grid-row:1/3;border-right:1px solid #1c1c20;padding:10px;overflow:auto}
+ #right{padding:10px;overflow:auto}
+ #bottom{grid-column:2;border-top:1px solid #1c1c20;padding:8px 10px;color:var(--dim)}
+ #cam{width:100%;background:#000;border:1px solid #1c1c20;display:block}
+ h2{font:600 11px/1.6 inherit;color:var(--hi);margin:14px 0 4px;letter-spacing:.06em;text-transform:uppercase}
+ h2:first-child{margin-top:0}
+ pre{margin:0;white-space:pre;font:inherit}
+ table{border-collapse:collapse;font:inherit}
+ th,td{padding:1px 8px 1px 0;text-align:right;white-space:nowrap}
+ th:first-child,td:first-child{text-align:left}
+ th{color:var(--dim);font-weight:400;border-bottom:1px solid #1c1c20}
+ .A{color:#8fa8c8}.B{color:#c8b48f}.C{color:#8fc8a8}
+ .good{color:var(--good)}.warn{color:var(--warn)}.bad{color:var(--bad)}.dim{color:var(--dim)}
+ .hi{color:var(--hi)}
+ #unmeasurable{border:1px solid #4a2a22;background:#170f0d;padding:8px 10px;margin-top:12px}
+ #unmeasurable h2{color:var(--bad);margin-top:0}
+ button{font:inherit;color:var(--hi);background:#17171a;border:1px solid #2a2a30;
+        padding:3px 10px;margin:0 6px 6px 0;cursor:pointer}
+ button:hover{background:#202026}
+ button[disabled]{color:var(--dim);cursor:default}
+ #banner{color:var(--warn)}
+</style></head>
+<body>
+<div id="grid">
+  <div id="left">
+    <h2>输入</h2>
+    <video id="cam" playsinline muted></video>
+    <pre id="src">启动中…</pre>
+    <h2>录制 / 回放</h2>
+    <div>
+      <button id="load">⇪ 载入片段</button><button id="rec">● 录 10s</button><button id="run" disabled>⟲ 三路重跑</button><button id="dl" disabled>⇩ 存 JSON</button>
+    </div>
+    <pre id="recinfo" class="dim">还没有缓冲。「⇪ 载入片段」直接读 /demo/ 的片段离线跑（页面不可见时
+rAF 被掐到 1Hz，实时数字会全是 0 —— 那不是"很稳"，是没有数据）。</pre>
+    <div id="unmeasurable"></div>
+  </div>
+  <div id="right">
+    <pre id="banner"></pre>
+    <h2>三路并排（实时窗口 1s）</h2>
+    <div id="agg"></div>
+    <h2>逐关节</h2>
+    <div id="joints"></div>
+    <h2>骨长稳定性</h2>
+    <div id="bones"></div>
+    <h2>离线重跑（同一段输入，全片统计）</h2>
+    <pre id="offline" class="dim">按「⟲ 三路重跑」。</pre>
+  </div>
+  <div id="bottom">
+    A 原始 = mediapipeToWorld+buildSkeleton ｜ B 现有 = A+骨长稳定化（= main.ts 今天跑的）
+    ｜ C 新 = 分组 One-Euro+遮挡补全+质量兜底 → B → 最小折叠角
+    &nbsp;&nbsp;R = 清统计 ｜ ?demo=1 回放 ｜ ?clip=xxx 指定片段 ｜ ?model=lite|full|heavy 换档
+  </div>
+</div>
+<script type="module" src="./accuracy.ts"></script>
+</body>
+</html>
