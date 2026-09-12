@@ -27,13 +27,17 @@ const DEBUG = qs.get('debug') === '1';
 const BODY_HEIGHT = SKELETON.referenceHeight;
 
 // ── 合成 A-pose 骨架（米，Y-up，面朝 +Z；左侧在 +X，与镜像后的世界一致） ──────────
-const J: Record<string, Vec3> = {
+const J0_SRC: Record<string, Vec3> = {
   pelvis: [0, 0.95, 0], chest: [0, 1.35, 0], neck: [0, 1.45, 0], headCenter: [0, 1.60, 0],
   shoulderL: [0.19, 1.38, 0], elbowL: [0.36, 1.10, 0.02], wristL: [0.47, 0.86, 0.04], handTipL: [0.51, 0.76, 0.05],
   shoulderR: [-0.19, 1.38, 0], elbowR: [-0.36, 1.10, 0.02], wristR: [-0.47, 0.86, 0.04], handTipR: [-0.51, 0.76, 0.05],
   hipL: [0.09, 0.93, 0], kneeL: [0.10, 0.51, 0.01], ankleL: [0.10, 0.09, 0], footIdxL: [0.10, 0.03, 0.16],
   hipR: [-0.09, 0.93, 0], kneeR: [-0.10, 0.51, 0.01], ankleR: [-0.10, 0.09, 0], footIdxR: [-0.10, 0.03, 0.16],
 };
+/** J 是每帧被重映射结果覆盖的工作副本；J0 是原始人体姿态，永不修改 */
+const J0: Record<string, Vec3> = { ...J0_SRC };
+const J: Record<string, Vec3> = { ...J0_SRC };
+
 const BONE_JOINTS: Record<BoneId, [string, string]> = {
   spine: ['pelvis', 'chest'], neck: ['chest', 'neck'], head: ['neck', 'headCenter'],
   clavicleL: ['chest', 'shoulderL'], clavicleR: ['chest', 'shoulderR'],
@@ -44,7 +48,13 @@ const BONE_JOINTS: Record<BoneId, [string, string]> = {
   shinL: ['kneeL', 'ankleL'], shinR: ['kneeR', 'ankleR'],
   footL: ['ankleL', 'footIdxL'], footR: ['ankleR', 'footIdxR'],
 };
-const PLAN = new URLSearchParams(location.search).get('plan') ?? 'rig';
+const QS = new URLSearchParams(location.search);
+/**
+ * 身体方案优先级：?plan= 覆盖 > 条目自己声明的 > 'rig'。
+ * 和 main.ts 同一套优先级 —— dev 页和运行时对同一个条目必须看到同一具身体，
+ * 否则在这里调好的东西到现场就不是那样。
+ */
+const PLAN_OVERRIDE = QS.get('plan');
 
 const bonesRaw: Bone[] = ALL_BONE_IDS.map((id) => {
   const [a, b] = BONE_JOINTS[id];
@@ -52,13 +62,8 @@ const bonesRaw: Bone[] = ALL_BONE_IDS.map((id) => {
   return { id, p0, p1, length: Math.hypot(p1[0]-p0[0], p1[1]-p0[1], p1[2]-p0[2]), roll: 0, confidence: 1 };
 });
 
-// 身体方案（docs/18）：?plan=quadruped 看重映射后的形体
-const remapped = remapSkeleton(
-  { bones: bonesRaw, joints: J, height: 1.7, warmingUp: false, t: 0 },
-  PLAN,
-);
-const bones: Bone[] = remapped.bones;
-Object.assign(J, remapped.joints);
+// 身体方案在 index 载入后才知道（条目自己声明的），先占位，下面立刻重算
+let bones: Bone[] = bonesRaw;
 const skeleton: Skeleton = { bones, joints: J, height: BODY_HEIGHT, warmingUp: false, t: 0 };
 // dev 页面永远"在场"：不做进出场动画，免得截图时抓到半透明的中间态
 const presence: Presence = { state: 'ALIVE', elapsed: 999, transition: 1 };
@@ -71,6 +76,12 @@ renderer.setSize(innerWidth, innerHeight);
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 document.body.appendChild(renderer.domElement);
 const camera = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 0.05, 50);
+
+// 相机拟合的状态必须声明在 rebuild() 之前 —— rebuild 里会调 fitCamera()，
+// 而顶层的 `await rebuild()` 比这几行更早执行过一次，声明在后面会踩 TDZ。
+let camDist = 3;
+let center: [number, number, number] = [0, 0.9, 0];
+let span = 1.7;
 scene.add(new THREE.HemisphereLight(0xdfe6ef, 0x1a1b20, 1.3));
 const key = new THREE.DirectionalLight(0xffffff, 2.4); key.position.set(2, 3.5, 3); scene.add(key);
 const rim = new THREE.DirectionalLight(0x8fb4d8, 1.2); rim.position.set(-2.5, 1.5, -2); scene.add(rim);
@@ -108,11 +119,39 @@ let tier = Math.min(3, Math.max(0, asInt(qs.get('tier'), 2))) as Tier;
 let themeIdx = Math.max(0, themes.indexOf(qs.get('theme') ?? themes[0]));
 let genome: Genome = makeGenome(seed, tier, library.index, { theme: themes[themeIdx] });
 
+/**
+ * 身体方案优先级：`?plan=` 覆盖 > 条目自己声明的 > 'rig'。
+ * 和 main.ts 同一套优先级 —— dev 页和运行时对同一个条目必须看到同一具身体，
+ * 否则在这里调好的东西到现场就不是那样。
+ */
+let planLabel = 'rig';
+function applyPlan(themeId: string) {
+  const def = library.index.themes?.find((t) => t.id === themeId);
+  const plan = PLAN_OVERRIDE ?? def?.bodyPlan ?? 'rig';
+  const r = remapSkeleton(
+    { bones: bonesRaw, joints: { ...J0 }, height: BODY_HEIGHT, warmingUp: false, t: 0 },
+    plan,
+  );
+  bones = r.bones;
+  skeleton.bones = r.bones;
+  for (const k in J) delete J[k];
+  Object.assign(J, r.joints);
+  planLabel = typeof plan === 'string' ? plan : `${plan.kind ?? 'rig'}+比例`;
+}
+
 async function rebuild() {
+    applyPlan(themes[themeIdx]);
   genome = makeGenome(seed, tier, library.index, { theme: themes[themeIdx] });
-  await library.preload(partIdsOf(genome));    // 预取后再 remorph → 截图不会拍到占位体
+  // 预取后再 remorph → 截图不会拍到占位体。
+  // 但**时间不许被资产绑架**（P3）：preload 的契约是"永不 reject"，
+  // 它没承诺"一定 resolve" —— 真挂住过一次，整页停在 loading 且不报错。
+  await Promise.race([
+    library.preload(partIdsOf(genome)),
+    new Promise((r) => setTimeout(r, 3000)),
+  ]);
   creature.remorph(genome);                    // 第一次调用直接成型，之后是 crossfade
   creature.pose(skeleton, presence, 1 / 60);
+    fitCamera();
   syncUrl();
 }
 
@@ -122,22 +161,31 @@ function syncUrl() {
   history.replaceState(null, '', `?${p}`);
 }
 
-await rebuild();
+// 启动失败必须看得见（§craft）：dev 页卡在 "loading…" 而不报错，
+// 会让人以为是资源慢，实际是抛了异常。
+try {
+  await rebuild();
+} catch (err) {
+  hud.textContent = `装配失败：${err instanceof Error ? err.message : String(err)}\n\n${err instanceof Error ? err.stack ?? '' : ''}`;
+  hud.style.color = '#e0455a';
+  throw err;
+}
 /**
  * 按**身体的实际包围盒**取景，而不是假设"一个站着的 1.7m 人"。
  * 四足方案的身体是横的、矮的 —— 用人形的相机参数会直接出画。
  * 这条对正式舞台同样成立（docs/18 落地后 stage 必须跟着改）。
  */
-const bb = { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] };
+function fitCamera() {
+  const bb = { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] };
 for (const b of bones) for (const p of [b.p0, b.p1]) for (let i = 0; i < 3; i++) {
   if (p[i] < bb.min[i]) bb.min[i] = p[i];
   if (p[i] > bb.max[i]) bb.max[i] = p[i];
 }
-const center: [number, number, number] = [
-  (bb.min[0] + bb.max[0]) / 2, (bb.min[1] + bb.max[1]) / 2, (bb.min[2] + bb.max[2]) / 2,
-];
-const span = Math.max(bb.max[0] - bb.min[0], bb.max[1] - bb.min[1], bb.max[2] - bb.min[2], 0.5);
-const camDist = (span / (2 * Math.tan((camera.fov * Math.PI) / 360))) * 1.9;
+  center = [(bb.min[0] + bb.max[0]) / 2, (bb.min[1] + bb.max[1]) / 2, (bb.min[2] + bb.max[2]) / 2];
+  span = Math.max(bb.max[0] - bb.min[0], bb.max[1] - bb.min[1], bb.max[2] - bb.min[2], 0.5);
+  camDist = (span / (2 * Math.tan((camera.fov * Math.PI) / 360))) * 1.9;
+}
+fitCamera();
 
 camera.position.set(camDist * 0.55, center[1] + span * 0.35, camDist * 0.85);
 camera.lookAt(center[0], center[1], center[2]);
