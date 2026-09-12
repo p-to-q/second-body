@@ -1,0 +1,86 @@
+/**
+ * 入口层。**它应该像展签，不像官网。**
+ *
+ * 所以：没有导航条、没有页脚、没有 hero 图、没有滚动、没有第三个按钮。
+ * 一屏，四行，两个动作。颜色/字号/安全区全部来自 type.css（docs/23 §0），
+ * 这里只负责摆位置和那一次淡出。
+ */
+
+.sb-entry {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: var(--sb-gutter);
+  padding: var(--sb-safe);
+  background: var(--sb-paper);
+  /* 进 240ms，缓动按 §0 */
+  animation: sb-entry-in 240ms cubic-bezier(.16, 1, .3, 1) both;
+}
+@keyframes sb-entry-in { from { opacity: 0 } to { opacity: 1 } }
+
+/* 出比进快（§0）。淡出期间不再接受点击 */
+.sb-entry.is-leaving {
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 180ms cubic-bezier(.4, 0, 1, 1);
+  animation: none;
+}
+
+.sb-entry h1 { margin: 0 0 0.5rem; }
+.sb-entry h1 .sb-en { font-size: 0.5em; }
+.sb-entry-lede { color: var(--sb-ink); margin: 0; }
+.sb-entry-lede .sb-en { color: var(--sb-ink-dim); }
+
+.sb-entry-actions { display: flex; flex-wrap: wrap; gap: calc(var(--sb-gutter) * 1.5); }
+
+/**
+ * 动作是**文字加一条细线**，不是按钮。
+ * §0 的禁止清单里有「圆角面板」「图标按钮」—— 那是应用的语言。
+ */
+.sb-act {
+  appearance: none;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--sb-rule);
+  padding: 0 0 0.4rem;
+  font: inherit;
+  color: var(--sb-ink);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 180ms;
+}
+/**
+ * 焦点态：那条细线亮成强调色，**不用浏览器的方框**。
+ * 方框是圆角的、是蓝色的、是系统的语言 —— 在这一屏上它比没有焦点提示更糟。
+ * 换掉不等于取消：线本身就是可见的焦点指示，键盘用户照样看得见自己在哪。
+ */
+.sb-act:hover, .sb-act:focus-visible {
+  outline: none;
+  border-bottom-color: var(--sb-accent);
+}
+.sb-act .sb-en { color: var(--sb-ink-dim); }
+
+.sb-entry-foot {
+  display: flex; flex-wrap: wrap; justify-content: space-between;
+  gap: var(--sb-gutter); align-items: baseline;
+}
+
+/**
+ * 运行中的摄像头按钮。右下角，一行，`docs/23 §S1` 的网页分支。
+ * 它是整个体验里**唯一**请求权限的地方 —— 在它被按下之前，一次都不问。
+ */
+.sb-camera {
+  position: fixed;
+  right: var(--sb-safe);
+  bottom: var(--sb-safe);
+  z-index: 5;
+  animation: sb-entry-in 240ms cubic-bezier(.16, 1, .3, 1) both;
+}
+.sb-camera.is-leaving {
+  pointer-events: none; opacity: 0;
+  transition: opacity 180ms cubic-bezier(.4, 0, 1, 1);
+  animation: none;
+}

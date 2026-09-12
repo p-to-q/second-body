@@ -29,12 +29,19 @@ import { createStage } from './stage/stage.ts';
 import { chooseTheme, themeFromUrl } from './choose/choose.ts';
 import { createFrameLoop } from './shell/safe-frame.ts';
 import { enterKiosk, readFlags } from './shell/kiosk.ts';
+import { mountCameraButton, mountEntry } from './shell/entry.ts';
 import { createHud } from './shell/hud.ts';
 import { ACTS, createDirector, type World } from './acts/index.ts';
 
 const flags = readFlags();
 
 async function boot(): Promise<void> {
+  // ── 0. 网页版入口层（docs/PRD §8 / docs/23 §S0 网页分支） ─────────────────
+  // 唯一的作用是把「请求摄像头」推迟到观众自己按那一下为止：在此之前用回放驱动，
+  // 一次权限都不问。现场（?kiosk=1）和深链拿到 null，这一层等于不存在。
+  // 它不阻塞下面的加载 —— 只有进 S2 之前会 await 一次 entry.started。
+  const entry = mountEntry(flags);
+
   // ── 1. 渲染器与舞台 ──────────────────────────────────────────────────────
   const renderer = new THREE.WebGPURenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -64,11 +71,15 @@ async function boot(): Promise<void> {
   // 会盯着一块黑屏等它加载 —— 而那正是整个体验里最需要连贯的一刻
   //（卡片冲向镜头、溶解、然后身体应该**已经在那里了**）。
   const capturePromise = (async () => {
-    const c = await createCapture();
+    // 入口层在场 = 还没人授权过 → 先用回放起步（见 shell/entry.ts 的文件头）
+    const c = await createCapture(entry ? 'replay' : undefined);
     await c.start();
     if (c.lastError) console.warn('[main] capture:', c.lastError);
     return c;
   })();
+
+  // 展签还立着的时候不要把选择页顶出来。加载在后面照常进行，这里只等那一下点击。
+  await entry?.started;
 
   let theme = flags.theme ?? themeFromUrl();
   if (!theme) {
@@ -87,7 +98,9 @@ async function boot(): Promise<void> {
     new Promise((r) => setTimeout(r, 2500)),   // 预取失败/慢也不许卡住进场
   ]);
 
-  const capture = await capturePromise;
+  // `let` 而不是 `const`：观众按下「用我的摄像头」之后，这一个引用会被换掉
+  // （回放 → 摄像头）。两个实现可互换是 Capture 的硬契约，帧循环不需要知道换过。
+  let capture = await capturePromise;
 
   // 身体方案：物种自己声明，?plan= 可覆盖（docs/18-BODY-PLANS.md）。
   // 这是「物种真的不一样」与「同一具人体换皮」之间的那一行。
@@ -132,7 +145,9 @@ async function boot(): Promise<void> {
     get features() { return lastFeatures; },
     get evolution() { return evolution.state; },
     get genome() { return isMass ? null : creature.genome; },
-    creature: body, stage, library, capture, flags,
+    // getter：capture 会在运行中被换掉（回放 → 摄像头），玩法必须看到当前那一个
+    get capture() { return capture; },
+    creature: body, stage, library, flags,
     rng: mulberry32(seed),
     morph,
     note: (s) => { note = s; },
@@ -195,9 +210,24 @@ async function boot(): Promise<void> {
   }
 
   loop.start();
+
+  // 唯一请求摄像头权限的地方。失败（拒绝 / 没有摄像头）就留着按钮，回放继续跑 ——
+  // 观众看到的不是一个报错，而是"还没换成我"（docs/23 §S1 网页分支）。
+  if (entry) {
+    mountCameraButton(async () => {
+      const cam = await createCapture('webcam');
+      await cam.start();
+      if (cam.lastError) { console.warn('[main] camera:', cam.lastError); cam.stop(); return false; }
+      capture.stop();
+      capture = cam;
+      return true;
+    });
+  }
+
   console.info(
     `[main] running · theme=${theme} · seed=${seed} · ` +
-    `plan=${planKind} · capture=${flags.demo ? 'replay' : 'webcam'} · acts=${ACTS.map((a) => a.id).join(',')}`,
+    `plan=${planKind} · capture=${entry || flags.demo ? 'replay' : 'webcam'} · ` +
+    `acts=${ACTS.map((a) => a.id).join(',')}`,
   );
 }
 

@@ -1,0 +1,178 @@
+/**
+ * 作品陈述页的版式。**只有版式，没有新的视觉语言** ——
+ * 颜色、字号、字距、安全区全部来自 `src/ui/type.css`（docs/23 §0），
+ * 这里一个新的颜色值都不许出现，否则陈述页会变成另一件作品。
+ *
+ * 结构上就两样东西：**一条细线分区**，和**左标签 / 右正文的两栏**。
+ * 这是 International Typographic Style 里最老实的那个构型，也是展签的构型：
+ * 左边告诉你"这一段是什么"，右边是内容。不用卡片、不用阴影、不用圆角（§0 禁止清单）。
+ */
+
+.about {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* ── 顶栏：返回作品。唯一一个导航元素 ─────────────────────────────────── */
+.about-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--sb-gutter);
+  margin-bottom: calc(var(--sb-safe) * 1.5);
+}
+
+/* ── 展签头 ───────────────────────────────────────────────────────────── */
+.about-head h1 { margin-bottom: 0.75rem; }
+.about-head h1 .sb-en { font-size: 0.5em; }
+.about-lede { color: var(--sb-ink); max-width: var(--sb-measure); }
+.about-lede .sb-en { color: var(--sb-ink-dim); }
+
+/**
+ * 分节。`grid-template-columns: 12rem 1fr` 是这一页的骨架 ——
+ * 窄屏塌成一栏，标签变成正文上面的一行小标题，读起来还是同一个逻辑。
+ */
+.about-section {
+  display: grid;
+  grid-template-columns: 12rem minmax(0, 1fr);
+  gap: var(--sb-gutter);
+  padding: calc(var(--sb-safe) * 0.75) 0;
+  border-top: 1px solid var(--sb-rule);
+}
+.about-section > h2 { margin: 0; }
+.about-section > h2 .sb-en { font-size: 0.62em; }
+@media (max-width: 720px) {
+  .about-section { grid-template-columns: minmax(0, 1fr); }
+}
+
+.about-note { font-size: var(--sb-size-small); }
+.about-note .sb-zh { color: var(--sb-ink-dim); }
+
+/**
+ * 状态标记。这一页最重要的一个元素：把"已经在跑"和"只写了规格"分开。
+ * 它故意**不上颜色** —— 红绿是仪表盘的语言（`selftest.ts` 里同一条约定）。
+ * 已实现 = 什么都不标；规格 = 一个带框的小标签。默认是诚实的那一侧。
+ */
+.about-tag {
+  display: inline-block;
+  padding: 0.1em 0.5em;
+  border: 1px solid var(--sb-rule);
+  font-size: var(--sb-size-small);
+  letter-spacing: var(--sb-tracking-label);
+  text-transform: uppercase;
+  color: var(--sb-ink-dim);
+  white-space: nowrap;
+}
+.about-tag .sb-zh, .about-tag .sb-en { display: inline; }
+.about-tag .sb-en::before { content: ' / '; color: var(--sb-rule); }
+
+/* ── 90 秒：五个步骤横排。用线分栏，不用框 ──────────────────────────── */
+.about-steps {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+  margin: 1.25rem 0;
+}
+.about-step {
+  padding: 0 var(--sb-gutter) 0 0;
+  border-left: 1px solid var(--sb-rule);
+  padding-left: 0.75rem;
+}
+.about-step:first-child { border-left: 0; padding-left: 0; }
+.about-step-n { display: block; margin-bottom: 0.4rem; }
+.about-step h3 { margin-bottom: 0.25rem; }
+.about-step h3 .sb-en { font-size: 0.78em; }
+.about-step p { font-size: var(--sb-size-small); margin: 0 0 0.5rem; }
+@media (max-width: 720px) {
+  .about-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sb-gutter) 0; }
+  .about-step:nth-child(odd) { border-left: 0; padding-left: 0; }
+}
+
+/* ── 两条回路：并排对照，这就是"和 2019 年那件的区别"那张图 ─────────── */
+.about-loops {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sb-gutter);
+  margin: 1.25rem 0;
+}
+@media (max-width: 720px) { .about-loops { grid-template-columns: minmax(0, 1fr); } }
+.about-loop { border-top: 1px solid var(--sb-rule); padding-top: 0.75rem; }
+.about-loop-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+.about-loop h3 { margin: 0; }
+.about-loop p { font-size: var(--sb-size-small); margin: 0; }
+
+/* ── 三层 / 四条许可：编号列表，左侧等宽序号 ────────────────────────── */
+.about-list { list-style: none; margin: 1.25rem 0 0; padding: 0; }
+.about-list > li {
+  display: grid;
+  grid-template-columns: 3.5rem minmax(0, 1fr);
+  gap: var(--sb-gutter);
+  padding: 0.85rem 0;
+  border-top: 1px solid var(--sb-rule);
+}
+.about-list > li:first-child { border-top: 0; }
+.about-list h3 { margin: 0 0 0.25rem; }
+.about-list p { font-size: var(--sb-size-small); margin: 0; max-width: var(--sb-measure); }
+
+/* ── 数字带：等宽、tabular，这是"档案感"的来源（§0） ─────────────────── */
+.about-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sb-gutter) calc(var(--sb-gutter) * 2);
+  margin: 1.25rem 0 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--sb-rule);
+}
+.about-count-n {
+  display: block;
+  font-family: var(--sb-mono);
+  font-size: var(--sb-size-h1);
+  line-height: var(--sb-lh-h1);
+  letter-spacing: var(--sb-tracking-h1);
+  color: var(--sb-ink);
+}
+
+/* ── 物种谱系散点 ─────────────────────────────────────────────────────── */
+.about-plot { width: 100%; height: auto; margin: 1.25rem 0 0; display: block; }
+.about-plot text { font-family: var(--sb-mono); fill: var(--sb-ink-dim); }
+.about-plot .plot-axis { stroke: var(--sb-rule); }
+.about-plot .plot-mark { fill: none; stroke: var(--sb-ink); stroke-width: 1.5; }
+.about-plot .plot-mark-fill { fill: var(--sb-ink); stroke: none; }
+.about-plot .plot-n { fill: var(--sb-ink-dim); font-size: 9px; }
+
+.about-legend {
+  display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem;
+  margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--sb-rule);
+}
+.about-legend-item { display: inline-flex; align-items: center; gap: 0.5rem; }
+/* 「人形 | HUMANOID」不许在中文两个字之间断行 —— 断了就读成两个词 */
+.about-legend-item .sb-label { white-space: nowrap; }
+/* 图例里的标记是固定尺寸的小样，不跟着散点图那条 width:100% 走 */
+.about-legend-item .about-plot { flex: none; width: 24px; height: 16px; margin: 0; }
+
+.about-species {
+  list-style: none; margin: 1.25rem 0 0; padding: 0;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.6rem var(--sb-gutter);
+}
+.about-species li {
+  display: grid; grid-template-columns: 2rem minmax(0, 1fr);
+  gap: 0.5rem; align-items: baseline;
+  font-size: var(--sb-size-small);
+}
+.about-species .sb-zh { color: var(--sb-ink); }
+
+/* 页脚：一行，等宽 */
+.about-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.75rem;
+  border-top: 1px solid var(--sb-rule);
+  padding-top: 1rem;
+  margin-top: calc(var(--sb-safe) * 0.75);
+}
+.about-foot .sb-label { white-space: nowrap; }
