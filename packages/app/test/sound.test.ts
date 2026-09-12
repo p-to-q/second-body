@@ -8,12 +8,14 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { statSync } from 'node:fs';
 
 import { SOUND, STAGE } from '../../core/src/tuning.ts';
 import { mulberry32 } from '../../core/src/rng.ts';
 import { voiceOf } from '../src/sound/voice.ts';
 import { makeNoiseBuffer } from '../src/sound/noise.ts';
 import { SCENARIOS } from '../src/sound/render.ts';
+import { CUE_IDS, CUE_LABELS, CUE_SHEET } from '../src/sound/cues.ts';
 import type { ThemeDef } from '../../core/src/types.ts';
 
 const theme = (humanLike: number, lifeLike: number): ThemeDef => ({
@@ -119,4 +121,71 @@ test('取证场景：每个场景都有名字、有它证明的那句话、时�
   }
   assert.ok(ids.has('presence') && ids.has('motion') && ids.has('tier') && ids.has('wait'),
     '四层各自至少要有一个单独逼出它的场景');
+});
+
+// ── 第五层 · 离散接触音 ─────────────────────────────────────────────────────
+//
+// 播放与图都在浏览器里（node 没有 Web Audio），所以这里只守住能在 node 里守住的：
+// 名单、素材是否真的在仓库里、以及几条"各自看都对、合起来才是错的"设计约定。
+// 听感那一半走 `/dev/sound.html` 和 `scratch/evidence/sound-cues.png`。
+
+test('离散音：四记的名单与它们的增益一一对上，一个都不多一个都不少', () => {
+  assert.deepEqual([...CUE_IDS], ['enter', 'pass', 'commit', 'idle']);
+  for (const id of CUE_IDS) {
+    assert.equal(typeof SOUND.cues[id], 'number', `SOUND.cues.${id} 不见了`);
+    assert.ok(SOUND.cues[id] > 0 && SOUND.cues[id] <= 1, `${id} 的增益 ${SOUND.cues[id]} 不在 (0,1]`);
+    assert.ok(CUE_LABELS[id].length > 4, `${id} 没写清楚它是哪个动作`);
+  }
+});
+
+test('离散音：素材真的在仓库里，而且短、而且不是 wav', () => {
+  for (const id of CUE_IDS) {
+    const file = new URL(`../../../assets/sound/${id}.webm`, import.meta.url);
+    // 这一条守的是"代码提到了一个不存在的文件"——它在浏览器里只表现为
+    // 一记安静的 404（P3 的静默跳过），没有人会发现
+    const size = statSync(file).size;
+    assert.ok(size > 400 && size < 24_000, `${id}.webm 大小 ${size}B 不像一记接触音`);
+  }
+});
+
+test('离散音：S5 升档与 S6 到货没有被"顺手补全"回来', () => {
+  // 这看起来是废话，但它守的是一个**会被人好心填上的空缺**：
+  // 下一个人看到 event 层有 tier / graft，很容易觉得这里漏了两记。
+  // 不加的理由写在 SOUND.cues 的注释里，这两条断言是那段理由的锁。
+  assert.ok(!('tier' in SOUND.cues), '升档不该有离散音：同一件事会响两次，且必然错开 600ms 包络');
+  assert.ok(!('graft' in SOUND.cues), '到货不该有离散音：event.graftGain 已经是那一声');
+});
+
+test('离散音：自动选择比手动确认更轻、也更闷 —— 观众要听得出这一下不是自己碰的', () => {
+  assert.ok(SOUND.cues.idle < SOUND.cues.commit,
+    `idle ${SOUND.cues.idle} 不比 commit ${SOUND.cues.commit} 轻`);
+  // 只调小音量做不到"更远"：小声的近处声音仍然是近处声音，所以必须另有一道低通
+  assert.ok(SOUND.cues.idleTilt > 200 && SOUND.cues.idleTilt < 6000,
+    `idleTilt ${SOUND.cues.idleTilt}Hz 要么等于没滤，要么把这一记滤没了`);
+});
+
+test('离散音：经过那一记比确认轻得多 —— 它是导航的触觉反馈，不是提示音', () => {
+  assert.ok(SOUND.cues.pass * 2 < SOUND.cues.commit,
+    `pass ${SOUND.cues.pass} 相对 commit ${SOUND.cues.commit} 太响，会读成"选中了"`);
+  // 连打衰减要真的衰减，又不能一记就没：0.74³ ≈ 0.41，第四记仍然听得见
+  assert.ok(SOUND.cues.passRepeatDecay > 0.5 && SOUND.cues.passRepeatDecay < 1);
+  assert.ok(SOUND.cues.passMinGapMs >= 30 && SOUND.cues.passMinGapMs <= 120,
+    `passMinGapMs ${SOUND.cues.passMinGapMs} 要么防不住糊，要么把正常滑动也吃掉`);
+});
+
+test('离散音：取证时间线每一记都在名单上、按时间排好、且盖满四记', () => {
+  let prev = -Infinity;
+  for (const c of CUE_SHEET) {
+    assert.ok((CUE_IDS as readonly string[]).includes(c.id), `取证里出现了名单外的 ${c.id}`);
+    assert.ok(c.at > prev, '取证时间线没按时间排好，图上读出来的顺序会是错的');
+    prev = c.at;
+  }
+  for (const id of CUE_IDS) {
+    assert.ok(CUE_SHEET.some((c) => c.id === id), `${id} 没进取证图 —— 那它就没有证据`);
+  }
+  // 连打那一段必须真的连着，否则图上证明不了 passRepeatDecay
+  const pass = CUE_SHEET.filter((c) => c.id === 'pass');
+  assert.ok(pass.length >= 3, '取证里至少要三记连着的 pass，才看得出逐次变轻');
+  assert.ok((pass[pass.length - 1].at - pass[0].at) * 1000 < SOUND.cues.passResetMs,
+    '取证里那几记 pass 间隔超过了 passResetMs，连打计数会被清零 —— 图上就看不出渐远');
 });

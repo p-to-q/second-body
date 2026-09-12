@@ -2,12 +2,16 @@
  * 声音靶场 —— `/dev/sound.html`。
  *
  * 它回答的那一个问题：**每一层声音真的在跟着它那一个信号走吗？**
+ * 第五层（离散接触音）换一个问法：**这一记听起来对不对**，
+ * 以及它有没有在观众做那个动作的时候响。
  *
  * 两半，缺一不可：
  *
  *  上半「靶场」  实时。手动把每个信号推到任意值（在场 / 速度 / jerk / 玩法 /
  *                升档 / 慢回路等待），耳朵听，电平表看。没有真人也能把
  *                每一层单独逼出来 —— 否则"升档的声音"只能靠真的升一次档才听得到。
+ *                第五层是四个按钮，按一下响一记，外加一个连打按钮 ——
+ *                那一条只有连着按才验得出来。
  *
  *  下半「取证」  离线。用 `OfflineAudioContext` 把同一份图跑完整段，画成
  *                波形 + 频谱。项目负责人没法在自动化环境里听，所以声音必须
@@ -18,7 +22,10 @@
 import { mountPageHead } from '../src/ui/page.ts';
 import { createSound } from '../src/sound/sound.ts';
 import type { SoundSignal } from '../src/sound/signal.ts';
-import { SCENARIOS, renderScenario, toWav, type Scenario } from '../src/sound/render.ts';
+import { SCENARIOS, renderScenario, toWav } from '../src/sound/render.ts';
+import {
+  CUE_IDS, CUE_LABELS, CUE_SHEET, createCues, loadCueBuffers, renderCues,
+} from '../src/sound/cues.ts';
 import type { LayerId } from '../src/sound/graph.ts';
 import type { PresenceState, Tier } from '../../core/src/types.ts';
 import './sound.css';
@@ -26,7 +33,8 @@ import './sound.css';
 mountPageHead({
   title: '声音',
   titleEn: 'Sound',
-  note: '四层声音各绑一个信号。上半手动推信号用耳朵验，下半离线渲染用眼睛验。',
+  note: '四层合成声各绑一个信号，第五层是绑在动作上的离散接触音。'
+    + '上半手动推信号 / 逐记试听用耳朵验，下半离线渲染用眼睛验。',
 });
 
 const page = document.createElement('div');
@@ -153,6 +161,32 @@ muteBtn.addEventListener('click', () => { muteBtn.classList.toggle('is-on', soun
 waitRow.append(waitBtn, muteBtn);
 waitBlock.append(waitRow);
 
+// 第五层的靶场。它回答的问题和上面四块不一样：四层问"跟着信号走了吗"，
+// 这里问"**这一记听起来对不对**" —— 一个只能靠耳朵回答的问题，
+// 所以这一块就是四个按钮，按一下响一声，没有滑杆。
+// `hotkey: false`：这一页自己要用键盘，不能被 `m` 抢走。
+const cueSound = createCues({ muted: new URLSearchParams(location.search).get('mute') === '1', hotkey: false });
+const cueBlock = block(right, '第五层 · 离散接触音（素材，见 assets/sound/README.md）');
+const cueNote = el('p', 'sb-status', '素材在后台解码；灰掉的那一记是没加载上 —— 那不是故障，是 P3 的静默跳过');
+cueBlock.append(cueNote);
+const cueRow = el('div', 'sb-sound-btns');
+const cueBtns = CUE_IDS.map((id) => {
+  const b = el('button', undefined, `${id} · ${CUE_LABELS[id]}`);
+  b.type = 'button';
+  b.disabled = true;
+  b.addEventListener('click', () => cueSound.play(id));
+  cueRow.append(b);
+  return [id, b] as const;
+});
+cueBlock.append(cueRow);
+// 连打那一条只有连着按才验得出来：单击是听不出 passRepeatDecay 的
+const passBurst = el('button', undefined, 'pass ×6 连打（验 passMinGapMs / 渐远）');
+passBurst.type = 'button';
+passBurst.addEventListener('click', () => {
+  for (let i = 0; i < 6; i++) setTimeout(() => cueSound.play('pass'), i * 90);
+});
+cueRow.append(passBurst);
+
 const meterBlock = block(right, '电平表');
 const status = el('p', 'sb-status', '点一下页面任意处解锁音频（浏览器要求用户手势）');
 meterBlock.append(status);
@@ -182,6 +216,9 @@ function tick(now: number): void {
     nums[id].textContent = v.toFixed(2);
   }
   status.textContent = `音频状态：${sound.state}`;
+  // 解码是异步的，所以按钮的可用状态每帧跟一次 —— 比给 createCues 加一个
+  // onReady 回调简单，而且这一页本来就在跑帧循环
+  for (const [id, b] of cueBtns) b.disabled = !cueSound.ready[id];
   requestAnimationFrame(tick);
 }
 requestAnimationFrame(tick);
@@ -309,9 +346,12 @@ evidence.style.marginTop = 'calc(var(--sb-gutter) * 2)';
 evidence.append(el('h2', 'sb-label', '离线取证 · OfflineAudioContext'));
 page.append(evidence);
 
-const rendered = new Map<string, { canvases: HTMLCanvasElement[]; buffer: AudioBuffer }>();
+/** id → 画好的两张图 + 整段波形。`proves` 一起存：拼档案图时要写在标题下面 */
+const rendered = new Map<string, {
+  canvases: HTMLCanvasElement[]; buffer: AudioBuffer; proves: string;
+}>();
 
-async function renderCard(sc: Scenario): Promise<void> {
+async function renderCard(sc: { id: string; proves: string }, render: () => Promise<AudioBuffer>): Promise<void> {
   const card = el('div', 'sb-ev');
   card.id = `ev-${sc.id}`;
   card.append(
@@ -329,10 +369,10 @@ async function renderCard(sc: Scenario): Promise<void> {
   dl.append(wav);
   evidence.append(card);
 
-  const buffer = await renderScenario(sc);
+  const buffer = await render();
   drawWave(wave, buffer);
   drawSpectrogram(spec, buffer);
-  rendered.set(sc.id, { canvases: [wave, spec], buffer });
+  rendered.set(sc.id, { canvases: [wave, spec], buffer, proves: sc.proves });
 
   wav.addEventListener('click', () => {
     const url = URL.createObjectURL(toWav(buffer));
@@ -348,10 +388,30 @@ async function renderCard(sc: Scenario): Promise<void> {
  * 串行渲染。并行会同时开 8 个 OfflineAudioContext ——
  * 在这一页上没有任何好处，却足以让弱一点的机器上整页卡住。
  */
+/**
+ * 第五层的那一张。它和上面八张的差别在于**声音不是算出来的，是文件**，
+ * 所以这一张证明的是另一件事：四记确实解码出来了、四记的相对轻重是设计里那四个数、
+ * 连打的三记一记比一记轻、idle 那一记的高频确实被削掉了（频谱上直接看得见）。
+ *
+ * 走的仍然是 `renderCues()` —— 和现场 `play()` 同一组增益、同一道低通。
+ */
+async function renderCueCard(): Promise<void> {
+  const buffers = await loadCueBuffers();
+  const missing = CUE_IDS.filter((id) => !buffers[id]);
+  const order = CUE_SHEET.map((c) => `${c.id}@${c.at}s`).join(' · ');
+  await renderCard({
+    id: 'cues',
+    proves: missing.length
+      ? `离散音只解码出 ${CUE_IDS.length - missing.length}/4 记（缺 ${missing.join('、')}）—— 缺的那几记在图上就是没有`
+      : `四记离散接触音，按 ${order} 排；pass 连打三记逐次变轻，idle 比 commit 更轻也更闷`,
+  }, () => renderCues(buffers));
+}
+
 void (async () => {
-  for (const sc of SCENARIOS) await renderCard(sc);
+  for (const sc of SCENARIOS) await renderCard(sc, () => renderScenario(sc));
+  await renderCueCard();
   (globalThis as { __soundReady?: boolean }).__soundReady = true;
-  console.info('[dev/sound] 取证渲染完成', SCENARIOS.map((s) => s.id).join(','));
+  console.info('[dev/sound] 取证渲染完成', [...SCENARIOS.map((s) => s.id), 'cues'].join(','));
 })();
 
 /**
@@ -359,7 +419,7 @@ void (async () => {
  * 拼成一张而不是两张，是因为**波形和频谱必须放在一起看** ——
  * 波形说"什么时候有多少能量"，频谱说"那是哪一层"，单独一张都能被误读。
  */
-function sheet(sc: Scenario, canvases: HTMLCanvasElement[]): HTMLCanvasElement {
+function sheet(sc: { id: string; proves: string }, canvases: HTMLCanvasElement[]): HTMLCanvasElement {
   const W = 1200, head = 46, waveH = 120, specH = 240;
   const out = el('canvas');
   out.width = W;
@@ -391,9 +451,10 @@ function sheet(sc: Scenario, canvases: HTMLCanvasElement[]): HTMLCanvasElement {
 /** 截图脚本的抓手：每个场景一张合成图的 dataURL */
 (globalThis as Record<string, unknown>).__soundEvidence = (): Record<string, string> => {
   const out: Record<string, string> = {};
-  for (const sc of SCENARIOS) {
-    const r = rendered.get(sc.id);
-    if (r) out[`sound-${sc.id}`] = sheet(sc, r.canvases).toDataURL('image/png');
+  // 遍历 rendered 而不是 SCENARIOS：第五层不是一个 Scenario（它的声音是文件不是图），
+  // 但它一样要出一张档案图。以"画出来了什么"为准，不以"计划画什么"为准
+  for (const [id, r] of rendered) {
+    out[`sound-${id}`] = sheet({ id, proves: r.proves }, r.canvases).toDataURL('image/png');
   }
   return out;
 };

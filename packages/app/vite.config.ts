@@ -179,7 +179,8 @@ function anchorWriter(): Plugin {
  * 但没人验证过 —— 直到真跑了一次 build，产物是 975 MB。
  * 规格写了不等于做到了（§craft）。
  */
-const SHIPPED = ['parts', 'refs', 'demo', 'fonts'];
+// 'sound' 里是四个离散接触音，共约 8KB —— 见 assets/sound/README.md。
+const SHIPPED = ['parts', 'refs', 'demo', 'fonts', 'sound'];
 
 function shipAssets(): Plugin {
   return {
@@ -192,8 +193,11 @@ function shipAssets(): Plugin {
         if (!existsSync(from)) continue;
         cpSync(from, resolve(out, dir), {
           recursive: true,
-          // _metas.json 是流水线的中间产物，运行时只读 parts.json
-          filter: (src) => !src.endsWith('_metas.json'),
+          // _metas.json 是流水线的中间产物，运行时只读 parts.json；
+          // assets/sound/licenses/ 是授权证据（四张下载页截图，约 660KB），
+          // 留在仓库里给人查，**不进运行时** —— 素材本身才 8KB，
+          // 把证据一起打进去等于让产物为一件观众永远不会加载的东西变大 80 倍。
+          filter: (src) => !src.endsWith('_metas.json') && !src.includes('/sound/licenses'),
         });
       }
     },
