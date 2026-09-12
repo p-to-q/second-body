@@ -16,7 +16,7 @@
 
 | # | 未知 | 验证动作（成本） | 阻塞谁 | 状态 |
 |---|---|---|---|---|
-| U1 | MediaPipe `worldLandmarks` 的实际轴向与深度可用性 | 开 `/dev/capture.html`，蹲下看 `pelvis.y`、前后走 1m 看 `pelvis.z`（10 min） | T-02 骨架 | ⬜ **工具已就位，仍未实测**。左右那一半已由 `docs/04` §1 推导定死（`left_*` = 被摄者的左 → `handR` 落世界 +X），不用量。剩下的 Y 方向与 Z 可用性 **T-01 无法实测**：跑这张卡的是无人值守的 agent，没有人能在镜头前做"蹲下 / 前后走 1 米"这套规定动作；Chrome 的 `--use-fake-device-for-media-stream` 只给一段没有人的测试图案，MediaPipe 因此一个 landmark 都不输出（见 `scratch/evidence/capture-webcam-fakecam.png`：GPU 起来了、`lastError` 为空、置信度 0.00）。**结论是"没有数据"，不是"轴向如上表"** —— 别把 `docs/04` 里的假设当成已验证。 |
+| U1 | MediaPipe `worldLandmarks` 的实际轴向与深度可用性 | 开 `/dev/capture.html`，蹲下看 `pelvis.y`、前后走 1m 看 `pelvis.z`（10 min） | T-02 骨架 | ⬜ **工具已就位（`/dev/capture.html`，外加 `/dev/accuracy.html` 的三路并排），仍未实测**。左右那一半已由 `docs/04` §1 推导定死（`left_*` = 被摄者的左 → `handR` 落世界 +X），不用量。剩下的 Y 方向与 Z 可用性 **T-01 无法实测**：跑这张卡的是无人值守的 agent，没有人能在镜头前做"蹲下 / 前后走 1 米"这套规定动作；Chrome 的 `--use-fake-device-for-media-stream` 只给一段没有人的测试图案，MediaPipe 因此一个 landmark 都不输出（见 `scratch/evidence/capture-webcam-fakecam.png`：GPU 起来了、`lastError` 为空、置信度 0.00）。**结论是"没有数据"，不是"轴向如上表"** —— 别把 `docs/04` 里的假设当成已验证。 |
 | U2 | 单目深度是否稳到能撑 3D 挂载；不稳则退 2.5D（恒定深度） | 同 U1 一起测：`pelvis.z` 的量程 vs 最近 1 秒抖动 | T-02/T-07 | ⬜ **无法实测，原因同 U1**（没有真人入镜）。判据已经定死写在页面上：走 1 米时 **抖动量级 ≈ 变化量级 → 深度不可用，退 2.5D（恒定深度）**；抖动比变化小一个量级才谈得上 3D 挂载。这个"能不能用"的判断比量出某个具体数字重要。 |
 | U3 | MediaPipe 在**现场逆光/顶光**下的丢帧率 | 到现场用真实灯光测 5 分钟（**必须在现场做，H42 之前**） | 全部 | ⬜ **最高风险** |
 | U4 | Rodin `material=None` vs `PBR` 的几何差异 | 同一 recipe 各跑 1 次对比（1 credit） | T-11 | ⬜ |
@@ -27,6 +27,7 @@
 | U11 | Rodin 偶尔无视 `quality_override`，返回百万面且**完全未焊接**的网格 | — | — | ✅ 已解决：流水线加了容差焊接 + 逐级放宽减面，1.5M → 4.9k |
 | U12 | `preview_render` 的渲染 job 恒定失败 | Gen-2.5-Low / Medium 各试一次 | T-18 | ✅ 已确认失败：主题参考图改由 `/dev/anchor.html` 自渲 |
 | U13 | 数组型 form 字段必须是 JSON 字符串，否则 HTTP 500 | curl 复现 | — | ✅ 已修：`image_label` / `addons` 改发 JSON |
+| U14 | `assets/demo/pose-synthetic.json` 能不能当精度基准 | 直接读文件算骨长（5 min） | 精度 | ✅ **不能**：z 恒为 0、整段无噪声、左前臂长度在 60 帧里 0.022→0.261m（变异系数 65.7%，人体做不到）。它只能用来验「页面不白屏」，不能用来量精度，也不能用来校准轴向。实测与读法见 `docs/24 §5`，工具是 `/dev/accuracy.html`（「⇪ 载入片段」→「⟲ 三路重跑」） |
 | U9 | WebGPU 在目标机器 + 目标浏览器上的实际帧率（64 实例 / 250k 面） | 用占位几何压测（1h） | T-07 | ⬜ |
 | U10 | 慢回路端到端真实耗时（提交→可用部件） | 跑通一次记时 | T-17 | ⬜ |
 

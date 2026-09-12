@@ -18,7 +18,13 @@ export interface Flags {
   plan: string | null;  // ?plan=quadruped 覆盖身体方案（docs/18）
   selftest: boolean;    // ?selftest=1 开场自检页（不进主程序）
   clip: string | null;  // ?clip=walkwave  指定回放片段（配合 ?demo=1）
+  /** ?model=lite|full|heavy  换 PoseLandmarker 档位（docs/24 §3）。null = 默认档 lite */
+  model: PoseModel | null;
 }
+
+/** MediaPipe 的三个 PoseLandmarker 档位。精度/延迟的实测差异见 docs/24 §3 */
+export type PoseModel = 'lite' | 'full' | 'heavy';
+const POSE_MODELS: readonly string[] = ['lite', 'full', 'heavy'];
 
 export function readFlags(search = location.search): Flags {
   const q = new URLSearchParams(search);
@@ -45,6 +51,9 @@ export function readFlags(search = location.search): Flags {
     plan: q.get('plan'),
     selftest: q.get('selftest') === '1',
     clip: q.get('clip'),
+    // 手滑写 ?model=fulll 不该静默退回 lite —— 认不出来就是 null，
+    // 采集端会把"实际用的是哪个档"显示出来，现场不用猜。
+    model: POSE_MODELS.includes(q.get('model') ?? '') ? (q.get('model') as PoseModel) : null,
   };
 }
 
