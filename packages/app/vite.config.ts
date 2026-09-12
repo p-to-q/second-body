@@ -160,6 +160,23 @@ function shipAssets(): Plugin {
   };
 }
 
+/**
+ * 构建入口 = `packages/app/` 下所有 .html，自动发现。
+ *
+ * 为什么不写死一张 input 表：展陈层的页面（护照、目录、自述、施工现场…）
+ * 是分几条线并行加出来的。写死表意味着每加一页都要回来改这个文件 ——
+ * 既是 merge 冲突点，也是"页面加了但 build 里没有"这种只在生产暴露的错。
+ * 放一个 html 进来就是一页，没有第二处登记。
+ */
+function htmlInputs(): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const f of readdirSync(__dirname)) {
+    if (!f.endsWith('.html')) continue;
+    out[f.replace(/\.html$/, '')] = resolve(__dirname, f);
+  }
+  return out;
+}
+
 export default defineConfig({
   root: __dirname,
   // dev 下 assets/ 整个作为静态根（/raw/ 在 anchor 渲染时要用）；
@@ -167,5 +184,5 @@ export default defineConfig({
   publicDir: process.env.NODE_ENV === 'production' ? false : resolve(__dirname, '../../assets'),
   plugins: [demoIndex(), anchorWriter(), shipAssets()],
   server: { port: 5173, host: true, fs: { allow: [ROOT] } },
-  build: { target: 'esnext', outDir: 'dist' },
+  build: { target: 'esnext', outDir: 'dist', rollupOptions: { input: htmlInputs() } },
 });

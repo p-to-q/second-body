@@ -28,7 +28,7 @@
  */
 import type { Landmark, RawPose, Skeleton, Vec3 } from './types.ts';
 import { oneEuro, type OneEuroParams, type Scalar1D } from './filter.ts';
-import { CAPTURE } from './tuning.ts';
+import { CAPTURE , REFINE } from './tuning.ts';
 import { dist } from './vec.ts';
 
 /** 33 个 landmark 分三组。索引表见 docs/04 §2 */
@@ -84,34 +84,22 @@ export interface RefineParams {
  * 上游分的是"屏幕坐标 / 世界坐标 / ROI"三路信号，不是按关节分。
  * 所以这三档必须靠 `/dev/accuracy.html` 量出来才算数，不能靠好听。
  */
-const MP_WORLD = { minCutoff: 0.1, beta: 40, dCutoff: 1.0 };
 
+
+/**
+ * 旋钮住在 `tuning.ts` 的 `REFINE`（P0：现场要调的数集中一处），这里只做形状适配。
+ */
 export const DEFAULT_REFINE: RefineParams = {
-  groups: {
-    // 躯干：少跟随、多稳定（beta 减半）。肩髋抖起来整具身体都在晃
-    torso: { ...MP_WORLD, beta: MP_WORLD.beta * 0.5 },
-    limb: { ...MP_WORLD },
-    // 末端：手腕是观众唯一会盯着看的东西，宁可抖一点也不能滞后
-    extremity: { ...MP_WORLD, beta: MP_WORLD.beta * 1.5 },
-  },
-  occlusionVisibility: CAPTURE.minJointConfidence,
-  /**
-   * 20 帧的缺口上限来自 Pose2Sim 的 `interp_if_gap_smaller_than = 20`
-   * （`Pose2Sim/Demo_SinglePerson/Config.toml`）。比这更长的缺口它不插值 ——
-   * 因为再补就是在编。换算成秒是为了让掉帧时行为一致。
-   */
-  holdSeconds: 20 / CAPTURE.targetHz,
-  rejoinSeconds: 0.25,
-  qualityStart: CAPTURE.minScore + 0.15,
-  qualityFloor: CAPTURE.minScore,
-  slowdownFactor: 0.25,
-  /**
-   * visibility 自己也要低通 —— MediaPipe 在同一张 pbtxt 里对 visibility
-   * 挂了 `LowPassFilter alpha: 0.1`。不做的话置信度会在门限上下颤，
-   * 遮挡补全跟着一帧进一帧出，比不做补全还糟。
-   */
-  visibilityAlpha: 0.1,
+  groups: REFINE.groups,
+  occlusionVisibility: REFINE.occlusionVisibility,
+  holdSeconds: REFINE.holdSeconds,
+  rejoinSeconds: REFINE.rejoinSeconds,
+  qualityStart: REFINE.qualityStart,
+  qualityFloor: REFINE.qualityFloor,
+  slowdownFactor: REFINE.slowdownFactor,
+  visibilityAlpha: REFINE.visibilityAlpha,
 };
+
 
 /** 一次精修之后能说出口的东西。dev 页面拿它显示，运行时可以不看 */
 export interface RefineStats {

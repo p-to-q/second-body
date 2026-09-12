@@ -1,0 +1,89 @@
+/**
+ * 展陈层 —— 所有"房间"共用的版式原语。
+ *
+ * 这个站不是一个有导航栏的网站，是**一串房间**：入口 → 成为 → 陈述 → 档案 →
+ * 谱系 → 现场 → 护照 → 未竟。观众一步一景地走过去，每间房回答一个问题。
+ * 所以这里只提供三样东西：房间的外壳、条目的行、以及把"证据"排成档案的样子。
+ *
+ * 克制的具体含义（`docs/23 §0`）：只用细横线分区，不用卡片、阴影、圆角、图标。
+ * 留白比装饰承担更多工作。
+ */
+
+/* ── 房间外壳 ───────────────────────────────────────────────────────────── */
+.sb-page { max-width: 1100px; margin: 0 auto; }
+
+.sb-room-head { padding: 6vh 0 2.5rem; }
+.sb-room-head h1 { margin-bottom: 1.25rem; }
+.sb-lede { max-width: 46ch; }
+.sb-lede .sb-zh { font-size: 1.125rem; line-height: 1.55; }
+
+/* 页眉的房间序号 —— 让"一串房间"这件事可见 */
+.sb-room-no {
+  font-family: var(--sb-mono);
+  font-size: var(--sb-size-small);
+  letter-spacing: var(--sb-tracking-label);
+  color: var(--sb-ink-dim);
+  display: block;
+  margin-bottom: 1.5rem;
+}
+
+/* ── 条目行：左标签 / 右内容。档案的基本单位 ─────────────────────────────── */
+.sb-row {
+  display: grid;
+  grid-template-columns: minmax(7rem, 12ch) 1fr;
+  gap: var(--sb-gutter);
+  padding: 1.1rem 0;
+  border-top: 1px solid var(--sb-rule);
+  align-items: start;
+}
+.sb-row:first-of-type { border-top: 0; }
+.sb-row > .sb-label { padding-top: 0.15em; }
+@media (max-width: 720px) {
+  .sb-row { grid-template-columns: 1fr; gap: 0.35rem; }
+}
+
+/* ── 数据表：键值对，数字右对齐且等宽 ───────────────────────────────────── */
+.sb-facts { display: grid; grid-template-columns: auto 1fr; gap: 0.3rem 1.25rem; margin: 0; }
+.sb-facts dt { color: var(--sb-ink-dim); }
+.sb-facts dd { margin: 0; color: var(--sb-ink); font-variant-numeric: tabular-nums; }
+
+/* ── 引文：原话比转述有力，所以给它一条竖线和更大的字 ───────────────────── */
+.sb-quote {
+  margin: 0;
+  padding-left: 1.25rem;
+  border-left: 2px solid var(--sb-accent);
+}
+.sb-quote .sb-zh { font-size: 1.0625rem; line-height: 1.6; }
+
+/* ── 存证：文件路径 / commit，等宽小字 ──────────────────────────────────── */
+.sb-evidence { margin: 0; padding: 0; list-style: none; color: var(--sb-ink-dim); }
+.sb-evidence li { padding: 0.1rem 0; word-break: break-all; }
+
+/* ── 裁定戳 ─────────────────────────────────────────────────────────────── */
+.sb-stamp { padding: 3rem 0 1rem; }
+.sb-stamp-head {
+  display: flex; align-items: baseline; gap: 1.5rem;
+  padding-bottom: 0.9rem;
+}
+.sb-stamp-no {
+  font-size: 2rem; line-height: 1;
+  color: var(--sb-ink); letter-spacing: var(--sb-tracking-h1);
+}
+.sb-verdict .sb-zh, .sb-verdict .sb-en {
+  display: inline; font-family: var(--sb-mono);
+  letter-spacing: var(--sb-tracking-label); text-transform: uppercase;
+}
+.sb-verdict .sb-en { margin-left: 0.6em; }
+/* 拒入用警示色，准入用强调色 —— 全站仅此一处用颜色承担语义 */
+.sb-refused .sb-verdict .sb-zh, .sb-refused .sb-verdict .sb-en { color: var(--sb-warn); }
+.sb-admitted .sb-verdict .sb-zh, .sb-admitted .sb-verdict .sb-en { color: var(--sb-accent); }
+.sb-stamp-date { margin-left: auto; color: var(--sb-ink-dim); }
+
+/* ── 房间之间的去向 ─────────────────────────────────────────────────────── */
+.sb-exits { display: flex; flex-wrap: wrap; gap: 1.75rem; padding: 3rem 0 1rem; }
+.sb-exit { border: 0; }
+.sb-exit .sb-zh { border-bottom: 1px solid var(--sb-rule); }
+.sb-exit:hover .sb-zh { border-bottom-color: var(--sb-accent); }
+
+.sb-foot { padding: 2.5rem 0 4rem; color: var(--sb-ink-dim); }
+.sb-foot .sb-en { font-size: 0.8em; }

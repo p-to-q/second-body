@@ -30,11 +30,57 @@ export const CAPTURE = {
 
 // ── 2. 平滑 ────────────────────────────────────────────────────────────────
 export const FILTER = {
-  /** One-Euro：静止时的截止频率(Hz)。越小越稳越滞后 */
-  minCutoff: 1.0,
-  /** 速度增益。越大越跟手、越抖 */
-  beta: 0.02,
+  /**
+   * ⚠️ 2026-09-12 改过量级。原值 `minCutoff 1.0 / beta 0.02` 是错的：
+   * **beta 乘的是速度**，而 world landmark 是**米制**信号 ——
+   * 手以 1 m/s 挥动时只把截止频率从 1.0 抬到 1.02 Hz，等于把手焊死。
+   *
+   * 现值取自 MediaPipe 自己的产线配置
+   * （`mediapipe/modules/pose_landmark/pose_landmark_filtering.pbtxt`，
+   * `geaxgx/depthai_blazepose` 有独立复刻）：world landmark 用
+   * `min_cutoff 0.1 / beta 40 / disable_value_scaling: true`。
+   *
+   * 这组值偏"跟手"不偏"稳"。装置要的可能相反 —— 但那要等真人输入才能定（docs/09 U14）。
+   */
+  minCutoff: 0.1,
+  beta: 40,
   dCutoff: 1.0,
+};
+
+/**
+ * 姿态精修（`core/refine.ts`）。**这是现场逆光把追踪打崩时唯一能救场的一组旋钮**，
+ * 所以它必须在这里找得到，而不是埋在 refine.ts 里（P0）。
+ *
+ * 分组的理由：躯干抖起来整具身体都在晃，所以少跟随多稳定；
+ * 手腕是观众唯一会盯着看的东西，宁可抖一点也不能滞后。
+ * ⚠️ 分组档位是自创的，上游没有先例，且在合成输入上测不出收益 —— 它可能是对的，
+ * 但**现在没有证据**（docs/24）。
+ */
+export const REFINE = {
+  /** 总开关。接进运行时后由 `?refine=0` 关掉做 A/B */
+  enabled: true,
+  groups: {
+    torso: { minCutoff: 0.1, beta: 20, dCutoff: 1.0 },
+    limb: { minCutoff: 0.1, beta: 40, dCutoff: 1.0 },
+    extremity: { minCutoff: 0.1, beta: 60, dCutoff: 1.0 },
+  },
+  /** 低于这个 visibility 视为被遮挡 */
+  occlusionVisibility: 0.4,
+  /**
+   * 遮挡时最多保持多少秒。上限来自 Pose2Sim 的 `interp_if_gap_smaller_than = 20` 帧 ——
+   * 比这更长的缺口它不插值，因为再补就是在编。超时**放手**把 visibility 归零，
+   * 而不是无限保持一个越来越假的位置。
+   */
+  holdSeconds: 20 / 30,
+  /** 关节回来之后用多少秒爬回真实位置（不爬会"啪"地一下） */
+  rejoinSeconds: 0.25,
+  /** 追踪质量从这里开始降级，到这里触底 */
+  qualityStart: 0.65,
+  qualityFloor: 0.5,
+  /** 触底时截止频率乘这个数 —— 更平滑更迟钝。**抽搐比迟钝更毁体验** */
+  slowdownFactor: 0.25,
+  /** visibility 自己的低通。不做的话置信度会在门限上下颤，遮挡补全一帧进一帧出 */
+  visibilityAlpha: 0.1,
 };
 
 // ── 3. 骨架稳定化 ──────────────────────────────────────────────────────────

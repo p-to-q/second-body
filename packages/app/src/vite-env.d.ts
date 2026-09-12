@@ -6,3 +6,6 @@ declare module '*?url' {
   const url: string;
   export default url;
 }
+
+/** 副作用式 CSS 导入。vite 处理它，TS 只需要知道它是合法的模块 */
+declare module '*.css';
