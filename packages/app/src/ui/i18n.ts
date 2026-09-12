@@ -135,9 +135,16 @@ export const COPY = {
     /** 两种状态标记。**这是这一页最重要的机制**：分清"已经在跑"和"只写了规格" */
     built: bi('已实现', 'Built'),
     spec: bi('规格', 'Specified'),
+    /**
+     * 第三种状态，为慢回路而设。它既不是"只写了设计"（回路两端都接上了、
+     * 有测试有取证），也不是"已实现"（真实的 AI 生成从没打过一次，
+     * 而且线上这个版本里它是 404）。用同一个标记去盖这两种情况，
+     * 无论盖哪边都是在撒谎 —— 所以加一个。
+     */
+    onsite: bi('现场限定', 'On-site only'),
     legend: bi(
-      '标注「规格」的部分只写了设计，还没有实现。这一页不写没做到的事。',
-      'Anything marked “Specified” is designed but not yet built. This page does not claim what is not done.',
+      '标注「规格」的只写了设计。标注「现场限定」的已经跑通，但只在装置那台机器上活着。这一页不写没做到的事。',
+      'Marked “Specified” means designed, not built. Marked “On-site only” means working, but alive only on the installation’s own machine. This page does not claim what is not done.',
     ),
 
     // ── 它是什么 ──────────────────────────────────────────────────────
@@ -185,8 +192,12 @@ export const COPY = {
       'Your silhouette, right now → a 3D generative model → a part that is yours → hot-swapped onto the body.',
     ),
     slowLoopHonest: bi(
-      '慢回路目前只有规格，一行代码没写。它是这件作品的设计，不是今天已经跑通的部分。',
-      'The slow loop is specified and not yet written. It is the design of this work, not a description of what runs today.',
+      '慢回路已经接通：剪影提交、生成、规范化、热插拔到身上，两端都在跑，并且前一个人留下的零件会进下一个人的候选池。'
+      + '但还差两件，所以它标的是「现场限定」而不是「已实现」：真实的 AI 生成调用一次都没打过，离线端到端验的是回路、不是生成；'
+      + '而且它只在装置那台本地机器上活着 —— 你现在打开的这个网页版本里，它是 404。',
+      'The slow loop is connected: silhouette submitted, generated, normalised, hot-swapped onto the body — both ends run, and a part left by the previous visitor enters the next visitor’s pool. '
+      + 'Two things are still missing, which is why it reads “On-site only” and not “Built”: no real generative call has ever been made — the offline end-to-end test proves the loop, not the generation; '
+      + 'and it lives only on the installation’s own machine. In this web build, it is a 404.',
     ),
     slowLoopWhy: bi(
       '那 30 到 90 秒的等待不是缺陷，是叙事：它正在想办法成为你。',

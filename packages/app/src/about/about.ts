@@ -59,6 +59,14 @@ function specTag(): HTMLSpanElement {
   return biInline(COPY.about.spec, 'about-tag');
 }
 
+/**
+ * 「现场限定」标记 —— 跑通了，但只在装置那台机器上活着。
+ * 它和 specTag 是两回事，不要合并：合并之后无论用哪一个都在撒谎。
+ */
+function onsiteTag(): HTMLSpanElement {
+  return biInline(COPY.about.onsite, 'about-tag');
+}
+
 /** 左标签 / 右正文：这一页唯一的分节构型 */
 function section(title: BiText, ...body: Node[]): HTMLElement {
   return el('section', 'about-section', biEl('h2', title), el('div', undefined, ...body));
@@ -130,7 +138,7 @@ function whySection(): HTMLElement {
     el('div', 'about-loop-head', biEl('h3', COPY.about.fastLoop)),
     biEl('p', COPY.about.fastLoopNote));
   const slow = el('div', 'about-loop',
-    el('div', 'about-loop-head', biEl('h3', COPY.about.slowLoop), specTag()),
+    el('div', 'about-loop-head', biEl('h3', COPY.about.slowLoop), onsiteTag()),
     biEl('p', COPY.about.slowLoopNote));
 
   return section(COPY.about.whyTitle,

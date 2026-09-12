@@ -89,6 +89,16 @@
 | 形态空间排布（按 `axes` 绕质心成环） | `experimental` | `?roster=1` 下 23 个条目排成一圈（autonomous→wheelleg→patrol→field→…→orb）；旧版 parts.json 无 `axes` 时退回数组顺序，也验过 |
 | Web 部署（Vercel + serverless 慢回路） | `spec-only` | T-19，检查单在 `docs/13` §6 |
 
+## 慢回路
+
+| 表面 | 状态 | 证据 |
+|---|---|---|
+| **`/__slow` 服务端（提交 / 轮询 / 规范化 / 血统池 / 预算闸门）** | `experimental` | `SLOW_FAKE=1` 下 dev server curl 端到端：POST → submitted → ready → `/__slow/part/<id>.glb` 200 `model/gltf-binary`；aabb y∈[0,1]、X/Z 居中（= 规范化契约）。六条拒绝路径全是结构化 JSON。8 条测试。生产构建下 grep dist 无 `__slow`，preview 上四个端点全 404 |
+| **慢回路前端（`src/slow/slow.ts`）** | `experimental` | 靶场 `/dev/slow.html` 实跑：剪影 → 提交 → 轮询 → 取 glb → `graft()`，6.3 秒闭合；**第二次跑抽到了第一次留下的那件**，跨会话血统持久一并验掉。截图 `scratch/evidence/slow-frontend-e2e.png`。只有 mask 是画出来的，其余全是真路径 |
+| **血统（前人的件进下一个人的候选池）** | `experimental` | `lineage.json` 记 session（匿名）/ 时间 / 物种 / 槽位；`GET /__slow/lineage` 连跑两次分别返回 1 件、2 件 |
+| **一次真实的 Rodin 调用** | `spec-only` | **从没打过。** 离线端到端验的是**回路**，不是**生成**。"把实时 AI 3D 生成放进交互回路"这句主张里，被验证的是"回路"那半。docs/09 U10（端到端真实耗时）因此仍空着 |
+| 现场 kiosk 跑生产构建 = 没有慢回路 | — | 要让它活着得跑 `npm run dev`（或给 preview 也接一份）。这是个**待裁决**的部署选择，不是 bug |
+
 ## 展陈层（作品自己讲自己的那几页）
 
 | 表面 | 状态 | 证据 |
@@ -97,7 +107,7 @@
 | **共创过程档案 `/making.html`** | `stable` | 28 个 commit hash 逐个 `git log -1` 核过全部解得开、印在页上的时间与 `%ad` 一致。六件互相纠正、编排者自己的四个错、有代价的三次判断，全部指到提交。专列一节写**想写但没挖到证据所以没写的四件事**（九条线的名单、每条线的时长与 token、被驳回的提议、作品成立与否）。截图 `scratch/evidence/making-0{0..5}.png`（整页 1440×12136） |
 | **构建入口自动发现（根 `*.html` + `dev/*.html`）** | `stable` | 展陈层的页面分几条线并行加，写死 input 表既是冲突点也会漏页。现在 `pages()` 扫两处目录，放一个 html 进来就是一页，没有第二处登记。`npm run build` 后 `dist/` 有 `index/passport/making` + `dist/dev/` 10 个 |
 | **启动失败屏（docs/23 §S0）** | `stable` | 原来贴红色 `<pre>` + `err.message`。这是观众唯一会撞上的错误界面 —— 现在是满屏底色 + 居中并置的「稍等一下 / One moment」，详情全部进控制台。样式内联、不用 `innerHTML`：走到这里说明启动链断了，样式表本身可能就是断掉的那一环 |
-| **`/about` 作品陈述页** | `stable` | 一屏之内答"它是什么"（五格的观众 90 秒带），再答"和 2019 年那件的区别在哪"（快回路 16ms / 慢回路 30–90s 并排）。慢回路一栏**如实挂着「规格 SPECIFIED」**，正文直说一行代码没写 —— 代价是最有说服力的主张在页面上是打折的，但这是 docs/25 B1 要求的写法。独立 chunk（6 KB JS + 4 KB CSS），不拖 1.5 MB 的 main。截图 `scratch/evidence/about-main.png`（1280×3900） |
+| **`/about` 作品陈述页** | `stable` | 一屏之内答"它是什么"（五格的观众 90 秒带），再答"和 2019 年那件的区别在哪"（快回路 16ms / 慢回路 30–90s 并排）。慢回路一栏现在是**第三种状态「现场限定 ON-SITE ONLY」**：既不是"只写了设计"（两端都接上了、有测试有取证），也不是"已实现"（真实生成调用一次没打过，且线上版里是 404）。用同一个标记盖这两种情况，盖哪边都是撒谎 —— 所以加了一个。独立 chunk（6 KB JS + 4 KB CSS），不拖 1.5 MB 的 main。截图 `scratch/evidence/about-main.png`（1280×3900） |
 | **品牌字体规范 `docs/27-BRAND.md` + 规范页 `/poster/brand.html`** | `stable` | 规范页由它所描述的那套系统**自己渲染**：每一条字号/行高/字距/颜色都从 `type.css` 的 computed style 现读。§6 把卡片、图标、进度条、toast 画出来再划掉。§1 当场量字体回退：字号/行高/字距/行框完全一致，**字形实宽 293.56 vs 311.03px 不一致** —— 值得守的主张从来不是"字形宽度一样"。截图 `assets/brand/brand-spec-page.png` |
 | **四张海报 `packages/app/poster/`** | `experimental` | A1 说明（把逆向结论掉头对准自己：印 1,642,496，再说它是原作 47,000 的 35 倍、而这正是它不值一提的原因，然后印分母 —— 10 件被人删掉的部件和逐条手写理由，全页唯一的颜色就在那 10 个 id 上）/ A1 阵列（21 张 anchor 其实全是同一个部位，海报就认这件事，并引 `docs/18` 的"辨识度住在整体剪影里，不在零件里"把局限变成来现场的理由；两个空格画对角线 —— 那两个条目的内容恰好就是"没有"）/ A1 立场（自评 1/6，收尾"这张海报会过期。那一天我们就换一张"）/ A4 票根（seed 栏空着，因为 `genome.ts` 保证同 seed 长回同一具身体 —— 它不是截图，是配方）。全部 PNG 在 `assets/brand/`，长边 ≥2000px。**`@page` 尺寸按规范写，但没有人真的导出过一张 PDF、也没有人真的印过** |
 | **海报数字不许手打（`poster/build-data.mjs`）** | `stable` | 数字只有一个来源且是跑出来的。槽位表 `import` 自 `core/src/slots.ts` 正本，不留抄本 —— 去掉抄本时输出一字未变，这既说明它此刻是对的，也说明这类错**不会在出现的时候被发现**。脚本自己冒出来两条没人要求的结论并留在了海报上：`digitigrade`（自有 6 件）和 `wheelleg`（自有 1 件）的自有部件**全部被人工剔除**，现在整具身体借着 `porcelain` |
