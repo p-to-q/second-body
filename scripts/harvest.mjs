@@ -31,7 +31,19 @@ const OUT = resolve(ROOT, 'assets/parts/harvest');        // 规范化产物
  */
 const EPS = 2e-3, MAX_TRIS = 5000, MAX_BYTES = 1_500_000;
 
-const MENAGERIE = 'https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/main';
+/**
+ * 来源一律钉死在 commit SHA，不要指向 `main`。
+ *
+ * 指向分支的后果不是报错，是**来源在脚下变**：今天取到的和明天取到的可能不是同一个网格，
+ * 而 `check:parts` 照样 0 错 —— 你不会知道它变过。
+ * 这和海报数字漂掉是同一类错（`assets/brand/README.md` 记过一次）：
+ * 没人在说谎，只是没人负责重新核对。
+ *
+ * 要升级来源：改 SHA，重跑，**在提交信息里写清楚为什么升**。
+ */
+const MENAGERIE_SHA = '8161bba264d7fa7c99ca301e91e7fb44737676ad';   // 2026-09-13
+const BODYPARTS_SHA = 'fd527e6f4daf732fd814314d9257df5877b844bc';   // 2026-09-13
+const MENAGERIE = `https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/${MENAGERIE_SHA}`;
 
 /**
  * 来源清单。
@@ -99,13 +111,13 @@ const SOURCES = [
   {
     id: 'thigh.real.bone.a', slot: 'thigh', family: 'real.bone', ext: '.obj',
     license: '🟡 CC-BY-SA 2.1 JP · BodyParts3D / DBCLS · 需署名 + 注明改动 + 衍生件同样 BY-SA',
-    url: 'https://media.githubusercontent.com/media/olivercase/body_parts_3d_api/main/meshes/FJ3365_BP23346_FMA24474_Right%20femur.obj',
+    url: `https://media.githubusercontent.com/media/olivercase/body_parts_3d_api/${BODYPARTS_SHA}/meshes/FJ3365_BP23346_FMA24474_Right%20femur.obj`,
     note: '右股骨。3102 tris，已经在预算内 —— 解剖数据天生就是单 mesh、无贴图，比 CAD 还合规',
   },
   {
     id: 'spine.real.bone.a', slot: 'spine', family: 'real.bone', ext: '.obj',
     license: '🟡 CC-BY-SA 2.1 JP · BodyParts3D / DBCLS · 需署名 + 注明改动 + 衍生件同样 BY-SA',
-    url: 'https://media.githubusercontent.com/media/olivercase/body_parts_3d_api/main/meshes/FJ3152_BP23294_FMA16586_Right%20hip%20bone.obj',
+    url: `https://media.githubusercontent.com/media/olivercase/body_parts_3d_api/${BODYPARTS_SHA}/meshes/FJ3152_BP23294_FMA16586_Right%20hip%20bone.obj`,
     note: '右髋骨。BodyParts3D 没有整块颅骨也没有整副胸廓 —— 它按 FMA 本体拆到单骨，这对我们正好',
   },
   {
