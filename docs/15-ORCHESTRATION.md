@@ -76,6 +76,39 @@ Next:       one concrete next step
 
 ## 6. Traps we fell into (the orchestrator's own mistakes, written down so they stop recurring)
 
+### 6.6 `until grep "<标记>" <文件>` —— 生产者死了，等待者会等到天荒地老
+
+`6.1` 记的是 `pgrep` 匹配到等待自己的那条 shell。这是同一个坑的另一半，
+**而且更隐蔽**：这次匹配没问题，问题是**它等的那个标记永远不会被写出来**。
+
+实际发生的（2026-09-13 06:07–06:16）：一条线批量截了 24 张图，
+图**全部成功写到磁盘**（每张 790 KB），但两个无头 Chrome 没有退出，
+于是产出脚本走不到最后那句 `echo ALLDONE`。等待循环因此挂了九分半，
+而且如果没人管，它会一直挂下去 —— `until` 没有超时。
+
+更坑的是 `burst.log` 看起来像"在进行中"：每行文件名后面的尺寸列是空的，
+读起来像截图失败了。实际上那只是汇报格式的问题，**磁盘上的文件是好的**。
+"看起来像坏了"和"真的坏了"在这里是两件事。
+
+**规则**：任何 `until <条件>; do sleep N; done` 都必须带**超时**和**兜底判据**。
+
+```bash
+# 坏：生产者一死就永远挂着
+until grep -q ALLDONE out.log; do sleep 5; done
+
+# 好：超时 + 直接看真正想要的东西（文件本身），而不是一个标记
+for i in $(seq 60); do
+  [ "$(ls out-*.png 2>/dev/null | wc -l)" -ge 24 ] && break
+  sleep 5
+done
+```
+
+**判据要盯产物，不要盯标记。** 标记是生产者"说"它做完了；产物是它**真的**做完了。
+标记会因为任何一个中间环节挂掉而丢失，而产物不会。
+
+清理的顺序也记一下：先杀那两个无头 Chrome（活儿已经干完，只是没退），
+如果循环仍不退出，说明写标记的那个 shell 本身已经没了 —— 直接杀循环。
+
 ### 6.1 `pgrep -f "<string>"` matches the very shell that is waiting on it
 
 ```bash
