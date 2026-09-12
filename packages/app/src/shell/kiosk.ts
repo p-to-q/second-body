@@ -16,6 +16,8 @@ export interface Flags {
   kiosk: boolean;       // ?kiosk=1  进入现场模式
   act: string | null;   // ?act=echo 锁定一个玩法（docs/16）
   plan: string | null;  // ?plan=quadruped 覆盖身体方案（docs/18）
+  /** ?scene=void 覆盖舞台场景（app/src/stage/scenes.ts）。null = 按物种自动挑 */
+  scene: string | null;
   selftest: boolean;    // ?selftest=1 开场自检页（不进主程序）
   clip: string | null;  // ?clip=walkwave  指定回放片段（配合 ?demo=1）
   /** ?model=lite|full|heavy  换 PoseLandmarker 档位（docs/24 §3）。null = 默认档 lite */
@@ -65,6 +67,7 @@ export function readFlags(search = location.search): Flags {
     kiosk: q.get('kiosk') === '1',
     act: q.get('act'),
     plan: q.get('plan'),
+    scene: q.get('scene'),
     selftest: q.get('selftest') === '1',
     clip: q.get('clip'),
     // 手滑写 ?model=fulll 不该静默退回 lite —— 认不出来就是 null，

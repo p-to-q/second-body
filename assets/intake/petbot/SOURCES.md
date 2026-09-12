@@ -28,3 +28,17 @@
 
 按上面的路线逐条试。**不要为了凑数随便抓一张** —— 
 这个条目现在走纯文字 prompt（见同目录 `prompt.md`）是正确的状态，不是缺口。
+
+---
+
+## AI 生成参考图（2026-09-13 追加）
+
+| 文件 | 来源 | 版权 | 说明 |
+|---|---|---|---|
+| `glossy-pet-robot.png` | MiniMax Design 图片生成（Design Image 2.5 Sunburst），2026-09-13 | AI 生成，无第三方权利 | 1024×1024。见下方 prompt 原文与生成记录。 |
+
+**提交的 prompt 原文：**
+
+> A studio product photograph of a small glossy quadruped pet robot standing square on four legs facing camera. Pearlescent white injection-moulded consumer-electronics body with rounded organic-electronic volumes, crisp parting lines, thin articulated ears and a thin tail of the same material, two black oval OLED eyes, a little dark grey rubber showing at the joints, an elongated low body. Plain flat light-grey seamless studio background, soft even diffuse lighting, no hard shadows, no props, no text, no logo, single subject, whole subject inside frame with margin.
+
+**生成记录：** 一次生成、一次采用。agent 选了 1:1，长边 1024 —— **刚好卡在硬要求下限**，如果后面要放大重出，这条最该重做。珠光白注塑 + 黑椭圆眼 + 薄片耳尾都在。

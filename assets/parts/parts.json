@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-09-12T20:28:13.805Z",
+  "generatedAt": "2026-09-12T21:43:09.806Z",
   "units": "meters",
   "convention": {
     "axis": "+Y",
@@ -1236,6 +1236,34 @@
       }
     },
     {
+      "id": "foot.char.line.a",
+      "slot": "foot",
+      "tier": 1,
+      "file": "foot.char.line.a.glb",
+      "family": "char.line",
+      "localGirth": 0.5302,
+      "triCount": 2968,
+      "aabb": {
+        "min": [
+          -0.24050111392559587,
+          0,
+          -0.2651142918179876
+        ],
+        "max": [
+          0.24050111392559587,
+          1,
+          0.2651142918179876
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "hyper3d",
+        "model": "Gen-2.5-Low",
+        "seed": 36834,
+        "recipeId": "foot.char.line.a"
+      }
+    },
+    {
       "id": "foot.char.painting.a",
       "slot": "foot",
       "tier": 1,
@@ -1289,6 +1317,34 @@
         "model": "Gen-2.5-Low",
         "seed": 34840,
         "recipeId": "foot.char.paper.a"
+      }
+    },
+    {
+      "id": "foot.char.tokusatsu.a",
+      "slot": "foot",
+      "tier": 1,
+      "file": "foot.char.tokusatsu.a.glb",
+      "family": "char.tokusatsu",
+      "localGirth": 0.5213,
+      "triCount": 2924,
+      "aabb": {
+        "min": [
+          -0.23628955961790826,
+          0,
+          -0.260658589434492
+        ],
+        "max": [
+          0.23628955961790826,
+          1,
+          0.260658589434492
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "hyper3d",
+        "model": "Gen-2.5-Low",
+        "seed": 41509,
+        "recipeId": "foot.char.tokusatsu.a"
       }
     },
     {
@@ -2524,6 +2580,34 @@
       }
     },
     {
+      "id": "head.char.line.a",
+      "slot": "head",
+      "tier": 1,
+      "file": "head.char.line.a.glb",
+      "family": "char.line",
+      "localGirth": 0.9252,
+      "triCount": 4652,
+      "aabb": {
+        "min": [
+          -0.38238166447950683,
+          0,
+          -0.46258430738242745
+        ],
+        "max": [
+          0.38238166447950683,
+          1,
+          0.46258430738242745
+        ]
+      },
+      "symmetry": "none",
+      "source": {
+        "provider": "hyper3d",
+        "model": "Gen-2.5-Low",
+        "seed": 59036,
+        "recipeId": "head.char.line.a"
+      }
+    },
+    {
       "id": "head.char.painting.a",
       "slot": "head",
       "tier": 1,
@@ -2577,6 +2661,34 @@
         "model": "Gen-2.5-Low",
         "seed": 25350,
         "recipeId": "head.char.paper.a"
+      }
+    },
+    {
+      "id": "head.char.tokusatsu.a",
+      "slot": "head",
+      "tier": 1,
+      "file": "head.char.tokusatsu.a.glb",
+      "family": "char.tokusatsu",
+      "localGirth": 0.9227,
+      "triCount": 2928,
+      "aabb": {
+        "min": [
+          -0.46136356700338754,
+          0,
+          -0.29428998687704094
+        ],
+        "max": [
+          0.46136356700338754,
+          1,
+          0.29428998687704094
+        ]
+      },
+      "symmetry": "none",
+      "source": {
+        "provider": "hyper3d",
+        "model": "Gen-2.5-Low",
+        "seed": 30255,
+        "recipeId": "head.char.tokusatsu.a"
       }
     },
     {
@@ -3252,6 +3364,34 @@
       }
     },
     {
+      "id": "joint.char.line.a",
+      "slot": "joint",
+      "tier": 1,
+      "file": "joint.char.line.a.glb",
+      "family": "char.line",
+      "localGirth": 0.8218,
+      "triCount": 2858,
+      "aabb": {
+        "min": [
+          -0.4108859523300882,
+          0,
+          -0.11017181920834987
+        ],
+        "max": [
+          0.4108859523300882,
+          1,
+          0.11017181920834987
+        ]
+      },
+      "symmetry": "none",
+      "source": {
+        "provider": "hyper3d",
+        "model": "Gen-2.5-Low",
+        "seed": 36416,
+        "recipeId": "joint.char.line.a"
+      }
+    },
+    {
       "id": "joint.char.painting.a",
       "slot": "joint",
       "tier": 1,
@@ -3305,6 +3445,34 @@
         "model": "Gen-2.5-Low",
         "seed": 58194,
         "recipeId": "joint.char.paper.a"
+      }
+    },
+    {
+      "id": "joint.char.tokusatsu.a",
+      "slot": "joint",
+      "tier": 1,
+      "file": "joint.char.tokusatsu.a.glb",
+      "family": "char.tokusatsu",
+      "localGirth": 0.9969,
+      "triCount": 2846,
+      "aabb": {
+        "min": [
+          -0.4879757072664571,
+          0,
+          -0.49847407452620013
+        ],
+        "max": [
+          0.4879757072664571,
+          1,
+          0.49847407452620013
+        ]
+      },
+      "symmetry": "none",
+      "source": {
+        "provider": "hyper3d",
+        "model": "Gen-2.5-Low",
+        "seed": 32555,
+        "recipeId": "joint.char.tokusatsu.a"
       }
     },
     {
@@ -3980,6 +4148,34 @@
       }
     },
     {
+      "id": "shin.char.line.a",
+      "slot": "shin",
+      "tier": 1,
+      "file": "shin.char.line.a.glb",
+      "family": "char.line",
+      "localGirth": 0.3333,
+      "triCount": 2862,
+      "aabb": {
+        "min": [
+          -0.16664632099368268,
+          0,
+          -0.16585283974730675
+        ],
+        "max": [
+          0.16664632099368268,
+          1,
+          0.16585283974730675
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "hyper3d",
+        "model": "Gen-2.5-Low",
+        "seed": 8730,
+        "recipeId": "shin.char.line.a"
+      }
+    },
+    {
       "id": "shin.char.painting.a",
       "slot": "shin",
       "tier": 1,
@@ -4033,6 +4229,34 @@
         "model": "Gen-2.5-Low",
         "seed": 15216,
         "recipeId": "shin.char.paper.a"
+      }
+    },
+    {
+      "id": "shin.char.tokusatsu.a",
+      "slot": "shin",
+      "tier": 1,
+      "file": "shin.char.tokusatsu.a.glb",
+      "family": "char.tokusatsu",
+      "localGirth": 0.3304,
+      "triCount": 2934,
+      "aabb": {
+        "min": [
+          -0.16182439649647512,
+          0,
+          -0.1651814325388348
+        ],
+        "max": [
+          0.16182439649647512,
+          1,
+          0.1651814325388348
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "hyper3d",
+        "model": "Gen-2.5-Low",
+        "seed": 39133,
+        "recipeId": "shin.char.tokusatsu.a"
       }
     },
     {
@@ -4736,6 +4960,34 @@
       }
     },
     {
+      "id": "spine.char.line.a",
+      "slot": "spine",
+      "tier": 1,
+      "file": "spine.char.line.a.glb",
+      "family": "char.line",
+      "localGirth": 0.8359,
+      "triCount": 2802,
+      "aabb": {
+        "min": [
+          -0.41796624652851955,
+          0,
+          -0.2652974028748436
+        ],
+        "max": [
+          0.41796624652851955,
+          1,
+          0.2652974028748436
+        ]
+      },
+      "symmetry": "none",
+      "source": {
+        "provider": "hyper3d",
+        "model": "Gen-2.5-Low",
+        "seed": 32779,
+        "recipeId": "spine.char.line.a"
+      }
+    },
+    {
       "id": "spine.char.painting.a",
       "slot": "spine",
       "tier": 1,
@@ -4789,6 +5041,34 @@
         "model": "Gen-2.5-Low",
         "seed": 62619,
         "recipeId": "spine.char.paper.a"
+      }
+    },
+    {
+      "id": "spine.char.tokusatsu.a",
+      "slot": "spine",
+      "tier": 1,
+      "file": "spine.char.tokusatsu.a.glb",
+      "family": "char.tokusatsu",
+      "localGirth": 0.856,
+      "triCount": 2956,
+      "aabb": {
+        "min": [
+          -0.4279763176366466,
+          0,
+          -0.2641376995147557
+        ],
+        "max": [
+          0.4279763176366466,
+          1,
+          0.2641376995147557
+        ]
+      },
+      "symmetry": "none",
+      "source": {
+        "provider": "hyper3d",
+        "model": "Gen-2.5-Low",
+        "seed": 19402,
+        "recipeId": "spine.char.tokusatsu.a"
       }
     },
     {
@@ -5772,6 +6052,34 @@
       }
     },
     {
+      "id": "upperArm.char.line.a",
+      "slot": "upperArm",
+      "tier": 1,
+      "file": "upperArm.char.line.a.glb",
+      "family": "char.line",
+      "localGirth": 0.3169,
+      "triCount": 2866,
+      "aabb": {
+        "min": [
+          -0.1574907681508835,
+          0,
+          -0.1584673604541154
+        ],
+        "max": [
+          0.1574907681508835,
+          1,
+          0.1584673604541154
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "hyper3d",
+        "model": "Gen-2.5-Low",
+        "seed": 5600,
+        "recipeId": "upperArm.char.line.a"
+      }
+    },
+    {
       "id": "upperArm.char.painting.a",
       "slot": "upperArm",
       "tier": 1,
@@ -5825,6 +6133,34 @@
         "model": "Gen-2.5-Low",
         "seed": 65394,
         "recipeId": "upperArm.char.paper.a"
+      }
+    },
+    {
+      "id": "upperArm.char.tokusatsu.a",
+      "slot": "upperArm",
+      "tier": 1,
+      "file": "upperArm.char.tokusatsu.a.glb",
+      "family": "char.tokusatsu",
+      "localGirth": 0.3138,
+      "triCount": 2910,
+      "aabb": {
+        "min": [
+          -0.15688039796136358,
+          0,
+          -0.15260780663472395
+        ],
+        "max": [
+          0.15688039796136358,
+          1,
+          0.15260780663472395
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "hyper3d",
+        "model": "Gen-2.5-Low",
+        "seed": 34123,
+        "recipeId": "upperArm.char.tokusatsu.a"
       }
     },
     {

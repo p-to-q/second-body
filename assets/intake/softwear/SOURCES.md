@@ -32,3 +32,17 @@ NEO 是**唯一一个 §3「不要给穿衣服的照片当参考」直接撞上�
 
 按上面的路线逐条试。**不要为了凑数随便抓一张** —— 
 这个条目现在走纯文字 prompt（见同目录 `prompt.md`）是正确的状态，不是缺口。
+
+---
+
+## AI 生成参考图（2026-09-13 追加）
+
+| 文件 | 来源 | 版权 | 说明 |
+|---|---|---|---|
+| `knitted-home-robot.png` | MiniMax Design 图片生成（Design Image 2.5 Sunburst），2026-09-13 | AI 生成，无第三方权利 | 1728×2304。见下方 prompt 原文与生成记录。 |
+
+**提交的 prompt 原文：**
+
+> A full-body studio product photograph of a soft humanoid home robot entirely wrapped in a seamless knitted textile sleeve over a slim rigid inner core, standing straight facing camera in a neutral pose. Warm greige wool-feel knit covering the whole body, ribbed knit cuffs marking the joints, no visible mechanism anywhere, the only hard surface is a smooth oval face visor which is also fabric-covered. Plain flat light-grey seamless studio background, soft even diffuse lighting, no hard shadows, no props, no text, no logo, single subject, whole subject inside frame with margin.
+
+**生成记录：** 一次生成、一次采用。prompt 由本目录 `prompt.md` 的形态/材质描述改写为整机视角（`prompt.md` 写的是「肢体段」，不能直接当参考图用），末尾接任务规定的统一背景约束。MiniMax 的 agent 自行选了 3:4 竖幅。满足硬要求：单主体、浅灰无缝背景、平光无硬阴影、全身留边、正面站立。
