@@ -4,6 +4,7 @@ export * from './vec.ts';
 export * from './rng.ts';
 export * from './filter.ts';
 export * from './attach.ts';
+export * from './palette.ts';
 export * from './slots.ts';
 export * from './presence.ts';
 export * from './evolution.ts';

@@ -1,0 +1,119 @@
+/**
+ * 目录的皮肤。度量与颜色全部来自 type.css，这里只摆位置和那一次淡出。
+ *
+ * 没有图标、没有汉堡、没有卡片、没有阴影 —— 收起来的时候它就是**一个词加一条线**，
+ * 和入口层的 `.sb-act` 是同一个构件。展开之后是一张表：左边名字，右边一句
+ * "它能回答什么问题"，行与行之间一条细横线。这是 `/making` 和 `/dev/` 的构型。
+ */
+
+.sb-nav {
+  position: fixed;
+  top: calc(var(--sb-safe) * 0.5);
+  right: calc(var(--sb-safe) * 0.5);
+  /* 11 = 压在入口展签（10）之上。展签刻意没有导航条，但它**就是网页版的首页**：
+     评委打开这个 URL 看到的第一屏就是它，目录不在这里等于不存在。 */
+  z-index: 11;
+  font-size: var(--sb-size-small);
+  /* flex + flex-end 而不是 text-align:right：展开时 .sb-nav 的宽度会从"目录"两个字
+     撑到整张表，靠文字对齐的话那个词会从右上角跳到表的左上角 —— 实测就是这样。
+     一个会在点击时换位置的开关，观众会以为自己点错了。 */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+/* 收起态：一个词 + 一条线。展开时线亮成强调色 */
+.sb-nav-toggle {
+  appearance: none;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--sb-rule);
+  padding: 0 0 0.3rem;
+  margin: 0;
+  font: inherit;
+  font-family: var(--sb-grotesk);
+  letter-spacing: var(--sb-tracking-label);
+  text-transform: uppercase;
+  color: var(--sb-ink);
+  cursor: pointer;
+  transition: border-color 180ms;
+}
+.sb-nav-toggle .sb-zh,
+.sb-nav-toggle .sb-en { display: inline; }
+.sb-nav-toggle .sb-en { color: var(--sb-ink-dim); margin-left: 0.6em; }
+/* 焦点态用那条线，不用浏览器的蓝框（和 entry.css 的 .sb-act 同一条理由） */
+.sb-nav-toggle:hover,
+.sb-nav-toggle:focus-visible,
+.sb-nav.is-open .sb-nav-toggle {
+  outline: none;
+  border-bottom-color: var(--sb-accent);
+}
+
+/* 展开的那张表。右对齐落在收起态那个词的下面 */
+.sb-nav-panel {
+  margin-top: calc(var(--sb-gutter) * 0.6);
+  width: min(30rem, calc(100vw - var(--sb-safe)));
+  text-align: left;
+  background: var(--sb-paper);
+  /* 没有入场动效，理由写在 shell/notice.css 里：入场动效等于把静止态设成
+     opacity: 0，而动画不一定跑得起来。一个点开之后可能是空白的菜单，
+     比一个"唰"地出现的菜单糟糕得多。 */
+}
+
+.sb-nav-item {
+  display: block;
+  border: 0;
+  border-top: 1px solid var(--sb-rule);
+  padding: 0.7rem 0;
+  color: inherit;
+}
+.sb-nav-item:first-child { border-top: 0; }
+.sb-nav-item:hover .sb-nav-name .sb-zh,
+.sb-nav-item:focus-visible .sb-nav-name .sb-zh { color: var(--sb-accent); }
+.sb-nav-item:focus-visible { outline: none; }
+
+.sb-nav-name {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sb-gutter);
+}
+.sb-nav-name .sb-bi { display: block; }
+.sb-nav-name .sb-en { font-size: 0.8em; }
+
+/* 「在这里」：等宽小字，因为它是状态不是文案 */
+.sb-nav-here {
+  font-family: var(--sb-mono);
+  font-size: var(--sb-size-small);
+  letter-spacing: var(--sb-tracking-label);
+  color: var(--sb-ink-dim);
+  white-space: nowrap;
+}
+
+.sb-nav-answer { margin-top: 0.25rem; }
+.sb-nav-answer .sb-zh,
+.sb-nav-answer .sb-en { color: var(--sb-ink-dim); font-size: 0.92em; }
+
+/* ── 浮在画布上的那一份 ────────────────────────────────────────────────────
+ * 满屏 canvas 的页面上，目录 4 秒后淡下去 —— 和 `ui/page.ts` 的浮层页头
+ * 同一条规矩、同一个数（docs/23 §S4：观众只需要知道一次）。
+ * 鼠标碰上去、或者用键盘 tab 到它，它自己回来。
+ */
+.sb-nav--overlay .sb-nav-toggle { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9); }
+.sb-nav--overlay { transition: opacity 180ms cubic-bezier(.4, 0, 1, 1); }
+.sb-nav--overlay.is-faded { opacity: 0.18; }
+.sb-nav--overlay:hover,
+.sb-nav--overlay:focus-within,
+.sb-nav--overlay.is-open { opacity: 1; }
+
+/* 文档流页面上目录常驻：那几页本来就是拿来读的，没有"别挡住画面"这回事 */
+
+
+/* ── 叠在画布上的那一个元素：开关 ──────────────────────────────────────
+   展开后的面板有自己的深色底，里面的字保持 `--sb-ink` 是对的。
+   但**开关本身直接贴在舞台画布上** —— 场景那条线做出白展厅之后，
+   浅灰的开关在白底上几乎看不见。两条线各自都对，合起来坏了。
+   `--sb-on-stage` 由舞台按当前场景底色亮度发布（stage.ts 的 publishStageInk），
+   缺省等于 `--sb-ink`，所以文档页上的目录一个像素都不变。 */
+.sb-nav--overlay:not(.is-open) .sb-nav-toggle { color: var(--sb-on-stage); }
+.sb-nav--overlay:not(.is-open) .sb-nav-toggle .sb-en { color: var(--sb-on-stage-dim); }

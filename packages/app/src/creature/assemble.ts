@@ -10,7 +10,7 @@
  */
 import { attachMatrix, jointMatrix } from '../../../core/src/attach.ts';
 import { IS_LEFT, SLOT_OF_BONE } from '../../../core/src/slots.ts';
-import { MORPH, SKELETON, SLOT_FIT, SLOT_WIDTH } from '../../../core/src/tuning.ts';
+import { FOOT, MORPH, SKELETON, SLOT_FIT, SLOT_WIDTH } from '../../../core/src/tuning.ts';
 import { BONES } from '../../../core/src/skeleton.ts';
 import type {
   Bone, BoneId, Genome, Mat4, MaterialRole, PartMeta, Skeleton, Slot, SlotKey, Vec3,
@@ -25,7 +25,10 @@ export interface PartInstance {
   slot: Slot;
   partId: string;
   materialRole: MaterialRole;
-  /** 用负 X 缩放实现的镜像 → 渲染端必须双面渲染或翻转正反面剔除（docs/04 §4） */
+  /**
+   * 这是左侧肢体、要用**预镜像几何**（`library.mirrored()`）画。
+   * 矩阵本身不含负 X 缩放 —— 镜像烘进几何里了，理由见 `library.mirrorGeometry`。
+   */
   mirrored: boolean;
   /** 列主序 4x4，与 three.js Matrix4.elements 一致 */
   matrix: Mat4;
@@ -100,6 +103,15 @@ function boneGirthMeters(bone: BoneId): number {
 
 const finite = (v: number, fallback: number) => (Number.isFinite(v) ? v : fallback);
 
+/**
+ * 整只脚的世界长度。骨头（踝→脚尖）量不到脚跟那一截，所以要补一个系数；
+ * 钳位是因为脚尖 landmark 是全身最容易被追踪冲飞的点之一（docs/04 §2 的回退链就为它而写）。
+ */
+function footLength(boneLength: number, bodyScale: number): number {
+  const raw = finite(boneLength, 0) * FOOT.lengthOfBone;
+  return Math.min(FOOT.maxLength * bodyScale, Math.max(FOOT.minLength * bodyScale, raw));
+}
+
 function defaultRender(genome: Genome, key: SlotKey): SlotRender[] {
   const pick = genome.slots?.[key];
   if (!pick || typeof pick.partId !== 'string') return [];
@@ -157,14 +169,20 @@ export function assemble(
 
       const girth = (SLOT_WIDTH[slot] * bodyScale) / Math.max(1e-4, meta.localGirth);
       const mirrored = IS_LEFT[bone.id] && meta.symmetry === 'mirror';
+      // 脚的长轴与骨头不是一回事（见 tuning.ts 的 FOOT）：长度自己算，踝钉在脚长三成处
+      const isFoot = slot === 'foot';
 
       const matrix: Mat4 = new Array(16).fill(0);
       attachMatrix(bone, matrix, {
         mode,
         girth: girth * s,
-        mirror: mirrored,
+        // 镜像不再走负 X 缩放（那会让整个左半身的法线反过来，看着像换了材质），
+        // 改成让渲染端拿预镜像的几何。见 assets/library.ts 的 mirrorGeometry。
+        mirror: false,
         // uniform 模式的 sy 已经含 girth（= g·ls），再乘 s 会平方；stretch 的 sy = len·ls 才需要
         lengthScale: mode === 'stretch' ? s : 1,
+        axisLength: isFoot ? footLength(bone.length, bodyScale) * s : undefined,
+        anchor: isFoot ? FOOT.anchor : 0,
       });
       translateInPlace(matrix, dir, finite(r.offset ?? 0, 0));
 

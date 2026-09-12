@@ -24,6 +24,7 @@
  * 窄屏下左栏塌到内容上方（见 making.html 的 media query），顺序不变。
  */
 import { COPY, setBi, type BiText } from '../ui/i18n.ts';
+import { mountNav } from '../ui/nav.ts';
 
 const M = COPY.making;
 
@@ -67,12 +68,36 @@ function section(root: Element, id: string, heading: BiText, note?: BiText): HTM
 
 // ── 题头 ────────────────────────────────────────────────────────────────────
 
+/**
+ * 开场。这一页底下是一份很密的档案 —— 密度是对的，但密度自己撑不住一页：
+ * 一上来就是 commit hash，读者不知道自己在读什么。所以前面先放一次
+ * 巨大的断言（题 + 论点），把整份档案挂在它下面。
+ */
 function renderHeader(root: Element): void {
-  const head = el('header', 'mk-header', root);
-  const h1 = el('h1', '', head);
+  const head = el('header', 'ed-hero', root);
+
+  const meta = el('div', 'ed-hero__meta', head);
+  const back = el('a', 'sb-label sb-bi-inline', meta);
+  back.setAttribute('href', '/about');
+  setBi(back, COPY.about.back);
+  const work = el('span', 'sb-label sb-bi-inline', meta);
+  setBi(work, COPY.title);
+
+  el('hr', 'ed-rule ed-rule--heavy', head);
+
+  const titleBox = el('div', 'ed-hero__title', head);
+  const h1 = el('h1', 'sb-display ed-rise', titleBox);
   setBi(h1, M.title);
-  biBlock(head, M.thesis, 'mk-thesis');
-  biBlock(head, M.lede, 'mk-lede');
+  h1.querySelector('.sb-zh')?.setAttribute('style', '--ed-i:0');
+  h1.querySelector('.sb-en')?.setAttribute('style', '--ed-i:1');
+
+  el('hr', 'ed-rule', head);
+
+  // 论点靠右栏，左边那一半是空的 —— 空得明显，才读作"这里只有一句话"
+  const lede = el('div', 'ed-hero__lede', head);
+  const col = el('div', '', lede);
+  biBlock(col, M.thesis, 'mk-thesis');
+  biBlock(col, M.lede, 'mk-lede');
 }
 
 // ── 数字 ────────────────────────────────────────────────────────────────────
@@ -169,3 +194,4 @@ export function renderMaking(root: Element): void {
 
 const mount = document.querySelector('#mk');
 if (mount) renderMaking(mount);
+mountNav();

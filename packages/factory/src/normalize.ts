@@ -12,6 +12,7 @@ import { resolve } from 'node:path';
 import { RECIPES, recipeById } from '../recipes/catalog.ts';
 import { load, save, RAW_DIR, PARTS_DIR } from './ledger.ts';
 import { glbStats } from './glb-stats.ts';
+import { readMeshFile, isImportableMesh } from './mesh-import.ts';
 import type { PartMeta, Slot, Tier, Vec3 } from '../../core/src/types.ts';
 
 const MAX_TRIS = 5000;
@@ -234,7 +235,9 @@ export async function normalizeOne(id: string, rawFile: string, over: NormalizeO
   const recipe = recipeById(id);
   const outDir = over.outDir ?? PARTS_DIR;
   const warnings: string[] = [];
-  const doc = await io.read(rawFile);
+  // 唯一的入口差异：STL/OBJ（厂商公开的机器人 CAD）先转成 Document，其余照旧走 io.read。
+  // glb 这条路一个字节都没变 —— 198 件已入库资产的行为不受影响。
+  const doc = isImportableMesh(rawFile) ? readMeshFile(rawFile) : await io.read(rawFile);
 
   // 1) 结构清理：烘掉节点变换，合并成单 mesh
   await doc.transform(flatten(), dedup(), join(), weld(), prune());

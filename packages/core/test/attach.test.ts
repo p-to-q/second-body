@@ -74,3 +74,30 @@ test('stretch 模式（默认）仍然拉到骨长', () => {
   const m = attachMatrix(b, identity(), { girth: 0.4 });
   near(applyMat4(m, [0,1,0]), [0,0.15,0]);
 });
+
+// ── 脚那条路：axisLength + anchor（见 tuning.ts 的 FOOT） ────────────────────
+
+test('axisLength 覆盖长轴尺寸，两种 mode 下都生效', () => {
+  const b = bone([0,0,0],[0,0.17,0]);                 // 骨长 0.17，girth 0.4
+  for (const mode of ['stretch', 'uniform'] as const) {
+    const m = attachMatrix(b, identity(), { girth: 0.4, mode, axisLength: 0.25 });
+    near(applyMat4(m, [0,1,0]), [0,0.25,0]);          // 不是 0.17，也不是 0.4
+    near(applyMat4(m, [1,0,0]), [0.4,0,0]);           // 横向仍然是 girth
+  }
+});
+
+test('anchor 把部件沿骨头方向倒退，p0 落在长轴的 anchor 处', () => {
+  // 一根水平的"脚骨"：踝在原点，脚尖朝 +Z
+  const b = bone([0,0,0],[0,0,0.17]);
+  const m = attachMatrix(b, identity(), { girth: 0.4, mode: 'uniform', axisLength: 0.25, anchor: 0.3 });
+  near(applyMat4(m, [0,0,0]), [0,0,-0.075], 1e-6);    // 脚跟尖：踝后面 0.3×0.25
+  near(applyMat4(m, [0,1,0]), [0,0,0.175], 1e-6);     // 脚尖：踝前面 0.7×0.25
+});
+
+test('anchor 缺省 / 越界都不改变老行为', () => {
+  const b = bone([1,2,3],[1,3,3]);
+  for (const anchor of [undefined, 0, NaN, -5]) {
+    const m = attachMatrix(b, identity(), { anchor });
+    near(applyMat4(m, [0,0,0]), [1,2,3], 1e-6);
+  }
+});

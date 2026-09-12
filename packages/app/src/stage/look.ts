@@ -59,6 +59,46 @@ export interface LookProfile {
   /** 粒子：整体亮度与漂移速度 */
   particleGain: number;
   particleDrift: number;
+
+  // ── 以下由 `scenes.ts` 覆盖（**只增不改**：不带场景时这些值等于 T-09 的老行为）──
+  // 它们住在 LookProfile 里而不是另起一个结构，只为了一件事：
+  // `lerpLook` 已经会按字段类型插值，**场景切换的平滑过渡因此是白送的**，
+  // 不用第二套过渡机制，也不会出现"灯已经换了但地面还没换"的半截画面。
+  /** 天幕顶色（线性）。天幕是屏幕空间的，不是一个几何体 —— 见 stage.ts 的 skyNode */
+  skyTop: RGB;
+  /** 身体背后那团晕的颜色（线性）。它取代了原来的"地平线" */
+  skyGlow: RGB;
+  /** 晕心相对身体中心的高度偏移（× 身体高度）。0 = 身体中心，+0.5 = 头顶 */
+  glowLift: number;
+  /** 晕的半径（× 画面高度）与软硬（指数，大 = 更集中） */
+  glowRadius: number;
+  glowSoft: number;
+  /** 距离雾密度。地面就是靠它化进天幕的 —— 不再靠"两个材质的颜色正好相等" */
+  fogDensity: number;
+  /**
+   * 地面镜射天幕的强度。**0 = 彻底不做反射**（docs/28 §4：不要中间态）。
+   * 反射的是天幕不是身体：天幕的晕正好在身体背后，映在地上就是身体脚下那道亮柱。
+   */
+  groundReflect: number;
+  /** 倒影的涟漪幅度（屏幕空间）。0 = 不动的镜面；只有"夜潮"非零 */
+  groundRipple: number;
+  /** 地面粗糙度（近/远）。湿地面近端很低，哑光地面近远都接近 1 */
+  groundGlossNear: number;
+  groundGlossFar: number;
+  /** 脚下那一圈紧的接触阴影：强度与半径（米）。**这是"人不再浮着"的那一项** */
+  contactCore: number;
+  contactCoreRadius: number;
+  /** 三盏灯的方向。场景决定布光的几何，主题只决定颜色 */
+  keyDir: RGB;
+  fillDir: RGB;
+  rimDir: RGB;
+  /** 后期的暗角与颗粒（原来写死在 POST 里，现在场景可以各要各的） */
+  vignette: number;
+  grain: number;
+  /** 粒子尺寸倍率。原来的 0.016 在 1600×900 上只有 ~7px，远看等于没有 */
+  particleSize: number;
+  /** 构图：画面中心相对身体再抬多少（× 身体高度），叠加在 FRAMING.centerLift 之上 */
+  frameLift: number;
   /** 诊断值 —— 给测试和 HUD 用，不参与渲染 */
   luma: number;
   chroma: number;
@@ -264,6 +304,29 @@ export function deriveLook(
 
     particleGain: 0.75 + 0.45 * lifeLike,
     particleDrift: 0.6 + 0.8 * lifeLike,
+
+    // ── 场景字段的缺省值 = T-09 的老行为 ──
+    // 故意这么给：`scenes.ts` 万一没被调用（或某个场景 id 打错），画面退回到
+    // "还是能看的那一版"，而不是一片黑（P3：观众永远不该看见"出错了"）。
+    skyTop: bgTop,
+    skyGlow: bgBottom,
+    glowLift: 0,
+    glowRadius: 0.9,
+    glowSoft: 1,
+    fogDensity: 0,
+    groundReflect: 0,
+    groundRipple: 0,
+    groundGlossNear: 0.58,
+    groundGlossFar: 0.96,
+    contactCore: 0,
+    contactCoreRadius: 0.2,
+    keyDir: [1.5, 2.35, 1.85],
+    fillDir: [-2.3, 1.25, 1.7],
+    rimDir: [-0.85, 2.1, -2.5],
+    vignette: 0.34,
+    grain: 0.016,
+    particleSize: 1,
+    frameLift: 0,
 
     luma, chroma, hue: hsl.h, temperature, keyTemp, coolBias, hueWeight,
   };

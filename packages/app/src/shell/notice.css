@@ -1,0 +1,42 @@
+/**
+ * 会自己消失的那一行。低对比度、不吃指针、贴安全区。
+ * 它压在画面上，所以要一点文字阴影 —— 身体经过时那行字不能被吞掉。
+ */
+.sb-notice {
+  position: fixed;
+  bottom: var(--sb-safe);
+  /* 9 = 压在加载态那一层（8）之上、目录（11）之下。
+     压不过加载态的话，这一行会被盖住，等它露出来时 4 秒早就走完了。 */
+  z-index: 9;
+  margin: 0;
+  max-width: 40ch;
+  pointer-events: none;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+/**
+ * 这一行**没有入场动效**，这是故意的。
+ *
+ * `docs/23 §0` 写的是「进 240ms / 出 180ms」。出场保留（下面的 .is-leaving），
+ * 入场去掉，理由是它会以一种很难查的方式失败：入场动效意味着元素的静止态是
+ * `opacity: 0`，只有动画跑完才变成 1。而动画**不一定跑** —— 实测在文档时间线
+ * 没有推进的页面上（无头浏览器、被降到后台的标签页），动画会停在
+ * `playState: running / currentTime: 0`，于是这一行永远透明：DOM 在、字在、人看不见。
+ *
+ * 一个只出现 4 秒、说完就走的提示，"一定看得见"比"出现得优雅"重要得多。
+ * 出场动效没有这个风险：它跑不起来的最坏结果是直接消失，而那正是我们要的结果。
+ */
+
+.sb-notice--bottom-left { left: var(--sb-safe); }
+/* 右下角是「用我的摄像头」那个按钮的位置（entry.css 的 .sb-camera）。
+   §S0 的降级提示只在启动那 4 秒里出现，那时按钮还没挂上，不会打架。 */
+.sb-notice--bottom-right { right: var(--sb-safe); text-align: right; }
+
+.sb-notice .sb-zh { color: var(--sb-on-stage); }
+.sb-notice .sb-en { color: var(--sb-on-stage-dim); }
+
+.sb-notice.is-leaving {
+  opacity: 0;
+  transition: opacity 180ms cubic-bezier(.4, 0, 1, 1);
+  animation: none;
+}

@@ -5,7 +5,7 @@
  *   body  1.0rem / 400 / line-height 1.5
  *   h1    2.00rem / line-height 1.15 / 600
  *   h2    1.50rem / line-height 1.25 / 600
- *   html  font-size 100% → 105%
+ *   html  font-size 100% → 105% → 110% → 115%（我们只走到 110%，见下面的注释）
  *
  * **字体本身不打包。** ZKM 线上引用的 `ZKMSerendipity` 没有对应的 `@font-face` ——
  * 它靠本机已装字体，装不上就落到 `sans-serif`。ZKM 自己把
@@ -23,24 +23,57 @@
                 "Suisse Int'l", Univers, Helvetica, Arial, "Segoe UI", system-ui, sans-serif;
   --sb-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
-  /* ── 字号：只有两级正文 + 两级标题。三级以上就开始像后台系统 ───────── */
+  /**
+   * ── 字号级差 ──────────────────────────────────────────────────────────
+   *
+   * 原来是 2 / 1.5 / 1 —— 相邻两级只差 1.33 倍。这种密的级差是**档案**的级差：
+   * 它假设读者会从上往下读完，所以层级只需要"可分辨"。
+   * 但这几页真正的读者是**扫过去的人**，他要在几秒内知道这是什么、谁做的。
+   * 扫视只认得两样东西：最大的那个，和其余。所以级差重排成两块：
+   *
+   *   display  巨题，一屏只有一个        ← 和下一级差 4 倍以上
+   *   ——————— 刻意的空白：这里没有中间级 ———————
+   *   h1 / h2 / h3 / body / small / micro  其余全部
+   *
+   * 中间那几级是**故意不存在**的。有了中间级，眼睛会沿着阶梯慢慢下来，
+   * 于是没有任何一级是"大"的；抽掉它，display 才真的读作一次断言。
+   * h2 从 1.5rem 收回到 1.25rem 也是为此 —— 把跳跃让给 display，
+   * 章题退回"分区标记"的本分。
+   */
+  --sb-size-display: clamp(3.25rem, 10.5vw, 10rem);
+  --sb-size-h1: clamp(1.875rem, 3.1vw, 2.75rem);   /* 实测区间见 docs/32 §A */
+  --sb-size-h2: 1.25rem;
   --sb-size-body: 1rem;         /* 16px */
   --sb-size-small: 0.8125rem;   /* 13px，数据/标注 */
-  --sb-size-h2: 1.5rem;
-  --sb-size-h1: 2rem;
+  --sb-size-micro: 0.6875rem;   /* 11px，只给全大写标签 */
 
   --sb-lh-body: 1.5;
-  --sb-lh-h1: 1.15;
-  --sb-lh-h2: 1.25;
+  /* 实测：字号 ≥60px 的站行距全部落在 0.95–1.05（field.io 0.95 / serpentine 1.00
+     / dumbar 1.05）。0.9 是我最初凭感觉写的，在带降部的英文上会压到下一行 —— 改回实测下界。 */
+  --sb-lh-display: 0.95;
+  --sb-lh-h1: 1.08;
+  --sb-lh-h2: 1.3;
 
   --sb-weight-body: 400;
   --sb-weight-head: 600;
 
-  /* grotesk 在大字号下要收紧，小字号下要放开 —— 这是这套风格最容易被忽略的一半 */
+  /**
+   * grotesk 在大字号下要收紧，小字号下要放开 —— 这是这套风格最容易被忽略的一半。
+   * 字越大，字距越负：视觉上字母间的空白是随字号线性放大的，而"看起来一样紧"
+   * 需要它不放大，所以必须逐级往回收。
+   *
+   * 但**收到哪里为止**是实测出来的，不是感觉出来的（docs/32 §C）：
+   * 抓了 11 个站的样式表，**没有一个**在大标题上用
+   * −0.04em；Helvetica / Neue Haas 系的收到 −0.02 ~ −0.025em 就停了，
+   * 而衬线或自有字体的机构站（serpentine / ZKM / RCA）干脆是 0。
+   * 我们用的是 grotesk 栈，所以取那一派的下界。
+   */
+  --sb-tracking-display: -0.025em;
   --sb-tracking-h1: -0.02em;
-  --sb-tracking-h2: -0.01em;
+  --sb-tracking-h2: -0.015em;
   --sb-tracking-body: 0;
-  --sb-tracking-label: 0.08em;   /* 全大写标签 */
+  /* ZKM 自己的全大写标签是 0.05rem —— 落在 0.75rem 的字号上约 +0.067em。取整到 0.07em */
+  --sb-tracking-label: 0.07em;
 
   /* ── 颜色（docs/23 §0）────────────────────────────────────────────── */
   --sb-paper: #0e0f12;
@@ -50,14 +83,29 @@
   --sb-accent: #7fb3d5;
   --sb-warn: #e0455a;
 
+  /* 叠在舞台画布上的那几层用它，而不是 --sb-ink。
+     舞台会按当前场景的底色亮度覆盖它（见 stage.ts 的 publishStageInk）——
+     白展厅下浅灰字看不见，这个变量就是为那件事存在的。
+     缺省等于 --sb-ink，所以不在舞台上的页面不受影响。 */
+  --sb-on-stage: #dfe4ea;
+  --sb-on-stage-dim: #9aa0a6;
+
   /* ── 栅格：Typographic Style 的骨架 ───────────────────────────────── */
   --sb-gutter: 24px;
   --sb-safe: 48px;              /* 投影会切边，安全区不能小于这个数 */
   --sb-measure: 68ch;           /* 正文行长上限 */
 }
 
+/**
+ * 根字号随断点整体缩放，而不是逐个改 h1 —— ZKM 自己就是这么做的
+ * （实测 100 / 105 / 110 / 115%）。整组 rem 一起走，级差比例不变。
+ * 我们只走到 110%：实测的正文区间是 17–19px（11 个站里最小的是 15px，
+ * 没有一个用 14px），16px 的正文在 1440 的幅面上偏小，17.6px 正好进区间。
+ * 再往上到 115% 会把 dev 工具页那些很密的表撑开，那些页面不需要"读起来舒服"。
+ */
 html { font-size: 100%; -webkit-text-size-adjust: 100%; }
-@media (min-width: 1200px) { html { font-size: 105%; } }
+@media (min-width: 768px) { html { font-size: 105%; } }
+@media (min-width: 1200px) { html { font-size: 110%; } }
 
 body {
   margin: 0;
@@ -77,13 +125,28 @@ h1 { font-size: var(--sb-size-h1); line-height: var(--sb-lh-h1); letter-spacing:
 h2 { font-size: var(--sb-size-h2); line-height: var(--sb-lh-h2); letter-spacing: var(--sb-tracking-h2); }
 h3 { font-size: var(--sb-size-body); line-height: var(--sb-lh-body); }
 
+/**
+ * 巨题。**不绑在 h1 上**：h1 是语义（这一页的题），display 是版面动作
+ * （一屏只有一个、大到必须被看见）。dev 工具页每一页都有 h1，它们不该变巨。
+ */
+.sb-display {
+  font-size: var(--sb-size-display);
+  line-height: var(--sb-lh-display);
+  letter-spacing: var(--sb-tracking-display);
+  font-weight: var(--sb-weight-head);
+  color: var(--sb-ink);
+  margin: 0;
+  /* 巨题一定要能断在任意位置，否则窄屏下「SEE-ME SEE-YOU」会捅出视口 */
+  overflow-wrap: anywhere;
+}
+
 p { max-width: var(--sb-measure); margin: 0 0 1em; }
 a { color: var(--sb-ink); text-decoration: none; border-bottom: 1px solid var(--sb-rule); }
 a:hover { border-bottom-color: var(--sb-accent); }
 
 /** 全大写小标签：这套风格里承担"分类"的那个角色 */
 .sb-label {
-  font-size: var(--sb-size-small);
+  font-size: var(--sb-size-micro);
   letter-spacing: var(--sb-tracking-label);
   text-transform: uppercase;
   color: var(--sb-ink-dim);

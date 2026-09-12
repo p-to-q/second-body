@@ -34,3 +34,17 @@
 
 按上面的路线逐条试。**不要为了凑数随便抓一张** —— 
 这个条目现在走纯文字 prompt（见同目录 `prompt.md`）是正确的状态，不是缺口。
+
+---
+
+## AI 生成参考图（2026-09-13 追加）
+
+| 文件 | 来源 | 版权 | 说明 |
+|---|---|---|---|
+| `yellow-field-robot-product-shot.png` | MiniMax Design 图片生成（Design Image 2.5 Sunburst），2026-09-13 | AI 生成，无第三方权利 | 2304×1728。见下方 prompt 原文与生成记录。 |
+
+**提交的 prompt 原文：**
+
+> A studio product photograph of a headless quadruped field robot standing square on all four legs in a neutral stance, seen from a slight three-quarter front angle. Engineering-yellow injection-moulded body shells over matte black machined joint drums, a long low box-shaped torso, bulging knee-motor drums, slim tubular shanks, protective bumper ribs and a few exposed hex bolts, small rubber foot pads, no face and no decorative surfaces. Plain flat light-grey seamless studio background, soft even diffuse lighting, no hard shadows, no props, no text, no logo, single subject, whole subject inside frame with margin.
+
+**生成记录：** 一次生成、一次采用。agent 选了 4:3 横幅 —— 对四足躯干是对的（`prompt.md` 提醒近立方 bbox 会抄成小躯干，横幅参考图正好把躯干拉长）。黄壳/黑关节/无头三要素齐全。

@@ -11,6 +11,10 @@ export function showBootError(err: unknown): void {
   console.error('[main] boot failed:', err);
   console.info('[main] 兜底：?demo=1 用录制回放（不需要摄像头）；?selftest=1 逐项自检。');
 
+  // 加载态还挂着的话先摘掉：两块浮层叠在一起时，观众会同时读到
+  // 「正在准备零件 62%」和「稍等一下」—— 那比只有后面那一句更像坏了。
+  document.querySelector('.sb-loading')?.remove();
+
   const el = document.createElement('div');
   el.className = 'sb-bootfail';
   el.setAttribute('role', 'alert');

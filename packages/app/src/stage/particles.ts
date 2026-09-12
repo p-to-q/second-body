@@ -18,7 +18,7 @@ import {
   positionGeometry, pow, sin, smoothstep, uniform, uv, varying, vec3, vec4,
 } from 'three/tsl';
 import { mulberry32 } from '../../../core/src/rng.ts';
-import { SKELETON } from '../../../core/src/tuning.ts';
+import { SKELETON, STAGE } from '../../../core/src/tuning.ts';
 import type { RGB } from './look.ts';
 
 export interface BreathField {
@@ -31,6 +31,13 @@ export interface BreathField {
    */
   update(dt: number, gather: number, opacity: number, timeScale: number): void;
   setLook(color: RGB, gain: number, drift: number): void;
+  /**
+   * 粒子尺寸倍率。**这是"粒子几乎看不见"的直接修法**：
+   * 原来的 0.016m 公告牌在 2.8m 外 45° fov 的 1600×900 画面上只有 ~7px，
+   * 再乘上 0.35 的基础不透明度，一颗粒子对一个像素的贡献不到 1/255 ——
+   * 它不是"淡"，是**在 8bit 输出里根本存不下来**。逆光那套要到 ~2.1 倍才读得出体积。
+   */
+  setSize(mul: number): void;
   /**
    * 把"聚拢形态"缩放/平移到当前这具身体所在的那个盒子里。
    * 人形以外的方案（四足是横的矮的）如果不缩，粒子会聚成一个和身体对不上的人影。
@@ -141,7 +148,7 @@ export function createBreathField(opt: BreathFieldOptions = {}): BreathField {
   const uTime = uniform(0);
   const uGather = uniform(0);
   const uOpacity = uniform(1);
-  const uSize = uniform(0.016);
+  const uSize = uniform(STAGE.particleSize);
   const uDrift = uniform(1);
   const uColor = uniform(new THREE.Vector3(0.8, 0.86, 1));   // 线性 RGB，直接当 vec3 用
   const uGain = uniform(1);
@@ -226,6 +233,7 @@ export function createBreathField(opt: BreathFieldOptions = {}): BreathField {
       uGain.value = gain;
       uDrift.value = drift;
     },
+    setSize(m) { uSize.value = STAGE.particleSize * Math.max(0.1, m); },
     dispose() {
       geo.dispose();
       mat.dispose();

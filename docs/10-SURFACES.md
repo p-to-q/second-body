@@ -7,9 +7,12 @@
 > 规则：**动完代码就更新这张表。** 证据一栏必须是"跑过的命令"或"截图路径"，不能是"应该可以"。
 
 最后更新：2026-09-13（声音四层落地后）
-最后更新：2026-09-13（T-17 慢回路服务端落地后）
+
+最后更新：2026-09-13（身体好看那条线：脚的挂载 + 镜像法线 + 材质统一）最后更新：2026-09-13（T-17 慢回路服务端落地后）
 最后更新：2026-09-13（A 档新拓扑 `radial` / `column` 落地、六个条目重新分配之后）
-最后更新：2026-09-12（T-16 kiosk 加固 + 录制页落地后）
+最后更新：2026-09-13（加载态 + 目录 + 全流程走查后）
+最后更新：2026-09-13（舞台美学：四套场景 + 地平线/接触阴影/粒子修好之后）最后更新：2026-09-13（T-17 慢回路服务端落地后）
+最后更新：2026-09-12（B 档身体方案 `mass` 落地后）最后更新：2026-09-12（T-16 kiosk 加固 + 录制页落地后）
 最后更新：2026-09-12（T-09 Stage 落地后）
 
 ## 资产流水线
@@ -20,7 +23,7 @@
 | 幂等台账 `ledger.json` | `stable` | 第二次 `--dry-run` 报 "需要生成 0 个" |
 | 预算闸门（单次 ≤40 credits、余额检查） | `stable` | 代码路径已走通；超额分支 `Not run` |
 | 规范化（主轴 +Y / socketA 原点 / 长度 1 / 去贴图 / 单 mesh） | `stable` | `npm run factory:normalize`：6/6 无 warning；2.3MB → ~110KB |
-| 长轴朝向自动判定（粗端朝下） | `experimental` | 186 件复检：9 个槽位方向一致（少数反例都是 lo≈hi 的 near-symmetric 件，无所谓）。**`foot` 是 12:12 对半分**，槽位级 `flip` 布尔值无论取 true/false 都只能对一半 —— 需要逐件 flip 或给 foot 反转启发式，**不花 credits**（T-13） |
+| 长轴朝向自动判定（粗端朝下） | `experimental` | 186 件复检：9 个槽位方向一致（少数反例都是 lo≈hi 的 near-symmetric 件，无所谓）。**`foot` 是 12:12 对半分** —— 现在知道为什么了：`endRadii` 问的是「哪一端更粗」，而脚的两端是脚跟和脚尖，谁粗谁细本来就没有定论，所以它必然是硬币。这条对**摆放**已经不再要紧（脚不再按端点挂，见下面「脚长在腿上」那行）；剩下的只是脚**前后可能朝反**这一件事，仍然要逐件 flip，**不花 credits**（T-13） |
 | 容差焊接 + 逐级减面兜底 | `stable` | 对 Rodin 返回的 1.5M 面未焊接网格：1,515,338 → 4,884 tris，文件 66 MB → 148 KB |
 | 部件契约检查 `npm run check:parts` | `stable` | 186 件 0 错 1 警告；唯一的警告是「10 件已 reject 但仍在 parts.json」—— 按 docs/14 §5 是故意的（genome 排除、文件保留）。捕获过一次"prune 没跑导致 66 MB"的真实回归 |
 | **部件档案 `/dev/parts.html`**（目录 kind→条目→槽位 · 每条目一栏 · 按槽位分组列件） | `stable` | 接触表升级成可以直接给人看的档案。23 条目 / 191 件全部列出，anchor 图缺失时整列不占位（不出破图），缩略图 IntersectionObserver 懒渲（一个共享 renderer，渲完拷进 2D canvas）、无 WebGL 或单件加载失败退到**比例剪影**。策展绿框红框与"点一下循环 未评→keep→reject"原样保留；`POST /__curate` 探针（无 id 的 POST，中间件在时回 400）决定可评级还是**只读**——生产构建下页头如实写「只读」，格子不可点、不发失败请求。截图 `scratch/evidence/ui-parts-archive.png`（dev，可评级）、`ui-parts-archive-readonly.png`（`vite preview` 打的 dist，只读）、改前改后对照 `ui-before-after-parts.png` |
@@ -38,10 +41,11 @@
 | 表面 | 状态 | 证据 |
 |---|---|---|
 | `types.ts` 冻结契约 | `stable` | 被 core / factory / app 三处共同引用 |
-| `attach.ts` 挂载数学（stretch / uniform 双模式） | `stable` | 9 个测试，含 1000 次随机不变式 + 4 种退化输入 + 两种模式 |
+| `attach.ts` 挂载数学（stretch / uniform 双模式 + `axisLength` / `anchor`） | `stable` | 13 个测试，含 1000 次随机不变式 + 4 种退化输入 + 两种模式 + 新增的长轴覆盖与锚点（`anchor` 缺省 / NaN / 越界都退回老行为；老的 9 条一条没改） |
 | `filter.ts`（OneEuro / emaAlpha / rollingMedian） | `stable` | 4 个测试，含帧率无关性与抗离群值 |
 | `presence.ts` 生命周期状态机 | `stable` | 3 个测试，含"离开途中回来不清零" |
 | `evolution.ts` 演化 | `stable` | 3 个测试，含阈值抖动与首次升档时机 |
+| **`palette.ts` 材质统一（次要/点缀色向物种主色收敛）** | `stable` | 6 个测试。护栏那条最重要：同一个 `matte.ash` 挂在瓷身上和挂在异形身上，明度仍然差 0.1 以上 —— 统一材质**不许**把物种统一掉（docs/PRD §5 第 3 条）。自发光材质（`glow.signal`）原样放行，它是信号不是配色 |
 | `rng.ts` / `vec.ts` | `stable` | 被上述测试间接覆盖 |
 | `slots.ts`（BoneId→Slot、SLOT_WIDTH） | `stable` | 纯表；已被 `app/src/creature/assemble.ts` 实际消费 |
 | `genome.ts` 抽取 | `stable` | 同 seed 两次刷新 genome 深度相等（`/dev/figure.html?seed=1234` 实测）|
@@ -54,23 +58,30 @@
 | Vite + `three/webgpu` 渲染栈 | `stable` | `/dev/parts.html` 在 WebGPU 下正常出图 |
 | **主程序 `src/main.ts`（整条链收口）** | `experimental` | `/?demo=1&debug=1&theme=patrol&seed=99&tier=2` 装出整具真部件身体：**120fps · CPU 0.8ms · 30 实例 · 89k 三角 · 13 draw · 推理 30Hz**，全部在 `BUDGET` 内（`scratch/evidence/main-chain-patrol.png`）。tier 0 时如设计般是素几何（`main-chain-tier0.png`）。**只在回放数据上跑过，没接过真人** |
 | **玩法扩展点 `src/acts/`（Act / Director）** | `experimental` | `/?demo=1&debug=1&act=echo` → HUD 显示 `act echo 回声: 延迟 1.2s`，120fps / CPU 0.5ms。出错隔离（连续 3 次抛异常自动禁用并回落 follow）的分支 `Not run` |
-| `src/stage/stage.ts` 舞台（等身相机 / 三点光 / 影子 / 背景布 / 空场粒子 / 升档脉冲） | `experimental` | `/dev/stage.html`：4 个条目 + 空场 + 后期开关 + 脉冲 + 身体方案对照共 11 张取证图 `scratch/evidence/stage-*.png`，30 实例 / 87k 三角 / 14–17 draw（随 genome 变），都在 `BUDGET` 内；后期本身不进 creature 的 draw 统计。**只在合成 A-pose 上跑过，没接过真人、没接进 main.ts** |
-| `src/stage/framing.ts` 按身体包围盒取景（人形严格等身，非人形有限插值） | `stable` | `test/framing.test.ts` 6 条：`PLAN_BOUNDS` 每次跑都和 `remapSkeleton` 的实测值比对；人形画面高度仍是 2.45m；四足/stub/towering/inverted 都不出画。截图 `stage-plan-a-rig.png` / `stage-plan-b-quadruped.png`（同一套灯光，两种身体方案） |
-| `src/stage/look.ts` 每个条目一套灯光/后期（`palette` + `axes` 推导，无 23 个 if） | `stable` | `test/look.test.ts` 11 条：六个主题的冷暖次序、23 个条目无 NaN / 不纯黑 / 地面远端 == 背景 |
-| `src/stage/post.ts` 轻 bloom / 微 DOF / GTAO / 暗角 / 颗粒（three addons，无新依赖） | `experimental` | `stage-post-on.png` vs `stage-post-off.png`（同 seed 同条目）。**踩过的坑**：scene pass 继承渲染器 MSAA 会让 GTAO 的 `textureGather` 无重载、整条 AO 管线静默失效 → 改 `samples:0` + 末尾 FXAA。建链失败会退回直出，那条降级路径 `Not run` |
-| `src/stage/particles.ts` 空场呼吸粒子（相位由累计时间驱动，无循环） | `experimental` | `stage-idle-attract.png`：IDLE 不黑屏。**连续数小时不露循环**只是设计如此（uTime 单调累加），`Not run` |
+| `src/stage/stage.ts` 舞台（等身相机 / 三点光 / 影子 / **屏幕空间天幕 + 距离雾** / 接触阴影 / 空场粒子 / 升档脉冲） | `experimental` | **地平线那条硬边已经不存在了**（不是调淡了）：改前 `stage-before-idle.png` 第 240→249 行整行平均亮度 9px 内跳 **+5.6/255**；改后 `stage-after-idle.png` 同一带（y=200–284）单调平滑、总变化 **0.26/255**，整张图最大 4px 跳变 2.65/255 且落在页头文字上（量法 `scratch/scan.py`）。做法不是"让两个材质输出同一个颜色"（那条路实测证伪），而是天幕变成一个屏幕空间函数、地面靠 `scene.fogNode` 化进同一个函数。**仍然只在合成 A-pose 上跑过，没接过真人** |
+| **舞台场景 `src/stage/scenes.ts`（4 套完整视觉世界，`?scene=` 切换，按物种自动挑）** | `experimental` | `gallery` 白展厅 / `void` 深空 / `tide` 夜潮 / `backlit` 逆光，各一张取证：`scratch/evidence/stage-scene-{gallery,void,tide,backlit}.png`（同 seed 同条目，差别全部来自场景）。同一套场景换物种 `stage-scene-void-xeno.png` 证明**灯的颜色仍归主题、场景只换世界**。切换复用 `lerpLook` 那条交叉淡入（`STAGE.sceneFade = 1.6s`，**不是硬切**），中间帧 `stage-transition-mid.png`。单测 `test/scenes.test.ts` 11 条：四套性格次序、晕心几何下限、雾密度上限、**地面反射不许有中间态**、`applyScene` 不动物种颜色、`pickScene` 分支、未知 `?scene=` 不静默兜底 |
+| 接触阴影（脚下那一圈，落点由骨架给） | `experimental` | `framing.ts` 的 `contactPoints()` + `stage.frame(skeleton)` 每帧喂。去重阈值 **0.19m** 是量出来的（脚踝↔脚尖 0.16m、两脚 0.20m，取 0.12 会让每只脚下面出现两个黑圆斑）；离地上限 `STAGE.contactLiftRange = 0.22m` 挡掉手尖（A-pose 手尖离地 0.73m，去重挡不住）。截图 `stage-scene-void.png` / `stage-scene-void-xeno.png` 脚下可见。接触阴影的"地面"取 **y=0**（不是身体自己的最低点）：陷进地里的脚照常有接触阴影，**真跳起来时接触阴影正确消失**（单测两条都钉住）。**未兑现的那一半**：脚的网格最低点在 y=−0.025（装配线实测，真实运行时 `ground()` 归零后再沉 ~3cm），身体整体陷进地里约 5cm —— 修法要装配时的 `aabb`，归 `src/creature/` 那条线；**他们加的 Y 偏移必须同时加在喂给 `stage.frame()` 的骨架上**，否则网格挪了影子留在原地 |
+| 地面反射（映天幕，不映身体） | `experimental` | 只有 `tide` / `backlit` 非零，`gallery` / `void` 是 **0**（docs/28 §4：不做中间态）。平面反射 `reflector()` 被否：draw 17 → ~35 而 `BUDGET.maxDrawCalls = 40`；SSR 被否：`?nopost=1` 时整条消失 = 构图变了而不是画质降了。现做法是天幕绕地平线线性翻折 —— 对无穷远的天幕这是**精确**的，零额外 pass。`stage-scene-tide.png`（含 `groundRipple` 涟漪） |
+| `src/stage/framing.ts` 按身体包围盒取景（人形严格等身，非人形有限插值） | `stable` | `test/framing.test.ts` 6 条：`PLAN_BOUNDS` 每次跑都和 `remapSkeleton` 的实测值比对；人形画面高度仍是 2.45m；四足/stub/towering/inverted 都不出画。`FRAMING` 的字段**一个没动**，场景的构图票走新增的 `frameLift`（叠加，缺省 0）|
+| `src/stage/look.ts` 每个条目一套灯光/后期（`palette` + `axes` 推导，无 23 个 if） | `stable` | `test/look.test.ts` 11 条原样通过（场景字段是**只增**的，`deriveLook` 的老字段一个没改）。`groundFar === bgBottom` 那条断言还在，但它**不再是地平线的成因**——雾才是 |
+| `src/stage/post.ts` 轻 bloom / 微 DOF / GTAO / 暗角 / 颗粒（three addons，无新依赖） | `experimental` | 暗角与颗粒改由场景给（`look.vignette` / `look.grain`）：逆光几乎不要暗角（画面本来只有中间亮），白展厅反过来要重暗角否则亮底会一路铺到画框边。降级阶梯第 1 级实拍 `stage-nopost.png`（`?nopost=1` 照常出画，只掉后期）。**踩过的坑**：scene pass 继承渲染器 MSAA 会让 GTAO 的 `textureGather` 无重载、整条 AO 管线静默失效 → `samples:0` + 末尾 FXAA |
+| `src/stage/particles.ts` 空场呼吸粒子（相位由累计时间驱动，无循环） | `experimental` | `stage-after-idle.png`：IDLE 不黑屏，而且**这次真的看得见**。改前看不见不是"淡"：0.016m 的公告牌在 1600×900 上只有 ~7px，乘 0.35 基础不透明度后对单像素的贡献不到 1/255，**存不进 8bit**。尺寸提到 `STAGE.particleSize` + 场景倍率（暗场景 1.45–1.8×；`gallery` 明确为 **0**，加性混合在亮底上等于不存在）。对照 `stage-before-idle.png` |
 | 升档视觉事件 `stage.pulse(tier)`（600ms / 全身 +8% / 0.15s 内 dt×0.4） | `experimental` | `stage-pulse-before.png` vs `stage-pulse-peak.png`：HUD 现场读数 **全身 +7.1%**（截图那一刻的包络值，峰值 +7.6%），被照亮像素的线性亮度实测 +6.4%；`timeScale` 轨迹 0.40 → 0.47 → 0.67 → 0.87 → 1（0.15s 恢复）。**没接进 main.ts**：停滞要生效，收口时要把 `stage.timeScale` 乘进 creature/act 的 dt |
 | `src/assets/library.ts` PartLibrary（parts.json + glb + 程序化占位） | `stable` | 把 `parts.json` 改名 → 页面照跑，30 个占位实例（`creature-fallback-no-partsjson.png`）；单个 glb 改名 → 只有那一个槽位退回占位，16/17 正常（`creature-one-glb-missing-head-fallback.png`）|
 | `src/creature/assemble.ts` 纯装配（挂载 + 关节盖片） | `stable` | 30 个实例的 `M·(0,0,0)` 与 `bone.p0` 误差 0；stretch 槽位 `M·(0,1,0)` 与 `p1` 误差 0 |
 | **A 档新拓扑 `radial`（无躯干）/ `column`（单柱）** | `stable` | 纯函数，`packages/core/src/bodyplan.ts`。`radial`：四条肢摊成四条绕核心的轨道弧，弦长 = 骨长（部件不被拉伸），半径 = 末端离中心的距离、高度 = 末端相对中心的高度、朝向 = 肩轴；核心压到 0.40。`column`：六块腿骨首尾串成一根桅杆，双臂是顶端分支，蹲下按之字折叠（只改方向不改长度）。`test/bodyplan.test.ts` 新增 10 条，覆盖"真的没有躯干/没有腿"与三条因果（抬手 / 蹲下 / 张开），共 110 条全绿。取证 `scratch/evidence/plan-radial-*.png`、`plan-column-*.png`。**只在合成骨架上跑过，没接过真人** |
 | `inverted` 的落地基准修正 | `stable` | 原来按"最低的脚"贴地，而倒过来之后脚在最上面 → 头被按到地板以下。改成 `PLANS_WITHOUT_FEET`（`radial` / `inverted`）按**整体最低点**贴地，且出口的比例遍沿用同一基准。这是 `xeno` 换成 `inverted` 时抓到的 |
 | 六个条目重新分配身体方案 | `stable` | orb/furball→`radial`，manipulator/screenface→`column`，autonomous→`quadruped`，xeno→`inverted`，char.paper→`towering`（`towering` 与 `inverted` 从此不再是零使用）。改的是 `roster.ts` 的 `BODY_PLAN`，跑 `factory:index` 只重写 `parts.json` 的 themes；**191 件 parts 数组逐字节未变**（改前后 JSON 比对），`check:parts` 191 件 0 错 |
-| `src/creature/body.ts` `BodyInstance` 接口（身体方案的插拔点，docs/18 §3） | `stable` | 纯提取，`creature.ts` 一行没动。编译期断言 `Creature extends BodyInstance` 在 `npm run typecheck` 里（把 `pose` 签名改坏会立刻红）；`mass.ts` 是第二个实现 |
+
+| **脚长在腿上（`foot` 的挂载 + `FOOT` 三个旋钮）** | `stable` | **改之前脚是躺在地上的**：`foot` 按 uniform 挂，长轴尺寸 = `SLOT_WIDTH.foot / localGirth` = **0.39m**，和 0.17m 的脚骨毫无关系；而部件契约把 socketA 放在长轴端点，于是整只脚从脚踝**往前平铺**出去、戳穿地板，脚踝以下是空的。现在脚长由脚骨算（`FOOT.lengthOfBone` 补上踝后面那截脚跟，带钳位），踝钉在脚长三成处（`FOOT.anchor`），`SLOT_WIDTH.foot` 改读「脚宽」0.115。取证 `scratch/evidence/body-feet-before-after.png`（同机位同 seed 的脚部特写）与 `body-{porcelain,xeno,manipulator}-{before,after}.png` |
+| 关节盖片盖住接缝 | `experimental` | `MORPH.jointCapScale` 0.75 → 0.95。0.75 时盖片比它要盖的那根骨头还细，肩/胯/膝的穿插照样露在外面 —— 盖了等于没盖。取证同上那六张图。**审美判断，没有量化判据** || `src/creature/body.ts` `BodyInstance` 接口（身体方案的插拔点，docs/18 §3） | `stable` | 纯提取，`creature.ts` 一行没动。编译期断言 `Creature extends BodyInstance` 在 `npm run typecheck` 里（把 `pose` 签名改坏会立刻红）；`mass.ts` 是第二个实现 |
 | **`src/creature/mass.ts` 团块身体（B 档 · MarchingCubes metaball）** | `experimental` | `/dev/mass.html` 实测（M4 / Chrome WebGPU，合成 A-pose 17 骨 = **87 球**，`pose()` 连续 200 次）：**res40 = 1.85ms avg / 3.4ms p95 · 2,484 三角 · 1 draw call**。res 阶梯 16/24/32/40/48/64 → 0.27 / 0.61 / 0.89 / 1.85 / 3.97 / 9.64ms，三角 594 / 1152 / 1740 / 2484 / 3340 / 5928，**全部 1 draw**。大动作姿势（92 球）res40 = 2.98ms avg / 6.6ms p95。降级旋钮（`setRes`）实测有效。**CPU 比刚体贵、GPU 比刚体便宜**：同一副骨架下刚体版 `pose()` 0.17ms / 87,844 三角 / 17 draw，团块 1.85ms / 2,484 三角 / 1 draw。截图 `scratch/evidence/mass-still-res40.png`、`mass-big-res40.png`、`mass-lowres-res16.png`、`mass-highres-res64.png`。**只在合成骨架上跑过，没接过真骨架，也还没有任何条目真的用它**（见下） |
 | 团块 vs 刚体并排对照 | `stable` | `scratch/evidence/mass-vs-rig-compare.png`（`/dev/mass.html?mode=compare&pose=big`）：团块是一具连续的身体，刚体版在同一姿势下读作一堆悬空零件。这张图是「像不像原作那种流过身体的物质」的判断依据 |
 | `/dev/mass.html` 团块调试页（合成 A-pose ↔ 大动作 · HUD · 方向键调 res · 三模式） | `stable` | 上述全部数字与截图都出自它。`?mode=mass\|rig\|compare&pose=a\|big\|anim&res=&angle=&still=`；`?still=N` 是 headless 取证用（永不停的 rAF 会把 `--virtual-time-budget` 吊住） |
 | 团块的降级路径（`presence` 进出场 / 退化骨架 / 出界） | `experimental` | 浏览器控制台逐条跑过，**全部不 throw**：IDLE 与 LEAVING t=1 → 0 三角 0 draw 且隐藏；ENTERING 0→0.5→1 → 0 / 964 / 2,274 三角（物质向质心收回去）；`null` 骨架、空 bones、全 NaN 关节、confidence=0、height=0、length=0、身体被挪到盒外 50m、`dt=NaN`、`dt=10s` 逐个跑过均正常返回，且 15 帧内恢复正常出图 |
-| `src/creature/creature.ts` 实例化渲染 / remorph / graft | `experimental` | 30 实例 · 87k 三角 · 17 draw · `pose()` 0.06–0.21ms；换装最多 3 活并排队（18 槽位 438 帧 = 7.3s 排空）；`graft()` 热插拔 73 帧完成。**只在合成 A-pose 上跑过，没接过真骨架** |
+| `src/creature/creature.ts` 实例化渲染 / remorph / graft | `experimental` | 30 实例 · 85–88k 三角 · **18 draw**（左右分桶后比原来多一点，仍远在 `BUDGET.maxDrawCalls` 40 内）· `pose()` 0.06–0.21ms；换装最多 3 活并排队（18 槽位 438 帧 = 7.3s 排空）；`graft()` 热插拔 73 帧完成。**只在合成 A-pose 上跑过，没接过真骨架** |
+| **左右不再像两种材质（镜像改走预镜像几何）** | `stable` | 左侧肢体原来靠矩阵里的负 X 缩放做。负行列式把左半身的三角形**全部变成背面**，而 `DoubleSide` 会把背面片元的法线取反 —— 左半身于是「从内部被照亮」，比右半身暗一大截。实拍图里「一只手白、一只手深色带斑」根本不是材质问题，是这个。现在由 `library.mirrored()` 给一块 X 取反**且绕序也翻回来**的几何，行列式保持为正。3 条测试守住它（闭合网格的有向体积镜像后仍为正，索引 / 非索引两种几何都测）。取证 `scratch/evidence/body-feet-before-after.png` 的左右对照 |
+| **一具身体读起来是一个物种（材质统一）** | `experimental` | 三个材质角色原来各取一个全局材质、彼此没有关系（白瓷躯干 + 深蓝灰四肢 + 白手白脚 = 装错了零件）。现在次要 / 点缀色向**这个物种自己的主色**收敛（`core/palette.ts` + `PALETTE` 旋钮），明度差按 `valueKeep` 留一部分（全抹平身体就没有体积了），表面响应按 `surfaceMix` 靠拢。物种之间的差别由并排图自证：`scratch/evidence/body-three-species-after.png`（瓷 / 异形 / 机械臂，形体与色调都分得开）。**审美判断，没有量化判据** |
 | 摄像头采集 / MediaPipe（`src/capture/webcam.ts`） | `experimental` | 整条路跑通但**没见过真人**：headless Chrome + `--use-fake-device-for-media-stream` 下 GPU delegate 起来、wasm 与两个模型加载、mask 产出、`latest()` 不抛也不阻塞（`scratch/evidence/capture-webcam-fakecam.png`）；权限被拒时不白屏且 `lastError=NotAllowedError`（`capture-permission-denied.png`）。**fps ≥ 30 未验证**（headless 软件渲染只有个位数），U1/U2 未实测 |
 | **`/dev/accuracy.html` 精度基准台** | `experimental` | 三路并排跑同一份输入（A 原始 / B 现有=`main.ts` 今天的 / C 新=分组 One-Euro+遮挡补全+质量兜底+最小折叠角），逐关节 visibility/世界坐标/1 秒抖动 σ、逐骨长变异 σ/μ、相对 A 的跟随偏差，外加常驻的**"无法测量"清单**。「⇪ 载入片段」直接读 `/demo/` 离线重跑（不走 rAF —— 页面不可见时 rAF 被掐到 1Hz，实时数字会全是 0，那不是"很稳"是没有数据）。合成片段上的实测数字与读法见 `docs/24 §5`。**它证明的第一件事是"现有输入测不了精度"**：合成片段 z 恒为 0、无噪声、左前臂长度变异 65.7%（人体做不到）|
 | **`packages/core/src/refine.ts` 姿态精修** | `experimental` | 分组 One-Euro（基线 = MediaPipe 自己的 world 档 `0.1/40/1.0`）+ visibility 低通 + 遮挡时序补全（20 帧缺口上限，超时放手把 visibility 归零）+ 质量兜底（score 低时压低截止频率）+ `clampFold()` 最小折叠角。9 条单测随 `npm run check` 跑（降噪、遮挡保持、超时放手、兜底斜坡、抗 NaN、不改写输入、骨长守恒）。**没接进 `main.ts`**（那个文件这次不许碰），所以现场行为一点没变；要接需要先把参数提进 `tuning.ts` —— 那是冻结契约，见 `docs/24 §0` |
@@ -85,7 +96,7 @@
 | **慢回路服务端 `/__slow`（提交/轮询/glb/血统池）** | `experimental` | dev server 中间件（`vite.config.ts` 登记，逻辑在 `packages/factory/src/slow.ts` + `slow-http.ts`），协议与数据形状见 `docs/17-SLOW-LOOP.md`。`SLOW_FAKE=1 npm run dev:slow` 下 curl 端到端跑通：POST → submitted → 4s 后 ready → `/__slow/part/<id>.glb` 200 `model/gltf-binary` 24,928 B，件的 aabb `y∈[0,1]`、X/Z 关于 0 居中（= 规范化契约本身），`localGirth=0.8524` / 2,890 tris；血统池 `lineage.json` 记下了 session / 时间 / 物种 / 槽位。拒绝路径六条各打一遍全是结构化 JSON（429 BUDGET_SESSION · 400 非 PNG · 400 槽位不在 targetSlots · 404 路径穿越 · 404 无此任务 · 405 GET 提交）——取证 `scratch/evidence/slow-loop-dev.log`。8 条测试随 `npm run check` 跑（`packages/app/test/slow.test.ts`）：端到端、HTTP 外壳、看门狗超时、Rodin 报错+退款、两条预算闸门、**未焊接的 6000 面网格走减面兜底仍然 ready**。**没打过一次真的 Rodin**（这个 worktree 里没有 `.env`，见 Risks）；`/about` 上那个「规格」标记因此只能摘一半 |
 | **生产构建里没有慢回路** | `stable` | `apply:'serve'` + `configurePreviewServer` 显式 404。`npm run build` 后 `grep -rl "__slow\|slow-http\|RODIN_API_KEY" dist/` 是空的；`vite preview` 上 `/__slow` `/__slow/<id>` `/__slow/lineage` `/__slow/part/*.glb` GET 与 POST 全部 404 + `{code:'DISABLED'}`，而 `/` 与 `/dev/parts.html` 照常 200。**踩到的坑**：preview 带 SPA 回退，一开始 GET 拿到的是 200 + index.html —— 前端会在 JSON.parse 上炸掉，「不存在」读起来像 bug 而不是降级。取证 `scratch/evidence/slow-loop-prod.log` |
 | 慢回路前端（提交/轮询/热插拔/血统抽取） | `spec-only` | T-17 的前端一半。接口清单在 `docs/17 §8` |
-| Stage / 后期 | 见上面四行 | T-09 已落地；仍欠：接进 `main.ts`（`stage.render()` / `stage.frame()` / `stage.timeScale`）、真人实测、现场投影亮度 |
+| Stage / 后期 / 场景 | 见上面那一组 | T-09 已落地，舞台美学这一轮把地平线/接触阴影/粒子/多场景做完；仍欠：接进 `main.ts`（`stage.render()` / `stage.frame()` / `stage.timeScale` / `stage.setScene()`）、真人实测、现场投影亮度、脚部件与骨架落点的 14cm 缝 |
 | 开场选择页（dither 轮播） | `experimental` | `/dev/choose.html`：6 张卡滚/选/进，`?theme=xeno` 跳过，数字键直选，空闲自动选（`?idle=6000` 验过）；截图 `scratch/evidence/choose-0*.png`。上游 `gl/` 已移植进 `src/vendor/dither-carousel/`（MIT + LICENSE 在位，`public/` 素材一张没拿）。未验：真实现场投影分辨率与触摸屏 |
 | 选择页无 WebGL 降级（DOM 列表） | `experimental` | `/dev/choose.html?gl=off`：6 张卡列出、点选写 `?theme=`、键盘与自动选择照常；控制台 `mode=fallback`。排版已并入 `type.css`（等宽、同底色、卡片图 —— docs/23 §S2「降级路径也是作品的一部分」），列表模式下底部常驻名牌收起、提示语改写成"点一行即确认"。截图 `scratch/evidence/ui-choose-fallback.png`。真实的 context lost 分支 `Not run` |
 | **选择页 30 秒自动选的倒计时（docs/23 §S2）** | `stable` | 规格要的是"最后 **5** 秒、中心卡下方一条**极细的进度线**"；原来是右上角一行"10s 后自动选择"的文字。现在是 1px 横线，60ms 步进（200ms 肉眼能看出台阶）。截图 `scratch/evidence/ui-choose-countdown.png`（`?idle=7000`，快门落在倒计时中段） |
@@ -114,6 +125,10 @@
 | **《共生护照》`/passport.html`** | `experimental` | 做成一本**签证页**而不是记录表：两枚章，I 拒入（人类否掉 100 件批次的前提，逐字引用）、II 准入（Rodin 两个没焊的网格）。II 保留的理由写明是**能力不是产物** —— 容差焊接这条路是它逼出来的。进构建产物（`dist/passport.html`）。页面已在浏览器里实渲并全页截图 `scratch/evidence/passport-full.png`（1280×2600）；页上 5 处存证逐条核过：`19880ae` / `4860281` 两个 hash 解得开、`docs/09 U11` 在、`weldTolerant()` 在。核出并修掉一处引用错误（未焊接网格指到了 `docs/07 §3`，那节是错误码与重试，正确的是 §3 第 3 条）|
 | **共创过程档案 `/making.html`** | `stable` | 28 个 commit hash 逐个 `git log -1` 核过全部解得开、印在页上的时间与 `%ad` 一致。六件互相纠正、编排者自己的四个错、有代价的三次判断，全部指到提交。专列一节写**想写但没挖到证据所以没写的四件事**（九条线的名单、每条线的时长与 token、被驳回的提议、作品成立与否）。截图 `scratch/evidence/making-0{0..5}.png`（整页 1440×12136） |
 | **构建入口自动发现（根 `*.html` + `dev/*.html`）** | `stable` | 展陈层的页面分几条线并行加，写死 input 表既是冲突点也会漏页。现在 `pages()` 扫两处目录，放一个 html 进来就是一页，没有第二处登记。`npm run build` 后 `dist/` 有 `index/passport/making` + `dist/dev/` 10 个 |
+| **加载态 `src/shell/loading.{ts,css}`（docs/23 §S0）** | `experimental` | 在这之前从"打开 URL"到"身体出现"之间观众看到的是**一块黑屏**（`/dev/figure.html` 是一行裸 `loading…`）。现在是三档真实进度：`正在点亮画面`（渲染器造出来 0.4 → `init()` 完成 1）/ `正在准备零件`（`parts.json` 0.15 + 选择页 anchor 图到货数）/ `正在认识你的身体`（采集端自报的启动里程碑，webcam 3 件、replay 2 件）。**600ms 宽限期内一帧都不画**，快的时候观众仍然看不见它。慢网取证（Chrome DevTools Protocol 真限速、禁缓存，`vite preview` 打的 dist）：`scratch/evidence/ui-loading-1-early.png`（14%，40% / 15% / 等一下）、`-2-mid.png`（25%，好了 / 18% / ···）、`-3-late.png`（55%）、`-4-slow-first.png`（8 秒后「再等一下，网有点慢」）、`-5-slow-second.png`（20 秒后换第二句）、`-6-fastnet.png`（不限速）、`-7-handoff-to-choose.png`（选择页一上来它就让位，螺旋构图未动）。**两条硬规矩写在文件头**：进度必须来自真实信号；没有真信号的地方宁可停住（显示 `···`）也不许用定时器往上爬 |
+| **`library.load()` 与 `renderer.init()` 并行** | `stable` | 原来资产排在 `renderer.init()` 后面，而它俩毫无依赖关系 —— `init()` 是首次 pipeline 编译，那几秒里管子完全是空的。同一条 350 kbps 限速下端到端 **21.6s → 13.0s**（两次 `[loading] 加载完成，耗时` 读数）|
+| **目录 `src/ui/nav.{ts,css}`（docs/23 §S9）** | `stable` | 在这之前首页上没有任何入口通向 `/about` 和 `/making`，而且那几页之间一条链接都没有。右上角一个词 + 一条线，展开是「名字 + 它能回答什么问题」的表，当前页标「在这里」且不是链接。挂在 `/`、`/about`、`/making.html`、`/passport.html` 四处。`?kiosk=1` 下 `readFlags().nav` 为 false，**根本不挂**；满屏画布页 4 秒后淡到 0.18。截图 `ui-nav-1-entry-closed.png` / `-2-entry-open.png`（压在入口展签之上）/ `-3-about-open.png` / `-4-making.png` / `-5-kiosk-absent.png`（现场模式下确实一个字都没有）。踩过一个实测出来的坑：靠 `text-align:right` 对齐时，展开会把「目录」两个字从右上角甩到表的左上角（实测 x 1484→1072），改成 flex + `align-items:flex-end` |
+| **自己会消失的一行 `src/shell/notice.{ts,css}`** | `experimental` | 把 docs/23 里写了很久没做的两条落地：§S4 左下角物种名（截图 `ui-notice-species.png`：「异形 / Xeno」）、§S0 右下角「降级渲染」（**只有 DOM 取证**：`.sb-notice--bottom-right` 在、`opacity: 1`、rect `[1437,804,114,47]`；无头浏览器在这条路径上合成不稳，没拍到可信的图）。降级那句**故意等加载态收掉之后才说** —— 说早了会被那一层盖住。另外修掉一个会静默吃掉元素的坑：带 `fill-mode: both` 的入场动效在文档时间线不推进的页面上停在 `currentTime: 0`，元素永远透明；规矩写进 docs/23 §0 |
 | **启动失败屏（docs/23 §S0）** | `stable` | 原来贴红色 `<pre>` + `err.message`。这是观众唯一会撞上的错误界面 —— 现在是满屏底色 + 居中并置的「稍等一下 / One moment」，详情全部进控制台。样式内联、不用 `innerHTML`：走到这里说明启动链断了，样式表本身可能就是断掉的那一环 |
 | **`/about` 作品陈述页** | `stable` | 一屏之内答"它是什么"（五格的观众 90 秒带），再答"和 2019 年那件的区别在哪"（快回路 16ms / 慢回路 30–90s 并排）。慢回路一栏现在是**第三种状态「现场限定 ON-SITE ONLY」**：既不是"只写了设计"（两端都接上了、有测试有取证），也不是"已实现"（真实生成调用一次没打过，且线上版里是 404）。用同一个标记盖这两种情况，盖哪边都是撒谎 —— 所以加了一个。独立 chunk（6 KB JS + 4 KB CSS），不拖 1.5 MB 的 main。截图 `scratch/evidence/about-main.png`（1280×3900） |
 | **品牌字体规范 `docs/27-BRAND.md` + 规范页 `/poster/brand.html`** | `stable` | 规范页由它所描述的那套系统**自己渲染**：每一条字号/行高/字距/颜色都从 `type.css` 的 computed style 现读。§6 把卡片、图标、进度条、toast 画出来再划掉。§1 当场量字体回退：字号/行高/字距/行框完全一致，**字形实宽 293.56 vs 311.03px 不一致** —— 值得守的主张从来不是"字形宽度一样"。截图 `assets/brand/brand-spec-page.png` |
@@ -136,6 +151,19 @@
   但真人追踪的抖动会怎么进到"弧半径"和"折叠角"里，没见过。
 - `mass` 里的旋钮（`res` 默认值、球间距、半径系数、`isolation`/`subtract`）按 `tuning.ts`
   的规矩本该住在 `tuning.ts`，同样因为冻结契约暂时留在模块里。
+
+- **docs/23 里三处"规格写了但没做到"**（2026-09-13 全流程走查找出来的，本轮只修了前两条的邻居，
+  这三条**没修**，因为它们各自要动别的线正在改的文件）：
+  - **§S4「往后一点」**：`COPY.live.stepBack` 写好了，一个调用点都没有。判定"全身不入镜"
+    要读 `stage/framing.ts` 的取景结果 —— 那条线这轮不归 UI 动。
+  - **§S7 留念（6 秒 · `物种名 · seed 码` · 二维码 / 网页版分享卡片）**：
+    `COPY.leave.keepsake` / `COPY.leave.seed` 写好了，没有调用点。溶解那一半是有的
+    （`presence` 的 LEAVING），留念那一半整个不存在。这是一个功能，不是一处 UI 缺口。
+  - **§S1 网页版「站到画面里」**：`COPY.attract.invite` / `inviteWeb` 没有调用点。
+    目前网页版的对应物是入口展签的「开始」和运行中的「用我的摄像头」，
+    覆盖了这条的大部分意图，但空场里没有那一行邀请。
+  - 另外 **§S0「冷启动 > 8 秒 → 粒子团聚拢成人形轮廓」**：慢网上现在是加载态那三行，
+    不是粒子。两者不冲突，但粒子那一版没做。
 
 ## 明确还没验证的（见 `docs/09`）
 

@@ -32,3 +32,17 @@
 
 按上面的路线逐条试。**不要为了凑数随便抓一张** —— 
 这个条目现在走纯文字 prompt（见同目录 `prompt.md`）是正确的状态，不是缺口。
+
+---
+
+## AI 生成参考图（2026-09-13 追加）
+
+| 文件 | 来源 | 版权 | 说明 |
+|---|---|---|---|
+| `furry-companion-robot.png` | MiniMax Design 图片生成（Design Image 2.5 Sunburst），2026-09-13 | AI 生成，无第三方权利 | 1152×864。见下方 prompt 原文与生成记录。 |
+
+**提交的 prompt 原文：**
+
+> A studio product photograph of a small emotional companion robot shaped like a rounded ball of soft fur: dense pale cream long-pile fur covering the whole body, no visible limbs, no visible face, one tiny dark sensor gleam, palm-sized, soft and tactile. Plain flat light-grey seamless studio background, soft even diffuse lighting, no hard shadows, no hands holding it, single object centred with margin.
+
+**生成记录：** 一次生成、一次采用。任务给的 prompt 原样提交。无手、无脸、无四肢，只有一点传感器暗光 —— 正是 docs/31 点名要拉开的「形态最不像」那一类。

@@ -1,0 +1,159 @@
+/**
+ * 目录 —— 这个站的房间之间唯一的通路。
+ *
+ * ## 它解决的那一个问题
+ *
+ * 站点有六个可见面（`/`、`/about`、`/making.html`、`/passport.html`、`/dev/`、海报），
+ * 而**首页上一个入口都没有**。一个评委打开首页，除非有人当面告诉他，
+ * 否则永远不会知道 `/about` 和 `/making` 存在 —— 那两页承载了这件作品一半的表达。
+ * 同样地，`/about` 读完之后也走不到 `/making`：这些页面之间此前一条链接都没有。
+ *
+ * ## 三条设计决定
+ *
+ * 1. **放右上角，不放左上角。** 两个位置都被提过。左上角已经被占了两次：
+ *    `ui/page.ts` 的浮层页头在那里，`?debug=1` 的 HUD 也在那里。
+ *    右上角在这件作品的所有页面上都是空的 —— 选择页的名牌在左下、提示在右下，
+ *    共舞场景的物种名在左下。挑空的那个角，就不需要为了让位再动别人。
+ *
+ * 2. **观众模式下它必须能消失。** 装置现场的画面上不该挂着网站导航。
+ *    `?kiosk=1` 下根本不挂（判断在 `readFlags().nav` 里，只有一处）；
+ *    普通模式的满屏画布页上 4 秒后淡到 0.18 —— 这是 `ui/page.ts`
+ *    已经立下的语言（docs/23 §S4「观众只需要知道一次」），照它做，不发明第二套。
+ *
+ * 3. **每条写"它能回答什么问题"，不写功能名。** `/dev/index.html` 已经这么做了，
+ *    它有效的原因是人不是在找功能，是带着疑问来的。文案在 `ui/i18n.ts`，
+ *    中英并置不切换（那是设计决定，见 i18n 的文件头）。
+ */
+import { COPY, setBi, type BiText } from './i18n.ts';
+import './type.css';
+import './nav.css';
+
+/** 和 `ui/page.ts` 的浮层页头同一个数：进场后 4 秒淡下去 */
+const FADE_AFTER_MS = 4000;
+
+interface NavItem {
+  href: string;
+  name: BiText;
+  answers: BiText;
+  /** 判断"就是这一页"用的路径。命中时这一条不可点，右边写「在这里」 */
+  match: (path: string) => boolean;
+}
+
+const ITEMS: NavItem[] = [
+  {
+    href: '/', ...COPY.nav.items.work,
+    match: (p) => p === '' || p === '/index.html',
+  },
+  {
+    href: '/about', ...COPY.nav.items.about,
+    match: (p) => p === '/about',
+  },
+  {
+    href: '/making.html', ...COPY.nav.items.making,
+    match: (p) => p === '/making' || p === '/making.html',
+  },
+  {
+    href: '/passport.html', ...COPY.nav.items.passport,
+    match: (p) => p === '/passport' || p === '/passport.html',
+  },
+  {
+    href: '/dev/', ...COPY.nav.items.dev,
+    match: (p) => p.startsWith('/dev'),
+  },
+];
+
+export interface NavOptions {
+  /**
+   * 挂不挂。调用方传 `readFlags().nav` —— 现场与 `?nav=0` 走 false。
+   * 参数而不是在这里自己读 URL：展陈层那几页不该为了一个导航去 import shell。
+   */
+  enabled?: boolean;
+  /** 浮在 canvas 上（满屏画布页，4 秒后淡出）还是躺在文档流里（文字页，常驻） */
+  overlay?: boolean;
+  mount?: HTMLElement;
+}
+
+export interface Nav { root: HTMLElement; open(): void; close(): void; }
+
+/** 挂上目录。`enabled` 为 false 时返回 null，调用点因此只有一行 */
+export function mountNav(options: NavOptions = {}): Nav | null {
+  const { enabled = true, overlay = false, mount = document.body } = options;
+  if (!enabled || typeof document === 'undefined') return null;
+
+  // `cleanUrls` 会把 /making.html 变成 /making，两种写法都要认得出"就是这一页"
+  const path = location.pathname.replace(/\/+$/, '');
+
+  const root = document.createElement('nav');
+  root.className = overlay ? 'sb-nav sb-nav--overlay' : 'sb-nav';
+
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = 'sb-nav-toggle';
+  toggle.setAttribute('aria-expanded', 'false');
+  setBi(toggle, COPY.nav.title);
+
+  const panel = document.createElement('div');
+  panel.className = 'sb-nav-panel';
+  panel.hidden = true;
+
+  for (const item of ITEMS) {
+    const here = item.match(path);
+    // 当前这一页做成 <span> 而不是灰掉的 <a>：一条点了什么都不会发生的链接
+    // 比没有链接更让人怀疑是不是坏了
+    const row = document.createElement(here ? 'span' : 'a');
+    row.className = 'sb-nav-item';
+    if (!here) (row as HTMLAnchorElement).href = item.href;
+
+    const nameRow = document.createElement('div');
+    nameRow.className = 'sb-nav-name';
+    const name = document.createElement('span');
+    setBi(name, item.name);
+    nameRow.append(name);
+    if (here) {
+      const mark = document.createElement('span');
+      mark.className = 'sb-nav-here';
+      mark.textContent = `${COPY.nav.here.zh} · ${COPY.nav.here.en}`;
+      nameRow.append(mark);
+    }
+
+    const answer = document.createElement('p');
+    answer.className = 'sb-nav-answer';
+    setBi(answer, item.answers);
+
+    row.append(nameRow, answer);
+    panel.append(row);
+  }
+
+  root.append(toggle, panel);
+  mount.append(root);
+
+  let open = false;
+  const setOpen = (next: boolean): void => {
+    open = next;
+    panel.hidden = !next;
+    toggle.setAttribute('aria-expanded', String(next));
+    root.classList.toggle('is-open', next);
+    // 展开就不该还是半透明的：手伸过来了，别让他对着一团灰字找入口
+    if (next) root.classList.remove('is-faded');
+  };
+
+  toggle.addEventListener('click', () => setOpen(!open));
+
+  // 点别处收起来。捕获阶段：展开的面板压在 canvas 上，
+  // 而 canvas 自己会吞掉 pointerdown（选择页的拖动）
+  const onAway = (e: Event): void => {
+    if (open && !root.contains(e.target as Node)) setOpen(false);
+  };
+  addEventListener('pointerdown', onAway, true);
+
+  const onKey = (e: KeyboardEvent): void => {
+    if (e.key === 'Escape' && open) { setOpen(false); toggle.focus(); }
+  };
+  addEventListener('keydown', onKey);
+
+  if (overlay) {
+    setTimeout(() => { if (!open) root.classList.add('is-faded'); }, FADE_AFTER_MS);
+  }
+
+  return { root, open: () => setOpen(true), close: () => setOpen(false) };
+}

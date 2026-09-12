@@ -51,6 +51,15 @@ export interface ChooseOptions {
    * 声音需要这个区分（观众得听得出这一下不是自己碰出来的），别的消费者可以不看。
    */
   onCommit?: (id: string, how: 'manual' | 'idle') => void;
+  /**
+   * 卡片图的到货进度（`done / total`）。**只是上报，不影响这一页的任何表现。**
+   *
+   * 为什么加在这里：这一页真正的等待在 `mountChoose` 返回**之前** ——
+   * 23 张 anchor 图要先拉齐才排得出螺旋，慢网上那是几秒黑屏，
+   * 而外面拿不到任何信号（`chooseTheme` 一次性 resolve）。
+   * 加载态（`shell/loading.ts`）靠它显示真实进度。
+   */
+  onProgress?: (done: number, total: number) => void;
 }
 
 export interface ChooseHandle {
@@ -178,9 +187,14 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
     : await readLibrary(partsUrl);
 
   // 先拿 anchor 图，再决定谁能上场。一张也不等太久（cards.ts 有超时）。
+  // 每张到货就报一次，好让外面的加载态往前走一格 —— 顺序无关，报的是"到齐了几张"。
+  let loadedImages = 0;
+  const total = library.themes.length;
+  options.onProgress?.(0, total);
   const images = await Promise.all(
     library.themes.map((t) =>
-      t.source === 'procedural' ? Promise.resolve(null) : loadImage(`${refsBase}/${t.id}/_anchor.png`),
+      (t.source === 'procedural' ? Promise.resolve(null) : loadImage(`${refsBase}/${t.id}/_anchor.png`))
+        .then((img) => { options.onProgress?.(++loadedImages, total); return img; }),
     ),
   );
 

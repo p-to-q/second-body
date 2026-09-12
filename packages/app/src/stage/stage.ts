@@ -27,8 +27,12 @@
  * 只是没有 bloom/DOF/AO。`?nopost=1` 也正是排查性能时要的那条路径。
  */
 import * as THREE from 'three/webgpu';
+// 只为类型：TSL 的运算符扩展（`.mul()` / `.max()`）挂在 `Node<T>` 上，
+// 而 `screenUV.sub(...)` 这类表达式的具体类型是推不出来的实现细节 —— 和 post.ts 同一个理由
+import type Node from 'three/src/nodes/core/Node.js';
 import {
-  float, mix, positionWorld, screenUV, smoothstep, uniform,
+  clamp, densityFogFactor, float, fog, mix, positionWorld, pow, screenUV, sin, smoothstep,
+  uniform, vec2,
 } from 'three/tsl';
 import type {
   MaterialDef, MotionFeatures, PartLibraryIndex, Presence, Skeleton, ThemeDef,
@@ -39,8 +43,10 @@ import { createBreathField, type BreathField } from './particles.ts';
 import { createPost, POST_DEFAULTS, type PostChain } from './post.ts';
 import { deriveLook, lerpLook, NEUTRAL_LOOK, type LookProfile, type RGB } from './look.ts';
 import {
-  boundsOfPlan, boundsOfSkeleton, fitFrame, lerpBounds, DEFAULT_BOUNDS, type BodyBounds,
+  boundsOfPlan, boundsOfSkeleton, contactPoints, fitFrame, lerpBounds, DEFAULT_BOUNDS,
+  type BodyBounds,
 } from './framing.ts';
+import { applyScene, isSceneId, pickScene, SCENES, type SceneId } from './scenes.ts';
 
 /**
  * ⚠️ 这些数**本该住在 `tuning.ts`**（P0：现场要调的旋钮只有一个文件）。
@@ -90,6 +96,15 @@ export interface Stage {
   readonly post: boolean;
   /** 当前生效的 look，给 HUD 和 dev 页面看 */
   readonly look: LookProfile;
+
+  /**
+   * 换场景（整个视觉世界：天幕 / 地面 / 布光 / 雾 / 后期 / 粒子）。
+   * 过渡是 `STAGE.sceneFade` 秒的交叉淡入，**不是硬切** —— 走的是换主题那条通道。
+   * 传 null = 交回给"按物种自动挑"。
+   */
+  setScene(id: SceneId | string | null): void;
+  /** 当前场景 id。（叫 `sceneId` 不叫 `scene`：`stage.scene` 已经是 three 的 Scene） */
+  readonly sceneId: SceneId;
 }
 
 export interface StageOptions {
@@ -102,6 +117,8 @@ export interface StageOptions {
   baseUrl?: string;
   /** 覆盖 URL flags（dev 页面用） */
   search?: string;
+  /** 场景。缺省先看 `?scene=`，再按物种自动挑（`scenes.ts` 的 pickScene） */
+  scene?: SceneId | string | null;
 }
 
 const toColor = (c: RGB): THREE.Color =>
@@ -155,6 +172,8 @@ export function createStage(opt: StageOptions = {}): Stage {
 
   const scene = new THREE.Scene();
   const aim = new THREE.Vector3(0, STAGE.aimHeight, 0);
+  // 帧循环里不 new（P5）。它只在 placeLights 里当草稿纸用
+  const tmpDir = new THREE.Vector3();
 
   // ── 相机：水平 + 镜头平移，见文件头 §1 ──────────────────────────────────
   const camera = new THREE.PerspectiveCamera(45, 1, STAGE.near, STAGE.far);
@@ -197,33 +216,131 @@ export function createStage(opt: StageOptions = {}): Stage {
   const rim = dirLight(STAGE.rimDir, aim);
   scene.add(rim, rim.target);
 
+  // ── 天幕：一个**屏幕空间**的函数，不是一个几何体 ──────────────────────────
+  /**
+   * 第一轮的失败是可以量的：`scratch/evidence/stage-before-idle.png` 的第 240→249 行，
+   * 整行平均亮度 9 个像素内跳了 **+5.6/255**，而上半屏总共才有 4.2/255 的渐变 ——
+   * 「一条硬地平线切开两片死灰」。
+   *
+   * 老做法是"让地面远端的颜色**正好等于**背景布的颜色"。它在纸面上成立，
+   * 在管线里不成立：地面是 `MeshPhysical` 的 emissive，背景布是 `MeshBasic` 的 color，
+   * 两条着色路径不保证给出同一个数值。**任何"两个材质要输出同一个颜色"的设计
+   * 都会在某个 three 版本上裂开。**
+   *
+   * 所以改成：天幕是一个函数 `skyAt(uv)`，
+   *  - 背景布直接用它上色；
+   *  - 场景雾的**雾色**也用它（`fog(color, factor)` 的 color 可以是节点）。
+   * 于是地面不是"淡成一个正好相等的颜色"，而是**被雾化进天幕本身**。
+   * 同一个表达式，同一个输出阶段，**结构上不可能出现接缝**。
+   *
+   * 天幕的形状也换了：不是上下分色，是**身体背后的一团晕**（cyclorama 的做法，
+   * docs/28 §2）。横向的明暗分界线才是"地平线"的来源；一团圆的晕没有分界线，
+   * 而且它自带纵深和一个视觉重心 —— 正好落在身体背后。
+   */
+  const uSkyTop = uniform(toVec3(look.skyTop));
+  const uSkyGlow = uniform(toVec3(look.skyGlow));
+  /** (x, y) = 晕心的 screenUV（y=0 在下）；z = 半径（× 画面高度） */
+  const uGlow = uniform(new THREE.Vector3(0.5, 0.5, 0.6));
+  const uGlowSoft = uniform(1);
+  /** 画面宽高比。不修正的话晕在 16:9 上会被拉成一条横的椭圆 —— 又是一条地平线 */
+  const uAspect = uniform(16 / 9);
+  /** 地平线在屏幕上的高度（screenUV.y）。地面镜射天幕时绕它翻折 */
+  const uHorizonY = uniform(0.5);
+  const uFogDensity = uniform(look.fogDensity);
+
+  const skyAt = (uv: Node<'vec2'>): Node<'vec3'> => {
+    // 半径**手写**，不走 `vec2(...).length()`：后者在这条链上量出来的不是这两个分量的长度
+    // （r=0.4 时整片天幕是黑的，r=6 时全白，中间没有可解释的过渡）。
+    // dx/dy 各自平方再开方是同一件事，而且没有歧义。
+    const dx = uv.x.sub(uGlow.x).mul(uAspect);      // 画面是宽的，晕要圆就得先按宽高比压 x
+    const dy = uv.y.sub(uGlow.y);
+    const r = dx.mul(dx).add(dy.mul(dy)).sqrt().div(uGlow.z.max(0.02));
+    const halo = pow(clamp(float(1).sub(r), 0, 1), uGlowSoft);
+    return mix(uSkyTop, uSkyGlow, halo) as unknown as Node<'vec3'>;
+  };
+  const skyNode = skyAt(screenUV as unknown as Node<'vec2'>);
+
+  // 雾是"地面化进天幕"的唯一机制。密度由场景给，上限在 tuning（超了会把身体也吃掉）
+  scene.fogNode = fog(skyNode, densityFogFactor(uFogDensity)) as unknown as THREE.Scene['fogNode'];
+
   // ── 地面 ──────────────────────────────────────────────────────────────
-  // 一整块盘子，颜色在远端淡成背景色。**接缝不是靠雾，是靠颜色正好相等**：
-  // 远端 albedo → 0、emissive → 背景地平线色，所以那一圈既不吃光也不吃阴影，
-  // 和背景是同一个数值 —— 盘子的边界在画面上不存在。
   const uGroundNear = uniform(toVec3(look.groundNear));
-  const uGroundFar = uniform(toVec3(look.groundFar));
   const uContact = uniform(look.contactStrength);
   const uContactR = uniform(look.contactRadius);
+  /** 大而淡那一摊的中心（世界 xz）。跟着身体走，不再钉死在原点 */
+  const uContactAt = uniform(new THREE.Vector2(0, 0));
+  const uCore = uniform(look.contactCore);
+  const uCoreR = uniform(look.contactCoreRadius);
+  const uReflect = uniform(look.groundReflect);
+  /**
+   * 倒影的涟漪幅度。**这是"夜潮"那套唯一让人认出是水的东西**：
+   * 一张不动的镜面读作"抛光地板"，动起来才读作"水"。
+   * 幅度是屏幕空间的（0.006 ≈ 1600 宽上的 10px），因为倒影本身就是屏幕空间采的。
+   */
+  const uRipple = uniform(look.groundRipple);
+  const uTime = uniform(0);
+  const uGlossNear = uniform(look.groundGlossNear);
+  const uGlossFar = uniform(look.groundGlossFar);
+
+  /**
+   * 落地点。**这是"人浮在空中"那一条的修法。**
+   * 真阴影贴图的半影 + `normalBias` 一起把脚底那一圈最该黑的地方顶开了，
+   * 于是影子在两米外很清楚，在脚下反而没有 —— 人就飘起来了。
+   * 每个点是 (x, z, 离地高度)；抬起来的脚不该还拖着一摊黑影，所以半径随高度收到 0。
+   */
+  const uFeet = Array.from({ length: STAGE.contactPoints }, () =>
+    uniform(new THREE.Vector3(0, 0, 99)));
 
   const groundDist = positionWorld.xz.length();
   const farMix = smoothstep(float(STAGE.groundFadeStart), float(STAGE.groundFadeEnd), groundDist);
-  // 软接触阴影：中心最暗，uContactR 之外归零。和真阴影贴图叠加，
-  // 负责"贴地"那一小圈 —— 单靠 PCF 阴影脚下永远差一口气
-  const contact = float(1).sub(uContact.mul(float(1).sub(smoothstep(float(0), uContactR, groundDist))));
+
+  // 大而淡的一摊：读作"这里有东西挡住了环境光"
+  const broadD = positionWorld.xz.sub(uContactAt).length();
+  const broad = float(1).sub(smoothstep(float(0), uContactR, broadD));
+  // 脚下紧的一圈：读作"它**踩在**地上"
+  let core: Node<'float'> = float(0) as unknown as Node<'float'>;
+  for (const f of uFeet) {
+    const d = positionWorld.xz.sub(vec2(f.x, f.y)).length();
+    // 抬到 contactLiftRange 就把半径收成 0（下限 1mm，免得 smoothstep 两端相等）
+    const r = uCoreR
+      .mul(float(1).sub(smoothstep(float(0), float(STAGE.contactLiftRange), f.z)))
+      .max(float(0.001));
+    // 从 0 开始衰减（不是从 r·0.2 开始）并再平方一次：
+    // 硬边的圆斑读作"地上有个洞"，柔和的才读作"这里压着一只脚"
+    const w = float(1).sub(smoothstep(float(0), r, d));
+    core = core.max(w.mul(w)) as unknown as Node<'float'>;
+  }
+  const occl = clamp(uContact.mul(broad).add(uCore.mul(core)), 0, 1);
+  const contact = float(1).sub(occl);
 
   // 用 Physical 而不是 Standard，只为了一个字段：`specularIntensityNode`。
-  // 地面在远端是**掠射**的，菲涅耳会把高光推到接近全反射 —— 于是那一圈比背景亮一大截，
-  // 地平线上出现一条清清楚楚的边。把远端的高光强度按同一条 farMix 收到 0，
-  // 远端就真的只剩 emissive（= 背景色），接缝才真正消失。
+  // 地面在远端是**掠射**的，菲涅耳会把高光推到接近全反射；湿地面（tide）尤其严重。
+  // 把远端的高光强度按 farMix 收到 0，远处就只剩雾。
   const groundMat = new THREE.MeshPhysicalNodeMaterial();
   groundMat.specularIntensityNode = float(1).sub(farMix);
-  groundMat.colorNode = uGroundNear.mul(contact).mul(float(1).sub(farMix));
-  groundMat.emissiveNode = uGroundFar.mul(farMix);
-  groundMat.roughnessNode = mix(
-    float(STAGE.groundRoughNear), float(STAGE.groundRoughFar),
-    smoothstep(float(0), float(6), groundDist),
-  );
+  groundMat.colorNode = uGroundNear.mul(contact);
+  /**
+   * 地面镜射**天幕**（不是身体）：把天幕绕地平线翻折再采一次。
+   * 为什么不做真的平面反射：那要把整个场景再渲一遍，draw 17 → ~35，
+   * 而 `BUDGET.maxDrawCalls` 是 40 —— P5 说超了就是 bug。屏幕空间反射（SSR）
+   * 则会在 `?nopost=1` 时整条消失，那就不是"降级"，是**构图变了**。
+   * 折中的假反射（一点点模糊的倒影）是评语里说的"最尴尬的中间态"，所以：
+   * **要么映天幕（真实的、免费的），要么 `groundReflect = 0` 彻底不映。**
+   * 四套场景里只有 tide / backlit 是非零的。
+   */
+  // 两列不同频率、不同方向的波。同频会变成搓衣板，差得远才像水面
+  const wave = sin(positionWorld.x.mul(2.7).add(uTime.mul(0.75)))
+    .add(sin(positionWorld.z.mul(1.9).sub(uTime.mul(0.52))))
+    .mul(uRipple);
+  const mirrored = vec2(
+    screenUV.x.add(wave.mul(0.6)),
+    uHorizonY.mul(2).sub(screenUV.y).add(wave),
+  ) as unknown as Node<'vec2'>;
+  // 掠射项：正下方（脚边）几乎看不到反射，往远处才越来越像镜子 ——
+  // 这是菲涅耳的真实行为，也正好让倒影从身体脚下**长出去**，而不是糊在脚上
+  const grazing = smoothstep(float(0.15), float(3.5), groundDist);
+  groundMat.emissiveNode = skyAt(mirrored).mul(uReflect).mul(grazing).mul(contact);
+  groundMat.roughnessNode = mix(uGlossNear, uGlossFar, smoothstep(float(0), float(6), groundDist));
   groundMat.metalnessNode = float(0);
   const groundGeo = new THREE.CircleGeometry(STAGE.groundRadius, 128);
   const ground = new THREE.Mesh(groundGeo, groundMat);
@@ -233,23 +350,13 @@ export function createStage(opt: StageOptions = {}): Stage {
   ground.castShadow = false;
   scene.add(ground);
 
-  // ── 背景：影棚的无缝背景纸（上暗下亮），地平线和地面远端同色 ──────────────
-  const uBgTop = uniform(toVec3(look.bgTop));
-  const uBgBottom = uniform(toVec3(look.bgBottom));
-  /**
-   * ⚠️ 背景**不能**用 `scene.backgroundNode`。踩过的坑，值得写清楚：
-   * 背景节点和场景里的物体走的不是同一条输出路径（色调映射 / 输出色彩空间那一段），
-   * 于是**即使把两边设成同一个 uniform**，地面远端看上去也比背景亮一大截 ——
-   * 地平线上就是一条硬边。（验证方法：把 backgroundNode 直接设成 uGroundFar，边还在。）
-   *
-   * 所以这里挂一块**真的背景布**：一个朝内的大圆筒，无光照材质。
-   * 它和地面走同一条路径，同一个数值就真的是同一个颜色，接缝才消失。
-   * 这也正好是影棚的做法 —— 无缝背景纸，不是"天空盒"。
-   */
+  // ── 背景布：朝内的大圆筒，直接用天幕函数上色 ────────────────────────────
+  // 它已经不负责"和地面对色"了（那件事交给了雾），只负责一件事：
+  // 相机转到哪儿都有东西挡着，不会露出 `scene.background` 那条路径。
   const backdropMat = new THREE.MeshBasicNodeMaterial();
-  backdropMat.colorNode = mix(uBgBottom, uBgTop, smoothstep(float(1.5), float(55), positionWorld.y));
+  backdropMat.colorNode = skyNode;
   backdropMat.side = THREE.BackSide;
-  backdropMat.fog = false;
+  backdropMat.fog = false;          // 它**就是**雾色，再雾一次没有意义
   const backdropGeo = new THREE.CylinderGeometry(
     STAGE.backdropRadius, STAGE.backdropRadius, STAGE.backdropHeight, 64, 1, true,
   );
@@ -260,7 +367,7 @@ export function createStage(opt: StageOptions = {}): Stage {
   backdrop.receiveShadow = false;
   scene.add(backdrop);
   // 背景布万一没画上也不能是黑的（P3：观众永远不该看见"出错了"）
-  scene.background = toColor(look.bgBottom);
+  scene.background = toColor(look.skyGlow);
 
   // ── 空场的呼吸粒子（docs/05 §5）────────────────────────────────────────
   const field: BreathField = createBreathField({
@@ -295,6 +402,17 @@ export function createStage(opt: StageOptions = {}): Stage {
   let timeScale = 1;
   let swayT = 0;
 
+  // ── 场景 ──────────────────────────────────────────────────────────────
+  /** `?scene=` 或调用方点名的那一套；null = 交给 `pickScene` 按物种挑 */
+  let sceneForced: SceneId | null =
+    (isSceneId(opt.scene) ? opt.scene : null) ?? (isSceneId(flags.scene) ? flags.scene : null);
+  let sceneId: SceneId = sceneForced ?? 'void';
+  /** 当前主题，换场景时要拿它重算一次 look */
+  let curTheme: ThemeDef | null = null;
+  let curMaterials: readonly MaterialDef[] = [];
+  /** 这一次过渡走多久（秒）。换场景比换主题慢：整个世界换了，太快像切台 */
+  let lookFade = 0.7;
+
   /**
    * 借用渲染器：阴影开关、色调映射、曝光都是"这件作品长什么样"的一部分，
    * 但它们住在 renderer 上，而 renderer 归 main.ts 管。
@@ -315,22 +433,74 @@ export function createStage(opt: StageOptions = {}): Stage {
   }
   scene.onBeforeRender = ((r: THREE.Renderer) => { adopt(r); }) as unknown as THREE.Scene['onBeforeRender'];
 
+  /**
+   * 把舞台底色的亮度发布成 CSS 变量，供**叠在画布上的那几层**取用
+   *（物种名牌 `shell/notice.css`、右上角目录 `ui/nav.css`）。
+   *
+   * 为什么需要它：那几层的颜色原来写死成 `--sb-ink`（浅灰，为深底设计）。
+   * 场景那条线做出了 `gallery` 白展厅之后，两边各自都是对的 ——
+   * 合在一起，白底上的浅灰字**几乎看不见**。
+   *
+   * 不去翻 `--sb-ink` 本身：它是全站共用的，文档页（深底）还要用它。
+   * 这里只覆盖 `--sb-on-stage`，而它的缺省值就是 `--sb-ink` ——
+   * 于是不在舞台上的页面一个字都不用改。
+   */
+  function publishStageInk(): void {
+    // 线性 RGB 的相对亮度。阈值 0.18 是"中灰"，两侧都留足对比
+    const [r, g, b] = look.bgBottom;
+    const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    const dark = lum < 0.18;
+    const root = document.documentElement.style;
+    root.setProperty('--sb-on-stage', dark ? '#dfe4ea' : '#1a1d21');
+    root.setProperty('--sb-on-stage-dim', dark ? '#9aa0a6' : '#5b6168');
+  }
+
   function applyLook(): void {
+    publishStageInk();
     setColor(key.color, look.key);
     setColor(fill.color, look.fill);
     setColor(rim.color, look.rim);
     setColor(hemi.color, look.sky);
     setColor(hemi.groundColor, look.bounce);
     setVec3(uGroundNear.value, look.groundNear);
-    setVec3(uGroundFar.value, look.groundFar);
-    setVec3(uBgTop.value, look.bgTop);
-    setVec3(uBgBottom.value, look.bgBottom);
-    setColor(scene.background as THREE.Color, look.bgBottom);
+    setVec3(uSkyTop.value, look.skyTop);
+    setVec3(uSkyGlow.value, look.skyGlow);
+    setColor(scene.background as THREE.Color, look.skyGlow);
+    uGlow.value.z = Math.max(0.05, look.glowRadius);
+    uGlowSoft.value = Math.max(0.2, look.glowSoft);
+    uFogDensity.value = Math.min(STAGE.fogDensityMax, Math.max(0, look.fogDensity));
     uContact.value = look.contactStrength;
     uContactR.value = look.contactRadius;
+    uCore.value = look.contactCore;
+    uCoreR.value = Math.min(STAGE.contactCoreRadiusMax, Math.max(0.02, look.contactCoreRadius));
+    uReflect.value = look.groundReflect;
+    uRipple.value = look.groundRipple;
+    uGlossNear.value = look.groundGlossNear;
+    uGlossFar.value = look.groundGlossFar;
     key.shadow.intensity = look.shadowIntensity;
+    placeLights();
     field.setLook(look.particle, look.particleGain, look.particleDrift);
+    field.setSize(look.particleSize);
     post?.setLook(look);
+  }
+
+  /**
+   * 三盏灯的位置。**方向归场景管、颜色归主题管**（scenes.ts 的头一段）：
+   * 白展厅要把主光压到近乎顶光（45° 主光会拖出一条和身高一样长的影子，
+   * 那正是"人在飘"的另一半原因），逆光那套要把 rim 几乎推到镜头正对面。
+   */
+  function placeLights(): void {
+    const put = (l: THREE.DirectionalLight, dir: RGB): void => {
+      tmpDir.set(dir[0], dir[1], dir[2]);
+      if (tmpDir.lengthSq() < 1e-6) tmpDir.set(0, 1, 0);
+      tmpDir.normalize().multiplyScalar(STAGE.lightDistance);
+      l.position.copy(aim).add(tmpDir);
+      l.target.position.copy(aim);
+      l.target.updateMatrixWorld();
+    };
+    put(key, look.keyDir);
+    put(fill, look.fillDir);
+    put(rim, look.rimDir);
   }
   applyLook();
 
@@ -347,16 +517,29 @@ export function createStage(opt: StageOptions = {}): Stage {
     framingSettled = false;
   }
 
-  function useTheme(theme: ThemeDef | null, materials: readonly MaterialDef[]): void {
+  /**
+   * 重算目标 look = 主题（物种的颜色）→ 场景（它站在什么地方）。
+   * 两层是正交的：换场景不该改变物种的固有色，换物种也不该把世界换掉。
+   */
+  function composeLook(fade: number): void {
+    const base = deriveLook(curTheme, curMaterials);
+    sceneId = sceneForced ?? pickScene(curTheme, base);
     lookFrom = look;
-    lookTo = deriveLook(theme, materials);
+    lookTo = applyScene(base, SCENES[sceneId]);
     lookMix = 0;
+    lookFade = fade;
+  }
+
+  function useTheme(theme: ThemeDef | null, materials: readonly MaterialDef[]): void {
+    curTheme = theme;
+    curMaterials = materials;
+    composeLook(0.7);
     // 物种的身体方案决定"没有真人时按什么取景"（docs/18）。
     // `?plan=` 优先：现场调试时要能强行看某一种方案。
     aimAt(boundsOfPlan(flags.plan ?? theme?.bodyPlan ?? "rig"));
     if (flags.debug) {
       console.info(
-        `[stage] look ${theme?.id ?? '(none)'} · temp=${lookTo.temperature.toFixed(2)}` +
+        `[stage] look ${theme?.id ?? '(none)'} · scene=${sceneId} · temp=${lookTo.temperature.toFixed(2)}` +
         ` cool=${lookTo.coolBias.toFixed(2)} hue=${lookTo.hueWeight.toFixed(2)}` +
         ` key=#${toColor(lookTo.key).getHexString()}`,
       );
@@ -411,6 +594,7 @@ export function createStage(opt: StageOptions = {}): Stage {
    */
   function fitCamera(): void {
     const aspect = viewW / Math.max(1, viewH);
+    uAspect.value = aspect;
     const fit = fitFrame(bounds);
     let h = fit.frameHeight;
     if (h * aspect < fit.frameWidth) h = fit.frameWidth / aspect;   // 太窄了就往高了框
@@ -425,7 +609,12 @@ export function createStage(opt: StageOptions = {}): Stage {
 
     // 镜头上下平移：相机保持水平，把整个视锥往下推 (eyeHeight - 画面中心)。
     // width/height 用满 → 不裁剪、只平移，等价于移轴镜头：竖线仍然是竖的。
-    const shift = (STAGE.eyeHeight - fit.centerY) / h;
+    //
+    // `frameLift` 是场景对构图的那一票，叠在 `FRAMING.centerLift` 之上（后者不动）。
+    // 为什么构图要归场景管：留白多少是"这个世界有多空"的一部分 ——
+    // 逆光那套身后是一块亮盘，身体要压低一点才压得住；白展厅反过来。
+    const centerY = fit.centerY + bounds.height * look.frameLift;
+    const shift = (STAGE.eyeHeight - centerY) / h;
     const full = 1000;
     camera.setViewOffset(full * aspect, full, 0, shift * full, full * aspect, full);
     camera.updateProjectionMatrix();
@@ -436,13 +625,43 @@ export function createStage(opt: StageOptions = {}): Stage {
     // 灯与阴影跟着身体中心走。四足的"胸口"在 0.4m 高，
     // 照着人形的 0.98m 打，它整只都会留在暗部里。
     if (Math.abs(aim.y - fit.aimY) > 1e-4) {
-      const dy = fit.aimY - aim.y;
       aim.y = fit.aimY;
-      for (const l of [key, fill, rim]) { l.position.y += dy; l.target.position.y += dy; }
-      key.target.updateMatrixWorld();
+      placeLights();
     }
+
+    // ── 天幕的晕跟着身体走 ──
+    // 这是构图那一条的另一半：晕心钉在身体背后（肩/头那一带），
+    // 于是画面的视觉重心和身体重合，而不是钉在世界坐标的某个高度上。
+    // 顺带也就没有"横向明暗分界线"可言了 —— 地平线是那么来的。
+    //
+    // ⚠️ 这里**不能**用 `Vector3.project(camera)`。相机的 `matrixWorldInverse`
+    // 要到渲染那一刻才更新，在 fitCamera 里它还是上一帧（首帧是单位阵）的，
+    // 算出来的晕心会落在画面左下角 —— `wip-tide.png` 里那团跑到左下的白斑就是它。
+    // 而这套取景是**自己算出来的**：画面正好框住以 centerY 为中心、高 h 的一块世界，
+    // 所以屏幕纵坐标有闭式解，不需要问相机。
+    // ⚠️ `screenUV.y` 在这条管线里是**从上往下**的（0 = 画面顶端）。
+    // 这一条实测出来的：按"0 在下"写的时候，晕心永远出现在画面**底部**
+    // （`wip-gallery/backlit/tide` 前几轮那团贴着下边缘的亮斑就是它），
+    // 而探针读出来的 `uGlow.y` 和手算的完全一致 —— 差的只有这一个符号。
+    // 上游文档两种约定都能找到，所以这里以实测为准，别按记忆改回去。
+    const toScreenY = (worldY: number): number => 0.5 - (worldY - centerY) / h;
+    uGlow.value.x = 0.5;              // 相机没有横向偏移，身体永远在画面横向中线上
+    uGlow.value.y = toScreenY(bounds.centerY + bounds.height * look.glowLift);
+    // 地平线 = 眼高那条水平视线（地面上无穷远处）。地面镜射天幕时绕它翻折
+    uHorizonY.value = toScreenY(STAGE.eyeHeight);
   }
   fitCamera();
+
+  // 调试探针（只在 ?debug=1 下挂）：天幕的晕心/地平线是算出来的，
+  // 算错了画面上看不出是"算错"还是"着色器错"—— 第一轮在这上面绕了一圈
+  if (flags.debug && typeof globalThis !== 'undefined') {
+    (globalThis as Record<string, unknown>).__stageProbe = {
+      get glow() { return { x: uGlow.value.x, y: uGlow.value.y, r: uGlow.value.z }; },
+      get horizon() { return uHorizonY.value; },
+      get soft() { return uGlowSoft.value; },
+      get sky() { return { top: [...uSkyTop.value.toArray()], glow: [...uSkyGlow.value.toArray()] }; },
+    };
+  }
 
   const stage: Stage = {
     scene,
@@ -454,9 +673,12 @@ export function createStage(opt: StageOptions = {}): Stage {
 
       // ── 主题过渡：换主题不该是一次跳变 ──
       if (lookMix < 1) {
-        lookMix = Math.min(1, lookMix + step / 0.7);
+        lookMix = Math.min(1, lookMix + step / Math.max(0.05, lookFade));
         look = lerpLook(lookFrom, lookTo, lookMix * lookMix * (3 - 2 * lookMix));
         applyLook();
+        // 晕心 / 构图 / 地平线都跟着 look 走，过渡期间必须每帧重算 ——
+        // 不然换场景时世界换了、晕却停在上一套的位置上
+        fitCamera();
       }
 
       // ── 取景过渡 ──
@@ -509,6 +731,10 @@ export function createStage(opt: StageOptions = {}): Stage {
       gather = ease(gather, state === 'IDLE' ? 0 : 1, step, 0.75);
       particleFade = ease(particleFade, state === 'ALIVE' ? 0 : 1, step, state === 'ALIVE' ? 1.1 : 0.9);
       field.update(step, gather, particleFade, timeScale);
+
+      // 水面的时间。乘 timeScale：升档停滞时水也要一起慢下来，
+      // 否则"时间停了"这件事会被一片照常流动的水拆穿
+      uTime.value += step * timeScale;
 
       // ── 机位呼吸：厘米级。只为了让画面不像一张贴图 ──
       swayT += step * timeScale;
@@ -565,6 +791,22 @@ export function createStage(opt: StageOptions = {}): Stage {
     frame(skeleton) {
       const b = boundsOfSkeleton(skeleton);
       if (b) aimAt(b);
+      // 落地点：拿不到骨架就**保持上一帧**，不要归零 ——
+      // 追踪丢一帧就把接触阴影关掉，脚下会闪一下，比没有更显眼
+      // 骨架本身不可信（b 为 null）才保持上一帧；骨架可信但**整具身体都离地**时
+      // 必须把落点全部关掉 —— 那正好是"它跳起来了"，那一刻脚下就不该有接触阴影
+      if (!b) return;
+      const feet = contactPoints(skeleton, STAGE.contactPoints, STAGE.contactLiftRange);
+      let cx = 0;
+      let cz = 0;
+      for (let i = 0; i < uFeet.length; i++) {
+        const f = feet[i];
+        // lift = 99 → 着色器里半径收成 0，这一路落点等于不存在
+        if (f) { uFeet[i].value.set(f[0], f[1], f[2]); cx += f[0]; cz += f[1]; }
+        else uFeet[i].value.set(0, 0, 99);
+      }
+      const k = Math.max(1, feet.length);
+      uContactAt.value.set(cx / k, cz / k);
     },
 
     get bounds() { return bounds; },
@@ -576,6 +818,12 @@ export function createStage(opt: StageOptions = {}): Stage {
 
     get post() { return postEnabled && post !== null; },
     get look() { return look; },
+
+    setScene(id) {
+      sceneForced = isSceneId(id) ? id : null;
+      composeLook(STAGE.sceneFade);
+    },
+    get sceneId() { return sceneId; },
 
     dispose() {
       scene.onBeforeRender = (() => {}) as THREE.Scene['onBeforeRender'];

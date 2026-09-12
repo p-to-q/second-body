@@ -177,6 +177,68 @@ export function fitFrame(b: BodyBounds): FrameFit {
   };
 }
 
+/**
+ * 身体落在地面上的那几个点（世界坐标 xz + 离地高度）。
+ *
+ * **这是"人浮在空中"的修法的输入。** 真阴影贴图给的是身体的形状，
+ * 但它在脚底那一圈永远差一口气（PCF 的半影 + normalBias 把最该黑的地方顶开了）。
+ * 接触阴影要画在**真正着地的那几个端点**下面，而不是画在世界原点 ——
+ * 第一轮就是画在原点的一个 0.62m 大圆斑，它既不跟脚走，也不像接触。
+ *
+ * 取最低的 `n` 个骨头端点（两足取到两只脚，四足取到四只）。
+ * `lift` = 离地高度：脚抬起来接触阴影就该消失，否则读作"影子粘在脚上"。
+ *
+ * 只返回**离地不超过 `maxLift`** 的端点。不加这一条的话，名额会被手尖占掉 ——
+ * A-pose 的手尖离地 0.73m，在 xz 上离脚很远，去重挡不住它，
+ * 于是画面上会在两只手底下各多出一摊接触阴影。
+ *
+ * @returns 最多 n 个 `[x, z, lift]`；拿不到骨架、或者整具身体都离地时返回空数组
+ */
+export function contactPoints(
+  sk: Skeleton | null | undefined,
+  n = 4,
+  maxLift = 0.22,
+): Array<[number, number, number]> {
+  if (!sk || !sk.bones?.length) return [];
+  const pts: Vec3[] = [];
+  for (const b of sk.bones) {
+    for (const p of [b.p0, b.p1]) {
+      if (p && Number.isFinite(p[0]) && Number.isFinite(p[1]) && Number.isFinite(p[2])) pts.push(p);
+    }
+  }
+  if (pts.length < 4) return [];
+  pts.sort((a, b) => a[1] - b[1]);
+  const out: Array<[number, number, number]> = [];
+  /**
+   * "地面"取 **y = 0**，不取这具身体自己的最低点。
+   *
+   * 第一版取自身最低点，等于**强迫每具身体都有接触阴影** —— 哪怕它整个跳在空中。
+   * 而"浮"和"陷"是同一个问题的两面：装配那条线实测出脚的网格最低点在
+   * `y = -0.025`（真实运行时 `ground()` 把 `footIdx` 归零之后还要再沉 ~3cm），
+   * 也就是说身体相对地面既可能高也可能低，参照系必须是**地面本身**。
+   *
+   * 以 y=0 为准之后两边都对：陷进去的脚 `lift ≤ 0` → 照常有接触阴影；
+   * 真的跳起来 → 所有落点超过 `maxLift`，接触阴影**正确地消失**。
+   * 身体沉进地里那一段该由装配层补（它才拿得到每件的 `aabb`），舞台这边
+   * 不去猜一个偏移量 —— 猜错就是把影子画在没有脚的地方。
+   */
+  const floor = 0;
+  for (const p of pts) {
+    if (out.length >= n) break;
+    if (p[1] - floor > maxLift) break;      // 已按 y 排序，后面只会更高
+    /**
+     * 一只脚只出一个落点。**0.19m 这个数是量出来的，不是拍的**：
+     * 参考站姿里脚踝 (0.10, 0) 和脚尖 (0.10, 0.16) 相距 0.16m，
+     * 两只脚之间相距 0.20m。阈值必须落在这两个数中间 —— 取 0.12（第一版）
+     * 会让脚踝和脚尖各算一个，画面上就是**每只脚下面两个黑圆斑**；
+     * 取 0.22 又会把另一只脚一起吞掉，只剩一边有接触阴影。
+     */
+    if (out.some(([x, z]) => Math.hypot(x - p[0], z - p[2]) < 0.19)) continue;
+    out.push([p[0], p[2], Math.max(0, p[1] - floor)]);
+  }
+  return out;
+}
+
 /** 两个包围盒之间插值。换条目时相机要平滑过渡（docs/23 §S3：进场必须无缝） */
 export function lerpBounds(a: BodyBounds, b: BodyBounds, t: number): BodyBounds {
   const f = (x: number, y: number): number => x + (y - x) * t;

@@ -136,7 +136,9 @@ for (const b of bones) {
 skelGroup.visible = false;
 
 // ── 运行时模块 ──────────────────────────────────────────────────────────────
-const library = createPartLibrary();
+// `?parts=/parts/harvest/` 指向另一份索引 —— 取件池（真实机器人 CAD，docs/33）就是靠它
+// 和 Rodin 生成件拼进同一具身体的。不给就是默认的 /parts/，行为不变。
+const library = createPartLibrary(qs.has('parts') ? { baseUrl: qs.get('parts')! } : {});
 await library.load();                          // parts.json 缺失也 resolve → 占位模式
 const creature = createCreature({ library });
 scene.add(creature.object);
@@ -231,7 +233,25 @@ camera.lookAt(center[0], center[1], center[2]);
 if (DEBUG) {
   Object.assign(globalThis as Record<string, unknown>, {
     __figure: {
-      library, creature, skeleton, presence, themes,
+      library, creature, skeleton, presence, themes, camera, renderer,
+      /**
+       * 无头取证：固定机位渲染一帧，返回 PNG data URL。
+       *
+       * 两件事都必须自己做，不能指望帧循环：无头 Chrome 没有合成器在推帧，
+       * `setAnimationLoop` 一次都不跑（画布因此永远是空的）；而自转的相机会让
+       * 改前/改后两张图差在角度上 —— 看的人分不清是修好了还是只是转过去了。
+       */
+      async shot(angle = 0.55) {
+        paused = true;
+        spin = angle;
+        fitCamera();
+        const a = Math.sin(spin) * 0.9;
+        camera.position.set(Math.sin(a) * camDist, center[1] + span * 0.35, Math.cos(a) * camDist);
+        camera.lookAt(center[0], center[1], center[2]);
+        creature.pose(skeleton, presence, 1 / 60);
+        await renderer.renderAsync(scene, camera);
+        return renderer.domElement.toDataURL('image/png');
+      },
       get genome() { return genome; },
       get stats() { return creature.stats; },
       async set(next: { theme?: string; seed?: number; tier?: number }) {

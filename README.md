@@ -1,72 +1,116 @@
 # SEE-ME SEE-YOU
 
-> 作品名 **SEE-ME SEE-YOU**；工程代号仍是 `second-body`（仓库名、包名、`@sb/*` 前缀）。
-> 分开是故意的：观众看到的是展签，不是仓库名；而几十个 commit、全套文档和两个
-> 已经上线的服务都以 `second-body` 做内部指代，改代号的成本是真实的、收益是零。
+> SEE-ME SEE-YOU — a body that only stands up while you are standing there.
 
-[![check](https://img.shields.io/badge/check-typecheck%20%2B%20103%20tests%20%2B%20parts%20contract-brightgreen)]()
-[![parts](https://img.shields.io/badge/parts-191-blue)]()
-[![bodies](https://img.shields.io/badge/body%20plans-rig%20%7C%20quadruped%20%7C%20mass%20%7C%20stub-blue)]()
+Stand in front of the camera and pick a species. A life-size synthetic body
+comes alive on your skeleton and copies you — and the more you move, the more
+elaborate it grows. Meanwhile your silhouette is sent to a 3D generation model;
+about a minute later, a part generated from *you* is growing on it.
 
-实时交互艺术装置。摄像头认出你的身体，一具合成的身体跟随你；
-你动得越多它越复杂；同时它把你此刻的剪影送给一个 3D 生成模型，
-一分钟后，属于你的那块零件长在它身上。
+**Live:** [second-body.ptoq.io](https://second-body.ptoq.io) ·
+[what it is](https://second-body.ptoq.io/about) ·
+[how it was made](https://second-body.ptoq.io/making) ·
+[take your body home](https://second-body.ptoq.io/passport)
 
-对标 Universal Everything《Future You》(Barbican, 2019) 的逆向复刻，
-并把 2019 年不存在的那一层 —— 实时 AI 3D 生成 —— 放进交互回路。
+![Position poster](assets/brand/poster-03-position-a1.png)
 
-## 快速开始
+The artwork is titled **SEE-ME SEE-YOU**; the engineering codename stays
+`second-body` — the repository, the packages, the `@sb/*` prefix. The split is
+deliberate: what the audience reads is a wall label, not a repository name.
+
+## State
+
+A reverse-engineered reconstruction of Universal Everything's *Future You*
+(Barbican, 2019), with the layer that did not exist in 2019 — real-time AI 3D
+generation — put back inside the interaction loop.
+
+Counted from `assets/parts/parts.json` on 2026-09-13: **29 roster entries**, 23
+of which currently carry parts; **198 normalised parts** across 10 slots;
+**8 body plans** — seven skeleton remappings in
+[`packages/core/src/bodyplan.ts`](packages/core/src/bodyplan.ts) (`rig`,
+`quadruped`, `towering`, `stub`, `inverted`, `radial`, `column`) plus `mass`,
+which replaces the rigid body entirely. At tier 2 that is a combinatorial
+capacity of **1,773,824 distinct bodies**, computed by
+`packages/app/poster/build-data.mjs` — vacant entries that have never produced a
+part of their own are excluded from the count on purpose.
+
+**What actually runs is decided by [`docs/10-SURFACES.md`](docs/10-SURFACES.md),
+not by this file.** The slow loop, the stage and the main chain are still marked
+`experimental` there, and the main chain has only ever been driven by recorded
+pose data — never by a real person.
+
+## What it is not
+
+- **Not a skinned character.** Bodies are chains of rigid parts. A deforming
+  mesh would read as a game character; the point is that the material is visibly
+  assembled. See [`docs/18-BODY-PLANS.md`](docs/18-BODY-PLANS.md).
+- **Not real-time 3D generation.** Generation is a slow loop of roughly a
+  minute, deliberately kept out of the frame loop. If it fails, the fast loop
+  does not notice.
+- **Not a framework.** Nothing here is built to be reused. It is built to survive
+  one evening with an audience in front of it.
+- **Not a product.** The code is MIT; the artwork is not.
+
+## Run
 
 ```bash
 npm install
-npm run doctor          # 环境自检
+npm run doctor          # environment self-check
 npm run dev             # → http://localhost:5173
 ```
 
-没有资产也能跑（会用占位几何）。部件对照表在 `/dev/parts.html`。
-
-## 资产工厂（需要 Hyper3D key，写进 .env）
-
-```bash
-npm run factory:balance                  # 看余额
-npm run factory:plan                     # 看 50 个配方的状态
-npm run factory:generate -- --pilot      # 先跑 6 件验证（3 credits）
-npm run factory:generate -- --all        # 全量（25 credits）
-npm run factory:normalize                # 规范化：主轴+Y / socketA原点 / 长度1 / 去贴图
-npm run factory:index                    # 生成 parts.json
-```
-
-幂等：已完成的配方不会重复花钱。改 `flip` 之类的规范化参数不触发重新生成。
-
-## 合并门
+It runs with no assets at all (placeholder geometry). The one gate before
+merging anything is:
 
 ```bash
-npm run check           # typecheck + test + 部件契约检查
+npm run check           # typecheck + tests + part-contract check
 ```
 
-## 状态
+## Read
 
-**跑通了什么以 `docs/10-SURFACES.md` 为准**，不以本文件为准。
+Three files, in this order, and you can start changing things:
 
-## 这个仓库值得看的三件事
+1. [`AGENTS.md`](AGENTS.md) — the reading route, the invariants, and the
+   baseline self-check you run **before** you start;
+2. [`docs/02-ENGINEERING-PRINCIPLES.md`](docs/02-ENGINEERING-PRINCIPLES.md) —
+   the constitution, P0–P20, each principle carrying the incident that taught it;
+3. [`docs/10-SURFACES.md`](docs/10-SURFACES.md) — the only trustworthy statement
+   of what works, with an evidence column.
 
-1. **身体方案是可插拔的**（[`docs/18`](docs/18-BODY-PLANS.md)）。人体骨架 → 四足 / 团块 / 矮胖
-   只是一个纯函数加一个字段。四足那条保留了四肢的世界方向，所以"你抬手 → 它抬前腿"的因果没断。
-2. **玩法扩展点自带故障隔离**（[`docs/16`](docs/16-SPEC-acts.md)）。一个 Act 连续 3 次抛异常就被
-   永久禁用并回落 —— 让"随便试新玩法"变安全，是那块空间能成立的前提。
-3. **工程原则都附着教会我们的那件事**（[`docs/02`](docs/02-ENGINEERING-PRINCIPLES.md) P11–P20）。
-   没有故事的原则活不过三天。
+Then [`docs/index.md`](docs/index.md) routes you to the rest by need. Do not read
+`docs/` end to end.
 
-## 文档
+**Every tunable number in the project lives in one file**,
+[`packages/core/src/tuning.ts`](packages/core/src/tuning.ts) — capture, filtering,
+rig, motion, evolution, morphology, render budget, slow loop. If you find
+yourself tuning a constant anywhere else, it is in the wrong place.
 
-从 `AGENTS.md` 的读取路线开始，不要一次读完 `docs/`。索引在 `docs/index.md`。
+**Three things are frozen contracts:**
+[`packages/core/src/types.ts`](packages/core/src/types.ts),
+[`docs/03-SPEC-part-library.md`](docs/03-SPEC-part-library.md) and
+[`docs/04-SPEC-rig-and-attach.md`](docs/04-SPEC-rig-and-attach.md). You do not
+edit them, even when your change appears to require it. Stop and report
+`contract change needed: <reason>`; the contract owner makes the edit and
+broadcasts it. The reasoning is P0 and P11.
 
-## 结构
+## Structure
 
 ```
-packages/core      纯逻辑（滤波/骨架/挂载/演化/基因），零依赖，node --test 直接跑
-packages/app       浏览器运行时（vite + three.js WebGPU + MediaPipe）
-packages/factory   Node（Hyper3D 客户端 + 资产流水线 + 慢回路代理）
-assets/parts       规范化后的部件 + parts.json    ← 运行时与工厂之间唯一的接口
-assets/raw         Rodin 原始产物 + ledger.json   （gitignore）
+packages/core      pure logic (filtering, rig, attachment, evolution, genome) — zero deps, runs under node --test
+packages/app       browser runtime (vite + three.js WebGPU + MediaPipe)
+packages/factory   node (Hyper3D client, asset pipeline, slow-loop proxy)
+assets/parts       normalised parts + parts.json    ← the only interface between runtime and factory
+assets/raw         raw Rodin output + ledger.json   (gitignored)
 ```
+
+The asset factory needs a Hyper3D key and spends credits; its commands and
+budget gates are documented in [`docs/index.md`](docs/index.md), not here.
+
+## Licence
+
+The **source code** is MIT — see [`LICENSE`](LICENSE). Four things are carved
+out of it: the vendored dither-carousel, the ZKMSerendipity typeface, the
+generated `.glb` parts and anchor images, and the artwork itself. The carve-outs
+are written out in `LICENSE` and restated for the audience under *Credits and
+licence* on [`/about`](https://second-body.ptoq.io/about). Open source code does
+not mean the piece may be re-exhibited.

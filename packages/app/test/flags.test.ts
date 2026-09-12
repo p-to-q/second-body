@@ -27,3 +27,18 @@ test('flags: 数值参数非法时退回 null 而不是 NaN', () => {
 test('flags: theme 原样透传', () => {
   assert.equal(readFlags('?theme=char.dumpling').theme, 'char.dumpling');
 });
+
+test('flags: 加载态与目录默认都在，各自有一个关掉的写法', () => {
+  const f = readFlags('');
+  assert.equal(f.loading, true, '默认要有加载态 —— 黑屏才是那个被修掉的 bug');
+  assert.equal(f.nav, true);
+  assert.equal(readFlags('?loading=0').loading, false);
+  assert.equal(readFlags('?nav=0').nav, false);
+});
+
+test('flags: 现场模式下目录自动消失，不需要再写一个参数', () => {
+  // 装置画面上不该挂网站导航。这条判断只有 readFlags 一处，
+  // 各挂载点不许自己再判一次 —— 否则总有一处会漏。
+  assert.equal(readFlags('?kiosk=1').nav, false);
+  assert.equal(readFlags('?kiosk=1').loading, true, '现场照样要有加载态：黑屏在现场更致命');
+});
