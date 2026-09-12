@@ -32,11 +32,17 @@ SOFTWARE.
    我们**没有**取用其 `public/` 目录中的任何图片或字体（作者明确说明那些
    不在 MIT 范围内、不得复用）。
 
-2. `assets/parts/*.glb`、`assets/refs/*/_anchor.png` —— 由 Hyper3D Rodin
+2. `assets/fonts/ZKMSerendipity/` —— ZKMSerendipity 字体，权利属于
+   ZKM | Zentrum für Kunst und Medien Karlsruhe 及其设计方。本项目非商用，
+   项目持有人声明持有使用授权。**本项目不对该字体主张任何权利、不作为字体产品再分发。**
+   fork 本仓库者请自行向 ZKM 取得许可，或删掉该目录 —— 删掉后排版度量不变
+   （见 `assets/fonts/ZKMSerendipity/NOTICE.md`）。
+
+3. `assets/parts/*.glb`、`assets/refs/*/_anchor.png` —— 由 Hyper3D Rodin
    生成、并经本仓库的流水线规范化。它们是本项目的产物；使用前请自行确认
    所用生成服务的条款。
 
-3. 作品本身（交互设计、体验编排）是一件装置作品。代码开源不等于
+4. 作品本身（交互设计、体验编排）是一件装置作品。代码开源不等于
    作品可以被原样复制展出。
 
-This license covers the SOURCE CODE. See the three carve-outs above.
+This license covers the SOURCE CODE. See the four carve-outs above.

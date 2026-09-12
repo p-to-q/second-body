@@ -19,8 +19,8 @@
 
 :root {
   /* ── 字体栈 ────────────────────────────────────────────────────────── */
-  --sb-grotesk: "Helvetica Neue", "Neue Haas Grotesk Display", "Suisse Int'l",
-                Univers, Helvetica, Arial, "Segoe UI", system-ui, sans-serif;
+  --sb-grotesk: "ZKMSerendipity", "Helvetica Neue", "Neue Haas Grotesk Display",
+                "Suisse Int'l", Univers, Helvetica, Arial, "Segoe UI", system-ui, sans-serif;
   --sb-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
   /* ── 字号：只有两级正文 + 两级标题。三级以上就开始像后台系统 ───────── */
@@ -105,12 +105,11 @@ a:hover { border-bottom-color: var(--sb-accent); }
 }
 
 /**
- * 渐进增强：本机装了 / 本地软链了 ZKMSerendipity 就用它，否则落到系统栈。
- * 字体文件**不在版本库也不在产物里**（见 assets/fonts-local/README.md）：
- * 使用授权不等于再分发授权，而这个仓库是公开的。
+ * ZKMSerendipity —— 出处与授权见 `assets/fonts/ZKMSerendipity/NOTICE.md` 和根 LICENSE。
+ * 本项目非商用；字体权利属于 ZKM / 其设计方，本项目不对它主张任何权利。
  *
- * 两种情况下**排版度量完全一致** —— 那才是这套风格的来源。
- * 加 `?font=zkm` 或给 <html> 加 class="font-zkm" 启用。
+ * `font-display: swap` 是故意的：字体没到之前先用系统栈渲染，**排版度量完全一致**，
+ * 所以不会有回流跳动 —— 度量才是这套风格的来源，字形是锦上添花。
  */
 @font-face {
   font-family: "ZKMSerendipity";
@@ -123,4 +122,5 @@ a:hover { border-bottom-color: var(--sb-accent); }
   font-weight: 600; font-style: normal; font-display: swap;
 }
 
-html.font-zkm { --sb-grotesk: "ZKMSerendipity", "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif; }
+/** 排查用：?font=system 强制走系统栈，用来确认"度量一致"这件事没骗人 */
+html.font-system { --sb-grotesk: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif; }

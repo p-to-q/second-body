@@ -139,7 +139,7 @@ function anchorWriter(): Plugin {
  * 但没人验证过 —— 直到真跑了一次 build，产物是 975 MB。
  * 规格写了不等于做到了（§craft）。
  */
-const SHIPPED = ['parts', 'refs', 'demo'];
+const SHIPPED = ['parts', 'refs', 'demo', 'fonts'];
 
 function shipAssets(): Plugin {
   return {

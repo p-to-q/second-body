@@ -11,12 +11,11 @@
 > 度量取自 zkm.de 线上 CSS（2026-09-12 实测）：body 1.0rem/400/1.5，
 > h1 2.00rem/1.15/600，h2 1.50rem/1.25/600，html 100%→105%。
 >
-> **字体不打包。** ZKM 线上引用的 `ZKMSerendipity` 没有 `@font-face` ——
-> 靠本机已装字体，装不上落到 `sans-serif`；ZKM 自己把
-> "no web fonts, only browser fonts" 当成极简策略。我们照做。
-> 栈是 `Helvetica Neue → Neue Haas Grotesk → Suisse Int'l → Univers → Arial → system-ui`：
-> macOS/iOS 落到 Helvetica Neue（Typographic Style 的本尊），Windows 落到 Arial。
-> 要更独特的字形就买一份 Suisse Int'l 授权加在栈首 —— 只改一行。
+> **字体**：`ZKMSerendipity`（Regular/Medium + Italic，228 KB，`font-display: swap`），
+> 出处与授权基础见 `assets/fonts/ZKMSerendipity/NOTICE.md`。
+> 回退栈 `Helvetica Neue → Neue Haas Grotesk → Suisse Int'l → Univers → Arial → system-ui`，
+> **两种情况下排版度量完全一致**，所以字体没到时不会有回流跳动。
+> `?font=system` 可以强制走系统栈，用来确认这一点没骗人。
 
 | | 值 | 理由 |
 |---|---|---|
