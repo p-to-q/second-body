@@ -16,7 +16,14 @@ export interface Flags {
 
 export function readFlags(search = location.search): Flags {
   const q = new URLSearchParams(search);
-  const num = (k: string) => { const v = q.get(k); const n = v === null ? NaN : Number(v); return Number.isFinite(n) ? n : null; };
+  // 空字符串（?seed=）必须是 null 而不是 0 —— Number('') === 0 是个经典陷阱，
+  // 它会让一个手滑写空的参数变成"锁定 seed 0"，而且完全没有提示。
+  const num = (k: string) => {
+    const v = q.get(k);
+    if (v === null || v.trim() === '') return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
   return {
     demo: q.get('demo') === '1',
     debug: q.get('debug') === '1',
