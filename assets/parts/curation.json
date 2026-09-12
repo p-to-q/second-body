@@ -1,0 +1,52 @@
+{
+  "foot.digitigrade.a": {
+    "verdict": "reject",
+    "note": "互不相连的多物体，散成几根细棍",
+    "at": "2026-09-12T07:22:25.337Z"
+  },
+  "head.digitigrade.a": {
+    "verdict": "reject",
+    "note": "2-3 个互不相连的独立物体，不是单件",
+    "at": "2026-09-12T07:22:24.551Z"
+  },
+  "head.softwear.a": {
+    "verdict": "reject",
+    "note": "炸开的尖刺团，糊成一团（原始网格 236k 面靠焊接兜底）",
+    "at": "2026-09-12T07:22:25.729Z"
+  },
+  "joint.digitigrade.a": {
+    "verdict": "reject",
+    "note": "互不相连的多物体，不是关节球",
+    "at": "2026-09-12T07:22:25.534Z"
+  },
+  "joint.patrol.a": {
+    "verdict": "reject",
+    "note": "细长塔状不是关节球；girth 0.43 = 槽位中位数的 0.43×",
+    "at": "2026-09-12T07:22:25.927Z"
+  },
+  "shin.digitigrade.a": {
+    "verdict": "reject",
+    "note": "互不相连的多物体；girth 0.86 = 槽位中位数的 2.57×",
+    "at": "2026-09-12T07:22:25.139Z"
+  },
+  "spine.autonomous.a": {
+    "verdict": "reject",
+    "note": "三块互不相连的薄壳 + 大洞，anchor 本身就是坏的",
+    "at": "2026-09-12T07:22:24.349Z"
+  },
+  "spine.digitigrade.a": {
+    "verdict": "reject",
+    "note": "2-3 个互不相连的独立物体，不是单件",
+    "at": "2026-09-12T07:22:24.744Z"
+  },
+  "spine.wheelleg.a": {
+    "verdict": "reject",
+    "note": "碎片状薄片，girth 0.23 = spine 中位数的 0.27×，不成躯干",
+    "at": "2026-09-12T07:22:24.146Z"
+  },
+  "upperArm.digitigrade.a": {
+    "verdict": "reject",
+    "note": "互不相连的多物体；girth 0.98 = 槽位中位数的 3.07×",
+    "at": "2026-09-12T07:22:24.941Z"
+  }
+}
