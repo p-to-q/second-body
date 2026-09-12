@@ -146,7 +146,12 @@ const data = {
     entries: parts.themes.length,
     parts: parts.parts.length,
     partsRejected: rejected.size,
-    partsLive: parts.parts.length - rejected.size,
+    // 数在池里的件，而不是「总数减剔除数」。
+    // 那条减法假设「剔除的件一定还在 parts.json 里」—— 2026-09-13 之后不成立了：
+    // 三个物种整具换成真实网格，它们的生成件（含已剔除的几件）不再进索引。
+    partsLive: parts.parts.filter((p) => !rejected.has(p.id)).length,
+    /** 真实机器的原厂几何。这一栏之前恒为 0，所以从来不用区分"生成"和"取来" */
+    partsReal: parts.parts.filter((p) => p.source?.provider === 'harvest').length,
     slots: Object.keys(bySlot).length,
     boneKeys: KEYS.length,
     materials: parts.materials.length,

@@ -214,10 +214,30 @@ LICENSE，全是 MIT/BSD/Apache，逐份扫 `non-commercial` 零命中；10 件�
 `archetype`（取材现实）/ `character`（想象）/ `guest`（空位）分开了。
 **真实的用真实，想象的用生成。**
 
+### 已落地（2026-09-13 当天）
+
+三个物种整具换完了，各 10 个槽位：`compact` → Unitree G1、`patrol` → ANYmal C、
+`digitigrade` → Cassie（Digit 没有可用授权，同厂同拓扑的 Cassie 是 MIT）。
+32 件 Rodin 生成件**文件一件没删**，只是不再进索引。
+
+两条实施时才学到的东西，写在这里免得下次重新踩：
+
+1. **挑件之前必须量 girth。** `head` / `spine` / `hand` / `foot` / `joint` 五个槽位在运行时是
+   **uniform 缩放**（三轴同比例 = `SLOT_WIDTH/localGirth`，忽略骨长）。ANYmal 的 `foot.obj`
+   把足和护套捆在一个文件里，归一化后长宽比 6:1，放进 `foot` 会被整件放大 3 倍 ——
+   截出来不是一只脚，是一根一米长的杆子。规矩：uniform 的五个槽位，girth 要落在
+   槽位中位数的 0.7×–1.3× 之间。这和 `curation.json` 里那几条「girth 是中位数的 0.43×」
+   的剔件理由是同一件事 —— **真实几何不能免检**。
+2. **「真实存在的机器」不等于「每个槽位都有对应零件」。** Cassie 没有头，四足机没有手。
+   这时候要在同一台机器上挑一件尺度对得上的，并在 `ATTRIBUTION.md` 里写明它是代的 ——
+   而不是去别的物种借件（那就是按槽位穿插），也不是去别的机器借件。
+
 ### 连带
 
 - **署名义务是真的**：BSD-3 的非背书条款、Apache-2.0 的注明改动、BY-SA 的传染。
   取件池不进版本库时不构成再分发；**一旦决定入库，`docs/33 §4` 那三项必须同时做到**。
+  已做到：`assets/parts/licenses/` + `assets/parts/ATTRIBUTION.md` + `/about` 的第 4 条除外项；
+  BY-SA 的两件人体骨骼**没有入库**，处理不了就不用。
 - **来源必须钉 commit SHA**，不许指向 `main`。指向分支的后果不是报错，是来源在脚下变 ——
   今天取到的和明天取到的可能不是同一个网格，而 `check:parts` 照样 0 错。
   这和海报数字漂掉是同一类错：没人在说谎，只是没人负责重新核对。

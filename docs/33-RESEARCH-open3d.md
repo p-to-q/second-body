@@ -157,8 +157,15 @@ node scripts/harvest.mjs --list   # 只看来源和授权
 
 ## 4. 署名义务（真要入库时必须做的）
 
-取件池目前**不进版本库**（`.gitignore` 里的 `assets/harvest/` 和 `assets/parts/harvest/`），
-所以现在还没有再分发行为。**一旦决定把某件真实网格提交进仓库**，同时要做三件事：
+> **2026-09-13：已经入库了，这三条现在是已兑现的义务，不是待办。**
+> `compact` / `patrol` / `digitigrade` 三个物种各 10 件真实网格进了 `assets/parts/`
+> （`node scripts/harvest.mjs --adopt`）。第 1 条 → `assets/parts/licenses/*.LICENSE.txt`；
+> 第 2 条 → `assets/parts/ATTRIBUTION.md`（脚本生成，不手写，所以不会和来源表分叉）
+> 加 `/about` 的「署名与许可」第 4 条；第 3 条 → **一件 BY-SA 都没取**，
+> BodyParts3D 那两件仍然只在探路池里。下面是当初写的判据，原样留着。
+
+取件池当时**不进版本库**（`.gitignore` 里的 `assets/harvest/` 和 `assets/parts/harvest/`），
+所以那时还没有再分发行为。**一旦决定把某件真实网格提交进仓库**，同时要做三件事：
 
 1. 把来源仓库的 `LICENSE` 原文放到网格旁边（例如 `assets/parts/real/unitree_g1/LICENSE`）。
 2. 加一份 `ATTRIBUTION.md`，逐件写：来源 URL、原授权、**以及我们做了什么改动** ——

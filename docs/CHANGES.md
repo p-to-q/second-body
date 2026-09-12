@@ -14,6 +14,11 @@ Forecloses: 这让什么变难或不可能
 
 ---
 
+## 2026-09-13 — 三个物种整具换成真实机器的原厂几何
+Changed:    `compact` / `patrol` / `digitigrade` 各 10 个槽位改用真实 CAD（Unitree G1 / ANYbotics ANYmal C / Agility Cassie，全部取自 MuJoCo Menagerie 的钉死 commit），`node scripts/harvest.mjs --adopt` 可重放。`buildIndex()` 多一条规则：**一个 family 只要有一件 `source.provider === 'harvest'` 的件，它的生成件就整批不进 `parts.json`**（文件不删，还在 `assets/parts/` 里）。`parts.json` 198 → 196 件。再分发义务随之落地：`assets/parts/licenses/*.LICENSE.txt`、`assets/parts/ATTRIBUTION.md`（脚本生成）、`/about` 署名段多一条除外项。`digitigrade` 的 `bodyPlan` 从 `quadruped` 改回两足（docs/31 §4.1 记的那个实质性错判）；`char.idol` 的 base 从 `compact` 改成 `porcelain`。
+Why:        真实存在的机器，它的身份**就是**那台真机 —— 用真 CAD 不只是更准，是更诚实（docs/26 §H）。而且它救的正是参考图采集失败的那几个条目。规则写成"按 family 整具换"而不是一张退役名单，是因为名单会和现实分叉；`curation.json` 没有被借用来做这件事，因为那里的 `reject` 有一个已经被用掉的含义（立场海报上唯一的颜色 = 被人眼剔掉的那十件），而这 32 件不是坏件。
+Forecloses: 一个 family 从此不能真假混搭 —— 想给某个物种加一件生成件，得先让它的真实件全部退出。`assets/parts/` 里现在有不进索引的 glb，**扫目录得到的件数不再等于 `parts.json` 的件数**：海报的 `partsLive = parts.length - rejected.size` 因此当场改成了「数在池里的件」，而它的 `counts.parts` 从此混着生成件和取来的件（新增 `counts.partsReal` 用来分开，海报文案里「N 件生成」那一句下次出图前要改）。BY-SA 的源永久出局：BodyParts3D 的人体骨骼只要不能和 MIT 的代码分家，就不能入库。
+
 ## 2026-09-13 — A 档新增两种**真的不是人**的拓扑，六个条目挪走
 Changed:    `BodyPlanId` 增加 `radial`（无躯干：四条肢摊成四条绕核心的轨道弧，核心压到 0.40）与 `column`（单柱：六块腿骨串成一根桅杆，双臂是顶端分支，蹲下按之字折叠）。两者输出仍是 17 根骨头的合法 `Skeleton`，走现有刚体渲染器。`orb`/`furball`→`radial`，`manipulator`/`screenface`→`column`，`autonomous`→`quadruped`，`xeno`→`inverted`，`char.paper`→`towering`。`radial` 与 `inverted` 改成按**整体最低点**贴地（`PLANS_WITHOUT_FEET`），不再按"最低的脚"。
 Why:        之前只有 `quadruped` 和 `mass` 真的换拓扑，`towering`/`stub` 只改比例 —— 所以 `xeno`（异形）、`orb`（球）、`furball`（毛球）这些"全部意义就是不是人"的条目仍然是穿着涂装的人形。光改数据解决不了，缺的是拓扑。选 A 档而不是 B 档，是因为 A 档**不作废任何已生成的部件**（这六个条目共 50 件）。
