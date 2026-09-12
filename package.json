@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "npm run dev -w @sb/app",
     "build": "npm run build -w @sb/app",
-    "test": "npm run test -w @sb/core",
+    "test": "npm run test -w @sb/core && npm run test -w @sb/app",
     "factory:balance": "node --env-file=.env packages/factory/src/cli.ts balance",
     "factory:plan": "node --env-file=.env packages/factory/src/cli.ts plan",
     "factory:generate": "node --env-file=.env packages/factory/src/cli.ts generate",
