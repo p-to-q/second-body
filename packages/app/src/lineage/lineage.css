@@ -1,0 +1,158 @@
+/**
+ * `/lineage` 的版面。
+ *
+ * 这一页比 `/making` 少一样东西：它没有"章节"。整页只有三块 ——
+ * 巨题、一叠沉积、一列留下的件。因为它只回答一个问题，多一个分区就是多一次分心。
+ *
+ * 骨架全部借 `ui/editorial.css`（`.ed` / `.ed-hero` / `.ed-rule`）和
+ * `ui/type.css`（`.sb-display` / `.sb-label` / `.sb-data`）。这里只写
+ * 那两层没有的两样东西：**沉积剖面**，和**一件一行的那种行**。
+ */
+
+/**
+ * 注解的那一级 —— 小一号、暗一格。
+ *
+ * **不用 `.sb-label`。** 那是全大写小标签（11px，字距 +0.07em），它承担的是"分类"，
+ * 一个词刚好；整句中文落在 11px 上没人会去读。注解是要被读的，所以走 small 这一级。
+ */
+.ln-lede, .ln-note { max-width: var(--sb-measure); }
+.ln-lede .sb-zh, .ln-lede .sb-en,
+.ln-note .sb-zh, .ln-note .sb-en { font-size: var(--sb-size-small); color: var(--sb-ink-dim); }
+.ln-lede { margin-top: 1.25rem; }
+
+/* ── 两个巨大的数 ─────────────────────────────────────────────────────────
+ * 和 /making 的 `.mk-number` 同一个构型：数在左（等宽、右对齐），话在右。
+ * 数字自己就是句子，所以标签里没有待填的空 —— 中英两句都能独立成立。
+ */
+.ln-counts { padding: clamp(1.5rem, 3vw, 2.75rem) 0; }
+.ln-count {
+  display: grid;
+  grid-template-columns: 168px 1fr;
+  gap: var(--sb-gutter);
+  align-items: baseline;
+  padding: 1.125rem 0;
+}
+.ln-count + .ln-count { border-top: 1px solid var(--sb-rule); }
+.ln-count__n {
+  font-family: var(--sb-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(1.75rem, 3.4vw, 3rem);
+  line-height: 1.05;
+  letter-spacing: var(--sb-tracking-h1);
+  color: var(--sb-ink);
+  text-align: right;
+}
+.ln-count__label { max-width: var(--sb-measure); }
+
+/* ── 沉积剖面 ─────────────────────────────────────────────────────────────
+ * 这是全页唯一的"图形"，而它是用线画的 —— 和 editorial.css 里那条满幅线同一种
+ * 材料（docs/26 §F 的反面清单禁的是卡片/阴影/圆角/图标，不禁线）。
+ *
+ * 为什么要它：列表回答"有哪些"，回答不了"有多厚"。而这一页要让人感觉到的恰恰是
+ * 厚度 —— 池子只增不减这件事，只有堆起来才看得见。每一条的**宽度**是那件东西的
+ * 横向粗细（localGirth），所以这一叠不是装饰性的条纹，它是一排真实的剖面。
+ */
+.ln-strata { padding: clamp(1rem, 2vw, 2rem) 0 clamp(1.5rem, 3vw, 2.75rem); }
+.ln-strata__stack {
+  display: flex;
+  flex-direction: column;
+  /**
+   * **必须比版心窄。** 满幅的一叠横线和 `.ed-rule` 是同一个图形，
+   * 观众读到的会是"三条分割线"而不是"三层沉积"。收到一栏宽，它才读作一个东西。
+   */
+  max-width: 20rem;
+  /* 层与层之间的缝。层数多的时候由 JS 把 --ln-gap / --ln-bar 收细 */
+  gap: var(--ln-gap, 2px);
+  margin-bottom: 1.25rem;
+}
+.ln-layer {
+  height: var(--ln-bar, 3px);
+  width: var(--w, 50%);
+  background: var(--sb-rule);
+}
+/* 最上面那一层是最近留下的那一件：亮一格，别的什么都不改 */
+.ln-layer--newest { background: var(--sb-ink-dim); }
+/* 取不回来的那一段更早的人。画出来，但画得比"知道的"暗 —— 不知道不等于不存在 */
+.ln-layer--older { opacity: 0.45; }
+
+/* ── 一件一行 ─────────────────────────────────────────────────────────────
+ * 左：那个人的位次（巨大、等宽）。中：那件东西本身（真 glb 渲出来的缩略图）。
+ * 右：它是什么、长在哪、多久以前。
+ *
+ * 序号在最左边而不是缩略图在最左边，是故意的：这一页的主角是**人**，
+ * 缩略图是他留下的那个证据。扫左栏扫到的应该是一串人，不是一串零件。
+ */
+.ln-list > * + * { border-top: 1px solid var(--sb-rule); }
+
+.ln-row {
+  display: grid;
+  grid-template-columns: 168px 96px 1fr;
+  gap: var(--sb-gutter);
+  align-items: start;
+  padding: 1.25rem 0;
+}
+.ln-row__no {
+  font-family: var(--sb-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(1.5rem, 2.8vw, 2.25rem);
+  line-height: 1.05;
+  letter-spacing: var(--sb-tracking-h1);
+  color: var(--sb-ink);
+  text-align: right;
+}
+/* 缩略图那一格：一条细框，和这一页别处的线同一种。canvas 本身是透明的 */
+.ln-row__thumb {
+  width: 96px;
+  height: 96px;
+  border: 1px solid var(--sb-rule);
+  display: block;
+}
+.ln-row__body { min-width: 0; max-width: var(--sb-measure); }
+.ln-row__species .sb-zh { font-size: var(--sb-size-h2); line-height: var(--sb-lh-h2); letter-spacing: var(--sb-tracking-h2); }
+
+/* 事实对：标签在上、值在下，横着排一行。数据一律等宽 */
+.ln-facts { display: flex; flex-wrap: wrap; gap: 1.5rem; margin: 0.85rem 0 0; }
+.ln-facts > div { min-width: 0; }
+.ln-facts dd { margin: 0.2em 0 0; color: var(--sb-ink); }
+.ln-facts .sb-en { font-size: 0.82em; }
+/* 时间退到最暗的一格 —— 它在这一页上是最不重要的一栏（位次才是） */
+.ln-when dd { color: var(--sb-ink-dim); }
+
+/* ── 空池 / 生产构建下的 404 ───────────────────────────────────────────────
+ * 两种都不是错误态，所以它们用的是**和正文一样**的排版，只是右栏一句话。
+ * 一旦给它们配上居中的小字或者叹号图标，它们就会读作"这一页坏了"。
+ */
+.ln-state { padding: clamp(2.5rem, 6vw, 6rem) 0 clamp(3rem, 7vw, 7rem); }
+.ln-state__title .sb-zh {
+  font-size: var(--sb-size-h1);
+  line-height: var(--sb-lh-h1);
+  letter-spacing: var(--sb-tracking-h1);
+  color: var(--sb-ink);
+}
+.ln-state__title .sb-en { font-size: var(--sb-size-h2); }
+.ln-state__body { margin-top: 1.5rem; max-width: var(--sb-measure); }
+
+.ln-foot { padding: 1.5rem 0 0; max-width: var(--sb-measure); }
+
+/* ── 窄屏 ─────────────────────────────────────────────────────────────────
+ * 420px 上三栏塌成"序号 + 缩略图"一行、正文另起一行。顺序不变：人仍然在最前。
+ */
+@media (max-width: 760px) {
+  .ln-count { grid-template-columns: 1fr; gap: 0.35rem; }
+  .ln-count__n { text-align: left; font-size: 1.75rem; }
+
+  /**
+   * 三栏塌成两栏：缩略图靠右、**跨两行**，序号和正文一起占左边那一栏。
+   * 不让缩略图只占一行 —— 那样序号会被吊在 96px 高的空带子中间，
+   * 一行里三分之二是空的，读起来像没加载完。
+   */
+  .ln-row {
+    grid-template-columns: minmax(0, 1fr) 96px;
+    column-gap: 1rem;
+    row-gap: 0.5rem;
+  }
+  .ln-row__no { grid-column: 1; grid-row: 1; text-align: left; }
+  .ln-row__thumb { grid-column: 2; grid-row: 1 / span 2; }
+  .ln-row__body { grid-column: 1; grid-row: 2; }
+  .ln-facts { gap: 1rem 1.5rem; }
+}

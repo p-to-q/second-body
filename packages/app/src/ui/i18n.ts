@@ -316,6 +316,10 @@ export const COPY = {
         name: bi('作品陈述', 'About'),
         answers: bi('它是什么？和 2019 年那件的区别在哪？', 'What is it — and how does it differ from the 2019 work?'),
       },
+      lineage: {
+        name: bi('谱系', 'Lineage'),
+        answers: bi('在你之前站上去的人，留下了什么？', 'What did the people before you leave behind?'),
+      },
       making: {
         name: bi('做的过程', 'The Making'),
         answers: bi('人和机器是怎么互相纠正着把它做出来的？', 'How did people and machines correct each other into making it?'),
@@ -342,6 +346,73 @@ export const COPY = {
       'Pose estimation runs entirely on your device. The only thing ever uploaded is a single silhouette you trigger yourself — not stored, not linked to you.',
     ),
     optOut: bi('不参与', 'Opt out'),
+  },
+
+  /**
+   * `/lineage` 谱系页。
+   *
+   * 这一页只回答一个问题：**一个观众怎么知道"我身上这块是别人留下的"。**
+   * 所以文案有两条额外的规矩：
+   *
+   * 1. **不写"记录""条目""数据"这类词。** 池子里的东西不是记录，是**别人留下的身体的一部分**。
+   *    一旦用了数据库的词，观众读到的就是一张表，而这一页的全部意义在于它不是表。
+   * 2. **空池和 404 都要说得有分量。** 它们是这一页最常见的两种状态
+   *    （装置刚开机、网页版打开），说成"暂无数据 / 加载失败"就等于承认这一页是个摆设。
+   */
+  lineage: {
+    title: bi('谱系', 'Lineage'),
+    thesis: bi(
+      '这里的每一件都曾经长在一个人身上。那个人走了，它没有跟着走 —— 它留下来，等着长在下一个人身上。',
+      'Every piece here once grew on somebody. That person left; the piece did not go with them. It stayed, waiting to grow on whoever comes next.',
+    ),
+    lede: bi(
+      '池子只增不减。你在这一页上看到的厚度，就是在你之前站上去过的人。',
+      'The pool only ever grows. The thickness on this page is everyone who stepped up before you.',
+    ),
+
+    /** 两个巨大的数。数字自己承担句子，所以标签里不留待填的空 */
+    countParts: bi('件留在池子里', 'pieces in the pool'),
+    countChance: bi('下一个站上去的人，穿上这里某一件的机会',
+                    'the chance that the next person to step up wears one of these'),
+
+    /** 沉积剖面：最新在顶、最早在底。旁边这一句解释它为什么值得看 */
+    strata: bi('一件一层，最早的在最底下。这一叠不会变薄。',
+               'One layer per piece, the oldest at the bottom. This stack never gets thinner.'),
+    strataOlder: bi('底下这一段是更早的人，超出了这一页一次能取回的范围。',
+                    'The band below is earlier visitors, beyond what this page can fetch at once.'),
+
+    /** 记录区 */
+    sec: bi('每一件，和留下它的人', 'Each piece, and who left it'),
+    secNote: bi('左边那个数是留下它的人 —— 按先后排的第几位。不是时间，是位次：谁在谁之后。',
+                'The number on the left is the person who left it — their place in the order of arrival. Not a time; a position: who came after whom.'),
+    where: bi('长在哪', 'Where it grew'),
+    slots: {
+      spine: bi('躯干', 'Torso'),
+      head: bi('头', 'Head'),
+    },
+    when: bi('多久以前', 'When'),
+    today: bi('今天', 'Today'),
+    yesterday: bi('昨天', 'Yesterday'),
+    daysAgo: bi('天前', 'days ago'),
+    /** provider 不是 hyper3d 时挂这一条：这件不是生成模型造的，别让它冒充 */
+    rehearsal: bi('离线演练件', 'Offline rehearsal'),
+
+    /** 空池 —— 装置刚开机的常态，不是错误 */
+    emptyTitle: bi('池子是空的。', 'The pool is empty.'),
+    emptyBody: bi(
+      '装置每次开机都是这样，它不预装任何东西。第一个站上去的人，会是这一页上的第 1 位。',
+      'The installation starts this way every time; nothing is preloaded. Whoever steps up first becomes number 1 on this page.',
+    ),
+
+    /** 生产构建 / 线上版拿到 404 —— 如实说这条回路在哪，不装作坏了 */
+    offTitle: bi('这条回路只在装置现场活着。', 'This circuit is only alive at the installation.'),
+    offBody: bi(
+      '生成那一步跑在装置那台机器上，谱系也长在那台机器的盘上。网页版是同一件作品的另一半：你可以选一个身体、让它跟着你动，但没有人能在这里留下东西。',
+      'The generating step runs on the machine at the installation, and the lineage grows on that machine’s disk. The web version is the other half of the same work: you can choose a body and make it move with you — but nobody can leave anything behind here.',
+    ),
+
+    foot: bi('这些不是备份。它们就是下一具身体的候选件。',
+             'These are not backups. They are the candidate parts for the next body.'),
   },
 
   /**
