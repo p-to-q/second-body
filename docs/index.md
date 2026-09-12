@@ -28,6 +28,8 @@
 | `24-RESEARCH-mocap.md` | 调研：MediaPipe Pose 精度 —— 上游弱点、可移植的后处理、换档取舍 |
 | `09-RISKS-AND-UNKNOWNS.md` | 不确定性登记册 + 现场风险 |
 | `13-DEPLOY.md` | 现场形态 vs 网页形态、Vercel、体积与隐私 |
+| `30-ASSET-INTAKE.md` | 喂图要求：什么样的参考图能用、为什么（每条都是烧过 credits 买来的） |
+| `31-ARCHETYPES.md` | 16 个真实机器人 archetype ↔ roster id 对表：参考图来源、prompt 摘要、bodyPlan 不符清单 |
 
 ## 状态与流水
 | 文件 | 内容 |
