@@ -10,5 +10,6 @@ export * from './evolution.ts';
 export * from './skeleton.ts';
 export * from './stabilize.ts';
 export * from './refine.ts';
+export * from './vitality.ts';
 export * from './motion.ts';
 export * from './genome.ts';

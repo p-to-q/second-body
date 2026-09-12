@@ -22,6 +22,8 @@ export interface Flags {
   model: PoseModel | null;
   /** ?refine=0 关掉时域精化（One-Euro + 遮挡保持 + 质量兜底）。留着是为了能现场做 A/B */
   refine: boolean;
+  /** ?vitality=0 关掉跟随延迟与呼吸。它是"看起来像活的"和"反应慢"之间的那条线，必须能当场比 */
+  vitality: boolean;
 }
 
 /** MediaPipe 的三个 PoseLandmarker 档位。精度/延迟的实测差异见 docs/24 §3 */
@@ -59,6 +61,7 @@ export function readFlags(search = location.search): Flags {
     // 默认开。之所以给一个关的开关：精化是**唯一**会在观众和数据之间加延迟的东西，
     // 现场如果有人说"反应慢了"，要能在 3 秒内证明是不是它。
     refine: q.get('refine') !== '0',
+    vitality: q.get('vitality') !== '0',
   };
 }
 

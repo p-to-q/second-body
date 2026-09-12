@@ -12,6 +12,7 @@ import * as THREE from 'three/webgpu';
 import { buildSkeleton, mediapipeToWorld } from '../../core/src/skeleton.ts';
 import { createStabilizer } from '../../core/src/stabilize.ts';
 import { clampFold, createRefiner } from '../../core/src/refine.ts';
+import { createVitality } from '../../core/src/vitality.ts';
 import { createMotion } from '../../core/src/motion.ts';
 import { createEvolution } from '../../core/src/evolution.ts';
 import { createPresence } from '../../core/src/presence.ts';
@@ -134,6 +135,9 @@ async function boot(): Promise<void> {
   // 骨架是从 landmark 推出来的，先抖后建等于把抖动烘进骨长和朝向里，
   // 后面再滤就只能滤掉症状。顺序不能反（docs/24 §2）。
   const refiner = REFINE.enabled && flags.refine ? createRefiner() : null;
+  // 生命力在 remapSkeleton **之后**才作用（见帧循环）：延迟要发生在**那具身体**的链上，
+  // 不是人的链上。反了的话四足的前腿会带着人类肩膀的延迟。
+  const vitality = flags.vitality ? createVitality() : null;
   const motion = createMotion();
   const evolution = createEvolution();
   // 身体方案决定用哪种**表达**：刚体挂载（手办式）还是团块（物质式）。
@@ -192,7 +196,10 @@ async function boot(): Promise<void> {
       // 而骨长要等滚动中位数定下来才可信（放前面就是拿噪声当尺子）。
       if (refiner) clampFold(humanSk);
       lastFeatures = motion.update(humanSk, dt);
-      lastSkeleton = remapSkeleton(humanSk, bodyPlan);
+      const planned = remapSkeleton(humanSk, bodyPlan);
+      // 刚体挂载做不出"弯"，但一串各自延迟不同的刚体看起来就是在弯 ——
+      // 这是参照作品那句 "wiggles, shifts, and bends" 唯一能不做蒙皮就拿到的部分。
+      lastSkeleton = vitality ? vitality.apply(planned, lastFeatures, dt) : planned;
       stage.frame(lastSkeleton);   // 取景按**重映射之后**的身体算：四足是横的矮的
       const evo = evolution.update(lastFeatures, dt);
       // 团块的"沸腾"层由运动能量驱动 —— 动得越猛表面越沸（tuning 的 MASS.surface）
@@ -220,6 +227,7 @@ async function boot(): Promise<void> {
       evolution.reset();
       stabilizer.reset();
       refiner?.reset();
+      vitality?.reset();
       slow.reset();
       lastSkeleton = null;
       morph((flags.tier ?? 0) as Tier);
