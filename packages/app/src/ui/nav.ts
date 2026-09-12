@@ -49,6 +49,10 @@ const ITEMS: NavItem[] = [
     match: (p) => p === '/about',
   },
   {
+    href: '/lineage.html', ...COPY.nav.items.lineage,
+    match: (p) => p === '/lineage' || p === '/lineage.html',
+  },
+  {
     href: '/making.html', ...COPY.nav.items.making,
     match: (p) => p === '/making' || p === '/making.html',
   },
