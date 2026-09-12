@@ -1,5 +1,9 @@
 # SECOND BODY
 
+[![check](https://img.shields.io/badge/check-typecheck%20%2B%20103%20tests%20%2B%20parts%20contract-brightgreen)]()
+[![parts](https://img.shields.io/badge/parts-191-blue)]()
+[![bodies](https://img.shields.io/badge/body%20plans-rig%20%7C%20quadruped%20%7C%20mass%20%7C%20stub-blue)]()
+
 实时交互艺术装置。摄像头认出你的身体，一具合成的身体跟随你；
 你动得越多它越复杂；同时它把你此刻的剪影送给一个 3D 生成模型，
 一分钟后，属于你的那块零件长在它身上。
@@ -39,6 +43,15 @@ npm run check           # typecheck + test + 部件契约检查
 ## 状态
 
 **跑通了什么以 `docs/10-SURFACES.md` 为准**，不以本文件为准。
+
+## 这个仓库值得看的三件事
+
+1. **身体方案是可插拔的**（[`docs/18`](docs/18-BODY-PLANS.md)）。人体骨架 → 四足 / 团块 / 矮胖
+   只是一个纯函数加一个字段。四足那条保留了四肢的世界方向，所以"你抬手 → 它抬前腿"的因果没断。
+2. **玩法扩展点自带故障隔离**（[`docs/16`](docs/16-SPEC-acts.md)）。一个 Act 连续 3 次抛异常就被
+   永久禁用并回落 —— 让"随便试新玩法"变安全，是那块空间能成立的前提。
+3. **工程原则都附着教会我们的那件事**（[`docs/02`](docs/02-ENGINEERING-PRINCIPLES.md) P11–P20）。
+   没有故事的原则活不过三天。
 
 ## 文档
 
