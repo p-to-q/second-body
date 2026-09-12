@@ -1,5 +1,31 @@
 # docs index
 
+## 新人（或新代理）从这三份开始
+
+读完这三份就能开始改，**不要**一次读完 `docs/`：
+
+1. [`../AGENTS.md`](../AGENTS.md) —— 读取路线、不变量，以及**开工前的基线自检**
+2. [`02-ENGINEERING-PRINCIPLES.md`](02-ENGINEERING-PRINCIPLES.md) —— 宪法 P0–P20，每条附教会我们的那件事
+3. [`10-SURFACES.md`](10-SURFACES.md) —— 什么真的跑通了（唯一可信，带证据栏）
+
+然后按本页的表按需取用。所有**可调的数**都在
+[`../packages/core/src/tuning.ts`](../packages/core/src/tuning.ts) 一个文件里。
+
+**冻结契约**是 `packages/core/src/types.ts`、`03`、`04` 三处：**不自己改，停下来报告
+`contract change needed: <原因>`**，由契约持有者统一改并广播（理由见 P0 / P11）。
+
+## 语言
+
+面向"进来改代码的人"的规范与纪律是**英文**：`../README.md`、`../AGENTS.md`、
+[`02-ENGINEERING-PRINCIPLES.md`](02-ENGINEERING-PRINCIPLES.md)、
+[`15-ORCHESTRATION.md`](15-ORCHESTRATION.md)、
+[`34-REPO-STYLE.md`](34-REPO-STYLE.md)。
+它们的中文版**已被取代，不再维护** —— 两份规范一定会漂移，漂移的规范比没有规范更糟；
+旧措辞在 git history 里。
+
+作品本身的文档（`PRD` / `00` / `25` / `26` / `27` / `31`）和 `packages/` 里的全部代码注释
+**保持中文**：它们记录的是"为什么"，中文写得更准。
+
 ## 契约（改代码前必须服从）
 | 文件 | 管什么 | 谁必须读 |
 |---|---|---|
@@ -38,3 +64,5 @@
 | `10-SURFACES.md` | **什么真的跑通了** —— 唯一可信的状态表 |
 | `11-TASKS.md` | 可分派的任务卡 |
 | `CHANGES.md` | durable 变更的 append-only 记录 |
+| `15-ORCHESTRATION.md` | 并行推进的规则、泳道、合并顺序、踩过的坑（**英文**） |
+| `34-REPO-STYLE.md` | p-to-q 的 README 风格对照（每条有出处）与我们的差距（**英文**） |
