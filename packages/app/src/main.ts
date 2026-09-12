@@ -35,6 +35,7 @@ import { createSlowLoop } from './slow/slow.ts';
 import { enterKiosk, readFlags } from './shell/kiosk.ts';
 import { mountCameraButton, mountEntry } from './shell/entry.ts';
 import { createHud } from './shell/hud.ts';
+import { createSound } from './sound/sound.ts';
 import { ACTS, createDirector, type World } from './acts/index.ts';
 
 const flags = readFlags();
@@ -150,6 +151,12 @@ async function boot(): Promise<void> {
   stage.scene.add(body.object);
 
   let seed = flags.seed ?? (Math.random() * 0xffffffff) >>> 0;   // 会话级种子，仅此一处
+
+  // 声音（docs/29-SOUND.md）。四层各绑一个**已经算好的**信号，所以这里只是转手，
+  // 不新增任何计算。它自己等第一次用户手势才建 AudioContext（浏览器自动播放策略），
+  // 建不起来就永久静音继续 —— 画面一帧都不受影响（P3）。
+  const sound = createSound({ muted: flags.mute, seed, theme: themeDef ?? null });
+  let slowWas = slow.phase;
   let lastFeatures: MotionFeatures | null = null;
   let lastSkeleton: Skeleton | null = null;
   let tier: Tier = (flags.tier ?? 0) as Tier;
@@ -208,6 +215,7 @@ async function boot(): Promise<void> {
       if (evo.tierChanged && flags.tier === null) {
         morph(evo.tier);
         stage.pulse(evo.tier);      // docs/23 §S5：升档必须可感知，否则演化等于没发生
+        sound.tierUp(evo.tier);     // 同一个事件的另一半。两半必须在同一帧，否则读成两件事
       }
     }
     // 身体怎么动交给当前的 Act。追踪短暂丢失时 lastSkeleton 还在，
@@ -232,6 +240,19 @@ async function boot(): Promise<void> {
       lastSkeleton = null;
       morph((flags.tier ?? 0) as Tier);
     }
+
+    // 声音吃的是 **未经时间停滞缩放的 dt**：升档那 0.15 秒画面顿一下是设计，
+    // 声音跟着顿会变成"卡带"。理由和状态机不吃 timeScale 是同一条。
+    if (slow.phase === 'grafted' && slowWas !== 'grafted') sound.grafted();
+    slowWas = slow.phase;
+    sound.update({
+      presence: p.state, transition: p.transition,
+      speed: lastFeatures?.speed ?? 0,
+      jerk: lastFeatures?.jerk ?? 0,
+      energy: lastFeatures?.energy ?? 0,
+      actId: director.currentId,
+      waiting: slow.phase === 'running',
+    }, dt);
 
     stage.update(p, lastFeatures, dt);
     stage.render(renderer);   // 后期链在舞台里；?nopost=1 时它退化成直出
@@ -275,7 +296,7 @@ async function boot(): Promise<void> {
   console.info(
     `[main] running · theme=${theme} · seed=${seed} · ` +
     `plan=${planKind} · capture=${entry || flags.demo ? 'replay' : 'webcam'} · ` +
-    `acts=${ACTS.map((a) => a.id).join(',')}`,
+    `acts=${ACTS.map((a) => a.id).join(',')} · sound=${sound.state}`,
   );
 }
 

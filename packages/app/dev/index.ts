@@ -54,6 +54,7 @@ const GROUPS: Group[] = [
       { href: '/dev/stage.html', name: '舞台', answers: '这一帧像不像一件作品？灯光、地面、影子、取景对不对？' },
       { href: '/dev/figure.html', name: '装配', answers: '部件挂到骨架上，比例和朝向对不对？' },
       { href: '/dev/mass.html', name: '团块身体', answers: '不走刚体挂载的那种身体（mass）长什么样？' },
+      { href: '/dev/sound.html', name: '声音', answers: '四层声音各自在响吗？它们真的跟着信号走吗？' },
       { href: '/dev/choose.html', name: '选择页', answers: '开场轮播、30 秒自动选、无 WebGL 降级列表，都还好用吗？' },
       { href: '/dev/capture.html', name: '采集', answers: '摄像头认到人了吗？坐标和量程对不对？' },
       { href: '/dev/degrade.html', name: '降级阶梯', answers: '帧循环炸了会不会一级一级降下去？无人时真的掉到 10fps 吗？' },

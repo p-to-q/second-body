@@ -3780,6 +3780,34 @@
     }
   },
   {
+    "id": "spine.char.inflate.a",
+    "slot": "spine",
+    "tier": 1,
+    "file": "spine.char.inflate.a.glb",
+    "family": "char.inflate",
+    "localGirth": 0.8446,
+    "triCount": 2814,
+    "aabb": {
+      "min": [
+        -0.42229987487411114,
+        0,
+        -0.2597430341502121
+      ],
+      "max": [
+        0.42229987487411114,
+        1,
+        0.2597430341502121
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 61850,
+      "recipeId": "spine.char.inflate.a"
+    }
+  },
+  {
     "id": "spine.char.paper.a",
     "slot": "spine",
     "tier": 1,

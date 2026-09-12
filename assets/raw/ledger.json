@@ -2440,7 +2440,85 @@
       ],
       "completedAt": "2026-09-12T07:42:16.683Z",
       "durationSec": 36
+    },
+    "spine.char.inflate.a": {
+      "recipeHash": "sha256:176d9e2d2ff935e8",
+      "status": "done",
+      "submittedAt": "2026-09-12T19:51:56.866Z",
+      "error": null,
+      "taskUuid": "ac5823b3-7796-42f4-9e2d-fb19d91f99b8",
+      "consumed": 0.5,
+      "files": [
+        "spine.char.inflate.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T19:52:30.811Z",
+      "durationSec": 34
+    },
+    "head.char.inflate.a": {
+      "recipeHash": "sha256:62be6b0b773fc47a",
+      "status": "done",
+      "submittedAt": "2026-09-12T19:51:56.882Z",
+      "error": null,
+      "taskUuid": "c1908171-edfe-4dcc-97b1-24ff13f218c0",
+      "consumed": 0.5,
+      "files": [
+        "head.char.inflate.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T19:52:24.683Z",
+      "durationSec": 28
+    },
+    "upperArm.char.inflate.a": {
+      "recipeHash": "sha256:2b7f45b2ff4da2a4",
+      "status": "done",
+      "submittedAt": "2026-09-12T19:51:56.886Z",
+      "error": null,
+      "taskUuid": "c2fead3d-45fe-49dd-992f-635aece53fd6",
+      "consumed": 0.5,
+      "files": [
+        "upperArm.char.inflate.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T19:52:15.890Z",
+      "durationSec": 19
+    },
+    "shin.char.inflate.a": {
+      "recipeHash": "sha256:fbc1845f32ef5fea",
+      "status": "done",
+      "submittedAt": "2026-09-12T19:52:15.892Z",
+      "error": null,
+      "taskUuid": "5b4e805b-db4f-4f74-aa8e-e1ed0002e279",
+      "consumed": 0.5,
+      "files": [
+        "shin.char.inflate.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T19:52:35.099Z",
+      "durationSec": 19
+    },
+    "foot.char.inflate.a": {
+      "recipeHash": "sha256:7f7ae363c9b7ff6e",
+      "status": "done",
+      "submittedAt": "2026-09-12T19:52:24.691Z",
+      "error": null,
+      "taskUuid": "abaaede6-0b02-4d91-93ee-ebf79b1c0661",
+      "consumed": 0.5,
+      "files": [
+        "foot.char.inflate.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T19:52:43.932Z",
+      "durationSec": 19
+    },
+    "joint.char.inflate.a": {
+      "recipeHash": "sha256:ec5e58bada1a1fb8",
+      "status": "done",
+      "submittedAt": "2026-09-12T19:52:30.813Z",
+      "error": null,
+      "taskUuid": "1bd7e3ea-bcf3-4c92-a98e-9d8cf9b91f93",
+      "consumed": 0.5,
+      "files": [
+        "joint.char.inflate.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T19:52:56.081Z",
+      "durationSec": 25
     }
   },
-  "totalConsumed": 95.5
+  "totalConsumed": 98.5
 }
