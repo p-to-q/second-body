@@ -135,3 +135,29 @@ packages/app/dist/          静态站点（vite build）
 - [ ] 慢回路默认关闭，或限流上限已硬编码
 - [ ] `assets/raw/` 没有被打进去
 - [ ] 隐私说明在页面上
+
+
+## 部署地址的真实状态（2026-09-13 实测）
+
+**`second-body.vercel.app` 不是我们的。** 它返回一个 React Native Web 应用，
+标题也叫 "Second Body"。所以那个默认子域**已经被别人占了** ——
+我们的部署会落在 `second-body-<hash>-<team>.vercel.app` 这种带哈希的地址上。
+
+这把域名这件事从"风格一致"变成了**必需**：
+`second-body.ptoq.io`（`scripts/set-domain.sh`，需要项目负责人的 `VERCEL_TOKEN`）。
+在那之前，线上地址是不可记、不可念、也不适合印在说明牌上的。
+
+**我核不到我们自己的部署地址** —— 本机 `~/.vercel` 的两个凭据文件都是 0 字节，
+而这个会话跑不了 OAuth。所以下面这些是在**本机生产构建**（`npm run build` + `vite preview`）上验的：
+
+| 检查 | 结果 |
+|---|---|
+| `RODIN_API_KEY` 出现在 dist 里 | **没有**（逐字符串 grep 过） |
+| `/__slow/*` 在生产下可达 | **404**，正确（`apply:'serve'` 的中间件不进产物） |
+| `/__anchor` `/__curate` 返回 200 | 那是 **vite preview 的 SPA 兜底**，不是真端点。Vercel 上没有对应 rewrite，会是 404 |
+| `/`、`/about`、`/making.html`、`/passport.html` | 全部 200 |
+| dist 体积 | 23 MB |
+
+**`/making` `/passport` 这种不带扩展名的地址只在 Vercel 上成立**（`cleanUrls: true`），
+本机 `vite preview` 不支持 —— 本机测要带 `.html`。这不是 bug，但每次都会让人愣一下，
+所以记在这里。
