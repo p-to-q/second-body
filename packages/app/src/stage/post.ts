@@ -16,6 +16,7 @@
  * 所以后期只有在 `stage.render(renderer)` 被调用时才生效（见 stage.ts 的说明）。
  */
 import * as THREE from 'three/webgpu';
+import { POST } from '../../../core/src/tuning.ts';
 import type Node from 'three/src/nodes/core/Node.js';
 import {
   clamp, float, mix, mrt, nodeObject, normalView, output, pass, rand, screenUV, uniform, vec2, vec4,
@@ -41,17 +42,8 @@ export interface PostOptions {
   aoResolutionScale: number;
 }
 
-export const POST_DEFAULTS: PostOptions = {
-  focusDistance: 2.8,
-  bloomRadius: 0.62,
-  focalLength: 1.35,
-  bokehScale: 1.1,
-  vignette: 0.34,
-  grain: 0.016,
-  aoSamples: 8,
-  aoRadius: 0.35,
-  aoResolutionScale: 0.5,
-};
+export const POST_DEFAULTS: PostOptions = POST;
+
 
 export interface PostChain {
   render(): void;

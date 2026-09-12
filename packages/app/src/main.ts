@@ -92,6 +92,7 @@ async function boot(): Promise<void> {
   // 身体方案：物种自己声明，?plan= 可覆盖（docs/18-BODY-PLANS.md）。
   // 这是「物种真的不一样」与「同一具人体换皮」之间的那一行。
   const themeDef = library.index.themes?.find((t) => t.id === theme);
+  stage.setTheme(themeDef ?? theme ?? null, library.index);
   const bodyPlan = flags.plan ?? themeDef?.bodyPlan ?? 'rig';
 
   // ── 5. 状态机 ───────────────────────────────────────────────────────────
@@ -150,13 +151,19 @@ async function boot(): Promise<void> {
       const humanSk = stabilizer.apply(buildSkeleton(mediapipeToWorld(raw), raw.world, raw.t), dt);
       lastFeatures = motion.update(humanSk, dt);
       lastSkeleton = remapSkeleton(humanSk, bodyPlan);
+      stage.frame(lastSkeleton);   // 取景按**重映射之后**的身体算：四足是横的矮的
       const evo = evolution.update(lastFeatures, dt);
       // ?tier= 锁定时不让演化改形态 —— look dev 要的是一个不动的靶子
-      if (evo.tierChanged && flags.tier === null) morph(evo.tier);
+      if (evo.tierChanged && flags.tier === null) {
+        morph(evo.tier);
+        stage.pulse(evo.tier);      // docs/23 §S5：升档必须可感知，否则演化等于没发生
+      }
     }
     // 身体怎么动交给当前的 Act。追踪短暂丢失时 lastSkeleton 还在，
     // Act 会继续用它 pose，所以画面不会僵死（P3）。
-    director.update(world, dt);
+    // 升档那 0.15 秒的时间停滞对**身体**生效，对状态机不生效 ——
+    // 否则 charge 和在场判定会跟着一起变慢，观众会觉得"卡了一下"而不是"顿了一下"。
+    director.update(world, dt * stage.timeScale);
 
     // 人走了 → 换一个种子，下一个人是全新的身体（docs/05 §5）
     if (presence.justReset) {
@@ -169,7 +176,7 @@ async function boot(): Promise<void> {
     }
 
     stage.update(p, lastFeatures, dt);
-    renderer.render(stage.scene, stage.camera);
+    stage.render(renderer);   // 后期链在舞台里；?nopost=1 时它退化成直出
 
     if (hud) {
       const s = body.stats;

@@ -33,7 +33,7 @@ import {
 import type {
   MaterialDef, MotionFeatures, PartLibraryIndex, Presence, Skeleton, ThemeDef,
 } from '../../../core/src/types.ts';
-import { SKELETON } from '../../../core/src/tuning.ts';
+import { SKELETON, STAGE } from '../../../core/src/tuning.ts';
 import { readFlags } from '../shell/kiosk.ts';
 import { createBreathField, type BreathField } from './particles.ts';
 import { createPost, POST_DEFAULTS, type PostChain } from './post.ts';
@@ -47,79 +47,7 @@ import {
  * 但 `tuning.ts` 是冻结契约，T-09 不自行修改 —— 已在交付报告里提"需要变更契约"。
  * 在它搬过去之前，这里是唯一一份。
  */
-const STAGE = {
-  // ── 等身（docs/00 §6）：观众站在 2.5–3m 外，眼高 1.58m ──
-  /** 相机到身体的距离（米） */
-  viewDistance: 2.8,
-  /** 机位高度 = 观众眼高（米） */
-  eyeHeight: 1.58,
-  /**
-   * 换条目时相机重新取景的时间常数（秒）。
-   * 取景**必须**是渐变的：docs/23 §S3 要求进场无缝，而遥控器数字键直选是一下一个物种。
-   */
-  framingTau: 0.45,
-  near: 0.08,
-  /** 远裁剪面必须比背景布还远，否则背景布被裁掉、露出 scene.background 那条路径 */
-  far: 260,
-  /** 极缓慢的机位呼吸（米）。只为了让静帧之外的画面不像贴图，别调大 */
-  sway: 0.012,
 
-  // ── 灯 ──
-  /** 三盏灯的方向（会被归一化后放到 lightDistance 上），面朝 +Z 的身体 */
-  keyDir: [1.5, 2.35, 1.85] as const,
-  fillDir: [-2.3, 1.25, 1.7] as const,
-  rimDir: [-0.85, 2.1, -2.5] as const,
-  lightDistance: 5.0,
-  /** 灯瞄准的高度（米）：胸口略下，阴影和高光都落在最该看的地方 */
-  aimHeight: 0.98,
-  /** IDLE 时灯保留的比例。**不是 0** —— 黑屏会让观众以为坏了（docs/05 §5） */
-  idleFloor: 0.40,
-
-  // ── 阴影 ──
-  shadowMapSize: 2048,
-  /** 阴影正交相机的半宽/半高（米） */
-  shadowExtent: 1.9,
-  shadowBias: -0.0009,
-  shadowNormalBias: 0.022,
-
-  // ── 地面 ──
-  /**
-   * 地面圆盘的半径（米）。**很大是故意的**：盘子的边缘必须落在地平线上，
-   * 否则画面里会出现一条弧 —— 观众一眼就看出这是一张摆在虚空里的圆盘。
-   * 18m 的时候那条弧清清楚楚（第一轮取证图里就是）。
-   */
-  groundRadius: 48,
-  /** 地面开始淡进背景色的半径（米） */
-  groundFadeStart: 3.0,
-  groundFadeEnd: 16.0,
-  groundRoughNear: 0.58,
-  groundRoughFar: 0.96,
-  /** 背景布（朝内的圆筒）的半径与高度（米）。必须比地面盘子更远 */
-  backdropRadius: 62,
-  backdropHeight: 140,
-
-  // ── 粒子 ──
-  particleCount: 760,
-  particleSeed: 0x5EC0D1,
-  /**
-   * 雾团半径（米）。1.75m 时它会铺满整个下半屏，读起来是"到处都是灰"而不是
-   * "地上有一团东西在呼吸"——空场那一帧要能看出是**一个**东西。
-   */
-  particleRadius: 1.2,
-
-  // ── 升档脉冲（docs/23 §S5：600ms / 亮度 +8% / 0.15s 内 dt×0.4）──
-  // 这三个数是**规格**，不是口味。docs/23 写死了它们，改之前先改那份文档。
-  /** 整个事件的时长（秒） */
-  pulseDuration: 0.60,
-  /** 起落时间（秒）：这么快亮起来，剩下的时间落回去 */
-  pulseAttack: 0.09,
-  /** 峰值时全身亮多少。+8%，**再多一点就成了闪光灯** */
-  pulseGain: 0.08,
-  /** 时间停滞：脉冲瞬间 dt 缩到这个倍率 */
-  stasisScale: 0.40,
-  /** 停滞恢复到 1 的时长（秒） */
-  stasisRecover: 0.15,
-};
 
 export interface Stage {
   readonly scene: THREE.Scene;

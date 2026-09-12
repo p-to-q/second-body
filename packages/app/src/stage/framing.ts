@@ -26,7 +26,7 @@
  * 换句话说：**人形严格等身，非人形按同一条曲线连续地偏离，偏离量有上限。**
  */
 import { remapSkeleton, type BodyPlan } from '../../../core/src/bodyplan.ts';
-import { SKELETON } from '../../../core/src/tuning.ts';
+import { SKELETON , FRAMING as FRAMING_TUNING } from '../../../core/src/tuning.ts';
 import type { Bone, BoneId, Skeleton, Vec3 } from '../../../core/src/types.ts';
 
 /** 一具身体在世界里占的那个盒子。x 始终假设左右对称，所以只记宽度 */
@@ -53,25 +53,8 @@ export interface FrameFit {
   aimY: number;
 }
 
-export const FRAMING = {
-  /**
-   * 画面高度 / 骨架高度。这个数**不是口味**：它由「人形必须保持原样」定死 ——
-   * 标准站姿的人形骨架盒高 1.57m，原来的画面高度是 2.45m，2.45 / 1.57 = 1.56。
-   */
-  heightFactor: 1.56,
-  /** 夹住插值的两端：再矮的身体也不会被放大到超过这个程度，再高的也不会被推出去 */
-  minFrameHeight: 1.35,
-  maxFrameHeight: 3.20,
-  /** 竖屏时至少框住这么宽（米），免得手臂/前腿被切掉 */
-  minFrameWidth: 1.45,
-  /** 宽度余量：身体两侧各留一点，不要贴着画面边 */
-  widthMargin: 1.25,
-  /**
-   * 身体中心相对画面中心往上抬多少（× 身体高度）。
-   * 人看一个站着的人，头顶留白比脚下多一点点才自然；同一条规则对四足也成立。
-   */
-  centerLift: 0.07,
-};
+export const FRAMING = FRAMING_TUNING;
+
 
 // ── 参考站姿 ────────────────────────────────────────────────────────────────
 

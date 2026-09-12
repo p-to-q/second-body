@@ -171,6 +171,117 @@ export const MASS = {
   centerTau: 0.10,
 };
 
+// ── 7c. 舞台：灯光 / 取景 / 后期（现场调参的大头） ─────────────────────────
+/**
+ * 这三块原本散在 stage.ts / post.ts / framing.ts 三个文件里。
+ * 它们恰恰是**到了现场最想改、而且改完不该重新构建**的那些数（P0）。
+ */
+export const STAGE = {
+  // ── 等身（docs/00 §6）：观众站在 2.5–3m 外，眼高 1.58m ──
+  /** 相机到身体的距离（米） */
+  viewDistance: 2.8,
+  /** 机位高度 = 观众眼高（米） */
+  eyeHeight: 1.58,
+  /**
+   * 换条目时相机重新取景的时间常数（秒）。
+   * 取景**必须**是渐变的：docs/23 §S3 要求进场无缝，而遥控器数字键直选是一下一个物种。
+   */
+  framingTau: 0.45,
+  near: 0.08,
+  /** 远裁剪面必须比背景布还远，否则背景布被裁掉、露出 scene.background 那条路径 */
+  far: 260,
+  /** 极缓慢的机位呼吸（米）。只为了让静帧之外的画面不像贴图，别调大 */
+  sway: 0.012,
+
+  // ── 灯 ──
+  /** 三盏灯的方向（会被归一化后放到 lightDistance 上），面朝 +Z 的身体 */
+  keyDir: [1.5, 2.35, 1.85] as const,
+  fillDir: [-2.3, 1.25, 1.7] as const,
+  rimDir: [-0.85, 2.1, -2.5] as const,
+  lightDistance: 5.0,
+  /** 灯瞄准的高度（米）：胸口略下，阴影和高光都落在最该看的地方 */
+  aimHeight: 0.98,
+  /** IDLE 时灯保留的比例。**不是 0** —— 黑屏会让观众以为坏了（docs/05 §5） */
+  idleFloor: 0.40,
+
+  // ── 阴影 ──
+  shadowMapSize: 2048,
+  /** 阴影正交相机的半宽/半高（米） */
+  shadowExtent: 1.9,
+  shadowBias: -0.0009,
+  shadowNormalBias: 0.022,
+
+  // ── 地面 ──
+  /**
+   * 地面圆盘的半径（米）。**很大是故意的**：盘子的边缘必须落在地平线上，
+   * 否则画面里会出现一条弧 —— 观众一眼就看出这是一张摆在虚空里的圆盘。
+   * 18m 的时候那条弧清清楚楚（第一轮取证图里就是）。
+   */
+  groundRadius: 48,
+  /** 地面开始淡进背景色的半径（米） */
+  groundFadeStart: 3.0,
+  groundFadeEnd: 16.0,
+  groundRoughNear: 0.58,
+  groundRoughFar: 0.96,
+  /** 背景布（朝内的圆筒）的半径与高度（米）。必须比地面盘子更远 */
+  backdropRadius: 62,
+  backdropHeight: 140,
+
+  // ── 粒子 ──
+  particleCount: 760,
+  particleSeed: 0x5EC0D1,
+  /**
+   * 雾团半径（米）。1.75m 时它会铺满整个下半屏，读起来是"到处都是灰"而不是
+   * "地上有一团东西在呼吸"——空场那一帧要能看出是**一个**东西。
+   */
+  particleRadius: 1.2,
+
+  // ── 升档脉冲（docs/23 §S5：600ms / 亮度 +8% / 0.15s 内 dt×0.4）──
+  // 这三个数是**规格**，不是口味。docs/23 写死了它们，改之前先改那份文档。
+  /** 整个事件的时长（秒） */
+  pulseDuration: 0.60,
+  /** 起落时间（秒）：这么快亮起来，剩下的时间落回去 */
+  pulseAttack: 0.09,
+  /** 峰值时全身亮多少。+8%，**再多一点就成了闪光灯** */
+  pulseGain: 0.08,
+  /** 时间停滞：脉冲瞬间 dt 缩到这个倍率 */
+  stasisScale: 0.40,
+  /** 停滞恢复到 1 的时长（秒） */
+  stasisRecover: 0.15,
+};
+
+export const POST = {
+  focusDistance: 2.8,
+  bloomRadius: 0.62,
+  focalLength: 1.35,
+  bokehScale: 1.1,
+  vignette: 0.34,
+  grain: 0.016,
+  aoSamples: 8,
+  aoRadius: 0.35,
+  aoResolutionScale: 0.5,
+};
+
+export const FRAMING = {
+  /**
+   * 画面高度 / 骨架高度。这个数**不是口味**：它由「人形必须保持原样」定死 ——
+   * 标准站姿的人形骨架盒高 1.57m，原来的画面高度是 2.45m，2.45 / 1.57 = 1.56。
+   */
+  heightFactor: 1.56,
+  /** 夹住插值的两端：再矮的身体也不会被放大到超过这个程度，再高的也不会被推出去 */
+  minFrameHeight: 1.35,
+  maxFrameHeight: 3.20,
+  /** 竖屏时至少框住这么宽（米），免得手臂/前腿被切掉 */
+  minFrameWidth: 1.45,
+  /** 宽度余量：身体两侧各留一点，不要贴着画面边 */
+  widthMargin: 1.25,
+  /**
+   * 身体中心相对画面中心往上抬多少（× 身体高度）。
+   * 人看一个站着的人，头顶留白比脚下多一点点才自然；同一条规则对四足也成立。
+   */
+  centerLift: 0.07,
+};
+
 // ── 8. 渲染预算（docs/02 P5；超了就是 bug，不是"以后再优化"） ──────────────
 export const BUDGET = {
   maxInstances: 64,
