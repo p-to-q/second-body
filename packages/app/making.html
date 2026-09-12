@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>做的过程 · The Making — SEE-ME SEE-YOU</title>
 <link rel="stylesheet" href="./src/ui/type.css">
+<link rel="stylesheet" href="./src/ui/editorial.css">
 <style>
 /**
  * 只有版面，没有装饰。分区一律靠 type.css 的 .sb-rule 细横线 ——
@@ -13,19 +14,22 @@
  */
 html, body { height: auto; overflow: visible; }
 
-/** 档案的基本构型：坐标在左（等宽），事情在右 */
-#mk { max-width: 1080px; }
+/**
+ * 档案的基本构型：坐标在左（等宽），事情在右。
+ * 这一页的密度是**对的** —— 它就是一份档案，行与行贴着走才读得出"这些事真的
+ * 一件接一件发生过"。所以版面没有被改稀，只在最前面加了一个巨大的开场
+ * （`.ed-hero`，来自 ui/editorial.css）把整份档案撑住：
+ * 先有一次断言，再进入密集的证据。
+ */
 .mk-row { display: grid; grid-template-columns: 168px 1fr; gap: var(--sb-gutter); }
 .mk-meta { color: var(--sb-ink-dim); padding-top: 0.15em; }
 .mk-meta-line + .mk-meta-line { color: var(--sb-ink-dim); opacity: 0.7; }
 .mk-body { max-width: var(--sb-measure); }
 .mk-body .sb-bi { max-width: var(--sb-measure); }
 
-/* ── 题头 ────────────────────────────────────────────────────────────────── */
-.mk-header { padding-bottom: calc(var(--sb-safe) * 0.75); }
-.mk-header h1 { max-width: 22ch; }
-.mk-thesis { margin-top: 1.5rem; max-width: var(--sb-measure); }
-.mk-thesis .sb-zh { font-size: var(--sb-size-h2); line-height: var(--sb-lh-h2); letter-spacing: var(--sb-tracking-h2); }
+/* ── 题头（骨架来自 .ed-hero，这里只管论点那两段的字号）─────────────────── */
+.mk-thesis { max-width: var(--sb-measure); }
+.mk-thesis .sb-zh { font-size: var(--sb-size-h2); color: var(--sb-ink); line-height: var(--sb-lh-h2); letter-spacing: var(--sb-tracking-h2); }
 .mk-thesis .sb-en { font-size: 1rem; }
 .mk-lede { margin-top: 1.25rem; }
 .mk-lede .sb-zh, .mk-lede .sb-en { font-size: var(--sb-size-small); color: var(--sb-ink-dim); }
@@ -47,8 +51,10 @@ html, body { height: auto; overflow: visible; }
 .mk-number .mk-meta {
   font-family: var(--sb-mono);
   font-variant-numeric: tabular-nums;
-  font-size: 1.75rem;
-  line-height: 1.1;
+  /* 数字是这一页开场的第二半：巨题说"这是什么"，这一排说"有多少" */
+  font-size: clamp(1.75rem, 3.4vw, 3rem);
+  line-height: 1.05;
+  letter-spacing: var(--sb-tracking-h1);
   color: var(--sb-ink);
   text-align: right;
   padding-top: 0;
@@ -100,13 +106,13 @@ html, body { height: auto; overflow: visible; }
   .mk-meta, .mk-number .mk-meta, .mk-case-head .mk-meta,
   .mk-principle .mk-meta, .mk-turn .mk-meta { text-align: left; }
   .mk-meta { display: flex; gap: 0.75em; }
-  .mk-number .mk-meta { font-size: 1.5rem; }
-  .sb-page { padding: 24px 24px 48px; }
+  .mk-number .mk-meta { font-size: 1.75rem; }
+
 }
 </style>
 </head>
 <body>
-<main id="mk" class="sb-page"></main>
+<main id="mk" class="ed"></main>
 <script type="module" src="./src/making/making.ts"></script>
 </body>
 </html>

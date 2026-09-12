@@ -1,0 +1,99 @@
+/**
+ * 《共生护照》的版面。
+ *
+ * 这一页原来用的是 `pages.css` 的 `.sb-stamp` —— 一个小号罗马数字加一行字。
+ * 它把"章"当成一个**标题级别**来排，于是页面读作两张表格。
+ * 但整页的论点建立在"这是通关记录"上：形式塌了，论点也就只剩文字在自称。
+ *
+ * 所以这里做的唯一一件事，是把章做成章 —— 一枚看得出是**盖上去**的印记。
+ * 除此之外不引入任何新的视觉语言：颜色只有 §0 那三个，分区仍然只用细横线。
+ */
+
+/* ── 一枚章 ───────────────────────────────────────────────────────────────
+ * 粗框 + 全大写裁定 + 编号 + 日期，整体歪 2.5 度。
+ * 歪是这枚章全部的说服力来源：正的框是 UI，歪的框才是手按上去的痕迹。
+ * 颜色沿用 pages.css 的那条约定 —— 拒入用警示色，准入用强调色，
+ * 全站只有"裁定"这一件事配用颜色。
+ */
+.pp-mark {
+  display: inline-block;
+  padding: 0.9rem 1.4rem 0.75rem;
+  border: 3px solid currentColor;
+  text-align: center;
+  transform: rotate(-2.5deg);
+  /* 章是印上去的，没有厚度：不加阴影、不加圆角（§0 禁止清单） */
+}
+.pp-mark--refused { color: var(--sb-warn); }
+.pp-mark--admitted { color: var(--sb-accent); }
+
+.pp-mark__no {
+  display: block;
+  font-family: var(--sb-mono);
+  font-size: var(--sb-size-micro);
+  letter-spacing: var(--sb-tracking-label);
+  opacity: 0.85;
+}
+/* 裁定那两个字是这枚章上最大的东西 —— 章上本来就只有一句话 */
+.pp-mark__verdict {
+  font-size: clamp(1.75rem, 3.2vw, 2.75rem);
+  line-height: 1.05;
+  font-weight: var(--sb-weight-head);
+  letter-spacing: 0.04em;
+  margin: 0.15em 0 0.1em;
+}
+.pp-mark__verdict .sb-zh { display: block; }
+.pp-mark__verdict .sb-en {
+  display: block;
+  font-size: 0.34em;
+  font-family: var(--sb-mono);
+  font-weight: var(--sb-weight-body);
+  letter-spacing: var(--sb-tracking-label);
+  margin-top: 0.5em;
+  color: inherit;
+}
+.pp-mark__date {
+  display: block;
+  font-family: var(--sb-mono);
+  font-size: var(--sb-size-micro);
+  letter-spacing: 0.06em;
+  border-top: 1px solid currentColor;
+  padding-top: 0.4em;
+  margin-top: 0.4em;
+  opacity: 0.85;
+}
+
+/* ── 一条记录 ────────────────────────────────────────────────────────────
+ * 和 /about 的分节同一套比例（2fr / 3fr，RCA 与 DAE 实测的分栏比）：左边是坐标，右边是事情。
+ * 三页共用同一条竖切线，才像同一件作品的三个房间。
+ */
+.pp-stamp { padding: clamp(3rem, 5.5vw, 6rem) 0 clamp(2rem, 3.5vw, 3.5rem); }
+.pp-stamp + .pp-stamp { border-top: 1px solid var(--sb-rule); }
+
+.pp-stamp__head {
+  display: grid;
+  grid-template-columns: 2fr 3fr;
+  gap: var(--sb-gutter);
+  align-items: start;
+  padding-bottom: clamp(1.5rem, 2.5vw, 2.5rem);
+}
+/* 章跟着记录一起滚：读到"后果"那一段时，是哪一次裁定还在左边看得见 */
+.pp-stamp__mark { position: sticky; top: clamp(1rem, 2.5vw, 2.5rem); }
+.pp-subject-text { margin-top: 0.5rem; max-width: var(--sb-measure); }
+.pp-subject-text .sb-zh { font-size: var(--sb-size-h2); line-height: 1.4; color: var(--sb-ink); }
+.pp-officer { margin-top: 0.75rem; }
+
+.pp-row {
+  display: grid;
+  grid-template-columns: 2fr 3fr;
+  gap: var(--sb-gutter);
+  padding: 1.25rem 0;
+  border-top: 1px solid var(--sb-rule);
+  align-items: start;
+}
+.pp-row__body { min-width: 0; max-width: var(--sb-measure); }
+.pp-work { margin-top: 1rem; }
+
+@media (max-width: 860px) {
+  .pp-stamp__head, .pp-row { grid-template-columns: minmax(0, 1fr); }
+  .pp-stamp__mark { position: static; }
+}
