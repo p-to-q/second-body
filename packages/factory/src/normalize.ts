@@ -12,7 +12,7 @@ import { resolve } from 'node:path';
 import { RECIPES, recipeById } from '../recipes/catalog.ts';
 import { load, save, RAW_DIR, PARTS_DIR } from './ledger.ts';
 import { glbStats } from './glb-stats.ts';
-import type { PartMeta, Vec3 } from '../../core/src/types.ts';
+import type { PartMeta, Slot, Tier, Vec3 } from '../../core/src/types.ts';
 
 const MAX_TRIS = 5000;
 
@@ -210,8 +210,29 @@ export async function compressAll(opt: { only?: string[] } = {}): Promise<void> 
 
 export interface NormalizeResult { meta: PartMeta; warnings: string[]; orient: string; }
 
-export async function normalizeOne(id: string, rawFile: string): Promise<NormalizeResult> {
+/**
+ * 覆盖项 —— 给**没有配方**的来源用（慢回路的现场件：观众剪影，不在 recipes/ 里）。
+ * 全部可选，一个都不传时行为与以前逐字相同。
+ *
+ * 为什么不让慢回路自己抄一份规范化：运行时的挂载数学是无分支的，它依赖
+ * 「主轴 +Y / socketA 在原点 / 长度 1.0 / localGirth 可信」这一条契约（docs/04）。
+ * 抄第二份等于多一处会漂的地方 —— 这条流水线只能有一个实现。
+ */
+export interface NormalizeOverrides {
+  /** 写到哪里（缺省 assets/parts/）。血统池写进 assets/parts/lineage/ */
+  outDir?: string;
+  /** meta.file 相对 assets/parts/ 的路径。运行时按 `/parts/` + file 取件 */
+  file?: string;
+  slot?: Slot;
+  tier?: Tier;
+  family?: string;
+  symmetry?: 'mirror' | 'none';
+  source?: PartMeta['source'];
+}
+
+export async function normalizeOne(id: string, rawFile: string, over: NormalizeOverrides = {}): Promise<NormalizeResult> {
   const recipe = recipeById(id);
+  const outDir = over.outDir ?? PARTS_DIR;
   const warnings: string[] = [];
   const doc = await io.read(rawFile);
 
@@ -266,8 +287,8 @@ export async function normalizeOne(id: string, rawFile: string): Promise<Normali
   applyMatrix(doc, mul(trs([0,0,0], [1/h, 1/h, 1/h]), trs([-cx, -b.min[1], -cz], [1,1,1])));
 
   // 7) 写出（prune + meshopt 压缩，见 writePart 的注释）
-  mkdirSync(PARTS_DIR, { recursive: true });
-  const outPath = resolve(PARTS_DIR, `${id}.glb`);
+  mkdirSync(outDir, { recursive: true });
+  const outPath = resolve(outDir, `${id}.glb`);
   await writePart(doc, outPath);
 
   // 自检与 meta 都读**写出来的那个文件**，而不是内存里的 doc：
@@ -282,15 +303,15 @@ export async function normalizeOne(id: string, rawFile: string): Promise<Normali
   const girth = Math.max(fb.size[0], fb.size[2]);
   const meta: PartMeta = {
     id,
-    slot: recipe?.slot ?? ('spine' as any),
-    tier: recipe?.tier ?? 1,
-    file: `${id}.glb`,
-    family: recipe?.theme ?? 'unknown',
+    slot: over.slot ?? recipe?.slot ?? ('spine' as any),
+    tier: over.tier ?? recipe?.tier ?? 1,
+    file: over.file ?? `${id}.glb`,
+    family: over.family ?? recipe?.theme ?? 'unknown',
     localGirth: +girth.toFixed(4),
     triCount: tris,
     aabb: { min: fb.min, max: fb.max },
-    symmetry: recipe?.partSymmetry ?? 'none',
-    source: { provider: 'hyper3d', model: 'Gen-2.5-Low', seed: recipe?.seed, recipeId: id },
+    symmetry: over.symmetry ?? recipe?.partSymmetry ?? 'none',
+    source: over.source ?? { provider: 'hyper3d', model: 'Gen-2.5-Low', seed: recipe?.seed, recipeId: id },
   };
   return { meta, warnings, orient };
 }

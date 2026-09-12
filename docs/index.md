@@ -11,6 +11,7 @@
 | `12-SPEC-themes.md` | anchor 一致性流程、开场选择页 | 资产 + 开场页 |
 | `14-SPEC-roster.md` | 物种谱系、三种 kind、clearance 门、素材策展 | 资产 |
 | `16-SPEC-acts.md` | 玩法扩展点：Act / World / Director | 加新玩法 |
+| `17-SLOW-LOOP.md` | 慢回路服务端：端点、预算、血统池、失败矩阵、前端接口 | 接慢回路 |
 | `23-SPEC-ui.md` | **每个场景的 UI + 全部边界情况** | 任何碰画面的人 |
 | `packages/core/src/types.ts` | 运行时所有共享类型（**冻结**） | 所有人 |
 

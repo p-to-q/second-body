@@ -9,6 +9,11 @@ scratch/
 
 # 由 vite 插件在 dev/build 时扫 assets/demo/ 生成，不该手写也不该提交
 assets/demo/index.json
+
+# 慢回路的血统池：**这台装置**现场长出来的件与它的索引（docs/17）。
+# 不提交 —— 它是这台机器的记忆，不是仓库的内容；clone 下来应该是空的，
+# 然后由站到摄像头前面的人重新长出来。build 时 shipAssets 会从本地盘复制进 dist。
+assets/parts/lineage/
 *.log
 .DS_Store
 

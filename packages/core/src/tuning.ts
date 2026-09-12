@@ -380,4 +380,31 @@ export const SLOW_LOOP = {
   requestTimeoutMs: 12_000,
   /** 长到身上的目标槽位 */
   targetSlots: ['spine', 'head'] as Slot[],
+
+  // ── 预算闸门（服务端硬上限，docs/17 §4）────────────────────────────────
+  // 前端的 maxPerSession 是礼貌，这几条是钱。前端可以被改、被绕过、被多开标签页，
+  // 所以真正的上限必须在 Node 侧、且超了要**明确拒绝**而不是静默退化。
+  /** Gen-2.5-Low 基础生成的单价（docs/07 §2）。提交时按它预扣，完成后按实际 consumed 对账 */
+  creditsPerJob: 0.5,
+  maxCreditsPerJob: 1,
+  maxCreditsPerSession: 1,
+  maxCreditsPerDay: 20,
+  /** 余额低于「预扣 + 这个缓冲」就不提交。与 generate.ts 的批量闸门同一条规矩 */
+  balanceReserve: 5,
+  /**
+   * 服务端单个任务的墙钟上限。超了强制 failed。
+   * 为什么不只靠 rodin.ts 的 8 分钟轮询超时：下载、规范化、写盘都在它之外，
+   * 任何一步卡住都会把任务永远钉在 generating —— 而前端只会一直转圈。
+   */
+  jobTimeoutMs: 4 * 60_000,
+
+  // ── 血统池（docs/17 §5）────────────────────────────────────────────────
+  /** 相对 assets/parts/ 的子目录。**不与主库混放**：主库是策展过的，血统池是现场长出来的 */
+  lineageDir: 'lineage',
+  /** 下一个观众的 genome 抽到前人留下件的概率（前端消费，服务端只负责给候选） */
+  lineageChance: 0.35,
+  /** 索引里最多留多少件（超出按时间丢最旧的条目，glb 文件不删） */
+  lineageMaxParts: 240,
+  /** 一次 GET /__slow/lineage 最多吐多少件，防止一年后的索引把开场拖住 */
+  lineageServeLimit: 64,
 };

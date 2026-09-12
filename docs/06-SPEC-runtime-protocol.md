@@ -65,21 +65,29 @@ interface Creature {
 }
 ```
 
-## 5. 慢回路 HTTP 协议（浏览器 ↔ `localhost:8787`）
+## 5. 慢回路 HTTP 协议（浏览器 ↔ dev server）
 
-key 只在 Node 侧（P8）。浏览器只认识这三个端点：
+key 只在 Node 侧（P8）。**完整协议、预算、血统池、失败矩阵见 `docs/17-SLOW-LOOP.md`。**
+
+落地时和本节原来的草案差了两处，都写在这里免得两边打架：
+- 不是独立的 `localhost:8787` 进程，而是 dev server 上的 `/__slow` 中间件 ——
+  装置跑在本地机器上，那台机器上就有 factory，多起一个进程只是多一处要被拉起来的东西。
+- 提交体是 PNG 原始字节，不是 multipart：只有一张图，multipart 只是多一层解析。
 
 ```
-POST /slow/submit        multipart: mask=<png blob>
-  → 200 { id: string }                      // 立即返回，不等生成
-  → 429 { error: "cooldown", retryAfter: n } // 冷却中（每人最多 1 次，间隔 20s）
-  → 503 { error: "disabled" }                // 代理没起/没 key → 前端静默关掉这条回路
+POST /__slow?slot=&session=&species=     body = 剪影 PNG 原始字节
+  → 200 SlowJob { id, status:'submitted' }   // 立即返回，不等生成
+  → 4xx { ok:false, code, error }            // 预算/坏请求，结构化 JSON，绝不静默退化
+  → 404                                      // 生产构建里没有这条回路 → 前端静默关掉它
 
-GET  /slow/status?id=…
+GET  /__slow/<jobId>
   → 200 SlowJob    // status: submitted | generating | ready | failed
 
-GET  /slow/part/<id>.glb
+GET  /__slow/part/<partId>.glb
   → 200 model/gltf-binary   （已过 normalize，满足 docs/03 §6 契约）
+
+GET  /__slow/lineage?species=
+  → 200 { chance, total, parts: PartMeta[], entries: […] }   // 前人留下的件
 ```
 
 前端规则（P3）：
