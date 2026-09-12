@@ -25,6 +25,9 @@ import { createCardBuffer } from './cardbuffer.ts';
 import { createTrail } from './trail.ts';
 import { hexToSRGB } from './color.ts';
 
+/** refresh() 能重建的东西。'all' = 全部重来 */
+export type RefreshKind = 'all' | 'geometry' | 'camera' | 'background' | 'palette';
+
 export type Card = THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
 
 export interface CarouselOptions {
@@ -129,7 +132,7 @@ export function createCarousel(
 
   const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
 
-  const geometry = buildGeometry();
+  let geometry = buildGeometry();
   const cards: Card[] = [];
 
   function buildGeometry(): THREE.PlaneGeometry {
@@ -213,6 +216,17 @@ export function createCarousel(
     scene.add(mesh);
     cards.push(mesh);
   });
+
+  function rebuildGeometry(): void {
+    const next = buildGeometry();
+    cards.forEach((card) => {
+      card.geometry = next;
+      const texture = card.material.uniforms.uMap.value;
+      if (texture) card.material.uniforms.uImageRatio.value.copy(coverRatio(texture));
+    });
+    geometry.dispose();
+    geometry = next;
+  }
 
   // Built after the cards so it can borrow their uniform objects.
   const cardBuffer = createCardBuffer(renderer, scene, cards, config);
@@ -379,6 +393,44 @@ export function createCarousel(
     post.setSize(width, height, renderer.getPixelRatio());
     cardBuffer.setSize(width, height);
     trail.setSize(width, height, renderer.getPixelRatio());
+  }
+
+  // The handful of config values `step()` does NOT push every frame, because
+  // they cost more than a uniform write: geometry has to be rebuilt, the
+  // projection matrix recomputed, hex colours parsed. Upstream hung exactly
+  // these off lil-gui's onChange; without the panel they only ever ran at
+  // startup, which quietly made those knobs the only dead ones in config.ts.
+  // 上游把这四个处理器挂在 lil-gui 的 onChange 上；我们没搬 lil-gui（P6 依赖纪律），
+  // 所以它们必须以 API 形式可达，否则这几个旋钮会变成 config 里唯一永远不生效的那几个。
+  function refresh(what: RefreshKind = 'all'): void {
+    if (what === 'all' || what === 'geometry') rebuildGeometry();
+    if (what === 'all' || what === 'camera') {
+      camera.fov = config.fov;
+      camera.position.z = config.cameraZ;
+      camera.updateProjectionMatrix();
+    }
+    if (what === 'all' || what === 'background') {
+      backgroundLinear.set(config.background);
+      backgroundSRGB.copy(hexToSRGB(config.background));
+    }
+    if (what === 'all' || what === 'palette') {
+      // Hex parsing is cheap but pointless every frame, so palettes get pushed
+      // on change rather than alongside the sliders in the frame loop.
+      const u = post.compositeMaterial.uniforms;
+      u.uInk.value.copy(hexToSRGB(config.ditherInk));
+      u.uAccent.value.copy(hexToSRGB(config.ditherAccent));
+      u.uPaper.value.copy(hexToSRGB(config.ditherPaper));
+      u.uHoverInk.value.copy(hexToSRGB(config.hoverDitherInk));
+      u.uHoverAccent.value.copy(hexToSRGB(config.hoverDitherAccent));
+      u.uHoverPaper.value.copy(hexToSRGB(config.hoverDitherPaper));
+      u.uTrailInk.value.copy(hexToSRGB(config.trailInk));
+      u.uTrailAccent.value.copy(hexToSRGB(config.trailAccent));
+      u.uTrailPaper.value.copy(hexToSRGB(config.trailPaper));
+      u.uTrailRimColor.value.copy(hexToSRGB(config.trailRimColor));
+      u.uEntryInk.value.copy(hexToSRGB(config.entryDitherInk));
+      u.uEntryAccent.value.copy(hexToSRGB(config.entryDitherAccent));
+      u.uEntryPaper.value.copy(hexToSRGB(config.entryDitherPaper));
+    }
   }
 
   let frame = 0;

@@ -56,7 +56,17 @@ async function boot(): Promise<void> {
   await library.load();
   if (library.usingFallback) console.warn('[main] 没有部件库，用程序化占位几何运行');
 
-  // ── 3. 选主题。URL 里给了就跳过选择页（现场锁定 / 复现用） ────────────────
+  // ── 3. 采集与选主题**并行** ──────────────────────────────────────────────
+  // 为什么并行：MediaPipe 的 wasm + 两个模型要好几秒。串行的话观众选完主题
+  // 会盯着一块黑屏等它加载 —— 而那正是整个体验里最需要连贯的一刻
+  //（卡片冲向镜头、溶解、然后身体应该**已经在那里了**）。
+  const capturePromise = (async () => {
+    const c = await createCapture();
+    await c.start();
+    if (c.lastError) console.warn('[main] capture:', c.lastError);
+    return c;
+  })();
+
   let theme = flags.theme ?? themeFromUrl();
   if (!theme) {
     await new Promise<void>((done) => {
@@ -67,10 +77,14 @@ async function boot(): Promise<void> {
     });
   }
 
-  // ── 4. 采集。?demo=1 走回放，不拖 MediaPipe 的 wasm ──────────────────────
-  const capture = await createCapture();
-  await capture.start();
-  if (capture.lastError) console.warn('[main] capture:', capture.lastError);
+  // 预取被选中主题的部件，免得进场后第一秒还在拿占位几何顶着
+  const wanted = library.index.parts.filter((p) => p.family === theme).map((p) => p.id);
+  await Promise.race([
+    library.preload(wanted),
+    new Promise((r) => setTimeout(r, 2500)),   // 预取失败/慢也不许卡住进场
+  ]);
+
+  const capture = await capturePromise;
 
   // ── 5. 状态机 ───────────────────────────────────────────────────────────
   const presence = createPresence();
