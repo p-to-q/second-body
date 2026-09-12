@@ -139,6 +139,11 @@ export function createPost(
         uAo.value = look.aoStrength;
         uBloom.value = look.bloomStrength;
         bloomPass.threshold.value = look.bloomThreshold;
+        // 暗角和颗粒原来是写死的常数。它们现在归场景管：
+        // 逆光那套需要几乎没有暗角（画面本来就只有中间亮），
+        // 白展厅反过来要重暗角，否则亮底会一路铺到画框边、画面就没有边界了。
+        uVignette.value = look.vignette;
+        uGrain.value = look.grain;
       },
       tick(dt) {
         noise = (noise + dt * 61.7) % 1000;

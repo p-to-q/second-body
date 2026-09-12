@@ -12,6 +12,7 @@
  * URL：
  *   ?theme=xeno     条目（缺省取 roster 第一个可用的）
  *   ?plan=quadruped 强行换身体方案（缺省用条目自己声明的）
+ *   ?scene=void     舞台场景（gallery / void / tide / backlit）。不带 = 按物种自动挑
  *   ?state=idle     空场：没有身体，只有呼吸粒子（S1）
  *   ?nopost=1       关整条后期（对照用）
  *   ?debug=1        HUD：fps / 三角 / draw / 取景 / look，超 BUDGET 标红
@@ -19,7 +20,7 @@
  *   ?loop=pulse     跑起来之后每 3 秒打一次脉冲（肉眼看节奏用）
  *   ?warm=6         预热多少秒再开始渲染（截图用，见 warmUp 的说明）
  *   ?seed= ?tier=   同 /dev/figure.html
- * 键：P 打一次脉冲，I 切空场，←/→ 换条目，空格暂停机位呼吸。
+ * 键：P 打一次脉冲，I 切空场，←/→ 换条目，**S 循环场景**，空格暂停机位呼吸。
  */
 import * as THREE from 'three/webgpu';
 import { makeGenome, themeIsUsable } from '../../core/src/genome.ts';
@@ -30,6 +31,7 @@ import { createPartLibrary } from '../src/assets/library.ts';
 import { partIdsOf } from '../src/creature/assemble.ts';
 import { createCreature } from '../src/creature/creature.ts';
 import { createStage } from '../src/stage/stage.ts';
+import { SCENE_IDS } from '../src/stage/scenes.ts';
 import { REFERENCE_POSE } from '../src/stage/framing.ts';
 import { mountPageHead } from '../src/ui/page.ts';
 
@@ -148,6 +150,15 @@ addEventListener('keydown', async (e) => {
     await rebuild();
   }
   if (e.code === 'KeyN') { seed = (seed * 1664525 + 1013904223) >>> 0; await rebuild(); }
+  if (e.code === 'KeyS') {
+    // 循环场景。**不预热**：这里要看的正是那 1.6s 的交叉淡入到底顺不顺
+    const i = SCENE_IDS.indexOf(stage.sceneId);
+    const next = SCENE_IDS[(i + 1) % SCENE_IDS.length];
+    stage.setScene(next);
+    const p = new URLSearchParams(location.search);
+    p.set('scene', next);
+    history.replaceState(null, '', `?${p}`);
+  }
 });
 
 // ── HUD ─────────────────────────────────────────────────────────────────────
@@ -163,6 +174,7 @@ function drawHud(): void {
   const b = stage.bounds;
   hud.innerHTML = DEBUG
     ? `<b>${def.name} · ${def.nameEn}</b>  ${qs.get('plan') ?? def.bodyPlan ?? 'rig'}${idle ? ' · 空场' : ''}\n`
+      + `场景 ${stage.sceneId}（S 键循环）\n`
       + `${fps.toFixed(0)} fps · frame ${jsMs.toFixed(2)}ms\n`
       + `实例 ${over(s.instances, BUDGET.maxInstances)}/${BUDGET.maxInstances} · `
       + `三角 ${over(s.triangles, BUDGET.maxTriangles)} · draw ${over(s.drawCalls, BUDGET.maxDrawCalls)}\n`
