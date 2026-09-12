@@ -125,8 +125,48 @@ function anchorWriter(): Plugin {
         res.end(JSON.stringify({ ok: true, path: `assets/demo/${file}`, bytes, clips: count }));
       });
 
+      /**
+       * 慢回路（docs/17-SLOW-LOOP.md）：观众剪影 → Rodin → 规范化 → 血统池。
+       *
+       *   POST /__slow?slot=&session=&species=   剪影 PNG 原文 → 立刻返回 SlowJob，不阻塞
+       *   GET  /__slow/<jobId>                   → SlowJob（submitted|generating|ready|failed）
+       *   GET  /__slow/part/<partId>.glb         → 已规范化的件
+       *   GET  /__slow/lineage?species=          → 血统池候选（给下一个观众的 genome）
+       *
+       * `apply: 'serve'` 与上面三个中间件一样：**生产构建里这条回路不存在**，
+       * 线上 Web 版拿到的是干净的 404，前端据此静默关掉它（docs/13 §3）。
+       * 逻辑在 factory 里（key 只在 Node 侧，P8；而且那条口子花真钱，每条拒绝路径都要有测试）。
+       */
+      server.middlewares.use('/__slow', async (req, res) => {
+        try {
+          const { slowHandler } = await import('../factory/src/slow-http.ts');
+          await slowHandler(req, res);
+        } catch (e) {
+          // 连模块都没加载起来（缺依赖 / 语法错）也不能把 dev server 拖下水
+          res.statusCode = 503;
+          res.setHeader('content-type', 'application/json');
+          res.end(JSON.stringify({ ok: false, code: 'DISABLED', error: String((e as Error)?.message ?? e) }));
+        }
+      });
+
       // 手动丢进 assets/demo/ 的文件也要被认到：每次起 dev server 重扫一遍
       try { writeDemoIndex(); } catch (e) { console.warn('[sb] /demo/index.json 生成失败：', e); }
+    },
+
+    /**
+     * `vite preview`（= `npm run kiosk` 打 dist 的那条路）上把 `/__slow/*` 明确判 404。
+     *
+     * 为什么需要这几行：preview 带 SPA 回退，**任何**没匹配上的 GET 都会拿到 200 + index.html。
+     * 于是"慢回路不存在"在前端看起来是"200 但 JSON.parse 炸了"——
+     * 那不是降级，那是 bug。这个中间件不提供慢回路，它只是把缺席说清楚。
+     * （Vercel 上不需要它：vercel.json 没有 catch-all rewrite，静态托管本来就回真 404。）
+     */
+    configurePreviewServer(server) {
+      server.middlewares.use('/__slow', (_req, res) => {
+        res.statusCode = 404;
+        res.setHeader('content-type', 'application/json');
+        res.end(JSON.stringify({ ok: false, code: 'DISABLED', error: '生产构建里没有慢回路（它是 dev server 中间件）' }));
+      });
     },
   };
 }

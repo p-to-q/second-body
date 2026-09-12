@@ -85,11 +85,13 @@
   顶层 `safeFrame()`；录一段 60 秒 pose 数据存成 json
 - 验收：连续跑 30 分钟不崩（留日志）；断网 + 遮住摄像头，`?demo=1` 仍能演示
 
-### ⚪ T-17 慢回路
-- 文件：`packages/factory/src/proxy.ts` + `packages/app/src/slowloop/*`
-- 读：`docs/06-SPEC` §5、`docs/07-HYPER3D-API.md` §4B
-- 做什么：localhost 代理（key 留 Node 侧）+ 前端提交/轮询/热插拔；冷却与静默失败
-- 验收：端到端跑通一次并记录耗时（回填 `docs/09` U10）；**拔网线时快回路帧率不受影响**
+### 🟡 T-17 慢回路
+- 文件：**服务端已落地** `packages/factory/src/slow.ts` + `slow-http.ts` + `vite.config.ts` 的 `/__slow`
+  （不是 `proxy.ts`：不另起进程，理由见 `docs/17 §1`）；**前端待做** `packages/app/src/slowloop/*`
+- 读：`docs/17-SLOW-LOOP.md`（协议 + §8 前端接口）、`docs/06-SPEC` §5、`docs/07-HYPER3D-API.md` §4B
+- 做什么：~~localhost 代理（key 留 Node 侧）~~ + 血统池 + 预算闸门 ✅；前端提交/轮询/热插拔；冷却与静默失败
+- 验收：~~端到端跑通一次~~（`SLOW_FAKE=1` 下跑通，取证 `scratch/evidence/slow-loop-dev.log`）；
+  **还欠**：真 Rodin 打一次并记录耗时（回填 `docs/09` U10）、**拔网线时快回路帧率不受影响**（要前端接上才能测）
 
 ---
 

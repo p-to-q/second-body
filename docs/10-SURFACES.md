@@ -6,6 +6,7 @@
 >
 > 规则：**动完代码就更新这张表。** 证据一栏必须是"跑过的命令"或"截图路径"，不能是"应该可以"。
 
+最后更新：2026-09-13（T-17 慢回路服务端落地后）
 最后更新：2026-09-12（B 档身体方案 `mass` 落地后）
 最后更新：2026-09-12（T-16 kiosk 加固 + 录制页落地后）
 最后更新：2026-09-12（T-09 Stage 落地后）
@@ -76,7 +77,9 @@
 | **连续出错降级阶梯（`src/shell/degrade.ts` + `safe-frame.ts`）** | `stable` | 以前只打一行日志，现在真降：连续 N 帧出错 → 关后期（`readFlags().nopost` 翻真）→ 再错 N 帧 → 占位几何 → 再错 N 帧 → 重载（会话内最多 2 次，防重载循环）。三级在 `/dev/degrade.html` 注入"每帧抛异常"的假 tick 后逐级触发，事件日志与状态面板读数抄在 `scratch/evidence/degrade-ladder-t16.log`（`data-sb-degrade=reload`、nopost/placeholder 双真）；另有单测 `packages/app/test/degrade.test.ts`、`frame-loop.test.ts`。各级动作用 `registerDegradeHandler()` 认领，**舞台/creature 还没认领（要在 main.ts 收口时接）**，在那之前第 1/2 级只翻状态位 + 发 `sb:degrade` + 写 `<html data-sb-degrade>` |
 | **`?selftest=1` 开场自检页（`src/shell/selftest.ts`）** | `experimental` | 逐条检查 WebGPU / 摄像头权限 / parts.json / demo 片段 / 本地模型，✓⚠✗ 各带一句人话；视觉按 `docs/23 §0`（等宽、两级字号、48px 安全边距、无圆角无图标）。不进主程序，主程序起不来也能开（独立 8.3KB chunk）。每条检查 8s 超时 —— **串行跑，一条挂住会把后面全部钉死在"检查中…"**（headless Chrome 的 `enumerateDevices()` 真的会挂）。实测截图 `scratch/evidence/selftest-t16.png`：parts.json ✓ 191 件/23 主题 · demo ⚠ 只有合成数据 · 本地模型 ⚠ 缺 · 摄像头 ⚠ 超时（headless）/ ✗ 权限被拒（浏览器面板） |
 | `npm run kiosk` 一条命令进现场 | `stable` | = build + preview + 自动开 `/?kiosk=1`。实跑一遍：build ✓ → `http://localhost:4173/?kiosk=1` 200、`/?selftest=1` 200、`/demo/index.json` 200。`/demo/index.json` 现在由 vite 插件在 **build 时**（不只是 dev server 起来时）扫 `assets/demo/` 生成 —— 删掉它重新 build 会长回来，新机器 clone 下来直接 `npm run kiosk` 不会缺索引。另有 `npm run selftest` 直接开自检页 |
-| 慢回路（代理 + 热插拔） | `spec-only` | T-17 |
+| **慢回路服务端 `/__slow`（提交/轮询/glb/血统池）** | `experimental` | dev server 中间件（`vite.config.ts` 登记，逻辑在 `packages/factory/src/slow.ts` + `slow-http.ts`），协议与数据形状见 `docs/17-SLOW-LOOP.md`。`SLOW_FAKE=1 npm run dev:slow` 下 curl 端到端跑通：POST → submitted → 4s 后 ready → `/__slow/part/<id>.glb` 200 `model/gltf-binary` 24,928 B，件的 aabb `y∈[0,1]`、X/Z 关于 0 居中（= 规范化契约本身），`localGirth=0.8524` / 2,890 tris；血统池 `lineage.json` 记下了 session / 时间 / 物种 / 槽位。拒绝路径六条各打一遍全是结构化 JSON（429 BUDGET_SESSION · 400 非 PNG · 400 槽位不在 targetSlots · 404 路径穿越 · 404 无此任务 · 405 GET 提交）——取证 `scratch/evidence/slow-loop-dev.log`。8 条测试随 `npm run check` 跑（`packages/app/test/slow.test.ts`）：端到端、HTTP 外壳、看门狗超时、Rodin 报错+退款、两条预算闸门、**未焊接的 6000 面网格走减面兜底仍然 ready**。**没打过一次真的 Rodin**（这个 worktree 里没有 `.env`，见 Risks）；`/about` 上那个「规格」标记因此只能摘一半 |
+| **生产构建里没有慢回路** | `stable` | `apply:'serve'` + `configurePreviewServer` 显式 404。`npm run build` 后 `grep -rl "__slow\|slow-http\|RODIN_API_KEY" dist/` 是空的；`vite preview` 上 `/__slow` `/__slow/<id>` `/__slow/lineage` `/__slow/part/*.glb` GET 与 POST 全部 404 + `{code:'DISABLED'}`，而 `/` 与 `/dev/parts.html` 照常 200。**踩到的坑**：preview 带 SPA 回退，一开始 GET 拿到的是 200 + index.html —— 前端会在 JSON.parse 上炸掉，「不存在」读起来像 bug 而不是降级。取证 `scratch/evidence/slow-loop-prod.log` |
+| 慢回路前端（提交/轮询/热插拔/血统抽取） | `spec-only` | T-17 的前端一半。接口清单在 `docs/17 §8` |
 | Stage / 后期 | 见上面四行 | T-09 已落地；仍欠：接进 `main.ts`（`stage.render()` / `stage.frame()` / `stage.timeScale`）、真人实测、现场投影亮度 |
 | 开场选择页（dither 轮播） | `experimental` | `/dev/choose.html`：6 张卡滚/选/进，`?theme=xeno` 跳过，数字键直选，空闲自动选（`?idle=6000` 验过）；截图 `scratch/evidence/choose-0*.png`。上游 `gl/` 已移植进 `src/vendor/dither-carousel/`（MIT + LICENSE 在位，`public/` 素材一张没拿）。未验：真实现场投影分辨率与触摸屏 |
 | 选择页无 WebGL 降级（DOM 列表） | `experimental` | `/dev/choose.html?gl=off`：6 张卡列出、点选写 `?theme=`、键盘与自动选择照常；控制台 `mode=fallback`。排版已并入 `type.css`（等宽、同底色、卡片图 —— docs/23 §S2「降级路径也是作品的一部分」），列表模式下底部常驻名牌收起、提示语改写成"点一行即确认"。截图 `scratch/evidence/ui-choose-fallback.png`。真实的 context lost 分支 `Not run` |
@@ -98,6 +101,13 @@
 | 品牌字体规范 + 海报 | — | 仍在推进中 |
 
 ## 明确还没接上的
+
+- **慢回路在现场（kiosk）是关着的。** `npm run kiosk` = 生产构建 = `/__slow` 404。
+  要让这条回路在装置上活着，现场那台机器得跑 `npm run dev`，或者由收口的人决定
+  给 preview 也接一份 —— 那是一个产品判断，不是技术障碍（`docs/17 §1`）。
+- **慢回路从没打过一次真的 Rodin。** 整条链在 `SLOW_FAKE=1` 下端到端跑通，
+  但 image-to-3D 那一段（剪影当参考图、`creative` 模式、真实耗时）是 `Not run`：
+  这个 worktree 里没有 `.env`，一次真调用要 0.5 credits。`docs/09` U10 因此还空着。
 
 - **`mass` 还没有被任何条目选中。** docs/18 §3 要求 `RosterEntry` 增加 `bodyPlan: string`，
   而 roster / `ThemeDef` 住在 `packages/core/src/types.ts` —— **冻结契约**。
