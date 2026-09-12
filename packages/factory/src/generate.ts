@@ -9,9 +9,10 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { RECIPES, recipeById, type Recipe } from '../recipes/catalog.ts';
-import { THEMES, themeById } from '../recipes/themes.ts';
+
 import { generateOne, checkBalance, RodinError, PARALLELISM } from './rodin.ts';
 import { load, save, hashRecipe, needsRun, RAW_DIR, ROOT, type Ledger } from './ledger.ts';
+import { loadCuration, isKept } from './curation.ts';
 
 /** 硬预算闸门：任何一次调用最多花这么多 credits，防止脚本跑飞（docs/09 §C） */
 const MAX_CREDITS_PER_RUN = 40;
@@ -131,7 +132,13 @@ export async function generate(opt: GenerateOptions = {}): Promise<void> {
 
   const themes = [...new Set(all.map((r) => r.theme))];
   const refsByTheme = new Map(themes.map((t) => [t, loadRefs(t)]));
-  const todo = all.filter((r) => needsRun(ledger, r.id, genHash(r, refsByTheme.get(r.theme)!.key)));
+  // keep 的部件已经是资产，不再是配方的产物 —— 改 prompt 也不重生成（docs/14 §5）
+  const curation = loadCuration();
+  const protectedIds = all.filter((r) => isKept(curation, r.id)).map((r) => r.id);
+  const todo = all.filter(
+    (r) => !isKept(curation, r.id) && needsRun(ledger, r.id, genHash(r, refsByTheme.get(r.theme)!.key)),
+  );
+  if (protectedIds.length) console.log(`保护 ${protectedIds.length} 件已标 keep 的素材，不重新生成`);
 
   // anchor 自己不算在 todo 里（它要先跑），但要计入预算
   const needAnchor = themes.filter((t) => !refsByTheme.get(t)!.files.length);

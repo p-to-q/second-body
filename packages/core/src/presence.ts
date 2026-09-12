@@ -1,15 +1,11 @@
 /**
  * 在场状态机。见 docs/05 §5。
- * 全部时间常数在这里，现场调参只改这一块。
+ * 时间常数在 tuning.ts 的 PRESENCE 里，不在本文件。
  */
 import type { Presence, PresenceState } from './types.ts';
+import { PRESENCE as PRESENCE_TUNING, TIME } from './tuning.ts';
 
-export const PRESENCE_TUNING = {
-  enterDelay: 0.4,     // 连续检测到多久才算"来了"
-  loseDelay: 1.0,      // 连续丢失多久才算"走了"
-  enterAnim: 1.2,      // 出生动画时长
-  leaveAnim: 2.5,      // 溶解时长
-};
+export { PRESENCE_TUNING };
 
 export interface PresenceMachine {
   update(detected: boolean, dt: number): Presence;
@@ -27,7 +23,7 @@ export function createPresence(): PresenceMachine {
 
   const machine: PresenceMachine = {
     update(detected, dt) {
-      if (!Number.isFinite(dt) || dt <= 0) dt = 1 / 60;
+      dt = Number.isFinite(dt) && dt > 0 ? Math.min(dt, TIME.dtMax) : 1 / 60;
       elapsed += dt;
       justReset = false;
       hold = detected ? Math.max(0, hold) + dt : Math.min(0, hold) - dt;

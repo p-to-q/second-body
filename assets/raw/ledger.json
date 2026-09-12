@@ -1289,7 +1289,51 @@
       ],
       "completedAt": "2026-09-12T06:22:01.307Z",
       "durationSec": 39
+    },
+    "spine.athlete.a": {
+      "recipeHash": "sha256:b153b5ad87ad84cd",
+      "taskUuid": "978b773a-5b0d-4a03-b647-2a03e95dd954",
+      "status": "done",
+      "consumed": 0.5,
+      "files": [
+        "spine.athlete.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T06:33:58.554Z",
+      "error": null
+    },
+    "spine.softwear.a": {
+      "recipeHash": "sha256:5d4a17bcb291d16a",
+      "taskUuid": "ba646d3e-05dd-42fe-9c31-64b95a90a185",
+      "status": "done",
+      "consumed": 0.5,
+      "files": [
+        "spine.softwear.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T06:34:36.011Z",
+      "error": null
+    },
+    "spine.compact.a": {
+      "recipeHash": "sha256:afeb429eef86c54c",
+      "taskUuid": "c037b091-0efd-4f16-af98-8c59b867c9fc",
+      "status": "done",
+      "consumed": 0.5,
+      "files": [
+        "spine.compact.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T06:35:14.300Z",
+      "error": null
+    },
+    "spine.digitigrade.a": {
+      "recipeHash": "sha256:159af314f38500b0",
+      "taskUuid": "e5c9de8f-90e0-4985-9ae7-ca271c155bdf",
+      "status": "done",
+      "consumed": 0.5,
+      "files": [
+        "spine.digitigrade.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T06:35:48.072Z",
+      "error": null
     }
   },
-  "totalConsumed": 50
+  "totalConsumed": 52
 }

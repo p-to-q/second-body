@@ -14,7 +14,9 @@ const EPS = 2e-3;
 const MAX_TRIS = 5000;
 const MAX_BYTES = 1_500_000;   // docs/02 P5 的单件预算
 
-export function checkParts(): number {
+async function importCuration() { return await import('./curation.ts'); }
+
+export async function checkParts(): Promise<number> {
   const indexPath = resolve(PARTS_DIR, 'parts.json');
   if (!existsSync(indexPath)) { console.log('check:parts — 没有 parts.json，跳过（运行时会用占位几何）'); return 0; }
   const index: PartLibraryIndex = JSON.parse(readFileSync(indexPath, 'utf8'));
@@ -48,6 +50,13 @@ export function checkParts(): number {
     if (!index.parts.some((p) => p.slot === slot && p.tier <= t)) warns.push(`tier${t} 的 ${slot} 槽位没有候选`);
   }
 
+  const { loadCuration, summary } = await importCuration();
+  const cur = loadCuration();
+  const rejected = Object.entries(cur).filter(([, e]) => e.verdict === 'reject').map(([id]) => id);
+  const stillIndexed = rejected.filter((id) => index.parts.some((p) => p.id === id));
+  if (stillIndexed.length) warns.push(`${stillIndexed.length} 件已标 reject 但仍在 parts.json 里（genome 会排除它们，文件保留是故意的）`);
+  console.log(`  策展: ${summary(cur)}`);
+
   for (const w of warns) console.warn('  ⚠ ' + w);
   for (const e of errs) console.error('  ✗ ' + e);
   console.log(`check:parts — ${index.parts.length} 件, ${errs.length} 错, ${warns.length} 警告`);
@@ -55,4 +64,4 @@ export function checkParts(): number {
 }
 
 // 注意：路径含非 ASCII 时 import.meta.url 会被百分号编码，必须用 pathToFileURL 比较
-if (import.meta.url === pathToFileURL(process.argv[1]).href) process.exit(checkParts());
+if (import.meta.url === pathToFileURL(process.argv[1]).href) process.exit(await checkParts());

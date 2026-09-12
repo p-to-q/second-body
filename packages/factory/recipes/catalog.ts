@@ -6,7 +6,7 @@
  * 只影响规范化的字段（flip / partSymmetry）不参与哈希 —— 见 generate.ts 的 genHash。
  */
 import type { Slot, Tier } from '../../core/src/types.ts';
-import { GENERATED_THEMES, STYLE_BASE, themeById } from './themes.ts';
+import { GENERATED, SIGNATURE_SLOTS, STYLE_BASE, entryById } from './roster.ts';
 
 export interface Recipe {
   id: string;                 // = partId，命名 <slot>.<theme>.<variant>
@@ -56,7 +56,7 @@ function seedOf(id: string): number {
 
 function make(slotKey: string, themeId: string, variant: string): Recipe {
   const s = SLOTS[slotKey];
-  const t = themeById(themeId)!;
+  const t = entryById(themeId)!;
   const id = `${slotKey}.${themeId}.${variant}`;
   const mod = VARIANT_MOD[variant] ? `, ${VARIANT_MOD[variant]}` : '';
   return {
@@ -77,10 +77,17 @@ function make(slotKey: string, themeId: string, variant: string): Recipe {
 
 export const SLOT_KEYS = Object.keys(SLOTS);
 
-/** 每个生成型主题 × 10 槽位 × 2 变体 */
-export const RECIPES: Recipe[] = GENERATED_THEMES.flatMap((t) =>
-  SLOT_KEYS.flatMap((s) => Object.keys(t.tierOfVariant).map((v) => make(s, t.id, v))),
-);
+/**
+ * full 条目：10 槽位 × 2 变体 = 20 件
+ * light 条目：6 个标志性槽位 × 1 变体 = 6 件，其余槽位运行时向 base 借
+ *
+ * 这条分级是故意的：物种的**数量**本身就是这件作品的内容，
+ * 所以"再加一个物种"的成本必须低（3 credits），而不是 10。
+ */
+export const RECIPES: Recipe[] = GENERATED.flatMap((t) => {
+  const slots = t.coverage === 'full' ? SLOT_KEYS : SIGNATURE_SLOTS;
+  return slots.flatMap((s) => Object.keys(t.tierOfVariant).map((v) => make(s, t.id, v)));
+});
 
 export const recipesOfTheme = (themeId: string): Recipe[] => RECIPES.filter((r) => r.theme === themeId);
 

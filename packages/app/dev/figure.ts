@@ -11,11 +11,12 @@
 import * as THREE from 'three/webgpu';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { attachMatrix, jointMatrix } from '../../core/src/attach.ts';
-import { SLOT_OF_BONE, IS_LEFT, SLOT_WIDTH, SLOT_FIT, ALL_BONE_IDS } from '../../core/src/slots.ts';
+import { SLOT_OF_BONE, IS_LEFT, ALL_BONE_IDS } from '../../core/src/slots.ts';
+import { SLOT_FIT, SLOT_WIDTH, SKELETON, MORPH } from '../../core/src/tuning.ts';
 import type { Bone, BoneId, Mat4, PartLibraryIndex, PartMeta, Vec3 } from '../../core/src/types.ts';
 
 const hud = document.getElementById('hud')!;
-const BODY_HEIGHT = 1.7;
+const BODY_HEIGHT = SKELETON.referenceHeight;
 
 // ── 合成 A-pose 骨架（米，Y-up，面朝 +Z；左侧在 +X，与镜像后的世界一致） ──────────
 const J: Record<string, Vec3> = {
@@ -111,7 +112,7 @@ async function build(theme: string) {
   const jointMeta = index.parts.find((p) => p.slot === 'joint' && p.family === theme);
   if (jointMeta) {
     for (const name of ['chest', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'hipL', 'hipR', 'kneeL', 'kneeR']) {
-      const r = (SLOT_WIDTH.joint * bodyScale * 0.75) / Math.max(1e-4, jointMeta.localGirth);
+      const r = (SLOT_WIDTH.joint * bodyScale * MORPH.jointCapScale) / Math.max(1e-4, jointMeta.localGirth);
       jointMatrix(J[name], r, m);
       const obj = await geometryOf(jointMeta);
       obj.matrixAutoUpdate = false;

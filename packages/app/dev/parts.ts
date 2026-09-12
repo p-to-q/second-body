@@ -37,7 +37,13 @@ const COLS = Math.max(1, VARIANT_ORDER.length);
 const ROWS = Math.max(1, usedSlots.length);
 const CW = 1.25, CH = 1.5;   // 每格宽/高
 
+type Verdict = 'keep' | 'reject' | null;
+const curation: Record<string, { verdict: Verdict }> =
+  await fetch('/parts/curation.json').then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
+
 const spinners: THREE.Group[] = [];
+const cells: { meta: PartMeta; cell: THREE.Group; frame: THREE.LineSegments }[] = [];
+const FRAME_COLOR: Record<string, number> = { keep: 0x3ddc84, reject: 0xe0455a, none: 0x2a3038 };
 metas.forEach((meta) => {
   const col = Math.max(0, VARIANT_ORDER.indexOf(variantOf(meta.id)));
   const row = Math.max(0, usedSlots.indexOf(meta.slot));
@@ -56,9 +62,16 @@ metas.forEach((meta) => {
     new THREE.LineBasicMaterial({ color: 0x3a4450 }),
   ));
 
+  // 评级外框：绿=keep 红=reject 灰=未评
+  const frameGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(CW * 0.9, 1.18, CW * 0.9));
+  const frame = new THREE.LineSegments(frameGeo, new THREE.LineBasicMaterial({ color: FRAME_COLOR.none }));
+  frame.position.y = 0.5;
+  cell.add(frame);
+
   const spin = new THREE.Group();
   cell.add(spin);
   spinners.push(spin);
+  cells.push({ meta, cell, frame });
 
   loader.load(`/parts/${meta.file}`, (gltf) => {
     gltf.scene.traverse((o) => { if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).material = material; });
@@ -83,11 +96,48 @@ addEventListener('resize', fit);
 
 const odd = metas.filter((m) => m.localGirth > 1.2 || m.localGirth < 0.08 || m.triCount > 5000);
 hud.textContent = [
-  `${metas.length} parts · 红=socketA(底，应靠近躯干) 蓝=socketB(顶) · 空格暂停旋转`,
+  `${metas.length} parts · 红=socketA(底) 蓝=socketB(顶) · 空格暂停 · 点部件评级(未评→keep→reject)`,
   `行(上→下): ${usedSlots.join(' / ')}`,
   `列(左→右): ${VARIANT_ORDER.join(' / ')}`,
   odd.length ? `\n⚠ 可疑: ${odd.map((m) => `${m.id}(girth=${m.localGirth.toFixed(2)})`).join(', ')}` : '\n✓ 没有明显异常的比例',
 ].join('\n');
+
+function paintFrames() {
+  for (const c of cells) {
+    const v = curation[c.meta.id]?.verdict ?? 'none';
+    (c.frame.material as THREE.LineBasicMaterial).color.setHex(FRAME_COLOR[v] ?? FRAME_COLOR.none);
+  }
+  const keep = Object.values(curation).filter((x) => x.verdict === 'keep').length;
+  const rej = Object.values(curation).filter((x) => x.verdict === 'reject').length;
+  stat.textContent = `策展: keep ${keep} · reject ${rej} · 未评 ${metas.length - keep - rej}`;
+}
+const stat = document.createElement('div');
+stat.style.cssText = 'position:fixed;right:12px;top:10px;color:#9aa;font:12px ui-monospace,monospace';
+document.body.appendChild(stat);
+paintFrames();
+
+// 点一下循环 未评 → keep → reject → 未评。好素材必须显式保留（docs/14 §5）
+const ray = new THREE.Raycaster();
+renderer.domElement.addEventListener('pointerdown', async (ev) => {
+  const rect = renderer.domElement.getBoundingClientRect();
+  const ndc = new THREE.Vector2(
+    ((ev.clientX - rect.left) / rect.width) * 2 - 1,
+    -((ev.clientY - rect.top) / rect.height) * 2 + 1,
+  );
+  ray.setFromCamera(ndc, camera);
+  let best: typeof cells[number] | null = null, bestD = Infinity;
+  for (const c of cells) {
+    const d = Math.hypot(c.cell.position.x - ray.ray.origin.x - ray.ray.direction.x * 10,
+                         c.cell.position.y + 0.5 - ray.ray.origin.y - ray.ray.direction.y * 10);
+    if (d < bestD) { bestD = d; best = c; }
+  }
+  if (!best || bestD > CW * 0.6) return;
+  const cur = curation[best.meta.id]?.verdict ?? null;
+  const next: Verdict = cur === null ? 'keep' : cur === 'keep' ? 'reject' : null;
+  if (next === null) delete curation[best.meta.id]; else curation[best.meta.id] = { verdict: next };
+  paintFrames();
+  await fetch('/__curate', { method: 'POST', body: JSON.stringify({ id: best.meta.id, verdict: next }) });
+});
 
 let paused = false;
 addEventListener('keydown', (e) => { if (e.code === 'Space') { paused = !paused; e.preventDefault(); } });

@@ -1,4 +1,5 @@
 export * from './types.ts';
+export * from './tuning.ts';
 export * from './vec.ts';
 export * from './rng.ts';
 export * from './filter.ts';

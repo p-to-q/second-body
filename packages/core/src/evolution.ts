@@ -1,20 +1,11 @@
 /**
  * 演化状态机：运动能量 → charge → tier。见 docs/05 §3。
- * 现场调参只改 EVOLUTION_TUNING。
+ * 参数在 tuning.ts 的 EVOLUTION 里，不在本文件。
  */
 import type { EvolutionState, MotionFeatures, Tier } from './types.ts';
+import { EVOLUTION as EVOLUTION_TUNING, TIME } from './tuning.ts';
 
-export const EVOLUTION_TUNING = {
-  gain: 1.0,
-  decay: 0.08,
-  /** 各档的 charge 阈值 */
-  thresholds: [0, 1.5, 5.0, 11.0],
-  /** 降档滞回：低于 threshold*(1-hysteresis) 才降 */
-  hysteresis: 0.25,
-  /** 两次换装之间最小间隔（秒），防止在阈值附近反复横跳 */
-  cooldown: 2.0,
-  chargeMax: 14.0,
-};
+export { EVOLUTION_TUNING };
 
 export interface EvolutionMachine {
   update(f: MotionFeatures, dt: number): EvolutionState;
@@ -42,7 +33,7 @@ export function createEvolution(): EvolutionMachine {
 
   return {
     update(f, dt) {
-      if (!Number.isFinite(dt) || dt <= 0) dt = 1 / 60;
+      dt = Number.isFinite(dt) && dt > 0 ? Math.min(dt, TIME.dtMax) : 1 / 60;
       const energy = Number.isFinite(f?.energy) ? Math.max(0, f.energy) : 0;
       charge = Math.min(T.chargeMax, Math.max(0, charge + (energy * T.gain - T.decay) * dt));
       sinceChange += dt;

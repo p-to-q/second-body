@@ -19,7 +19,9 @@
     "check": "npm run typecheck && npm run test && npm run check:parts",
     "typecheck": "tsc -p tsconfig.json",
     "check:parts": "node packages/factory/src/check-parts.ts",
-    "doctor": "node packages/factory/src/doctor.ts"
+    "doctor": "node packages/factory/src/doctor.ts",
+    "factory:curate": "node --env-file=.env packages/factory/src/cli.ts curate",
+    "factory:roster": "node --env-file=.env packages/factory/src/cli.ts roster"
   },
   "devDependencies": {
     "@types/node": "^22.20.2",

@@ -133,16 +133,26 @@ export interface MaterialDef {
   emissive?: Vec3;
 }
 
-/** 主题 = 观众在开场轮播里选的那个"世界"。见 docs/12-SPEC-themes.md */
+/**
+ * 一个"可以变成的身体"。观众在开场轮播里选的就是它。
+ * 权威定义在 packages/factory/recipes/roster.ts，见 docs/14-SPEC-roster.md。
+ */
 export interface ThemeDef {
   id: string;
+  /** archetype = 机器人物种；guest = 嘉宾；character = 角色 */
+  kind: 'archetype' | 'guest' | 'character';
   name: string;      // 中文名
   nameEn: string;
   tagline: string;   // 轮播卡片上的一行
   /** [primary, secondary, accent] 的 materialId */
   palette: string[];
-  /** procedural 主题不依赖 parts.json 里的部件，运行时用程序化几何 */
+  /** procedural 条目不依赖 parts.json 里的部件，运行时用程序化几何 */
   source: 'rodin' | 'procedural';
+  /** 形态空间坐标，0..1。轮播据此排布 */
+  axes: { humanLike: number; lifeLike: number };
+  /** light = 只自己生成 6 个标志性槽位，其余向 base 借 */
+  coverage: 'full' | 'light';
+  base?: string;
 }
 
 export interface PartLibraryIndex {

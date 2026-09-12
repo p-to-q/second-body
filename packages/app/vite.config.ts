@@ -26,6 +26,19 @@ function anchorWriter(): Plugin {
         res.statusCode = 200;
         res.end(JSON.stringify({ ok: true, bytes: Buffer.concat(chunks).length }));
       });
+
+      // 策展评级：/dev/parts.html 点一下部件就写回 assets/parts/curation.json
+      server.middlewares.use('/__curate', async (req, res) => {
+        if (req.method !== 'POST') { res.statusCode = 405; return res.end('POST only'); }
+        const chunks: Buffer[] = [];
+        for await (const c of req) chunks.push(c as Buffer);
+        const { id, verdict, note } = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+        if (!id || typeof id !== 'string') { res.statusCode = 400; return res.end('bad id'); }
+        const { setVerdict } = await import('../factory/src/curation.ts');
+        const c = setVerdict(id, verdict ?? null, note);
+        res.statusCode = 200;
+        res.end(JSON.stringify({ ok: true, count: Object.keys(c).length }));
+      });
     },
   };
 }
