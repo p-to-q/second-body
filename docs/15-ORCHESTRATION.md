@@ -85,6 +85,23 @@ until ! pgrep -f "[c]li.ts generate" >/dev/null; do sleep 10; done  # ✅ 方括
 `assets/raw/` 是空的（被 gitignore）。写回类的中间件会把文件写进错误的目录。
 **规则**：任务卡里凡是要开 dev server 的，都必须先确认端口对应的是哪个目录。
 
+### 6.4 代理 rebase 到"正在移动的 main"上，会暂存出删除冻结契约的变更
+
+T-16 在整理提交时用了 `git reset --soft main`。而在它工作期间，
+编排者往 main 上落了一个新提交（A 档身体方案）。
+于是它的暂存区一度显示：**要删掉 `packages/core/src/bodyplan.ts`、
+并从冻结契约 `types.ts` 里移除 `bodyPlan` 字段**。
+
+它没有提交那个状态，退回旧基线重做再 rebase —— 这是对的，而且它主动报了上来。
+但换一个不够警觉的代理，这一步会**静默删掉别人刚落地的东西**。
+
+**规则**：
+- 代理整理提交时不要用 `git reset --soft main`（main 会动）。
+  用 `git reset --soft <自己分支的起点 sha>`，那个 sha 是不动的。
+- 提交前一律 `git diff --cached --stat` 看一眼：**出现自己泳道以外的文件就是错的**，
+  尤其是 `packages/core/src/types.ts` / `tuning.ts` 这两个冻结契约。
+- 编排者在有代理在跑时往 main 落提交，要意识到这会让所有分支的"相对 main"含义发生变化。
+
 ## 7. 编排者自己的清单
 
 - [ ] 每条线回来先看 Validation 那一栏，再看 diff
