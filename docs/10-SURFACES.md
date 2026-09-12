@@ -16,14 +16,15 @@
 | 幂等台账 `ledger.json` | `stable` | 第二次 `--dry-run` 报 "需要生成 0 个" |
 | 预算闸门（单次 ≤40 credits、余额检查） | `stable` | 代码路径已走通；超额分支 `Not run` |
 | 规范化（主轴 +Y / socketA 原点 / 长度 1 / 去贴图 / 单 mesh） | `stable` | `npm run factory:normalize`：6/6 无 warning；2.3MB → ~110KB |
-| 长轴朝向自动判定（粗端朝下） | `experimental` | `foot` 判错，已用 `Recipe.flip` 人工覆盖；主题化后需重新复检（T-13） |
+| 长轴朝向自动判定（粗端朝下） | `experimental` | 186 件复检：9 个槽位方向一致（少数反例都是 lo≈hi 的 near-symmetric 件，无所谓）。**`foot` 是 12:12 对半分**，槽位级 `flip` 布尔值无论取 true/false 都只能对一半 —— 需要逐件 flip 或给 foot 反转启发式，**不花 credits**（T-13） |
 | 容差焊接 + 逐级减面兜底 | `stable` | 对 Rodin 返回的 1.5M 面未焊接网格：1,515,338 → 4,884 tris，文件 66 MB → 148 KB |
-| 部件契约检查 `npm run check:parts` | `stable` | 50 件 0 错 0 警告；捕获过一次"prune 没跑导致 66 MB"的真实回归 |
-| 部件对照表 `/dev/parts.html`（行=槽位，列=变体） | `stable` | 截图见 `scratch/evidence/` |
+| 部件契约检查 `npm run check:parts` | `stable` | 186 件 0 错 1 警告；唯一的警告是「10 件已 reject 但仍在 parts.json」—— 按 docs/14 §5 是故意的（genome 排除、文件保留）。捕获过一次"prune 没跑导致 66 MB"的真实回归 |
+| 部件对照表 `/dev/parts.html`（行=槽位，列=变体） | `stable` | 186 件全部渲出；对照表截图 `scratch/evidence/parts-sheet-2026-09-12.png`（红框=已 reject） |
+| 素材策展 `curation.json` / `factory:curate` | `stable` | 第一遍人工过筛：10 件 reject（digitigrade 全 6 件多物体、wheelleg/autonomous 的 spine、head.softwear.a、joint.patrol.a），0 件 keep —— keep 是审美判断，留给项目负责人 |
 | 装配预览 `/dev/figure.html`（合成 A-pose × 运行时 PartLibrary/Creature） | `stable` | 已改为驱动真正的运行时模块；`?theme=&seed=&tier=&debug=1`，porcelain/industrial/coral 截图见 `scratch/evidence/creature-*.png`；它抓到了「头被颈骨压扁」这个真 bug |
-| 主题 anchor 渲染 `/dev/anchor.html` | `stable` | 5 个主题的 `_anchor.png` 全部生成（porcelain 白 / industrial 黑 / patrol 黄黑 / xeno 深蓝肋 / coral） |
-| image-to-3D（以 anchor 图为参考） | `experimental` | 提交路径已验证（HTTP 201）；全主题批量生成进行中 |
-| 100 件主题部件库（5 主题 × 10 槽位 × 2 变体） | `experimental` | 生成中 |
+| 主题 anchor 渲染 `/dev/anchor.html` | `stable` | 21 个条目的 `_anchor.png` 全部生成，截图 `scratch/evidence/anchors-2026-09-12.png`；`guest.founder` 无 `look` 故无几何、渲染失败是预期 |
+| image-to-3D（以 anchor 图为参考） | `stable` | 14 个 light 条目 × 5 件跑完：70/70 成功 0 失败，35 credits。**已知偏差**：bbox 细长的槽位（upperArm/foreArm/shin/thigh）成形好；bbox 近立方的 `joint` / `foot` / 部分 `head` 会把躯干 anchor 的轮廓照抄成"小躯干"—— 需要改 prompt/bbox，花 credits，留给人决定 |
+| 186 件部件库（5 个 full × 20 + 16 个 light × 6） | `stable` | `factory:plan` 全部 done；`check:parts` 186 件 0 错。`wheelleg` / `autonomous` 只有 anchor 一件：它们的 `spine.<id>.a` 生成坏了，phase 2 已主动跳过，没烧那 5 credits |
 
 ## Core（纯逻辑）
 
@@ -45,6 +46,7 @@
 |---|---|---|
 | Vite + `three/webgpu` 渲染栈 | `stable` | `/dev/parts.html` 在 WebGPU 下正常出图 |
 | **主程序 `src/main.ts`（整条链收口）** | `experimental` | `/?demo=1&debug=1&theme=patrol&seed=99&tier=2` 装出整具真部件身体：**120fps · CPU 0.8ms · 30 实例 · 89k 三角 · 13 draw · 推理 30Hz**，全部在 `BUDGET` 内（`scratch/evidence/main-chain-patrol.png`）。tier 0 时如设计般是素几何（`main-chain-tier0.png`）。**只在回放数据上跑过，没接过真人** |
+| **玩法扩展点 `src/acts/`（Act / Director）** | `experimental` | `/?demo=1&debug=1&act=echo` → HUD 显示 `act echo 回声: 延迟 1.2s`，120fps / CPU 0.5ms。出错隔离（连续 3 次抛异常自动禁用并回落 follow）的分支 `Not run` |
 | `src/stage/stage.ts` 舞台最小版（相机/三点光/地面/在场明暗） | `experimental` | 同上两张截图。正经 look dev 仍欠 T-09 |
 | `src/assets/library.ts` PartLibrary（parts.json + glb + 程序化占位） | `stable` | 把 `parts.json` 改名 → 页面照跑，30 个占位实例（`creature-fallback-no-partsjson.png`）；单个 glb 改名 → 只有那一个槽位退回占位，16/17 正常（`creature-one-glb-missing-head-fallback.png`）|
 | `src/creature/assemble.ts` 纯装配（挂载 + 关节盖片） | `stable` | 30 个实例的 `M·(0,0,0)` 与 `bone.p0` 误差 0；stretch 槽位 `M·(0,1,0)` 与 `p1` 误差 0 |

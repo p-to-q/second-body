@@ -15,6 +15,7 @@ import { createMotion } from '../../core/src/motion.ts';
 import { createEvolution } from '../../core/src/evolution.ts';
 import { createPresence } from '../../core/src/presence.ts';
 import { makeGenome } from '../../core/src/genome.ts';
+import { mulberry32 } from '../../core/src/rng.ts';
 import { CAPTURE } from '../../core/src/tuning.ts';
 import type { MotionFeatures, Skeleton, Tier } from '../../core/src/types.ts';
 
@@ -26,6 +27,7 @@ import { chooseTheme, themeFromUrl } from './choose/choose.ts';
 import { createFrameLoop } from './shell/safe-frame.ts';
 import { enterKiosk, readFlags } from './shell/kiosk.ts';
 import { createHud } from './shell/hud.ts';
+import { ACTS, createDirector, type World } from './acts/index.ts';
 
 const flags = readFlags();
 
@@ -81,29 +83,48 @@ async function boot(): Promise<void> {
   let seed = flags.seed ?? (Math.random() * 0xffffffff) >>> 0;   // 会话级种子，仅此一处
   let lastFeatures: MotionFeatures | null = null;
   let lastSkeleton: Skeleton | null = null;
+  let tier: Tier = (flags.tier ?? 0) as Tier;
+  let note = '';
+  let elapsedT = 0;
 
-  const morph = (tier: Tier) => {
+  const morph = (t?: Tier) => {
+    if (t !== undefined) tier = t;
     creature.remorph(makeGenome(seed, tier, library.index, { theme: theme ?? undefined }));
   };
-  morph((flags.tier ?? 0) as Tier);
+  morph(tier);
+
+  // ── 玩法扩展点（docs/16）。帧循环固定，玩法挂在旁边 ───────────────────────
+  const director = createDirector(ACTS);
+  const world: World = {
+    get t() { return elapsedT; },
+    get presence() { return presence.current; },
+    get skeleton() { return lastSkeleton; },
+    get features() { return lastFeatures; },
+    get evolution() { return evolution.state; },
+    get genome() { return creature.genome; },
+    creature, stage, library, capture, flags,
+    rng: mulberry32(seed),
+    morph,
+    note: (s) => { note = s; },
+  };
 
   // ── 6. 一帧（docs/06 §1） ────────────────────────────────────────────────
   const loop = createFrameLoop((dt) => {
+    elapsedT += dt;
     const raw = capture.latest();
     const detected = raw !== null && raw.score > CAPTURE.minScore;
     const p = presence.update(detected, dt);
 
     if (raw) {
-      const sk = stabilizer.apply(buildSkeleton(mediapipeToWorld(raw), raw.world, raw.t), dt);
-      lastSkeleton = sk;
-      lastFeatures = motion.update(sk, dt);
+      lastSkeleton = stabilizer.apply(buildSkeleton(mediapipeToWorld(raw), raw.world, raw.t), dt);
+      lastFeatures = motion.update(lastSkeleton, dt);
       const evo = evolution.update(lastFeatures, dt);
       // ?tier= 锁定时不让演化改形态 —— look dev 要的是一个不动的靶子
       if (evo.tierChanged && flags.tier === null) morph(evo.tier);
-      creature.pose(sk, p, dt);
-    } else if (lastSkeleton) {
-      creature.pose(lastSkeleton, p, dt);      // 追踪短暂丢失：保持最后姿态（P3）
     }
+    // 身体怎么动交给当前的 Act。追踪短暂丢失时 lastSkeleton 还在，
+    // Act 会继续用它 pose，所以画面不会僵死（P3）。
+    director.update(world, dt);
 
     // 人走了 → 换一个种子，下一个人是全新的身体（docs/05 §5）
     if (presence.justReset) {
@@ -123,12 +144,20 @@ async function boot(): Promise<void> {
       hud.update(loop.stats, {
         instances: s.instances, triangles: s.triangles,
         drawCalls: s.drawCalls, inferenceHz: capture.fps,
+        act: director.currentId ?? '—', note,
       });
     }
   });
 
+  if (flags.act && !director.force(flags.act, world)) {
+    console.warn(`[main] ?act=${flags.act} 不存在或已被禁用，按正常流程选`);
+  }
+
   loop.start();
-  console.info(`[main] running · theme=${theme} · seed=${seed} · capture=${flags.demo ? 'replay' : 'webcam'}`);
+  console.info(
+    `[main] running · theme=${theme} · seed=${seed} · ` +
+    `capture=${flags.demo ? 'replay' : 'webcam'} · acts=${ACTS.map((a) => a.id).join(',')}`,
+  );
 }
 
 void boot().catch((err) => {

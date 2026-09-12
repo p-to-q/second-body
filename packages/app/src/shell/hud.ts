@@ -5,7 +5,11 @@
 import { BUDGET } from '../../../core/src/tuning.ts';
 import type { FrameStats } from './safe-frame.ts';
 
-export interface HudCounts { instances: number; triangles: number; drawCalls: number; inferenceHz: number; }
+export interface HudCounts {
+  instances: number; triangles: number; drawCalls: number; inferenceHz: number;
+  /** 当前玩法（docs/16）与它想说的一句话 */
+  act?: string; note?: string;
+}
 
 export function createHud(): { update(s: FrameStats, c: Partial<HudCounts>): void; dispose(): void } {
   const el = document.createElement('div');
@@ -30,6 +34,7 @@ export function createHud(): { update(s: FrameStats, c: Partial<HudCounts>): voi
         row('tris', (c.triangles ?? 0) / 1000, BUDGET.maxTriangles / 1000, ' k'),
         row('draws', c.drawCalls ?? 0, BUDGET.maxDrawCalls),
         row('infer', c.inferenceHz ?? 0, 30, ' Hz', true),
+        c.act ? `<span style="color:#7fb3d5">act        ${c.act}${c.note ? '  ' + c.note : ''}</span>` : '',
         s.errors ? `<span style="color:#e0455a">errors ${s.errors}  ${s.lastError ?? ''}</span>` : '',
       ].filter(Boolean).join('\n');
     },

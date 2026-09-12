@@ -17,7 +17,9 @@ function anchorWriter(): Plugin {
       server.middlewares.use('/__anchor', async (req, res) => {
         if (req.method !== 'POST') { res.statusCode = 405; return res.end('POST only'); }
         const theme = (req.url ?? '').replace(/^\//, '').split('?')[0];
-        if (!/^[a-z0-9_-]+$/i.test(theme)) { res.statusCode = 400; return res.end('bad theme'); }
+        // roster id 允许带点（char.dumpling / guest.founder）。每个点后面必须还有字符，
+        // 所以 '..' 和前导点都进不来 —— 仍然挡住路径穿越。
+        if (!/^[a-z0-9_-]+(\.[a-z0-9_-]+)*$/i.test(theme)) { res.statusCode = 400; return res.end('bad theme'); }
         const chunks: Buffer[] = [];
         for await (const c of req) chunks.push(c as Buffer);
         const dir = resolve(ROOT, 'assets/refs', theme);

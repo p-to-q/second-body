@@ -12,6 +12,7 @@ export interface Flags {
   seed: number | null;  // ?seed=12345  复现一个具体的身体
   tier: number | null;  // ?tier=2      锁定 tier，调 look dev 用
   kiosk: boolean;       // ?kiosk=1  进入现场模式
+  act: string | null;   // ?act=echo 锁定一个玩法（docs/16）
 }
 
 export function readFlags(search = location.search): Flags {
@@ -33,6 +34,7 @@ export function readFlags(search = location.search): Flags {
     seed: num('seed'),
     tier: num('tier'),
     kiosk: q.get('kiosk') === '1',
+    act: q.get('act'),
   };
 }
 
