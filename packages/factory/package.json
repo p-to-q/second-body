@@ -1,0 +1,15 @@
+{
+  "name": "@sb/factory",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/cli.js",
+  "scripts": {
+    "test": "node --test test/"
+  },
+  "dependencies": {
+    "@gltf-transform/core": "^4.5.0",
+    "@gltf-transform/extensions": "^4.5.0",
+    "@gltf-transform/functions": "^4.5.0",
+    "meshoptimizer": "^1.2.0"
+  }
+}

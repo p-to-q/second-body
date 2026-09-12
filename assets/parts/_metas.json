@@ -1,0 +1,2802 @@
+[
+  {
+    "id": "clavicle.coral.a",
+    "slot": "clavicle",
+    "tier": 1,
+    "file": "clavicle.coral.a.glb",
+    "family": "coral",
+    "localGirth": 0.5384,
+    "triCount": 2796,
+    "aabb": {
+      "min": [
+        -0.26487821340560913,
+        0,
+        -0.2691814601421356
+      ],
+      "max": [
+        0.26487821340560913,
+        1,
+        0.2691814601421356
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 50436,
+      "recipeId": "clavicle.coral.a"
+    }
+  },
+  {
+    "id": "clavicle.coral.b",
+    "slot": "clavicle",
+    "tier": 2,
+    "file": "clavicle.coral.b.glb",
+    "family": "coral",
+    "localGirth": 0.5432,
+    "triCount": 2874,
+    "aabb": {
+      "min": [
+        -0.27119573950767517,
+        0,
+        -0.27162301540374756
+      ],
+      "max": [
+        0.27119573950767517,
+        1,
+        0.27162301540374756
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 51645,
+      "recipeId": "clavicle.coral.b"
+    }
+  },
+  {
+    "id": "clavicle.industrial.a",
+    "slot": "clavicle",
+    "tier": 1,
+    "file": "clavicle.industrial.a.glb",
+    "family": "industrial",
+    "localGirth": 0.5494,
+    "triCount": 2894,
+    "aabb": {
+      "min": [
+        -0.2697918713092804,
+        0,
+        -0.2747054994106293
+      ],
+      "max": [
+        0.2697918713092804,
+        1,
+        0.2747054994106293
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 27110,
+      "recipeId": "clavicle.industrial.a"
+    }
+  },
+  {
+    "id": "clavicle.industrial.b",
+    "slot": "clavicle",
+    "tier": 2,
+    "file": "clavicle.industrial.b.glb",
+    "family": "industrial",
+    "localGirth": 0.5434,
+    "triCount": 2904,
+    "aabb": {
+      "min": [
+        -0.2702801823616028,
+        0,
+        -0.27168408036231995
+      ],
+      "max": [
+        0.2702801823616028,
+        1,
+        0.27168408036231995
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 26707,
+      "recipeId": "clavicle.industrial.b"
+    }
+  },
+  {
+    "id": "clavicle.patrol.a",
+    "slot": "clavicle",
+    "tier": 1,
+    "file": "clavicle.patrol.a.glb",
+    "family": "patrol",
+    "localGirth": 0.5475,
+    "triCount": 2900,
+    "aabb": {
+      "min": [
+        -0.2737593650817871,
+        0,
+        -0.2630775570869446
+      ],
+      "max": [
+        0.2737593650817871,
+        1,
+        0.2630775570869446
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 39351,
+      "recipeId": "clavicle.patrol.a"
+    }
+  },
+  {
+    "id": "clavicle.patrol.b",
+    "slot": "clavicle",
+    "tier": 2,
+    "file": "clavicle.patrol.b.glb",
+    "family": "patrol",
+    "localGirth": 0.5555,
+    "triCount": 2858,
+    "aabb": {
+      "min": [
+        -0.2777574360370636,
+        0,
+        -0.2697308361530304
+      ],
+      "max": [
+        0.2777574360370636,
+        1,
+        0.2697308361530304
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 39754,
+      "recipeId": "clavicle.patrol.b"
+    }
+  },
+  {
+    "id": "clavicle.porcelain.a",
+    "slot": "clavicle",
+    "tier": 1,
+    "file": "clavicle.porcelain.a.glb",
+    "family": "porcelain",
+    "localGirth": 0.5479,
+    "triCount": 2852,
+    "aabb": {
+      "min": [
+        -0.2739730179309845,
+        0,
+        -0.2727522552013397
+      ],
+      "max": [
+        0.2739730179309845,
+        1,
+        0.2727522552013397
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 25880,
+      "recipeId": "clavicle.porcelain.a"
+    }
+  },
+  {
+    "id": "clavicle.porcelain.b",
+    "slot": "clavicle",
+    "tier": 2,
+    "file": "clavicle.porcelain.b.glb",
+    "family": "porcelain",
+    "localGirth": 0.5345,
+    "triCount": 2984,
+    "aabb": {
+      "min": [
+        -0.2660379707813263,
+        0,
+        -0.26722824573516846
+      ],
+      "max": [
+        0.2660379707813263,
+        1,
+        0.26722824573516846
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 27089,
+      "recipeId": "clavicle.porcelain.b"
+    }
+  },
+  {
+    "id": "clavicle.xeno.a",
+    "slot": "clavicle",
+    "tier": 1,
+    "file": "clavicle.xeno.a.glb",
+    "family": "xeno",
+    "localGirth": 0.55,
+    "triCount": 2962,
+    "aabb": {
+      "min": [
+        -0.2737593650817871,
+        0,
+        -0.27501070499420166
+      ],
+      "max": [
+        0.2737593650817871,
+        1,
+        0.27501070499420166
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 15105,
+      "recipeId": "clavicle.xeno.a"
+    }
+  },
+  {
+    "id": "clavicle.xeno.b",
+    "slot": "clavicle",
+    "tier": 2,
+    "file": "clavicle.xeno.b.glb",
+    "family": "xeno",
+    "localGirth": 0.7619,
+    "triCount": 2860,
+    "aabb": {
+      "min": [
+        -0.1862296313047409,
+        0,
+        -0.3809741735458374
+      ],
+      "max": [
+        0.1862296313047409,
+        1,
+        0.3809741735458374
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 13896,
+      "recipeId": "clavicle.xeno.b"
+    }
+  },
+  {
+    "id": "foot.coral.a",
+    "slot": "foot",
+    "tier": 1,
+    "file": "foot.coral.a.glb",
+    "family": "coral",
+    "localGirth": 0.5419,
+    "triCount": 2932,
+    "aabb": {
+      "min": [
+        -0.2461698204278946,
+        0,
+        -0.27095162868499756
+      ],
+      "max": [
+        0.2461698204278946,
+        1,
+        0.27095162868499756
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 63839,
+      "recipeId": "foot.coral.a"
+    }
+  },
+  {
+    "id": "foot.coral.b",
+    "slot": "foot",
+    "tier": 2,
+    "file": "foot.coral.b.glb",
+    "family": "coral",
+    "localGirth": 0.5268,
+    "triCount": 2798,
+    "aabb": {
+      "min": [
+        -0.22404322028160095,
+        0,
+        -0.26341328024864197
+      ],
+      "max": [
+        0.22404322028160095,
+        1,
+        0.26341328024864197
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 64242,
+      "recipeId": "foot.coral.b"
+    }
+  },
+  {
+    "id": "foot.industrial.a",
+    "slot": "foot",
+    "tier": 1,
+    "file": "foot.industrial.a.glb",
+    "family": "industrial",
+    "localGirth": 0.5375,
+    "triCount": 2972,
+    "aabb": {
+      "min": [
+        -0.24088995158672333,
+        0,
+        -0.26875418424606323
+      ],
+      "max": [
+        0.24088995158672333,
+        1,
+        0.26875418424606323
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 46431,
+      "recipeId": "foot.industrial.a"
+    }
+  },
+  {
+    "id": "foot.industrial.b",
+    "slot": "foot",
+    "tier": 2,
+    "file": "foot.industrial.b.glb",
+    "family": "industrial",
+    "localGirth": 0.9013,
+    "triCount": 2970,
+    "aabb": {
+      "min": [
+        -0.45065003633499146,
+        0,
+        -0.3015626072883606
+      ],
+      "max": [
+        0.45065003633499146,
+        1,
+        0.3015626072883606
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 46834,
+      "recipeId": "foot.industrial.b"
+    }
+  },
+  {
+    "id": "foot.patrol.a",
+    "slot": "foot",
+    "tier": 1,
+    "file": "foot.patrol.a.glb",
+    "family": "patrol",
+    "localGirth": 0.5351,
+    "triCount": 2940,
+    "aabb": {
+      "min": [
+        -0.2343893051147461,
+        0,
+        -0.26753342151641846
+      ],
+      "max": [
+        0.2343893051147461,
+        1,
+        0.26753342151641846
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 54522,
+      "recipeId": "foot.patrol.a"
+    }
+  },
+  {
+    "id": "foot.patrol.b",
+    "slot": "foot",
+    "tier": 2,
+    "file": "foot.patrol.b.glb",
+    "family": "patrol",
+    "localGirth": 0.9279,
+    "triCount": 2848,
+    "aabb": {
+      "min": [
+        -0.4639260172843933,
+        0,
+        -0.3730391263961792
+      ],
+      "max": [
+        0.4639260172843933,
+        1,
+        0.3730391263961792
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 54119,
+      "recipeId": "foot.patrol.b"
+    }
+  },
+  {
+    "id": "foot.porcelain.a",
+    "slot": "foot",
+    "tier": 1,
+    "file": "foot.porcelain.a.glb",
+    "family": "porcelain",
+    "localGirth": 0.5088,
+    "triCount": 2878,
+    "aabb": {
+      "min": [
+        -0.2382957935333252,
+        0,
+        -0.254410058259964
+      ],
+      "max": [
+        0.2382957935333252,
+        1,
+        0.254410058259964
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 41155,
+      "recipeId": "foot.porcelain.a"
+    }
+  },
+  {
+    "id": "foot.porcelain.b",
+    "slot": "foot",
+    "tier": 2,
+    "file": "foot.porcelain.b.glb",
+    "family": "porcelain",
+    "localGirth": 0.5277,
+    "triCount": 2898,
+    "aabb": {
+      "min": [
+        -0.2421412318944931,
+        0,
+        -0.26384055614471436
+      ],
+      "max": [
+        0.2421412318944931,
+        1,
+        0.26384055614471436
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 41558,
+      "recipeId": "foot.porcelain.b"
+    }
+  },
+  {
+    "id": "foot.xeno.a",
+    "slot": "foot",
+    "tier": 1,
+    "file": "foot.xeno.a.glb",
+    "family": "xeno",
+    "localGirth": 0.5329,
+    "triCount": 2960,
+    "aabb": {
+      "min": [
+        -0.24107307195663452,
+        0,
+        -0.2664652466773987
+      ],
+      "max": [
+        0.24107307195663452,
+        1,
+        0.2664652466773987
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 22352,
+      "recipeId": "foot.xeno.a"
+    }
+  },
+  {
+    "id": "foot.xeno.b",
+    "slot": "foot",
+    "tier": 2,
+    "file": "foot.xeno.b.glb",
+    "family": "xeno",
+    "localGirth": 0.539,
+    "triCount": 2868,
+    "aabb": {
+      "min": [
+        -0.24333149194717407,
+        0,
+        -0.2694866359233856
+      ],
+      "max": [
+        0.24333149194717407,
+        1,
+        0.2694866359233856
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 23561,
+      "recipeId": "foot.xeno.b"
+    }
+  },
+  {
+    "id": "foreArm.coral.a",
+    "slot": "foreArm",
+    "tier": 1,
+    "file": "foreArm.coral.a.glb",
+    "family": "coral",
+    "localGirth": 0.301,
+    "triCount": 2862,
+    "aabb": {
+      "min": [
+        -0.14963681995868683,
+        0,
+        -0.1505218744277954
+      ],
+      "max": [
+        0.14963681995868683,
+        1,
+        0.1505218744277954
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 42665,
+      "recipeId": "foreArm.coral.a"
+    }
+  },
+  {
+    "id": "foreArm.coral.b",
+    "slot": "foreArm",
+    "tier": 2,
+    "file": "foreArm.coral.b.glb",
+    "family": "coral",
+    "localGirth": 0.3036,
+    "triCount": 2892,
+    "aabb": {
+      "min": [
+        -0.15159006416797638,
+        0,
+        -0.15180370211601257
+      ],
+      "max": [
+        0.15159006416797638,
+        1,
+        0.15180370211601257
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 41456,
+      "recipeId": "foreArm.coral.b"
+    }
+  },
+  {
+    "id": "foreArm.industrial.a",
+    "slot": "foreArm",
+    "tier": 1,
+    "file": "foreArm.industrial.a.glb",
+    "family": "industrial",
+    "localGirth": 0.293,
+    "triCount": 2850,
+    "aabb": {
+      "min": [
+        -0.14652381837368011,
+        0,
+        -0.1434108465909958
+      ],
+      "max": [
+        0.14652381837368011,
+        1,
+        0.1434108465909958
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 50669,
+      "recipeId": "foreArm.industrial.a"
+    }
+  },
+  {
+    "id": "foreArm.industrial.b",
+    "slot": "foreArm",
+    "tier": 2,
+    "file": "foreArm.industrial.b.glb",
+    "family": "industrial",
+    "localGirth": 0.3123,
+    "triCount": 2840,
+    "aabb": {
+      "min": [
+        -0.15613745152950287,
+        0,
+        -0.14139656722545624
+      ],
+      "max": [
+        0.15613745152950287,
+        1,
+        0.14139656722545624
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 49460,
+      "recipeId": "foreArm.industrial.b"
+    }
+  },
+  {
+    "id": "foreArm.patrol.a",
+    "slot": "foreArm",
+    "tier": 1,
+    "file": "foreArm.patrol.a.glb",
+    "family": "patrol",
+    "localGirth": 0.3016,
+    "triCount": 2968,
+    "aabb": {
+      "min": [
+        -0.1507965624332428,
+        0,
+        -0.1424342393875122
+      ],
+      "max": [
+        0.1507965624332428,
+        1,
+        0.1424342393875122
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 27156,
+      "recipeId": "foreArm.patrol.a"
+    }
+  },
+  {
+    "id": "foreArm.patrol.b",
+    "slot": "foreArm",
+    "tier": 2,
+    "file": "foreArm.patrol.b.glb",
+    "family": "patrol",
+    "localGirth": 0.3133,
+    "triCount": 2846,
+    "aabb": {
+      "min": [
+        -0.15665629506111145,
+        0,
+        -0.14432643353939056
+      ],
+      "max": [
+        0.15665629506111145,
+        1,
+        0.14432643353939056
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 28365,
+      "recipeId": "foreArm.patrol.b"
+    }
+  },
+  {
+    "id": "foreArm.porcelain.a",
+    "slot": "foreArm",
+    "tier": 1,
+    "file": "foreArm.porcelain.a.glb",
+    "family": "porcelain",
+    "localGirth": 0.3131,
+    "triCount": 2804,
+    "aabb": {
+      "min": [
+        -0.15653420984745026,
+        0,
+        -0.14566928148269653
+      ],
+      "max": [
+        0.15653420984745026,
+        1,
+        0.14566928148269653
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 61145,
+      "recipeId": "foreArm.porcelain.a"
+    }
+  },
+  {
+    "id": "foreArm.porcelain.b",
+    "slot": "foreArm",
+    "tier": 2,
+    "file": "foreArm.porcelain.b.glb",
+    "family": "porcelain",
+    "localGirth": 0.298,
+    "triCount": 2986,
+    "aabb": {
+      "min": [
+        -0.14899590611457825,
+        0,
+        -0.14566929638385773
+      ],
+      "max": [
+        0.14899590611457825,
+        1,
+        0.14566929638385773
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 59936,
+      "recipeId": "foreArm.porcelain.b"
+    }
+  },
+  {
+    "id": "foreArm.xeno.a",
+    "slot": "foreArm",
+    "tier": 1,
+    "file": "foreArm.xeno.a.glb",
+    "family": "xeno",
+    "localGirth": 0.2962,
+    "triCount": 2898,
+    "aabb": {
+      "min": [
+        -0.14811085164546967,
+        0,
+        -0.14746993780136108
+      ],
+      "max": [
+        0.14811085164546967,
+        1,
+        0.14746993780136108
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 48890,
+      "recipeId": "foreArm.xeno.a"
+    }
+  },
+  {
+    "id": "foreArm.xeno.b",
+    "slot": "foreArm",
+    "tier": 2,
+    "file": "foreArm.xeno.b.glb",
+    "family": "xeno",
+    "localGirth": 0.3089,
+    "triCount": 2932,
+    "aabb": {
+      "min": [
+        -0.1544283777475357,
+        0,
+        -0.1469816267490387
+      ],
+      "max": [
+        0.1544283777475357,
+        1,
+        0.1469816267490387
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 48487,
+      "recipeId": "foreArm.xeno.b"
+    }
+  },
+  {
+    "id": "hand.coral.a",
+    "slot": "hand",
+    "tier": 1,
+    "file": "hand.coral.a.glb",
+    "family": "coral",
+    "localGirth": 0.6255,
+    "triCount": 2848,
+    "aabb": {
+      "min": [
+        -0.2512970566749573,
+        0,
+        -0.3127326965332031
+      ],
+      "max": [
+        0.2512970566749573,
+        1,
+        0.3127326965332031
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 45102,
+      "recipeId": "hand.coral.a"
+    }
+  },
+  {
+    "id": "hand.coral.b",
+    "slot": "hand",
+    "tier": 2,
+    "file": "hand.coral.b.glb",
+    "family": "coral",
+    "localGirth": 0.6342,
+    "triCount": 2850,
+    "aabb": {
+      "min": [
+        -0.2509918808937073,
+        0,
+        -0.317097008228302
+      ],
+      "max": [
+        0.2509918808937073,
+        1,
+        0.317097008228302
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 44699,
+      "recipeId": "hand.coral.b"
+    }
+  },
+  {
+    "id": "hand.industrial.a",
+    "slot": "hand",
+    "tier": 1,
+    "file": "hand.industrial.a.glb",
+    "family": "industrial",
+    "localGirth": 0.6155,
+    "triCount": 2950,
+    "aabb": {
+      "min": [
+        -0.23185619711875916,
+        0,
+        -0.30772751569747925
+      ],
+      "max": [
+        0.23185619711875916,
+        1,
+        0.30772751569747925
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 50572,
+      "recipeId": "hand.industrial.a"
+    }
+  },
+  {
+    "id": "hand.industrial.b",
+    "slot": "hand",
+    "tier": 2,
+    "file": "hand.industrial.b.glb",
+    "family": "industrial",
+    "localGirth": 0.6347,
+    "triCount": 2918,
+    "aabb": {
+      "min": [
+        -0.245467871427536,
+        0,
+        -0.317341148853302
+      ],
+      "max": [
+        0.245467871427536,
+        1,
+        0.317341148853302
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 51781,
+      "recipeId": "hand.industrial.b"
+    }
+  },
+  {
+    "id": "hand.patrol.a",
+    "slot": "hand",
+    "tier": 1,
+    "file": "hand.patrol.a.glb",
+    "family": "patrol",
+    "localGirth": 0.6147,
+    "triCount": 2888,
+    "aabb": {
+      "min": [
+        -0.24879448115825653,
+        0,
+        -0.30733078718185425
+      ],
+      "max": [
+        0.24879448115825653,
+        1,
+        0.30733078718185425
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 53793,
+      "recipeId": "hand.patrol.a"
+    }
+  },
+  {
+    "id": "hand.patrol.b",
+    "slot": "hand",
+    "tier": 2,
+    "file": "hand.patrol.b.glb",
+    "family": "patrol",
+    "localGirth": 0.6267,
+    "triCount": 2984,
+    "aabb": {
+      "min": [
+        -0.2504425346851349,
+        0,
+        -0.3133430778980255
+      ],
+      "max": [
+        0.2504425346851349,
+        1,
+        0.3133430778980255
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 52584,
+      "recipeId": "hand.patrol.b"
+    }
+  },
+  {
+    "id": "hand.porcelain.a",
+    "slot": "hand",
+    "tier": 1,
+    "file": "hand.porcelain.a.glb",
+    "family": "porcelain",
+    "localGirth": 0.6221,
+    "triCount": 2950,
+    "aabb": {
+      "min": [
+        -0.2458340972661972,
+        0,
+        -0.31105414032936096
+      ],
+      "max": [
+        0.2458340972661972,
+        1,
+        0.31105414032936096
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 3582,
+      "recipeId": "hand.porcelain.a"
+    }
+  },
+  {
+    "id": "hand.porcelain.b",
+    "slot": "hand",
+    "tier": 2,
+    "file": "hand.porcelain.b.glb",
+    "family": "porcelain",
+    "localGirth": 0.6203,
+    "triCount": 2850,
+    "aabb": {
+      "min": [
+        -0.24827565252780914,
+        0,
+        -0.3101690709590912
+      ],
+      "max": [
+        0.24827565252780914,
+        1,
+        0.3101690709590912
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 3179,
+      "recipeId": "hand.porcelain.b"
+    }
+  },
+  {
+    "id": "hand.xeno.a",
+    "slot": "hand",
+    "tier": 1,
+    "file": "hand.xeno.a.glb",
+    "family": "xeno",
+    "localGirth": 0.6197,
+    "triCount": 2976,
+    "aabb": {
+      "min": [
+        -0.25190746784210205,
+        0,
+        -0.3098333775997162
+      ],
+      "max": [
+        0.25190746784210205,
+        1,
+        0.3098333775997162
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 10787,
+      "recipeId": "hand.xeno.a"
+    }
+  },
+  {
+    "id": "hand.xeno.b",
+    "slot": "hand",
+    "tier": 2,
+    "file": "hand.xeno.b.glb",
+    "family": "xeno",
+    "localGirth": 0.6242,
+    "triCount": 2908,
+    "aabb": {
+      "min": [
+        -0.25129708647727966,
+        0,
+        -0.31209179759025574
+      ],
+      "max": [
+        0.25129708647727966,
+        1,
+        0.31209179759025574
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 11190,
+      "recipeId": "hand.xeno.b"
+    }
+  },
+  {
+    "id": "head.coral.a",
+    "slot": "head",
+    "tier": 1,
+    "file": "head.coral.a.glb",
+    "family": "coral",
+    "localGirth": 0.9592,
+    "triCount": 2780,
+    "aabb": {
+      "min": [
+        -0.4323689043521881,
+        0,
+        -0.4795825183391571
+      ],
+      "max": [
+        0.4323689043521881,
+        1,
+        0.4795825183391571
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 23085,
+      "recipeId": "head.coral.a"
+    }
+  },
+  {
+    "id": "head.coral.b",
+    "slot": "head",
+    "tier": 2,
+    "file": "head.coral.b.glb",
+    "family": "coral",
+    "localGirth": 0.9448,
+    "triCount": 2904,
+    "aabb": {
+      "min": [
+        -0.4275773763656616,
+        0,
+        -0.4723798930644989
+      ],
+      "max": [
+        0.4275773763656616,
+        1,
+        0.4723798930644989
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 21876,
+      "recipeId": "head.coral.b"
+    }
+  },
+  {
+    "id": "head.industrial.a",
+    "slot": "head",
+    "tier": 1,
+    "file": "head.industrial.a.glb",
+    "family": "industrial",
+    "localGirth": 0.9603,
+    "triCount": 2976,
+    "aabb": {
+      "min": [
+        -0.43789294362068176,
+        0,
+        -0.4801623821258545
+      ],
+      "max": [
+        0.43789294362068176,
+        1,
+        0.4801623821258545
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 46433,
+      "recipeId": "head.industrial.a"
+    }
+  },
+  {
+    "id": "head.industrial.b",
+    "slot": "head",
+    "tier": 2,
+    "file": "head.industrial.b.glb",
+    "family": "industrial",
+    "localGirth": 0.9138,
+    "triCount": 2824,
+    "aabb": {
+      "min": [
+        -0.4568760395050049,
+        0,
+        -0.3482878506183624
+      ],
+      "max": [
+        0.4568760395050049,
+        1,
+        0.3482878506183624
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 45224,
+      "recipeId": "head.industrial.b"
+    }
+  },
+  {
+    "id": "head.patrol.a",
+    "slot": "head",
+    "tier": 1,
+    "file": "head.patrol.a.glb",
+    "family": "patrol",
+    "localGirth": 0.9296,
+    "triCount": 4814,
+    "aabb": {
+      "min": [
+        -0.4067230522632599,
+        0,
+        -0.4648219645023346
+      ],
+      "max": [
+        0.4067230522632599,
+        1,
+        0.4648219645023346
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 43464,
+      "recipeId": "head.patrol.a"
+    }
+  },
+  {
+    "id": "head.patrol.b",
+    "slot": "head",
+    "tier": 2,
+    "file": "head.patrol.b.glb",
+    "family": "patrol",
+    "localGirth": 0.9304,
+    "triCount": 2890,
+    "aabb": {
+      "min": [
+        -0.4406091868877411,
+        0,
+        -0.4651773273944855
+      ],
+      "max": [
+        0.4406091868877411,
+        1,
+        0.4651773273944855
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 44673,
+      "recipeId": "head.patrol.b"
+    }
+  },
+  {
+    "id": "head.porcelain.a",
+    "slot": "head",
+    "tier": 1,
+    "file": "head.porcelain.a.glb",
+    "family": "porcelain",
+    "localGirth": 0.9487,
+    "triCount": 2978,
+    "aabb": {
+      "min": [
+        -0.4324299693107605,
+        0,
+        -0.47436368465423584
+      ],
+      "max": [
+        0.4324299693107605,
+        1,
+        0.47436368465423584
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 47533,
+      "recipeId": "head.porcelain.a"
+    }
+  },
+  {
+    "id": "head.porcelain.b",
+    "slot": "head",
+    "tier": 2,
+    "file": "head.porcelain.b.glb",
+    "family": "porcelain",
+    "localGirth": 0.9548,
+    "triCount": 2808,
+    "aabb": {
+      "min": [
+        -0.43426111340522766,
+        0,
+        -0.47741562128067017
+      ],
+      "max": [
+        0.43426111340522766,
+        1,
+        0.47741562128067017
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 46324,
+      "recipeId": "head.porcelain.b"
+    }
+  },
+  {
+    "id": "head.xeno.a",
+    "slot": "head",
+    "tier": 1,
+    "file": "head.xeno.a.glb",
+    "family": "xeno",
+    "localGirth": 0.9441,
+    "triCount": 2920,
+    "aabb": {
+      "min": [
+        -0.4356345236301422,
+        0,
+        -0.4720747172832489
+      ],
+      "max": [
+        0.4356345236301422,
+        1,
+        0.4720747172832489
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 37662,
+      "recipeId": "head.xeno.a"
+    }
+  },
+  {
+    "id": "head.xeno.b",
+    "slot": "head",
+    "tier": 2,
+    "file": "head.xeno.b.glb",
+    "family": "xeno",
+    "localGirth": 0.9413,
+    "triCount": 2926,
+    "aabb": {
+      "min": [
+        -0.43059879541397095,
+        0,
+        -0.47064030170440674
+      ],
+      "max": [
+        0.43059879541397095,
+        1,
+        0.47064030170440674
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 37259,
+      "recipeId": "head.xeno.b"
+    }
+  },
+  {
+    "id": "joint.coral.a",
+    "slot": "joint",
+    "tier": 1,
+    "file": "joint.coral.a.glb",
+    "family": "coral",
+    "localGirth": 0.9944,
+    "triCount": 2826,
+    "aabb": {
+      "min": [
+        -0.4952999949455261,
+        0,
+        -0.49719223380088806
+      ],
+      "max": [
+        0.4952999949455261,
+        1,
+        0.49719223380088806
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 34465,
+      "recipeId": "joint.coral.a"
+    }
+  },
+  {
+    "id": "joint.coral.b",
+    "slot": "joint",
+    "tier": 2,
+    "file": "joint.coral.b.glb",
+    "family": "coral",
+    "localGirth": 0.9783,
+    "triCount": 2854,
+    "aabb": {
+      "min": [
+        -0.4753402769565582,
+        0,
+        -0.48916560411453247
+      ],
+      "max": [
+        0.4753402769565582,
+        1,
+        0.48916560411453247
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 33256,
+      "recipeId": "joint.coral.b"
+    }
+  },
+  {
+    "id": "joint.industrial.a",
+    "slot": "joint",
+    "tier": 1,
+    "file": "joint.industrial.a.glb",
+    "family": "industrial",
+    "localGirth": 0.9864,
+    "triCount": 2824,
+    "aabb": {
+      "min": [
+        -0.4932246804237366,
+        0,
+        -0.39476895332336426
+      ],
+      "max": [
+        0.4932246804237366,
+        1,
+        0.39476895332336426
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 37781,
+      "recipeId": "joint.industrial.a"
+    }
+  },
+  {
+    "id": "joint.industrial.b",
+    "slot": "joint",
+    "tier": 2,
+    "file": "joint.industrial.b.glb",
+    "family": "industrial",
+    "localGirth": 0.9921,
+    "triCount": 2810,
+    "aabb": {
+      "min": [
+        -0.4960629642009735,
+        0,
+        -0.3103521764278412
+      ],
+      "max": [
+        0.4960629642009735,
+        1,
+        0.3103521764278412
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 36572,
+      "recipeId": "joint.industrial.b"
+    }
+  },
+  {
+    "id": "joint.patrol.a",
+    "slot": "joint",
+    "tier": 1,
+    "file": "joint.patrol.a.glb",
+    "family": "patrol",
+    "localGirth": 0.4315,
+    "triCount": 2806,
+    "aabb": {
+      "min": [
+        -0.20063480734825134,
+        0,
+        -0.21577244997024536
+      ],
+      "max": [
+        0.20063480734825134,
+        1,
+        0.21577244997024536
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 44476,
+      "recipeId": "joint.patrol.a"
+    }
+  },
+  {
+    "id": "joint.patrol.b",
+    "slot": "joint",
+    "tier": 2,
+    "file": "joint.patrol.b.glb",
+    "family": "patrol",
+    "localGirth": 0.9954,
+    "triCount": 2876,
+    "aabb": {
+      "min": [
+        -0.49768051505088806,
+        0,
+        -0.35152295231819153
+      ],
+      "max": [
+        0.49768051505088806,
+        1,
+        0.35152295231819153
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 45685,
+      "recipeId": "joint.patrol.b"
+    }
+  },
+  {
+    "id": "joint.porcelain.a",
+    "slot": "joint",
+    "tier": 1,
+    "file": "joint.porcelain.a.glb",
+    "family": "porcelain",
+    "localGirth": 0.9986,
+    "triCount": 2942,
+    "aabb": {
+      "min": [
+        -0.4992980659008026,
+        0,
+        -0.4960935115814209
+      ],
+      "max": [
+        0.4992980659008026,
+        1,
+        0.4960935115814209
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 53873,
+      "recipeId": "joint.porcelain.a"
+    }
+  },
+  {
+    "id": "joint.porcelain.b",
+    "slot": "joint",
+    "tier": 2,
+    "file": "joint.porcelain.b.glb",
+    "family": "porcelain",
+    "localGirth": 0.993,
+    "triCount": 2782,
+    "aabb": {
+      "min": [
+        -0.4965207874774933,
+        0,
+        -0.4964902698993683
+      ],
+      "max": [
+        0.4965207874774933,
+        1,
+        0.4964902698993683
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 52664,
+      "recipeId": "joint.porcelain.b"
+    }
+  },
+  {
+    "id": "joint.xeno.a",
+    "slot": "joint",
+    "tier": 1,
+    "file": "joint.xeno.a.glb",
+    "family": "xeno",
+    "localGirth": 0.9936,
+    "triCount": 2928,
+    "aabb": {
+      "min": [
+        -0.4967954754829407,
+        0,
+        -0.4964597225189209
+      ],
+      "max": [
+        0.4967954754829407,
+        1,
+        0.4964597225189209
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 61458,
+      "recipeId": "joint.xeno.a"
+    }
+  },
+  {
+    "id": "joint.xeno.b",
+    "slot": "joint",
+    "tier": 2,
+    "file": "joint.xeno.b.glb",
+    "family": "xeno",
+    "localGirth": 0.9998,
+    "triCount": 2930,
+    "aabb": {
+      "min": [
+        -0.4998779296875,
+        0,
+        -0.49050846695899963
+      ],
+      "max": [
+        0.4998779296875,
+        1,
+        0.49050846695899963
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 61055,
+      "recipeId": "joint.xeno.b"
+    }
+  },
+  {
+    "id": "shin.coral.a",
+    "slot": "shin",
+    "tier": 1,
+    "file": "shin.coral.a.glb",
+    "family": "coral",
+    "localGirth": 0.3256,
+    "triCount": 2988,
+    "aabb": {
+      "min": [
+        -0.15766343474388123,
+        0,
+        -0.1627907007932663
+      ],
+      "max": [
+        0.15766343474388123,
+        1,
+        0.1627907007932663
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 2791,
+      "recipeId": "shin.coral.a"
+    }
+  },
+  {
+    "id": "shin.coral.b",
+    "slot": "shin",
+    "tier": 2,
+    "file": "shin.coral.b.glb",
+    "family": "coral",
+    "localGirth": 0.3248,
+    "triCount": 2850,
+    "aabb": {
+      "min": [
+        -0.15979979932308197,
+        0,
+        -0.1624244600534439
+      ],
+      "max": [
+        0.15979979932308197,
+        1,
+        0.1624244600534439
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 3194,
+      "recipeId": "shin.coral.b"
+    }
+  },
+  {
+    "id": "shin.industrial.a",
+    "slot": "shin",
+    "tier": 1,
+    "file": "shin.industrial.a.glb",
+    "family": "industrial",
+    "localGirth": 0.3298,
+    "triCount": 2996,
+    "aabb": {
+      "min": [
+        -0.16489653289318085,
+        0,
+        -0.1627601832151413
+      ],
+      "max": [
+        0.16489653289318085,
+        1,
+        0.1627601832151413
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 26903,
+      "recipeId": "shin.industrial.a"
+    }
+  },
+  {
+    "id": "shin.industrial.b",
+    "slot": "shin",
+    "tier": 2,
+    "file": "shin.industrial.b.glb",
+    "family": "industrial",
+    "localGirth": 0.3189,
+    "triCount": 2816,
+    "aabb": {
+      "min": [
+        -0.15943355858325958,
+        0,
+        -0.1554049849510193
+      ],
+      "max": [
+        0.15943355858325958,
+        1,
+        0.1554049849510193
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 27306,
+      "recipeId": "shin.industrial.b"
+    }
+  },
+  {
+    "id": "shin.patrol.a",
+    "slot": "shin",
+    "tier": 1,
+    "file": "shin.patrol.a.glb",
+    "family": "patrol",
+    "localGirth": 0.3404,
+    "triCount": 2922,
+    "aabb": {
+      "min": [
+        -0.1702069193124771,
+        0,
+        -0.15543551743030548
+      ],
+      "max": [
+        0.1702069193124771,
+        1,
+        0.15543551743030548
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 28370,
+      "recipeId": "shin.patrol.a"
+    }
+  },
+  {
+    "id": "shin.patrol.b",
+    "slot": "shin",
+    "tier": 2,
+    "file": "shin.patrol.b.glb",
+    "family": "patrol",
+    "localGirth": 0.3473,
+    "triCount": 2914,
+    "aabb": {
+      "min": [
+        -0.17365561425685883,
+        0,
+        -0.1593419909477234
+      ],
+      "max": [
+        0.17365561425685883,
+        1,
+        0.1593419909477234
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 27967,
+      "recipeId": "shin.patrol.b"
+    }
+  },
+  {
+    "id": "shin.porcelain.a",
+    "slot": "shin",
+    "tier": 1,
+    "file": "shin.porcelain.a.glb",
+    "family": "porcelain",
+    "localGirth": 0.3737,
+    "triCount": 2860,
+    "aabb": {
+      "min": [
+        -0.18122445046901703,
+        0,
+        -0.1868400126695633
+      ],
+      "max": [
+        0.18122445046901703,
+        1,
+        0.1868400126695633
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 23339,
+      "recipeId": "shin.porcelain.a"
+    }
+  },
+  {
+    "id": "shin.porcelain.b",
+    "slot": "shin",
+    "tier": 2,
+    "file": "shin.porcelain.b.glb",
+    "family": "porcelain",
+    "localGirth": 0.3366,
+    "triCount": 2938,
+    "aabb": {
+      "min": [
+        -0.16828419268131256,
+        0,
+        -0.1624854952096939
+      ],
+      "max": [
+        0.16828419268131256,
+        1,
+        0.1624854952096939
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 23742,
+      "recipeId": "shin.porcelain.b"
+    }
+  },
+  {
+    "id": "shin.xeno.a",
+    "slot": "shin",
+    "tier": 1,
+    "file": "shin.xeno.a.glb",
+    "family": "xeno",
+    "localGirth": 0.3325,
+    "triCount": 2896,
+    "aabb": {
+      "min": [
+        -0.166269913315773,
+        0,
+        -0.16218030452728271
+      ],
+      "max": [
+        0.166269913315773,
+        1,
+        0.16218030452728271
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 29464,
+      "recipeId": "shin.xeno.a"
+    }
+  },
+  {
+    "id": "shin.xeno.b",
+    "slot": "shin",
+    "tier": 2,
+    "file": "shin.xeno.b.glb",
+    "family": "xeno",
+    "localGirth": 0.3319,
+    "triCount": 2824,
+    "aabb": {
+      "min": [
+        -0.16596472263336182,
+        0,
+        -0.15989135205745697
+      ],
+      "max": [
+        0.16596472263336182,
+        1,
+        0.15989135205745697
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 30673,
+      "recipeId": "shin.xeno.b"
+    }
+  },
+  {
+    "id": "spine.coral.a",
+    "slot": "spine",
+    "tier": 1,
+    "file": "spine.coral.a.glb",
+    "family": "coral",
+    "localGirth": 0.53,
+    "triCount": 3688,
+    "aabb": {
+      "min": [
+        -0.2260269820690155,
+        0,
+        -0.2650003135204315
+      ],
+      "max": [
+        0.2260269820690155,
+        1,
+        0.2650003135204315
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 2882,
+      "recipeId": "spine.coral.a"
+    }
+  },
+  {
+    "id": "spine.coral.b",
+    "slot": "spine",
+    "tier": 2,
+    "file": "spine.coral.b.glb",
+    "family": "coral",
+    "localGirth": 0.8473,
+    "triCount": 2784,
+    "aabb": {
+      "min": [
+        -0.4236708879470825,
+        0,
+        -0.26429834961891174
+      ],
+      "max": [
+        0.4236708879470825,
+        1,
+        0.26429834961891174
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 2479,
+      "recipeId": "spine.coral.b"
+    }
+  },
+  {
+    "id": "spine.industrial.a",
+    "slot": "spine",
+    "tier": 1,
+    "file": "spine.industrial.a.glb",
+    "family": "industrial",
+    "localGirth": 0.844,
+    "triCount": 2970,
+    "aabb": {
+      "min": [
+        -0.4220227897167206,
+        0,
+        -0.26768600940704346
+      ],
+      "max": [
+        0.4220227897167206,
+        1,
+        0.26768600940704346
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 34208,
+      "recipeId": "spine.industrial.a"
+    }
+  },
+  {
+    "id": "spine.industrial.b",
+    "slot": "spine",
+    "tier": 2,
+    "file": "spine.industrial.b.glb",
+    "family": "industrial",
+    "localGirth": 0.8472,
+    "triCount": 2876,
+    "aabb": {
+      "min": [
+        -0.4235793352127075,
+        0,
+        -0.26356589794158936
+      ],
+      "max": [
+        0.4235793352127075,
+        1,
+        0.26356589794158936
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 35417,
+      "recipeId": "spine.industrial.b"
+    }
+  },
+  {
+    "id": "spine.patrol.a",
+    "slot": "spine",
+    "tier": 1,
+    "file": "spine.patrol.a.glb",
+    "family": "patrol",
+    "localGirth": 0.8541,
+    "triCount": 2866,
+    "aabb": {
+      "min": [
+        -0.42702803015708923,
+        0,
+        -0.26429834961891174
+      ],
+      "max": [
+        0.42702803015708923,
+        1,
+        0.26429834961891174
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 51637,
+      "recipeId": "spine.patrol.a"
+    }
+  },
+  {
+    "id": "spine.patrol.b",
+    "slot": "spine",
+    "tier": 2,
+    "file": "spine.patrol.b.glb",
+    "family": "patrol",
+    "localGirth": 0.8458,
+    "triCount": 2946,
+    "aabb": {
+      "min": [
+        -0.42287737131118774,
+        0,
+        -0.2650003135204315
+      ],
+      "max": [
+        0.42287737131118774,
+        1,
+        0.2650003135204315
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 50428,
+      "recipeId": "spine.patrol.b"
+    }
+  },
+  {
+    "id": "spine.porcelain.a",
+    "slot": "spine",
+    "tier": 1,
+    "file": "spine.porcelain.a.glb",
+    "family": "porcelain",
+    "localGirth": 0.84,
+    "triCount": 2802,
+    "aabb": {
+      "min": [
+        -0.4200085401535034,
+        0,
+        -0.25926265120506287
+      ],
+      "max": [
+        0.4200085401535034,
+        1,
+        0.25926265120506287
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 64866,
+      "recipeId": "spine.porcelain.a"
+    }
+  },
+  {
+    "id": "spine.porcelain.b",
+    "slot": "spine",
+    "tier": 2,
+    "file": "spine.porcelain.b.glb",
+    "family": "porcelain",
+    "localGirth": 0.8435,
+    "triCount": 2914,
+    "aabb": {
+      "min": [
+        -0.42174816131591797,
+        0,
+        -0.2624976933002472
+      ],
+      "max": [
+        0.42174816131591797,
+        1,
+        0.2624976933002472
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 64463,
+      "recipeId": "spine.porcelain.b"
+    }
+  },
+  {
+    "id": "spine.xeno.a",
+    "slot": "spine",
+    "tier": 1,
+    "file": "spine.xeno.a.glb",
+    "family": "xeno",
+    "localGirth": 0.8312,
+    "triCount": 2986,
+    "aabb": {
+      "min": [
+        -0.4155832529067993,
+        0,
+        -0.25984251499176025
+      ],
+      "max": [
+        0.4155832529067993,
+        1,
+        0.25984251499176025
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 49383,
+      "recipeId": "spine.xeno.a"
+    }
+  },
+  {
+    "id": "spine.xeno.b",
+    "slot": "spine",
+    "tier": 2,
+    "file": "spine.xeno.b.glb",
+    "family": "xeno",
+    "localGirth": 0.8415,
+    "triCount": 3000,
+    "aabb": {
+      "min": [
+        -0.4207410216331482,
+        0,
+        -0.25911006331443787
+      ],
+      "max": [
+        0.4207410216331482,
+        1,
+        0.25911006331443787
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 49786,
+      "recipeId": "spine.xeno.b"
+    }
+  },
+  {
+    "id": "thigh.coral.a",
+    "slot": "thigh",
+    "tier": 1,
+    "file": "thigh.coral.a.glb",
+    "family": "coral",
+    "localGirth": 0.3832,
+    "triCount": 2942,
+    "aabb": {
+      "min": [
+        -0.19160103797912598,
+        0,
+        -0.18900689482688904
+      ],
+      "max": [
+        0.19160103797912598,
+        1,
+        0.18900689482688904
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 37881,
+      "recipeId": "thigh.coral.a"
+    }
+  },
+  {
+    "id": "thigh.coral.b",
+    "slot": "thigh",
+    "tier": 2,
+    "file": "thigh.coral.b.glb",
+    "family": "coral",
+    "localGirth": 0.39,
+    "triCount": 2782,
+    "aabb": {
+      "min": [
+        -0.190227672457695,
+        0,
+        -0.19501923024654388
+      ],
+      "max": [
+        0.190227672457695,
+        1,
+        0.19501923024654388
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 36672,
+      "recipeId": "thigh.coral.b"
+    }
+  },
+  {
+    "id": "thigh.industrial.a",
+    "slot": "thigh",
+    "tier": 1,
+    "file": "thigh.industrial.a.glb",
+    "family": "industrial",
+    "localGirth": 0.3839,
+    "triCount": 2912,
+    "aabb": {
+      "min": [
+        -0.19193676114082336,
+        0,
+        -0.1868095099925995
+      ],
+      "max": [
+        0.19193676114082336,
+        1,
+        0.1868095099925995
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 33277,
+      "recipeId": "thigh.industrial.a"
+    }
+  },
+  {
+    "id": "thigh.industrial.b",
+    "slot": "thigh",
+    "tier": 2,
+    "file": "thigh.industrial.b.glb",
+    "family": "industrial",
+    "localGirth": 0.3929,
+    "triCount": 2904,
+    "aabb": {
+      "min": [
+        -0.19645363092422485,
+        0,
+        -0.18909846246242523
+      ],
+      "max": [
+        0.19645363092422485,
+        1,
+        0.18909846246242523
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 32068,
+      "recipeId": "thigh.industrial.b"
+    }
+  },
+  {
+    "id": "thigh.patrol.a",
+    "slot": "thigh",
+    "tier": 1,
+    "file": "thigh.patrol.a.glb",
+    "family": "patrol",
+    "localGirth": 0.395,
+    "triCount": 2840,
+    "aabb": {
+      "min": [
+        -0.19749128818511963,
+        0,
+        -0.1822315752506256
+      ],
+      "max": [
+        0.19749128818511963,
+        1,
+        0.1822315752506256
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 62212,
+      "recipeId": "thigh.patrol.a"
+    }
+  },
+  {
+    "id": "thigh.patrol.b",
+    "slot": "thigh",
+    "tier": 2,
+    "file": "thigh.patrol.b.glb",
+    "family": "patrol",
+    "localGirth": 0.3903,
+    "triCount": 2984,
+    "aabb": {
+      "min": [
+        -0.19514131546020508,
+        0,
+        -0.18934261798858643
+      ],
+      "max": [
+        0.19514131546020508,
+        1,
+        0.18934261798858643
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 63421,
+      "recipeId": "thigh.patrol.b"
+    }
+  },
+  {
+    "id": "thigh.porcelain.a",
+    "slot": "thigh",
+    "tier": 1,
+    "file": "thigh.porcelain.a.glb",
+    "family": "porcelain",
+    "localGirth": 0.3916,
+    "triCount": 2996,
+    "aabb": {
+      "min": [
+        -0.19578222930431366,
+        0,
+        -0.18564976751804352
+      ],
+      "max": [
+        0.19578222930431366,
+        1,
+        0.18564976751804352
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 34249,
+      "recipeId": "thigh.porcelain.a"
+    }
+  },
+  {
+    "id": "thigh.porcelain.b",
+    "slot": "thigh",
+    "tier": 2,
+    "file": "thigh.porcelain.b.glb",
+    "family": "porcelain",
+    "localGirth": 0.4094,
+    "triCount": 2934,
+    "aabb": {
+      "min": [
+        -0.20469388365745544,
+        0,
+        -0.20032960176467896
+      ],
+      "max": [
+        0.20469388365745544,
+        1,
+        0.20032960176467896
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 33040,
+      "recipeId": "thigh.porcelain.b"
+    }
+  },
+  {
+    "id": "thigh.xeno.a",
+    "slot": "thigh",
+    "tier": 1,
+    "file": "thigh.xeno.a.glb",
+    "family": "xeno",
+    "localGirth": 0.3739,
+    "triCount": 2836,
+    "aabb": {
+      "min": [
+        -0.1869620978832245,
+        0,
+        -0.18497833609580994
+      ],
+      "max": [
+        0.1869620978832245,
+        1,
+        0.18497833609580994
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 7594,
+      "recipeId": "thigh.xeno.a"
+    }
+  },
+  {
+    "id": "thigh.xeno.b",
+    "slot": "thigh",
+    "tier": 2,
+    "file": "thigh.xeno.b.glb",
+    "family": "xeno",
+    "localGirth": 0.3859,
+    "triCount": 2824,
+    "aabb": {
+      "min": [
+        -0.19297443330287933,
+        0,
+        -0.1869926154613495
+      ],
+      "max": [
+        0.19297443330287933,
+        1,
+        0.1869926154613495
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 7191,
+      "recipeId": "thigh.xeno.b"
+    }
+  },
+  {
+    "id": "upperArm.coral.a",
+    "slot": "upperArm",
+    "tier": 1,
+    "file": "upperArm.coral.a.glb",
+    "family": "coral",
+    "localGirth": 0.3208,
+    "triCount": 2924,
+    "aabb": {
+      "min": [
+        -0.16041018068790436,
+        0,
+        -0.15729719400405884
+      ],
+      "max": [
+        0.16041018068790436,
+        1,
+        0.15729719400405884
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 2625,
+      "recipeId": "upperArm.coral.a"
+    }
+  },
+  {
+    "id": "upperArm.coral.b",
+    "slot": "upperArm",
+    "tier": 2,
+    "file": "upperArm.coral.b.glb",
+    "family": "coral",
+    "localGirth": 0.3185,
+    "triCount": 2918,
+    "aabb": {
+      "min": [
+        -0.15925045311450958,
+        0,
+        -0.1587926596403122
+      ],
+      "max": [
+        0.15925045311450958,
+        1,
+        0.1587926596403122
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 1416,
+      "recipeId": "upperArm.coral.b"
+    }
+  },
+  {
+    "id": "upperArm.industrial.a",
+    "slot": "upperArm",
+    "tier": 1,
+    "file": "upperArm.industrial.a.glb",
+    "family": "industrial",
+    "localGirth": 0.3159,
+    "triCount": 2750,
+    "aabb": {
+      "min": [
+        -0.1579381227493286,
+        0,
+        -0.15247513353824615
+      ],
+      "max": [
+        0.1579381227493286,
+        1,
+        0.15247513353824615
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 57141,
+      "recipeId": "upperArm.industrial.a"
+    }
+  },
+  {
+    "id": "upperArm.industrial.b",
+    "slot": "upperArm",
+    "tier": 2,
+    "file": "upperArm.industrial.b.glb",
+    "family": "industrial",
+    "localGirth": 0.3202,
+    "triCount": 2944,
+    "aabb": {
+      "min": [
+        -0.16010499000549316,
+        0,
+        -0.15320760011672974
+      ],
+      "max": [
+        0.16010499000549316,
+        1,
+        0.15320760011672974
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 55932,
+      "recipeId": "upperArm.industrial.b"
+    }
+  },
+  {
+    "id": "upperArm.patrol.a",
+    "slot": "upperArm",
+    "tier": 1,
+    "file": "upperArm.patrol.a.glb",
+    "family": "patrol",
+    "localGirth": 0.3176,
+    "triCount": 2834,
+    "aabb": {
+      "min": [
+        -0.1503387689590454,
+        0,
+        -0.1587926596403122
+      ],
+      "max": [
+        0.1503387689590454,
+        1,
+        0.1587926596403122
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 64860,
+      "recipeId": "upperArm.patrol.a"
+    }
+  },
+  {
+    "id": "upperArm.patrol.b",
+    "slot": "upperArm",
+    "tier": 2,
+    "file": "upperArm.patrol.b.glb",
+    "family": "patrol",
+    "localGirth": 0.326,
+    "triCount": 2796,
+    "aabb": {
+      "min": [
+        -0.1630043387413025,
+        0,
+        -0.14862966537475586
+      ],
+      "max": [
+        0.1630043387413025,
+        1,
+        0.14862966537475586
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 533,
+      "recipeId": "upperArm.patrol.b"
+    }
+  },
+  {
+    "id": "upperArm.porcelain.a",
+    "slot": "upperArm",
+    "tier": 1,
+    "file": "upperArm.porcelain.a.glb",
+    "family": "porcelain",
+    "localGirth": 0.3208,
+    "triCount": 2874,
+    "aabb": {
+      "min": [
+        -0.16037966310977936,
+        0,
+        -0.15336018800735474
+      ],
+      "max": [
+        0.16037966310977936,
+        1,
+        0.15336018800735474
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 19601,
+      "recipeId": "upperArm.porcelain.a"
+    }
+  },
+  {
+    "id": "upperArm.porcelain.b",
+    "slot": "upperArm",
+    "tier": 2,
+    "file": "upperArm.porcelain.b.glb",
+    "family": "porcelain",
+    "localGirth": 0.3155,
+    "triCount": 2798,
+    "aabb": {
+      "min": [
+        -0.15775498747825623,
+        0,
+        -0.15754136443138123
+      ],
+      "max": [
+        0.15775498747825623,
+        1,
+        0.15754136443138123
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 18392,
+      "recipeId": "upperArm.porcelain.b"
+    }
+  },
+  {
+    "id": "upperArm.xeno.a",
+    "slot": "upperArm",
+    "tier": 1,
+    "file": "upperArm.xeno.a.glb",
+    "family": "xeno",
+    "localGirth": 0.3109,
+    "triCount": 2924,
+    "aabb": {
+      "min": [
+        -0.15381799638271332,
+        0,
+        -0.15546603500843048
+      ],
+      "max": [
+        0.15381799638271332,
+        1,
+        0.15546603500843048
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 47922,
+      "recipeId": "upperArm.xeno.a"
+    }
+  },
+  {
+    "id": "upperArm.xeno.b",
+    "slot": "upperArm",
+    "tier": 2,
+    "file": "upperArm.xeno.b.glb",
+    "family": "xeno",
+    "localGirth": 0.3171,
+    "triCount": 2972,
+    "aabb": {
+      "min": [
+        -0.158548504114151,
+        0,
+        -0.15250563621520996
+      ],
+      "max": [
+        0.158548504114151,
+        1,
+        0.15250563621520996
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 47519,
+      "recipeId": "upperArm.xeno.b"
+    }
+  }
+]

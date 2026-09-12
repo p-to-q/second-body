@@ -1,0 +1,54 @@
+# Changes
+
+Append-only，最新在上。每条几行。
+只记录 **durable** 变更：坐标系约定、资产格式、协议、渲染模型、provider、部署。
+本地可逆的改动写在 commit 里，不写这里。
+
+格式：
+```
+## YYYY-MM-DD — 一句话
+Changed:    现在什么是真的
+Why:        原因，不是复述
+Forecloses: 这让什么变难或不可能
+```
+
+---
+
+## 2026-09-12 — 挂载分成 stretch / uniform 两种模式
+Changed:    `SLOT_FIT` 决定一个槽位是"沿骨头拉长"（四肢）还是"三轴同比例、尺寸由 `SLOT_WIDTH` 定"（头/躯干/手/脚/关节）。`SLOT_WIDTH` 对 uniform 槽位读作"整体大小"。
+Why:        装配预览里头被颈骨压成了一坨 —— 头不是一段可以被拉长的管子。把"有固有比例的物体"和"可拉伸的管子"分开，是让身体看起来像身体的最小改动。
+Forecloses: `SLOT_WIDTH` 这张表现在同时承担两种语义，读的时候必须先看 `SLOT_FIT`；uniform 槽位的部件不再随骨长变化，很长的颈/脚骨不会再被表达出来。
+
+---
+
+## 2026-09-12 — 引入 theme 轴，与 tier 正交
+Changed:    资产目录重构为 `theme × slot × variant`（`<slot>.<theme>.<variant>`）。六个主题：porcelain / industrial / patrol / xeno / coral / field。`PartLibraryIndex` 增加 `themes[]`，`Genome.family` 改名 `Genome.theme`。观众在开场轮播里选主题，tier 仍由运动挣得。
+Why:        "换一套皮肤"和"变得更复杂"是两件事，之前用同一个 family 字段表达，导致演化和风格互相绑架。分开之后，主题可以独立增加而不影响演化曲线。
+Forecloses: 旧的 `<slot>.<family>.<variant>` id（shell/mech/bloom）全部作废，对应的 ledger 条目不再匹配；跨主题混搭只能发生在 tier 3 的少数槽位，不能任意组合。
+
+## 2026-09-12 — 主题内风格一致性改由 anchor 图保证
+Changed:    每个主题先 text-to-3D 生成 `spine.<theme>.a`，由 `/dev/anchor.html` 渲成 `assets/refs/<theme>/_anchor.png`，该主题其余 19 件全部走 image-to-3D。`factory:generate --theme=` 因此是两阶段的。
+Why:        纯文字生成的一致性靠形容词碰运气（docs/09 U6）。用图做条件是 Rodin 直接支持的能力，而且参考图是我们自己渲的，不依赖任何第三方图片。
+Forecloses: 加一个新主题不再是"写段 prompt"就够了，必须走一次 anchor 流程（多一次手动开页面）。同时 anchor 一旦定下，该主题的风格就被钉死了 —— 想改风格要重生成整个主题。
+
+---
+
+## 2026-09-12 — 部件规范化契约定为「主轴 +Y / socketA 在原点 / 长度 1」
+Changed:    所有入库 `.glb` 在写入 `assets/parts/` 前被烘成这个姿态；`PartMeta.localGirth` 记录归一化后的横向尺寸，由运行时反算横向缩放。
+Why:        把 per-part 特例全部推到资产侧，运行时的挂载数学退化成 `T(p0)·R(+Y→dir)·S(g,len,g)`，10 行、无分支、可单测。
+Forecloses: 不能再直接使用外部下载的、未过流水线的 `.glb`；任何手工资产也必须跑一遍 `factory:normalize`。同时放弃了"部件自带局部偏移"的灵活性。
+
+## 2026-09-12 — 刚体挂载，不做蒙皮（ADR-1）
+Changed:    部件以刚体形式挂到骨头上，项目不含任何 skinning / 自动绑骨。
+Why:        原作的机器人质感本身就来自硬表面刚体；刚体让任何 AI 生成的网格可以直接用，砍掉整个绑骨环节。
+Forecloses: 布料/软体/肌肉类形态在 v1 不可能；关节穿插只能靠关节盖片遮，不能靠蒙皮平滑。
+
+## 2026-09-12 — 资产流水线不依赖 Blender（ADR-3）
+Changed:    规范化/减面全部用 `@gltf-transform` + `meshoptimizer`，纯 Node。
+Why:        本机没装 Blender；统一 TS 工具链让协作者不用切换上下文。
+Forecloses: 需要人工修模的部件必须离线在 Blender 里做完再走流水线，流水线本身不提供建模能力。
+
+## 2026-09-12 — 运行时统一套自己的材质，丢弃生成资产的贴图
+Changed:    `factory:normalize` 删掉所有 texture/material，运行时按 `MaterialDef` 统一上色。
+Why:        50 个独立生成的部件贴图风格不可能统一；统一材质是"看起来像一个作品"而不是"素材堆"的关键。顺带把单件 2.3 MB 降到 ~110 KB。
+Forecloses: 放弃了单件贴图里的细节信息（原始带贴图版本保留在 `assets/raw/`，可随时回头取）。

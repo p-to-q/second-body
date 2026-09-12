@@ -1,0 +1,29 @@
+{
+  "name": "second-body",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @sb/app",
+    "build": "npm run build -w @sb/app",
+    "test": "npm run test -w @sb/core",
+    "factory:balance": "node --env-file=.env packages/factory/src/cli.ts balance",
+    "factory:plan": "node --env-file=.env packages/factory/src/cli.ts plan",
+    "factory:generate": "node --env-file=.env packages/factory/src/cli.ts generate",
+    "factory:normalize": "node --env-file=.env packages/factory/src/cli.ts normalize",
+    "factory:index": "node --env-file=.env packages/factory/src/cli.ts index",
+    "factory:serve": "node --env-file=.env packages/factory/src/proxy.ts",
+    "check": "npm run typecheck && npm run test && npm run check:parts",
+    "typecheck": "tsc -p tsconfig.json",
+    "check:parts": "node packages/factory/src/check-parts.ts",
+    "doctor": "node packages/factory/src/doctor.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.2",
+    "@types/three": "^0.186.0",
+    "typescript": "^7.0.2"
+  }
+}
