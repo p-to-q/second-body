@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>SEE-ME SEE-YOU · 说明海报 A1</title>
+<link rel="stylesheet" href="/src/ui/type.css">
+<link rel="stylesheet" href="./poster.css">
+<style>
+  @page { size: 594mm 841mm; margin: 0; }
+  .p-sheet { width: 594mm; height: 841mm; }
+
+  /* 这张海报只有一个 mega，它占满整个版心宽度 */
+  .mega { font-size: 100mm; line-height: 0.82; letter-spacing: -0.035em; }
+
+  /* 乘法式：18 个因子摊平，占满一行 —— 式子本身就是说明 */
+  .factors { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 2.2mm; }
+  .factors i { font-style: normal; font-family: var(--sb-mono); font-size: var(--p-h3); color: var(--sb-ink); }
+  .factors s { text-decoration: none; font-family: var(--sb-mono); font-size: var(--p-small); color: var(--sb-ink-dim); }
+  .factors em { font-style: normal; font-family: var(--sb-mono); font-size: var(--p-h3); color: var(--sb-ink); }
+
+  /* 形态空间：真坐标散点 */
+  .space { position: relative; width: 100%; height: 258mm; }
+  .space .axis { position: absolute; background: var(--sb-rule); }
+  .space .axis.x { left: 0; right: 0; bottom: 0; height: var(--p-rule); }
+  .space .axis.y { top: 0; bottom: 0; left: 0; width: var(--p-rule); }
+  .space .tick { position: absolute; background: var(--sb-rule); opacity: .5; }
+  .pt { position: absolute; transform: translate(-50%, 50%); display: flex; align-items: center; gap: 1.6mm; white-space: nowrap; }
+  .pt.flip { flex-direction: row-reverse; }
+  .dot { width: 2.4mm; height: 2.4mm; border-radius: 50%; background: var(--sb-ink); flex: none; }
+  /* 空位：空心。它们不是"漏了" —— 它们的内容就是"没有" */
+  .dot.hollow { background: none; border: 0.35mm solid var(--sb-ink-dim); }
+  .pt .nm { font-size: var(--p-small); color: var(--sb-ink); line-height: 1; }
+  .pt .en { font-size: var(--p-micro); color: var(--sb-ink-dim); line-height: 1; }
+  .pt.vac .nm { color: var(--sb-ink-dim); }
+
+  /* 系统结构：三段式 */
+  .chain { display: grid; grid-template-columns: 1fr 16mm 1.3fr 16mm 1.15fr; align-items: start; }
+  .arrow { font-family: var(--sb-mono); font-size: var(--p-h3); color: var(--sb-ink-dim); line-height: 1.3; text-align: center; }
+  .planrow { display: flex; justify-content: space-between; align-items: baseline; padding: 1.8mm 0; border-bottom: var(--p-rule) solid var(--sb-rule); }
+</style>
+</head>
+<body>
+
+<section class="p-sheet">
+  <div class="p-safe">
+
+    <!-- ── 报头 ──────────────────────────────────────────────────── -->
+    <header>
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <p class="p-label">Media installation · 2026</p>
+        <p class="p-label-micro">Real-time · Camera → Pose → Rigid parts → WebGPU</p>
+      </div>
+      <h1 class="p-display p-bi" style="margin-top:5mm">
+        <span class="sb-zh">看我看你</span>
+        <span class="sb-en">SEE-ME SEE-YOU</span>
+      </h1>
+      <p class="p-h3 p-bi" style="margin-top:4mm">
+        <span class="sb-zh">你选一个物种，然后它用你的身体活过来。</span>
+        <span class="sb-en">Choose a species. It comes alive using your body.</span>
+      </p>
+    </header>
+
+    <hr class="p-rule p-rule-ink" style="margin-top:7mm">
+
+    <!-- ── 一 · 组合数 ───────────────────────────────────────────── -->
+    <section style="margin-top:5mm">
+      <p class="p-label">01 — 组合数 / Combinatorics</p>
+      <p class="p-mono p-ink mega" id="mega" style="margin:4mm 0 0">—</p>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:3mm">
+        <p class="p-h3 p-bi" style="margin:0">
+          <span class="sb-zh">具可能的身体</span>
+          <span class="sb-en">possible bodies</span>
+        </p>
+        <p class="p-label-micro" id="cap-right"></p>
+      </div>
+
+      <hr class="p-rule" style="margin-top:5mm">
+      <div class="factors" id="factors" style="margin-top:4mm"></div>
+      <p class="p-micro" id="factors-note" style="margin-top:3mm;max-width:400mm"></p>
+
+      <hr class="p-rule" style="margin-top:5mm">
+      <div class="p-cols p-c2" style="margin-top:4mm;gap:0 12mm">
+        <p class="p-body" id="reversal"></p>
+        <p class="p-small" id="fortyseven"></p>
+      </div>
+    </section>
+
+    <hr class="p-rule" style="margin-top:6mm">
+
+    <!-- ── 二 · 形态空间 ─────────────────────────────────────────── -->
+    <section style="margin-top:5mm">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <p class="p-label">02 — 形态空间 / Morphology space</p>
+        <p class="p-label-micro" id="space-note"></p>
+      </div>
+      <div class="space" id="space" style="margin-top:5mm">
+        <div class="axis x"></div>
+        <div class="axis y"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:2.5mm">
+        <p class="p-label-micro">← 像人 0 · Human-like</p>
+        <p class="p-label-micro">像人 1 →</p>
+      </div>
+      <p class="p-micro" style="margin-top:2.5mm;max-width:250mm">
+        纵轴：像活的 / Life-like。坐标是 <span class="p-mono">parts.json</span> 里每个条目
+        <span class="p-mono">axes</span> 的实值，不是为排版摆的位置。开场轮播按这张图排布 ——
+        观众滑动时穿越的是形态空间，不是一个列表。哪一片是空的，下一个该加什么，一眼看得出来。
+      </p>
+    </section>
+
+    <hr class="p-rule" style="margin-top:6mm">
+
+    <!-- ── 三 · 系统结构 ─────────────────────────────────────────── -->
+    <section style="margin-top:5mm">
+      <p class="p-label">03 — 系统结构 / How one body is assembled</p>
+      <div class="chain" style="margin-top:5mm">
+        <div>
+          <p class="p-h3 p-bi"><span class="sb-zh">姿态</span><span class="sb-en">Pose</span></p>
+          <p class="p-small p-dim" style="margin-top:3mm" id="pose"></p>
+        </div>
+        <div class="arrow">→</div>
+        <div>
+          <p class="p-h3 p-bi"><span class="sb-zh">身体方案</span><span class="sb-en">Body plan</span></p>
+          <p class="p-small p-dim" style="margin-top:3mm">把这具人体骨架翻译成「这个物种的身体」。</p>
+          <div id="plans" style="margin-top:3mm"></div>
+        </div>
+        <div class="arrow">→</div>
+        <div>
+          <p class="p-h3 p-bi"><span class="sb-zh">表达</span><span class="sb-en">Expression</span></p>
+          <p class="p-small p-dim" style="margin-top:3mm" id="expr"></p>
+        </div>
+      </div>
+    </section>
+
+    <hr class="p-rule" style="margin-top:6mm">
+
+    <!-- ── 四 · 分母 ─────────────────────────────────────────────── -->
+    <section style="margin-top:5mm">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <p class="p-label">04 — 分母 / The denominator</p>
+        <p class="p-label-micro" id="rej-note"></p>
+      </div>
+      <p class="p-small p-dim" style="margin-top:3.5mm;max-width:250mm" id="rej-intro"></p>
+      <div class="p-cols p-c2" id="rejects" style="margin-top:4.5mm;gap:0 12mm"></div>
+    </section>
+
+    <div class="p-spacer"></div>
+
+    <!-- ── 版权行 ────────────────────────────────────────────────── -->
+    <hr class="p-rule">
+    <div class="p-colophon">
+      <p class="p-micro" style="max-width:290mm" id="colophon-l"></p>
+      <p class="p-micro p-mono" style="text-align:right" id="colophon-r"></p>
+    </div>
+
+  </div>
+</section>
+
+<script src="./shot.js"></script>
+<script src="./data.js"></script>
+<script>
+(() => {
+  const D = window.SB_POSTER, C = D.counts;
+  const n = (x) => x.toLocaleString('en-US');
+  const $ = (id) => document.getElementById(id);
+  const b = (s) => `<b class="p-ink" style="font-weight:600">${s}</b>`;
+  const m = (s) => `<span class="p-mono p-ink">${s}</span>`;
+
+  // ── 01 组合数 ───────────────────────────────────────────────────
+  $('mega').textContent = n(D.totalBodies);
+  $('cap-right').textContent =
+    `${C.entries} 个条目中的 ${C.entries - C.vacancies} 个 · tier ${D.tier} · 不含 tier 3 跨主题杂交`;
+
+  // 乘法式：直接摊开 data.js 里算好的每个挂载键的候选池，不反推
+  const full = D.entries.find((e) => e.coverage === 'full' && e.bodies);
+  const per = Object.entries(full.perSlot);
+  $('factors').innerHTML =
+    per.map(([, v]) => `<i>${v}</i>`).join('<s>×</s>') +
+    `<s>&nbsp;=&nbsp;</s><em>${n(full.bodies)}</em>`;
+  $('factors-note').innerHTML =
+    `以「${full.name} / ${full.nameEn}」一个条目为例：${C.boneKeys} 个挂载键各自独立抽件，` +
+    `左手和右手是两次独立的抽取。${m('coverage: full')} 的条目自备 ${full.ownParts} 件；` +
+    `${m('light')} 的条目只做 6 个标志性槽位，其余沿 ${m('base')} 链向上借 —— ` +
+    `加一个物种的边际成本必须低，因为${b('物种的数量本身就是内容')}。`;
+
+  $('reversal').innerHTML =
+    `这 ${m(n(D.totalBodies))} 具身体不是 ${n(D.totalBodies)} 个模型。它是 ` +
+    `${m(C.partsLive)} 件部件、${m(C.slots)} 个槽位、${m(C.boneKeys)} 个挂载键之间的一次乘法。` +
+    `<br><br>把它念成"我们做了一百六十万个东西"是${b('谎')}。组合数唯一诚实的读法是它的分母：` +
+    `我们真正做出来、并且${b('逐件用眼睛看过')}的，是 ${m(C.partsLive)} 件 —— ` +
+    `其中 ${m(C.partsRejected)} 件是人工剔除之后剩下的。`;
+
+  $('fortyseven').innerHTML =
+    `参照作品官方称 ${m('47,000 possible robot reflections')}，ACMI 的描述是` +
+    `"randomly assigns different material qualities, colours and textures"。<br><br>` +
+    `我们的逆向结论：那是一个${b('组合数')}，不是 47,000 个模型。<br><br>` +
+    `我们用同样的做法得到一个大约${b('三十五倍')}大的数字。` +
+    `把它印在这里，不是因为它厉害 —— 是因为它证明了这个数字不值得吹。`;
+
+  // ── 02 形态空间 ─────────────────────────────────────────────────
+  const space = $('space');
+  const pts = D.entries.filter((e) => e.axes);
+  const sorted = [...pts].sort((a, z) => a.axes.humanLike - z.axes.humanLike || a.axes.lifeLike - z.axes.lifeLike);
+  const placed = [];
+  for (const e of sorted) {
+    const x = e.axes.humanLike, y = e.axes.lifeLike;
+    // 右边挤不下（或者贴着右缘）就把标签翻到点的左边
+    const crowded = x > 0.8 || placed.some((p) => Math.abs(p.x - x) < 0.15 && Math.abs(p.y - y) < 0.06);
+    const el = document.createElement('div');
+    el.className = 'pt' + (crowded ? ' flip' : '') + (e.bodies === null ? ' vac' : '');
+    el.style.left = (x * 100) + '%';
+    el.style.bottom = (y * 100) + '%';
+    el.innerHTML = `<span class="dot${e.bodies === null ? ' hollow' : ''}"></span>` +
+      `<span><span class="nm">${e.name}</span> <span class="en">${e.nameEn}</span></span>`;
+    space.appendChild(el);
+    placed.push({ x, y });
+  }
+  for (const k of ['x', 'y']) {
+    const t = document.createElement('div');
+    t.className = 'tick';
+    if (k === 'y') Object.assign(t.style, { left: '50%', top: '0', bottom: '0', width: 'var(--p-rule)' });
+    else Object.assign(t.style, { bottom: '50%', left: '0', right: '0', height: 'var(--p-rule)' });
+    space.appendChild(t);
+  }
+  $('space-note').textContent = `${pts.length} 个条目 · 空心 = ${C.vacancies} 个空位`;
+
+  // ── 03 系统结构 ─────────────────────────────────────────────────
+  $('pose').innerHTML =
+    `摄像头 → ${C.boneKeys - 1} 根骨头的人体骨架，全部在本地算。<br><br>` +
+    `站在那里的${b('确实是个人')} —— 这是输入，不该改。<br><br>` +
+    `<span class="p-dim">端到端延迟 ≤ 200ms。超过就不像镜子了。</span>`;
+
+  const PLAN = { rig: ['人形', 'Humanoid'], quadruped: ['四足', 'Quadruped'], mass: ['团块', 'Mass'], stub: ['矮壮', 'Stub'] };
+  $('plans').innerHTML = Object.entries(D.byPlan)
+    .sort((a, z) => z[1] - a[1])
+    .map(([id, count]) => {
+      const [zh, en] = PLAN[id] ?? [id, id];
+      return `<div class="planrow"><span class="p-body p-ink">${zh} ` +
+        `<span class="p-small p-dim">${en}</span></span>` +
+        `<span class="p-body p-mono p-dim">${count}</span></div>`;
+    }).join('');
+
+  $('expr').innerHTML =
+    `人形 / 四足 / 矮壮走${b('骨架重映射')}：纯坐标变换，输出还是 ${C.boneKeys - 1} 根骨头，` +
+    `交给同一个刚体渲染器，一行渲染代码都不用改。<br><br>` +
+    `团块走${b('另一种表达')}：关节处放 metaball，融成一个连续的团块。` +
+    `那不是"零件挂在骨头上"，那是流过身体的物质。<br><br>` +
+    `<span class="p-dim">${C.plans} 种方案，${C.entries} 个条目。` +
+    `换一个条目 = 换一种形体，不是换一层皮。</span>`;
+
+  // ── 04 分母 ─────────────────────────────────────────────────────
+  $('rej-note').textContent = `${C.partsRejected} / ${C.parts} 件 · 全部由人眼判定`;
+  $('rej-intro').innerHTML =
+    `上面那个七位数是分子。这里是分母里被划掉的部分：` +
+    `${C.partsRejected} 件生成出来、但被${b('一个人用眼睛看过之后剔掉')}的部件，连同剔它的理由。` +
+    `文件不删 —— 判断可能会变。颜色在这张海报上只出现在这里：${'<span class="p-reject">红 = 拒入</span>'}。`;
+  $('rejects').innerHTML = D.rejects.map((r) =>
+    `<div class="p-reject-bar" style="margin-bottom:3mm">` +
+    `<span class="p-small p-mono p-reject">${r.id}</span><br>` +
+    `<span class="p-micro p-dim">${r.note}</span></div>`).join('');
+
+  // ── 版权行 ──────────────────────────────────────────────────────
+  $('colophon-l').innerHTML =
+    `SEE-ME SEE-YOU / 看我看你 · 工程代号 second-body<br>` +
+    `本张海报上${b('所有数字')}由 ${m('packages/app/poster/build-data.mjs')} 现算，一个都不是手打的。<br>` +
+    `来源：${m('assets/parts/parts.json')} · ${m('assets/parts/curation.json')}`;
+  $('colophon-r').innerHTML =
+    `parts.json v${D.source.partsVersion} · ${D.source.partsGeneratedAt.slice(0, 10)}<br>` +
+    `${C.parts} 件生成 · ${C.partsRejected} 件人工剔除 · ${C.partsLive} 件在池<br>` +
+    `${n(C.triangles)} 三角形 · ${C.materials} 种材质 · tier ${D.tier}`;
+})();
+</script>
+</body>
+</html>

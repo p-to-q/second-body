@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SEE-ME SEE-YOU · 品牌字体规范</title>
+<link rel="stylesheet" href="/src/ui/type.css">
+<style>
+  /**
+   * 规范页 —— 它自己就是由它所描述的系统渲染的。
+   * 页面上的每一条规则都要被「显示」出来，不只是写出来；能测的数字当场测。
+   * 这个文件不改 type.css 的任何值，只引用。
+   */
+  body { padding: 0; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: var(--sb-safe); }
+
+  .sec { margin-top: 64px; }
+  .sec > h2 { margin-bottom: 4px; }
+  .sec > .sb-label { margin-bottom: 24px; display: block; }
+
+  .demo { border-top: 1px solid var(--sb-rule); padding: 20px 0; }
+  .demo:last-child { border-bottom: 1px solid var(--sb-rule); }
+
+  /* 规格行：左边是活的样本，右边是它的确切数值 */
+  .spec { display: grid; grid-template-columns: 1fr 260px; gap: 24px; align-items: baseline; }
+  .spec .meta { font-family: var(--sb-mono); font-size: var(--sb-size-small);
+                color: var(--sb-ink-dim); text-align: right; font-variant-numeric: tabular-nums; }
+
+  .swatch { display: grid; grid-template-columns: 56px 1fr 200px; gap: 16px; align-items: center;
+            border-top: 1px solid var(--sb-rule); padding: 12px 0; }
+  .swatch .chip { height: 32px; border: 1px solid var(--sb-rule); }
+  .swatch .mono { font-family: var(--sb-mono); font-size: var(--sb-size-small); color: var(--sb-ink-dim); text-align: right; }
+
+  /* 栅格与安全区：画出来 */
+  .safebox { position: relative; height: 220px; border: 1px solid var(--sb-rule); }
+  .safebox .inner { position: absolute; inset: 48px; border: 1px dashed var(--sb-accent); }
+  .safebox .tag { position: absolute; left: 8px; top: 6px; }
+  .safebox .tag2 { position: absolute; left: 56px; top: 54px; }
+  .gridcols { display: grid; grid-template-columns: repeat(12, 1fr); gap: var(--sb-gutter); margin-top: 16px; }
+  .gridcols div { height: 44px; background: var(--sb-rule); }
+
+  /* 反面清单：把不做的东西真的画出来，再划掉 */
+  .nono { display: grid; grid-template-columns: 1fr 1fr; gap: 0 32px; }
+  .nono .item { border-top: 1px solid var(--sb-rule); padding: 18px 0; display: grid;
+                grid-template-columns: 160px 1fr; gap: 20px; align-items: start; }
+  .sample { position: relative; }
+  /* 一条划掉的线。颜色在这一页只出现在语义位置，这里用的是"拒入" */
+  .sample::after {
+    content: ''; position: absolute; left: -6px; right: -6px; top: 50%;
+    border-top: 1px solid var(--sb-warn);
+  }
+  .fake-card { background: #171a1f; border-radius: 10px; padding: 12px 14px;
+               box-shadow: 0 6px 18px rgba(0,0,0,.5); font-size: var(--sb-size-small); }
+  .fake-bar { height: 8px; border-radius: 4px; background: var(--sb-rule); position: relative; }
+  .fake-bar i { position: absolute; inset: 0 40% 0 0; border-radius: 4px; background: var(--sb-accent); }
+  .fake-toast { background: #171a1f; border-radius: 8px; padding: 10px 12px;
+                box-shadow: 0 6px 18px rgba(0,0,0,.5); font-size: var(--sb-size-small); }
+  .fake-icons { font-size: 20px; letter-spacing: 6px; }
+
+  .ok { color: var(--sb-accent); }
+  .no { color: var(--sb-warn); }
+  .mono { font-family: var(--sb-mono); font-size: var(--sb-size-small); }
+  table.idx { width: 100%; border-collapse: collapse; }
+  table.idx th, table.idx td { text-align: left; padding: 9px 12px 9px 0; border-top: 1px solid var(--sb-rule);
+                               font-size: var(--sb-size-small); vertical-align: top; }
+  table.idx th { color: var(--sb-ink-dim); letter-spacing: var(--sb-tracking-label); text-transform: uppercase; font-weight: 400; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ── 报头 ──────────────────────────────────────────────────────── -->
+  <header>
+    <p class="sb-label">品牌字体规范 / Type &amp; brand specification</p>
+    <h1 class="sb-bi" style="margin-top:14px">
+      <span class="sb-zh">看我看你</span>
+      <span class="sb-en">SEE-ME SEE-YOU</span>
+    </h1>
+    <p style="margin-top:14px">
+      这一页由它所描述的系统本身渲染。每一条规则都在下面<b>被显示出来</b>，而不只是被写出来；
+      能当场测的数字，就当场测。度量取自 zkm.de 线上 CSS 实测（2026-09-12）。
+    </p>
+    <p class="mono" style="color:var(--sb-ink-dim)">
+      唯一真相：<span style="color:var(--sb-ink)">packages/app/src/ui/type.css</span> ·
+      文案总册：<span style="color:var(--sb-ink)">packages/app/src/ui/i18n.ts</span>
+    </p>
+  </header>
+
+  <!-- ── 1 字体栈 ──────────────────────────────────────────────────── -->
+  <section class="sec">
+    <h2>1 · 字体栈</h2>
+    <span class="sb-label">Font stack</span>
+    <p><b>字体本身不打包成必需品。</b>ZKM 把 "no web fonts, only browser fonts" 当成极简策略之一，
+      我们照做：零字节、零许可风险。这个味道来自<b>度量和留白</b>，不来自字形文件。
+      栈的顺序是有讲究的 —— macOS/iOS 落到 Helvetica Neue（Typographic Style 的本尊），
+      Windows 落到 Arial（同一套骨架的另一次实现），Linux 落到系统 grotesk。</p>
+    <p class="mono" id="stack" style="color:var(--sb-ink)"></p>
+
+    <div class="demo" style="margin-top:24px">
+      <p class="sb-label">回退时会变什么、不会变什么 —— <span class="ok">当场测</span></p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:16px">
+        <div>
+          <p class="sb-label" style="color:var(--sb-ink)">栈首（ZKMSerendipity 若已加载）</p>
+          <p id="sampleA" style="margin-top:8px">看我看你 SEE-ME SEE-YOU 0123456789</p>
+        </div>
+        <div class="font-system-scope">
+          <p class="sb-label" style="color:var(--sb-ink)">?font=system（强制系统栈）</p>
+          <p id="sampleB" style="margin-top:8px">看我看你 SEE-ME SEE-YOU 0123456789</p>
+        </div>
+      </div>
+      <table class="idx" id="metrics" style="margin-top:20px"></table>
+      <p class="mono" style="margin-top:12px;color:var(--sb-ink-dim)" id="metric-note"></p>
+    </div>
+  </section>
+
+  <!-- ── 2 字号级差 ────────────────────────────────────────────────── -->
+  <section class="sec">
+    <h2>2 · 字号级差 · 行高 · 字距</h2>
+    <span class="sb-label">Scale · line-height · tracking</span>
+    <p>只有两级正文 + 两级标题。<b>三级以上就开始像后台系统。</b><br>
+      字距的规则是这套风格里最容易被忽略的一半：
+      <b>grotesk 在大字号下要收紧，在小字号下要放开。</b>
+      下面每一行左边是活的样本，右边是它此刻的确切数值 —— 数值由 JS 从计算样式读出，不是手打的。</p>
+    <div id="scale" style="margin-top:24px"></div>
+  </section>
+
+  <!-- ── 3 中英对照 ────────────────────────────────────────────────── -->
+  <section class="sec">
+    <h2>3 · 中英对照：并置，不切换</h2>
+    <span class="sb-label">Bilingual: side by side, never toggled</span>
+    <p>语言切换器要求观众先做一个选择，然后<b>看不到另一半</b>。并置是美术馆和档案的做法：
+      不打断、不要求选择，而且双语本身构成排版的一部分 —— 两行不同灰度的文字，
+      本来就是这套风格的常见构型。所以代码里没有 <span class="mono">setLang()</span>，
+      只有 <span class="mono">bi()</span>。<b>这是一个设计决定，不是省事。</b></p>
+    <p><b>中文是原文，英文是对照</b> —— 不是反过来。这件作品的思考是用中文进行的。
+      英文不要翻译腔：宁可换一个说法，也不要逐字对应。</p>
+
+    <div class="demo" style="margin-top:24px">
+      <div class="spec">
+        <div>
+          <h1 class="sb-bi"><span class="sb-zh">看我看你</span><span class="sb-en">SEE-ME SEE-YOU</span></h1>
+        </div>
+        <div class="meta">h1 + .sb-bi</div>
+      </div>
+    </div>
+    <div class="demo">
+      <div class="spec">
+        <p class="sb-bi" style="margin:0">
+          <span class="sb-zh">你选一个物种，然后它用你的身体活过来</span>
+          <span class="sb-en">Choose a species. It comes alive using your body.</span>
+        </p>
+        <div class="meta" id="bi-meta"></div>
+      </div>
+    </div>
+    <div class="demo">
+      <div class="spec">
+        <span class="sb-bi-inline"><span class="sb-zh">身体方案</span><span class="sb-en">Body plan</span></span>
+        <div class="meta">.sb-bi-inline —— 行内并置，中英之间一条细竖线</div>
+      </div>
+    </div>
+    <p class="mono" style="margin-top:14px;color:var(--sb-ink-dim)">
+      英文 0.82em · 上边距 0.15em —— 英文比中文矮一截，基线对不齐；这一点点上边距是靠眼睛调的，不是算出来的。
+    </p>
+  </section>
+
+  <!-- ── 4 颜色 ────────────────────────────────────────────────────── -->
+  <section class="sec">
+    <h2>4 · 颜色的语义分配</h2>
+    <span class="sb-label">Colour carries exactly one distinction</span>
+    <p>全套物料里，颜色<b>只编码一组对立</b>：<span class="no">拒入 / 不成立</span> 用警示色，
+      <span class="ok">准入 / 成立</span> 用强调色。<b>其余一切靠灰阶。</b>
+      不用颜色区分类别、不用颜色做装饰、不用颜色表示"品牌色出现了"。
+      一张海报上如果有第三种颜色在表达第三件事，那张海报就排错了。</p>
+    <div id="swatches" style="margin-top:24px"></div>
+
+    <div class="demo" style="margin-top:24px">
+      <p class="sb-label">用法示范 —— 同一组对立，出现在两个地方，含义完全一样</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:16px">
+        <div>
+          <div style="border-left:3px solid var(--sb-warn);padding-left:12px">
+            <span class="mono no">spine.wheelleg.a</span><br>
+            <span style="font-size:var(--sb-size-small)">碎片状薄片，不成躯干 —— 人工剔除</span>
+          </div>
+          <div style="border-left:3px solid var(--sb-accent);padding-left:12px;margin-top:14px">
+            <span class="mono ok">保留 Keep</span><br>
+            <span style="font-size:var(--sb-size-small)">永不重新生成；它已经是资产，不再是配方的产物</span>
+          </div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;border-top:1px solid var(--sb-rule);padding:10px 0">
+            <span>三个物种并排，能说出形体区别</span><span class="ok">成立</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;border-top:1px solid var(--sb-rule);padding:10px 0">
+            <span>连续跑 30 分钟不崩</span><span class="no">不成立</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;border-top:1px solid var(--sb-rule);border-bottom:1px solid var(--sb-rule);padding:10px 0">
+            <span>陌生人 5 秒内知道"那是我"</span><span style="color:var(--sb-ink-dim)">无法判断</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 5 栅格与安全区 ────────────────────────────────────────────── -->
+  <section class="sec">
+    <h2>5 · 栅格与安全区</h2>
+    <span class="sb-label">Grid &amp; safe area</span>
+    <p>投影会切边。安全区<b>不能小于 48px</b>（屏幕）／ <b>24mm</b>（印刷，约 91px）——
+      取更大的那个。海报上<b>没有一个字</b>可以越过它。</p>
+    <div class="safebox" style="margin-top:20px">
+      <span class="sb-label tag">纸 / 画布边缘</span>
+      <div class="inner"></div>
+      <span class="sb-label tag2" style="color:var(--sb-accent)" id="safe-tag"></span>
+    </div>
+    <div class="gridcols"></div>
+    <p class="mono" style="margin-top:12px;color:var(--sb-ink-dim)" id="grid-meta"></p>
+  </section>
+
+  <!-- ── 6 反面清单 ────────────────────────────────────────────────── -->
+  <section class="sec">
+    <h2>6 · 反面清单</h2>
+    <span class="sb-label">What this system never does</span>
+    <p>下面每一样都真的画出来了，然后<b>划掉</b>。列一张只有文字的禁令清单太容易被忽略；
+      看见它长什么样、再看见它被划掉，才记得住。</p>
+    <div class="nono" style="margin-top:20px">
+      <div class="item">
+        <div class="sample"><div class="fake-card">卡片 + 圆角 + 阴影</div></div>
+        <div>
+          <b>不用卡片、圆角、阴影。</b><br>
+          <span style="font-size:var(--sb-size-small);color:var(--sb-ink-dim)">
+            Typographic Style 用<b>线</b>分区。卡片把每一块内容都装进一个小盒子，
+            于是页面变成一个后台系统的仪表盘 —— 而这是一件作品的物料。</span>
+        </div>
+      </div>
+      <div class="item">
+        <div class="sample fake-icons">◆ ● ▲ ★</div>
+        <div>
+          <b>不用图标。</b><br>
+          <span style="font-size:var(--sb-size-small);color:var(--sb-ink-dim)">
+            图标是给"扫一眼就要点"的界面用的。这里的每一句话都值得被读完，
+            而且中英并置本身已经在承担"这是什么"的识别工作。</span>
+        </div>
+      </div>
+      <div class="item">
+        <div class="sample"><div class="fake-bar"><i></i></div></div>
+        <div>
+          <b>不用进度条。</b><br>
+          <span style="font-size:var(--sb-size-small);color:var(--sb-ink-dim)">
+            进度条在承诺一个我们无法兑现的确定性。启动慢就说"稍等一下"，
+            出错就说"出了点问题，正在恢复"—— 文案总册里就是这么写的。</span>
+        </div>
+      </div>
+      <div class="item">
+        <div class="sample"><div class="fake-toast">✓ 已保存</div></div>
+        <div>
+          <b>不用 toast。</b><br>
+          <span style="font-size:var(--sb-size-small);color:var(--sb-ink-dim)">
+            观众站在一台装置前面，不是在用一个 app。飘出来又消失的小黑条
+            会把整件事的语域从"作品"拉回"软件"。</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 7 索引 ────────────────────────────────────────────────────── -->
+  <section class="sec">
+    <h2>7 · 物料索引</h2>
+    <span class="sb-label">Index</span>
+    <table class="idx" id="index" style="margin-top:16px"></table>
+  </section>
+
+  <footer class="sec" style="margin-bottom:64px">
+    <hr class="sb-rule">
+    <p class="mono" style="margin-top:16px;color:var(--sb-ink-dim)" id="footer"></p>
+  </footer>
+
+</div>
+
+<script src="./shot.js"></script>
+<script src="./data.js"></script>
+<script>
+(async () => {
+  const D = window.SB_POSTER, C = D.counts;
+  const $ = (id) => document.getElementById(id);
+  const cs = (el, p) => getComputedStyle(el).getPropertyValue(p).trim();
+  const root = document.documentElement;
+
+  // 正文里那几处 <b>强调</b> 是写在 HTML 里的 <b>，这里不处理
+
+  // ── 1 字体栈：把栈原样打出来，并当场测量回退的影响 ─────────────────
+  const stack = cs(root, '--sb-grotesk');
+  $('stack').textContent = stack;
+
+  // 右边那栏强制走系统栈。type.css 里 html.font-system 改的是同一个变量，
+  // 这里用同样的值作用在一个局部作用域上，效果等价，且不污染整页。
+  const sysStack = '"Helvetica Neue", Helvetica, Arial, system-ui, sans-serif';
+  const B = $('sampleB');
+  B.style.fontFamily = sysStack;
+
+  const A = $('sampleA');
+
+  // **必须等字体真的到位再量**，否则量到的是回退字体量自己，
+  // 这一节就从"验证"变成了"自我安慰"。
+  try { await document.fonts.ready; } catch { /* 老浏览器没有 fonts API，照量 */ }
+  const loaded = document.fonts && document.fonts.check
+    ? document.fonts.check(`400 ${cs(A, 'font-size')} ZKMSerendipity`) : false;
+
+  const mA = A.getBoundingClientRect(), mB = B.getBoundingClientRect();
+  const lhA = cs(A, 'line-height'), lhB = cs(B, 'line-height');
+  const fsA = cs(A, 'font-size'), fsB = cs(B, 'font-size');
+  const rows = [
+    ['font-size', fsA, fsB, fsA === fsB],
+    ['line-height', lhA, lhB, lhA === lhB],
+    ['letter-spacing', cs(A, 'letter-spacing') || 'normal', cs(B, 'letter-spacing') || 'normal',
+      cs(A, 'letter-spacing') === cs(B, 'letter-spacing')],
+    ['行盒高度 line box', mA.height.toFixed(2) + 'px', mB.height.toFixed(2) + 'px',
+      Math.abs(mA.height - mB.height) < 0.01],
+  ];
+  $('metrics').innerHTML =
+    '<tr><th>属性</th><th>栈首</th><th>系统栈</th><th>一致</th></tr>' +
+    rows.map(([k, a, b, same]) =>
+      `<tr><td>${k}</td><td class="mono">${a}</td><td class="mono">${b}</td>` +
+      `<td class="${same ? 'ok' : 'no'}">${same ? '一致' : '不同'}</td></tr>`).join('');
+
+  // 诚实一点：字形宽度本来就会变，不变的是排版度量。
+  // 量的必须是**文字本身**的宽度 —— <p> 是块级元素，量它只会量到栏宽，
+  // 两边当然一样，那种"证明"什么都没证明。所以用 Range 框住文本节点来量。
+  const runWidth = (el) => {
+    const r = document.createRange();
+    r.selectNodeContents(el);
+    return Math.round(r.getBoundingClientRect().width * 100) / 100;
+  };
+  const wA = runWidth(A), wB = runWidth(B);
+  $('metric-note').innerHTML =
+    `ZKMSerendipity 本机状态：<b style="color:var(--sb-ink)">${loaded ? '已加载' : '未加载（两栏落在同一个字体上）'}</b>。` +
+    `<br>这一行样本的实际文字宽度：栈首 ${wA}px，系统栈 ${wB}px` +
+    (wA === wB ? '，完全相同。' : '，相差 ' + (Math.round(Math.abs(wA - wB) * 100) / 100) + 'px —— 字形宽度确实会变。') +
+    `<br><b style="color:var(--sb-ink)">要保证的从来不是字形宽度一样</b>，而是字号 / 行高 / 字距 / 栅格` +
+    `全部定义在 CSS 里、与字体文件无关 —— 所以 font-display: swap 换字体时，` +
+    `行盒高度和版心不动，不会有回流跳动。上表最后一行就是这件事的证据。` +
+    `<br>自己验：给任意一页加 <span style="color:var(--sb-ink)">?font=system</span>，` +
+    `type.css 的 <span style="color:var(--sb-ink)">html.font-system</span> 会把栈首换掉，版面不应该跳。`;
+
+  // ── 2 字号级差：样本 + 当场读出的计算值 ───────────────────────────
+  const SCALE = [
+    ['h1', '看我看你 SEE-ME SEE-YOU', '标题。一页只有一个'],
+    ['h2', '物种谱系 Species', '分节'],
+    ['h3', '身体方案 Body plan', '小节。与正文同号，靠字重区分'],
+    ['p', '你选一个物种，然后它用你的身体活过来。观众滑动时穿越的是形态空间，不是一个列表。', '正文。行长上限 68ch'],
+    ['small', '191 件部件 · 10 个槽位 · 4 种身体方案', '数据 / 标注'],
+    ['label', '全大写标签 UPPERCASE LABEL', '承担"分类"的那个角色'],
+  ];
+  $('scale').innerHTML = SCALE.map(([tag, text, note]) => {
+    const cls = tag === 'small' ? 'sb-data' : tag === 'label' ? 'sb-label' : '';
+    const el = tag === 'h1' || tag === 'h2' || tag === 'h3' ? tag : 'p';
+    return `<div class="demo"><div class="spec">` +
+      `<${el} class="${cls}" style="margin:0" data-probe>${text}</${el}>` +
+      `<div class="meta" data-meta><span class="sb-label" style="display:block;margin-bottom:6px">${tag}</span>${note}</div>` +
+      `</div></div>`;
+  }).join('');
+  // 读回真实计算值，填进右栏 —— 数值不手打
+  document.querySelectorAll('#scale .demo').forEach((d) => {
+    const p = d.querySelector('[data-probe]'), meta = d.querySelector('[data-meta]');
+    const ls = cs(p, 'letter-spacing');
+    meta.insertAdjacentHTML('beforeend',
+      `<div style="margin-top:8px">${cs(p, 'font-size')} / ${cs(p, 'line-height')}` +
+      ` / ${cs(p, 'font-weight')}<br>tracking ${ls === 'normal' ? '0' : ls}</div>`);
+  });
+
+  $('bi-meta').innerHTML = `.sb-bi —— 英文 ${cs(document.querySelector('.sb-en'), 'font-size')}，` +
+    `即 0.82em；上边距 0.15em`;
+
+  // ── 4 颜色 ────────────────────────────────────────────────────────
+  const COLORS = [
+    ['--sb-paper', '纸 Paper', '底。全部物料都印在它上面'],
+    ['--sb-ink', '墨 Ink', '标题、强调、数据的主色'],
+    ['--sb-ink-dim', '次墨 Ink dim', '正文、英文对照、标注'],
+    ['--sb-rule', '线 Rule', '分区。代替卡片和阴影的那个东西'],
+    ['--sb-accent', '强调 Accent', '语义：准入 / 保留 / 成立'],
+    ['--sb-warn', '警示 Warn', '语义：拒入 / 剔除 / 不成立'],
+  ];
+  $('swatches').innerHTML = COLORS.map(([v, name, use]) => {
+    const val = cs(root, v);
+    return `<div class="swatch"><div class="chip" style="background:${val}"></div>` +
+      `<div><span style="color:var(--sb-ink)">${name}</span><br>` +
+      `<span style="font-size:var(--sb-size-small);color:var(--sb-ink-dim)">${use}</span></div>` +
+      `<div class="mono">${v}<br>${val}</div></div>`;
+  }).join('');
+
+  // ── 5 栅格 ────────────────────────────────────────────────────────
+  $('safe-tag').textContent = `安全区 ${cs(root, '--sb-safe')} —— 没有一个字可以越过`;
+  $('grid-meta').textContent =
+    `12 栏 · gutter ${cs(root, '--sb-gutter')} · 正文行长上限 ${cs(root, '--sb-measure')} · ` +
+    `安全区 ${cs(root, '--sb-safe')}（屏幕）/ 24mm（印刷）`;
+
+  // ── 7 索引 ────────────────────────────────────────────────────────
+  const INDEX = [
+    ['poster-01-academic-a1.png', '594 × 841 mm', '说明海报', '组合数 / 形态空间 / 系统结构 / 人工剔除的十件'],
+    ['poster-02-array-a1.png', '594 × 841 mm', '宣传海报', `${C.entries} 个条目的躯干参考件阵列，按形态空间排序`],
+    ['poster-03-position-a1.png', '594 × 841 mm', '立场海报', 'PRD §5 六条判据的逐条自评'],
+    ['print-04-ticket-a4.png', '210 × 297 mm', '留念票根', '三联，现场裁开发放；seed 手写或盖章'],
+    ['brand-spec-page.png', '规范页', '本页', '字体栈 / 级差 / 对照 / 颜色 / 栅格 / 反面清单'],
+  ];
+  $('index').innerHTML =
+    '<tr><th>文件</th><th>尺寸</th><th>用途</th><th>内容</th></tr>' +
+    INDEX.map((r) => `<tr><td class="mono" style="color:var(--sb-ink)">${r[0]}</td>` +
+      `<td class="mono">${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`).join('');
+
+  $('footer').innerHTML =
+    `规范：docs/27-BRAND.md · 源：packages/app/src/ui/type.css（本页未修改其中任何一个值）<br>` +
+    `数据：${C.entries} 条目 · ${C.parts} 件（剔 ${C.partsRejected}，在池 ${C.partsLive}） · ` +
+    `${C.slots} 槽位 · ${C.plans} 身体方案 · parts.json v${D.source.partsVersion} ${D.source.partsGeneratedAt.slice(0, 10)}`;
+})();
+</script>
+</body>
+</html>

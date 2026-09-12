@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>SEE-ME SEE-YOU · 留念票根 A4</title>
+<link rel="stylesheet" href="/src/ui/type.css">
+<link rel="stylesheet" href="./poster.css">
+<style>
+  @page { size: 210mm 297mm; margin: 0; }
+  .p-sheet { width: 210mm; height: 297mm; }
+
+  /**
+   * A4 竖版，三联票根，每联 210 × 99mm。现场裁开就能发。
+   *
+   * 纸上的字比 A1 小得多：这张是拿在手里看的，不是三米外看的。
+   * 所以这里把印刷级差整体降一档 —— 规则不变（大字紧、小字松），只是基准变了。
+   */
+  .p-sheet {
+    --p-h1: 7mm; --p-h2: 5mm; --p-h3: 4mm;
+    --p-body: 3.1mm; --p-small: 2.5mm; --p-micro: 2.1mm;
+    --p-safe: 0;
+  }
+
+  .stub { position: relative; height: 99mm; padding: 11mm 13mm; box-sizing: border-box;
+          display: flex; flex-direction: column; }
+  /* 裁切线：虚线 + 两端的剪口标记。不是装饰，是给裁纸刀看的 */
+  .stub + .stub { border-top: 0.3mm dashed var(--sb-rule); }
+
+  /* 手写栏：一条实线，上面什么都不印 —— 现场用笔或章填 */
+  .field { display: flex; align-items: flex-end; gap: 3mm; }
+  .field .k { font-size: var(--p-micro); letter-spacing: var(--p-tracking-label);
+              text-transform: uppercase; color: var(--sb-ink-dim); white-space: nowrap; padding-bottom: 1mm; }
+  .field .v { flex: 1; border-bottom: 0.3mm solid var(--sb-rule); height: 100%; }
+
+  .seed .k { font-size: var(--p-small); }
+  .seed .v { border-bottom-color: var(--sb-ink-dim); }
+
+  .row { display: grid; grid-template-columns: 1fr 1fr 0.55fr; gap: 0 7mm; }
+</style>
+</head>
+<body>
+
+<section class="p-sheet">
+  <div id="stubs"></div>
+</section>
+
+<script src="./shot.js"></script>
+<script src="./data.js"></script>
+<script>
+(() => {
+  const D = window.SB_POSTER, C = D.counts;
+  const b = (s) => `<b class="p-ink" style="font-weight:600">${s}</b>`;
+  const m = (s) => `<span class="p-mono p-ink">${s}</span>`;
+
+  // 文案逐字取自 src/ui/i18n.ts 的 COPY.leave / COPY.privacy ——
+  // 面向观众的字符串只有一个来源，纸上的也不例外
+  const stub = () => `
+    <div class="stub">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <p class="p-label-micro">看我看你 · SEE-ME SEE-YOU</p>
+        <p class="p-label-micro">留念 / Keepsake</p>
+      </div>
+
+      <p class="p-h2 p-bi" style="margin-top:5mm">
+        <span class="sb-zh">带走这具身体</span>
+        <span class="sb-en">Take this body with you</span>
+      </p>
+
+      <div class="field seed" style="margin-top:6mm;height:9mm">
+        <span class="k">编号 / Seed</span>
+        <span class="v"></span>
+      </div>
+
+      <div class="row" style="margin-top:5mm">
+        <div class="field" style="height:6mm"><span class="k">物种 / Species</span><span class="v"></span></div>
+        <div class="field" style="height:6mm"><span class="k">身体方案 / Body plan</span><span class="v"></span></div>
+        <div class="field" style="height:6mm"><span class="k">阶段 / Tier</span><span class="v"></span></div>
+      </div>
+
+      <div class="p-spacer"></div>
+
+      <hr class="p-rule" style="margin-bottom:2.5mm">
+      <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:0 7mm">
+        <p class="p-micro" style="margin:0">
+          这串数字${b('就是那具身体')}。把它敲回去，同一个编号永远长回同一具身体 ——
+          同样的零件、同样的比例、同样的材质。它不是一张截图，是一份配方。<br>
+          <span class="p-dim">This number <i>is</i> the body. Type it back in and the same one grows again —
+          same parts, same proportions, same materials. Not a screenshot: a recipe.</span>
+        </p>
+        <p class="p-micro" style="margin:0">
+          <span class="p-ink">画面不离开你的浏览器。</span><br>
+          <span class="p-dim">Video never leaves your browser.</span><br><br>
+          <span class="p-mono p-dim">${C.entries} 物种 · ${C.plans} 身体方案 · ${C.partsLive} 件部件</span>
+        </p>
+      </div>
+    </div>`;
+
+  document.getElementById('stubs').innerHTML = stub() + stub() + stub();
+})();
+</script>
+</body>
+</html>

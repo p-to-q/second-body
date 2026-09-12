@@ -1,0 +1,151 @@
+/**
+ * 海报层 —— 只增不改。
+ *
+ * `src/ui/type.css` 定义的是**屏幕上的**排版系统（rem / px，正文 16px）。
+ * 海报是印刷品：纸张尺寸是 mm，观看距离是米，正文 16px 在 A1 上等于看不见。
+ * 所以这里加一套**印刷字号级差**，规则和 type.css 完全一样，只是单位换成 mm：
+ *
+ *   字号越大，字距越紧；字号越小，字距越松。
+ *   —— grotesk 的这一半最容易被忽略，type.css 的注释里写着，这里照做。
+ *
+ * 颜色、字体栈、中英对照（.sb-bi / .sb-zh / .sb-en）全部沿用 type.css，一个值都不改。
+ *
+ * 打印：每张海报自己声明 @page size。存 PDF 时**必须勾选"背景图形"**，
+ * 否则深色底不会印出来，整张海报会变成白纸上的浅灰字。
+ */
+
+/* ── 印刷字号级差（单位 mm，跟着 @page 走）───────────────────────────── */
+:root {
+  --p-mega: 86mm;     /* 一张海报只许有一个 */
+  --p-display: 34mm;
+  --p-h1: 15mm;
+  --p-h2: 8.4mm;
+  --p-h3: 5.6mm;
+  --p-body: 4.2mm;
+  --p-small: 3.2mm;
+  --p-micro: 2.6mm;   /* 版权行、来源行 */
+
+  --p-tracking-mega: -0.035em;
+  --p-tracking-display: -0.03em;
+  --p-tracking-h1: -0.025em;
+  --p-tracking-h2: -0.015em;
+  --p-tracking-body: 0;
+  --p-tracking-label: 0.08em;
+
+  /* 安全区：投影/裁切都会吃边。屏幕上是 48px，印刷上是 24mm（≈91px），取更大的那个 */
+  --p-safe: 24mm;
+  --p-gutter: 8mm;
+  --p-rule: 0.35mm;   /* 细横线：印刷上低于 0.25mm 会断，高于 0.5mm 就变成装饰 */
+}
+
+/* ── 纸 ─────────────────────────────────────────────────────────────── */
+html, body { margin: 0; padding: 0; background: #000; }
+
+.p-sheet {
+  position: relative;
+  box-sizing: border-box;
+  margin: 0 auto;
+  background: var(--sb-paper);
+  color: var(--sb-ink-dim);
+  font-family: var(--sb-grotesk);
+  font-size: var(--p-body);
+  line-height: 1.45;
+  overflow: hidden;
+  /* 深色底必须真的印出来 */
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.p-sheet + .p-sheet { margin-top: 10mm; }
+
+/* 安全区。海报上**没有一个字**可以越过它 */
+.p-safe {
+  position: absolute;
+  inset: var(--p-safe);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── 字级 ───────────────────────────────────────────────────────────── */
+.p-mega, .p-display, .p-h1, .p-h2, .p-h3 {
+  color: var(--sb-ink);
+  font-weight: var(--sb-weight-head);
+  margin: 0;
+}
+.p-mega    { font-size: var(--p-mega);    line-height: 0.86; letter-spacing: var(--p-tracking-mega); }
+.p-display { font-size: var(--p-display); line-height: 0.95; letter-spacing: var(--p-tracking-display); }
+.p-h1      { font-size: var(--p-h1);      line-height: 1.05; letter-spacing: var(--p-tracking-h1); }
+.p-h2      { font-size: var(--p-h2);      line-height: 1.2;  letter-spacing: var(--p-tracking-h2); }
+.p-h3      { font-size: var(--p-h3);      line-height: 1.3;  letter-spacing: var(--p-tracking-h2); }
+
+.p-body  { font-size: var(--p-body);  line-height: 1.45; margin: 0; }
+.p-small { font-size: var(--p-small); line-height: 1.4;  margin: 0; }
+.p-micro { font-size: var(--p-micro); line-height: 1.45; margin: 0; color: var(--sb-ink-dim); }
+
+/* 全大写标签 —— 这套风格里承担"分类"的那个角色（type.css .sb-label 的印刷版） */
+.p-label {
+  font-size: var(--p-small);
+  letter-spacing: var(--p-tracking-label);
+  text-transform: uppercase;
+  color: var(--sb-ink-dim);
+  margin: 0;
+}
+.p-label-micro { font-size: var(--p-micro); letter-spacing: var(--p-tracking-label); text-transform: uppercase; color: var(--sb-ink-dim); margin: 0; }
+
+.p-ink { color: var(--sb-ink); }
+.p-dim { color: var(--sb-ink-dim); }
+.p-mono { font-family: var(--sb-mono); font-variant-numeric: tabular-nums; }
+.p-measure { max-width: 62ch; }
+
+/* ── 线。用线分区，不用卡片、不用阴影、不用圆角 ─────────────────────── */
+.p-rule { border: 0; border-top: var(--p-rule) solid var(--sb-rule); margin: 0; width: 100%; }
+.p-rule-ink { border-top-color: var(--sb-ink); }
+
+/* ── 栅格 ───────────────────────────────────────────────────────────── */
+.p-cols { display: grid; gap: var(--p-gutter); }
+.p-c2 { grid-template-columns: repeat(2, 1fr); }
+.p-c3 { grid-template-columns: repeat(3, 1fr); }
+.p-c4 { grid-template-columns: repeat(4, 1fr); }
+.p-c6 { grid-template-columns: repeat(6, 1fr); }
+.p-spacer { flex: 1 1 auto; }
+
+/* ── 中英对照的海报版。比例沿用 type.css 的 0.82em / 0.15em ──────────── */
+.p-bi .sb-zh { color: var(--sb-ink); display: block; }
+.p-bi .sb-en { color: var(--sb-ink-dim); display: block; font-size: 0.82em; letter-spacing: 0.01em; margin-top: 0.15em; }
+/* 大字号下英文那行要跟着标题收字距，否则会散开 */
+.p-h1 .sb-en, .p-display .sb-en, .p-mega .sb-en { letter-spacing: var(--p-tracking-h2); font-weight: 400; }
+
+/* ── 唯一一处颜色承担语义：拒入 / 准入。其余一律灰阶 ────────────────── */
+.p-reject { color: var(--sb-warn); }
+.p-admit  { color: var(--sb-accent); }
+/* 拒入的那一条左边一根竖线 —— 颜色只在这一根线和一个字上，不铺面 */
+.p-reject-bar { border-left: 0.8mm solid var(--sb-warn); padding-left: 3mm; }
+.p-admit-bar  { border-left: 0.8mm solid var(--sb-accent); padding-left: 3mm; }
+
+/* ── 页脚：每张海报都带出处 ─────────────────────────────────────────── */
+.p-colophon {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--p-gutter);
+  padding-top: 3mm;
+}
+
+/* ── 打印 ───────────────────────────────────────────────────────────── */
+@media print {
+  html, body { background: #fff; }
+  .p-sheet { margin: 0; page-break-after: always; break-after: page; }
+  .p-sheet:last-child { page-break-after: auto; break-after: auto; }
+  .p-screen-only { display: none !important; }
+}
+
+/* 屏幕上看时给一点呼吸，印刷时这条被上面覆盖掉 */
+@media screen {
+  body { padding: 10mm 0; }
+}
+
+/**
+ * 截图模式：`?shot` —— 去掉屏幕上那点呼吸留白，让窗口尺寸正好等于纸张尺寸。
+ * `assets/brand/` 里的 PNG 就是这样出的（见 shot.mjs）。
+ */
+body.p-shot { padding: 0 !important; }
+body.p-shot .p-sheet + .p-sheet { margin-top: 0; }
