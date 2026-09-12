@@ -20,3 +20,8 @@ assets/parts/lineage/
 # agent worktrees（每个都是独立 git 仓库，绝不能被当成 submodule 提交进来）
 .claude/worktrees/
 .vercel
+
+# 参考图原料入口 —— 不进 dist（vite 的 shipAssets 只复制 SHIPPED 里那几个目录）
+assets/intake/**/*.jpg
+assets/intake/**/*.jpeg
+assets/intake/**/*.png
