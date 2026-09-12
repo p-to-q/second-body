@@ -1,6 +1,6 @@
 /* 由 build-data.mjs 生成，不要手改。跑 `node packages/app/poster/build-data.mjs` 重出。 */
 window.SB_POSTER = {
-  "generatedAt": "2026-09-12T16:03:43.022Z",
+  "generatedAt": "2026-09-12T16:37:32.528Z",
   "source": {
     "parts": "assets/parts/parts.json",
     "curation": "assets/parts/curation.json",

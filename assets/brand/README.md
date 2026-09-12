@@ -34,7 +34,8 @@ node packages/app/poster/shot.mjs --port=5173
 
 > **没有一个数字是手打的。** 全部由 `packages/app/poster/build-data.mjs`
 > 从 `assets/parts/parts.json` + `assets/parts/curation.json` 现算，写进 `poster/data.js`。
-> 组合数的算法是 `packages/core/src/genome.ts` 的镜像（见 `docs/27-BRAND.md §7`）。
+> 槽位表取自 `packages/core/src/slots.ts` 本身（不是抄本）；组合数的算法与
+> `packages/core/src/genome.ts` 逐条对齐（见 `docs/27-BRAND.md §7`）。
 
 ### `poster-01-academic-a1.png` — 说明海报
 

@@ -200,7 +200,12 @@ A4 票根那张把整套基准降一档（在 `.p-sheet` 上局部覆盖），�
 node packages/app/poster/build-data.mjs     # 重出 data.js
 ```
 
-组合数的算法是 `packages/core/src/genome.ts` 的镜像，逐条对齐：
+槽位表和键序**直接从 `packages/core/src/slots.ts` import**（node 22 直接跑 .ts，不需要构建步骤）。
+原先这里手抄了一份 `SLOT_OF_BONE`：抄本和正本对上的那天数字是对的，但 `genome` 改了这边不会报错，
+数字会静默漂移 —— 而这几张海报的全部说服力恰恰是"数字是跑出来的"。去掉抄本那次，输出一字未变，
+这说明它当时是对的，也说明这种错**不会**在出现的时候被发现。
+
+组合数的算法仍与 `packages/core/src/genome.ts` 逐条对齐：
 18 个挂载键各自独立抽件（左右肢是两次独立抽取）· 沿 `base` 链借件 ·
 `curation.json` 里 reject 的件不进池 · 不含 tier 3 的跨主题杂交。
 

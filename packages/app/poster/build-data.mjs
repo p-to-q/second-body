@@ -8,7 +8,12 @@
  * 记过一次"工程指标全绿、作品没成立"的教训；宣发物料是同一类陷阱的另一个入口 ——
  * 它天然想把数字说大、说圆、说定。所以数字只有一个来源，而且是**跑出来的**。
  *
- * 组合数的算法是 `packages/core/src/genome.ts` 的镜像，逐条对齐：
+ * 槽位表**直接从 `packages/core/src/slots.ts` import**，不再手抄一份。
+ * 抄过一次：抄本和正本对上的那天数字是对的，genome 改了这边不会报错，
+ * 数字会静默漂移 —— 而这几张海报的全部说服力就是数字是真的。
+ * （node 22 直接跑 .ts，不需要构建步骤。）
+ *
+ * 组合数的算法仍与 `packages/core/src/genome.ts` 逐条对齐：
  *   - 18 个键（17 根骨头 + joint），左右肢**各自独立抽件**；
  *   - 沿 `base` 链找第一个有货的层级（docs/14 §3 的 light 借件）；
  *   - `curation.json` 里 reject 的件不进候选池（docs/14 §5）；
@@ -20,6 +25,8 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { ALL_SLOT_KEYS, SLOT_OF_BONE } from '../../core/src/slots.ts';
+
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '../../..');
 
@@ -29,18 +36,8 @@ try {
   curation = JSON.parse(readFileSync(resolve(ROOT, 'assets/parts/curation.json'), 'utf8'));
 } catch { /* 没有策展文件是合法状态：未评级是默认 */ }
 
-/** genome.ts / slots.ts 的镜像。改了那边，这里会被 verify() 抓到对不上 */
-const SLOT_OF_BONE = {
-  spine: 'spine', neck: 'joint', head: 'head',
-  clavicleL: 'clavicle', clavicleR: 'clavicle',
-  upperArmL: 'upperArm', upperArmR: 'upperArm',
-  foreArmL: 'foreArm', foreArmR: 'foreArm',
-  handL: 'hand', handR: 'hand',
-  thighL: 'thigh', thighR: 'thigh',
-  shinL: 'shin', shinR: 'shin',
-  footL: 'foot', footR: 'foot',
-};
-const KEYS = [...Object.keys(SLOT_OF_BONE), 'joint'];
+// 槽位表和键序都取自正本（core/src/slots.ts）。这里一个字都不许再写。
+const KEYS = ALL_SLOT_KEYS;
 
 const rejected = new Set(
   Object.entries(curation).filter(([, v]) => v?.verdict === 'reject').map(([id]) => id),
