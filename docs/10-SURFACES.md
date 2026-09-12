@@ -8,6 +8,7 @@
 
 最后更新：2026-09-12（B 档身体方案 `mass` 落地后）
 最后更新：2026-09-12（T-16 kiosk 加固 + 录制页落地后）
+最后更新：2026-09-12（T-09 Stage 落地后）
 
 ## 资产流水线
 
@@ -48,7 +49,12 @@
 | Vite + `three/webgpu` 渲染栈 | `stable` | `/dev/parts.html` 在 WebGPU 下正常出图 |
 | **主程序 `src/main.ts`（整条链收口）** | `experimental` | `/?demo=1&debug=1&theme=patrol&seed=99&tier=2` 装出整具真部件身体：**120fps · CPU 0.8ms · 30 实例 · 89k 三角 · 13 draw · 推理 30Hz**，全部在 `BUDGET` 内（`scratch/evidence/main-chain-patrol.png`）。tier 0 时如设计般是素几何（`main-chain-tier0.png`）。**只在回放数据上跑过，没接过真人** |
 | **玩法扩展点 `src/acts/`（Act / Director）** | `experimental` | `/?demo=1&debug=1&act=echo` → HUD 显示 `act echo 回声: 延迟 1.2s`，120fps / CPU 0.5ms。出错隔离（连续 3 次抛异常自动禁用并回落 follow）的分支 `Not run` |
-| `src/stage/stage.ts` 舞台最小版（相机/三点光/地面/在场明暗） | `experimental` | 同上两张截图。正经 look dev 仍欠 T-09 |
+| `src/stage/stage.ts` 舞台（等身相机 / 三点光 / 影子 / 背景布 / 空场粒子 / 升档脉冲） | `experimental` | `/dev/stage.html`：4 个条目 + 空场 + 后期开关 + 脉冲 + 身体方案对照共 11 张取证图 `scratch/evidence/stage-*.png`，30 实例 / 87k 三角 / 14–17 draw（随 genome 变），都在 `BUDGET` 内；后期本身不进 creature 的 draw 统计。**只在合成 A-pose 上跑过，没接过真人、没接进 main.ts** |
+| `src/stage/framing.ts` 按身体包围盒取景（人形严格等身，非人形有限插值） | `stable` | `test/framing.test.ts` 6 条：`PLAN_BOUNDS` 每次跑都和 `remapSkeleton` 的实测值比对；人形画面高度仍是 2.45m；四足/stub/towering/inverted 都不出画。截图 `stage-plan-a-rig.png` / `stage-plan-b-quadruped.png`（同一套灯光，两种身体方案） |
+| `src/stage/look.ts` 每个条目一套灯光/后期（`palette` + `axes` 推导，无 23 个 if） | `stable` | `test/look.test.ts` 11 条：六个主题的冷暖次序、23 个条目无 NaN / 不纯黑 / 地面远端 == 背景 |
+| `src/stage/post.ts` 轻 bloom / 微 DOF / GTAO / 暗角 / 颗粒（three addons，无新依赖） | `experimental` | `stage-post-on.png` vs `stage-post-off.png`（同 seed 同条目）。**踩过的坑**：scene pass 继承渲染器 MSAA 会让 GTAO 的 `textureGather` 无重载、整条 AO 管线静默失效 → 改 `samples:0` + 末尾 FXAA。建链失败会退回直出，那条降级路径 `Not run` |
+| `src/stage/particles.ts` 空场呼吸粒子（相位由累计时间驱动，无循环） | `experimental` | `stage-idle-attract.png`：IDLE 不黑屏。**连续数小时不露循环**只是设计如此（uTime 单调累加），`Not run` |
+| 升档视觉事件 `stage.pulse(tier)`（600ms / 全身 +8% / 0.15s 内 dt×0.4） | `experimental` | `stage-pulse-before.png` vs `stage-pulse-peak.png`：HUD 现场读数 **全身 +7.1%**（截图那一刻的包络值，峰值 +7.6%），被照亮像素的线性亮度实测 +6.4%；`timeScale` 轨迹 0.40 → 0.47 → 0.67 → 0.87 → 1（0.15s 恢复）。**没接进 main.ts**：停滞要生效，收口时要把 `stage.timeScale` 乘进 creature/act 的 dt |
 | `src/assets/library.ts` PartLibrary（parts.json + glb + 程序化占位） | `stable` | 把 `parts.json` 改名 → 页面照跑，30 个占位实例（`creature-fallback-no-partsjson.png`）；单个 glb 改名 → 只有那一个槽位退回占位，16/17 正常（`creature-one-glb-missing-head-fallback.png`）|
 | `src/creature/assemble.ts` 纯装配（挂载 + 关节盖片） | `stable` | 30 个实例的 `M·(0,0,0)` 与 `bone.p0` 误差 0；stretch 槽位 `M·(0,1,0)` 与 `p1` 误差 0 |
 | `src/creature/body.ts` `BodyInstance` 接口（身体方案的插拔点，docs/18 §3） | `stable` | 纯提取，`creature.ts` 一行没动。编译期断言 `Creature extends BodyInstance` 在 `npm run typecheck` 里（把 `pose` 签名改坏会立刻红）；`mass.ts` 是第二个实现 |
@@ -66,7 +72,7 @@
 | **`?selftest=1` 开场自检页（`src/shell/selftest.ts`）** | `experimental` | 逐条检查 WebGPU / 摄像头权限 / parts.json / demo 片段 / 本地模型，✓⚠✗ 各带一句人话；视觉按 `docs/23 §0`（等宽、两级字号、48px 安全边距、无圆角无图标）。不进主程序，主程序起不来也能开（独立 8.3KB chunk）。每条检查 8s 超时 —— **串行跑，一条挂住会把后面全部钉死在"检查中…"**（headless Chrome 的 `enumerateDevices()` 真的会挂）。实测截图 `scratch/evidence/selftest-t16.png`：parts.json ✓ 191 件/23 主题 · demo ⚠ 只有合成数据 · 本地模型 ⚠ 缺 · 摄像头 ⚠ 超时（headless）/ ✗ 权限被拒（浏览器面板） |
 | `npm run kiosk` 一条命令进现场 | `stable` | = build + preview + 自动开 `/?kiosk=1`。实跑一遍：build ✓ → `http://localhost:4173/?kiosk=1` 200、`/?selftest=1` 200、`/demo/index.json` 200。`/demo/index.json` 现在由 vite 插件在 **build 时**（不只是 dev server 起来时）扫 `assets/demo/` 生成 —— 删掉它重新 build 会长回来，新机器 clone 下来直接 `npm run kiosk` 不会缺索引。另有 `npm run selftest` 直接开自检页 |
 | 慢回路（代理 + 热插拔） | `spec-only` | T-17 |
-| Stage / 后期 | `spec-only` | T-09 |
+| Stage / 后期 | 见上面四行 | T-09 已落地；仍欠：接进 `main.ts`（`stage.render()` / `stage.frame()` / `stage.timeScale`）、真人实测、现场投影亮度 |
 | 开场选择页（dither 轮播） | `experimental` | `/dev/choose.html`：6 张卡滚/选/进，`?theme=xeno` 跳过，数字键直选，空闲自动选（`?idle=6000` 验过）；截图 `scratch/evidence/choose-0*.png`。上游 `gl/` 已移植进 `src/vendor/dither-carousel/`（MIT + LICENSE 在位，`public/` 素材一张没拿）。未验：真实现场投影分辨率与触摸屏 |
 | 选择页无 WebGL 降级（DOM 列表） | `experimental` | `/dev/choose.html?gl=off`：6 张卡列出、点选写 `?theme=`、键盘与自动选择照常；控制台 `mode=fallback`。真实的 context lost 分支 `Not run` |
 | 形态空间排布（按 `axes` 绕质心成环） | `experimental` | `?roster=1` 下 23 个条目排成一圈（autonomous→wheelleg→patrol→field→…→orb）；旧版 parts.json 无 `axes` 时退回数组顺序，也验过 |

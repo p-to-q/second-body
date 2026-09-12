@@ -1,11 +1,125 @@
 /**
- * 舞台的**最小可用版**：相机、灯、地面、背景。
- * T-09 会把它换成正经的 look dev（软阴影 / 接触阴影 / 轻 bloom / 微 DOF / IDLE 呼吸粒子）。
- * 先有一个能跑的，是为了让 main.ts 现在就能整条链路收口 —— 否则谁都不知道接起来会怎样。
+ * 舞台：相机 / 灯光 / 地面 / 后期 / 空场状态。**这里决定这件作品像不像作品。**
+ *
+ * 四条它必须做到的事（docs/00 §6.3、docs/05 §3 §5、docs/12 §6）：
+ *
+ * 1. **等身。** 相机不是"摆得好看"：机位在观众的眼高（1.58m）、站在 2.8m 外、**水平**
+ *    看出去，用**镜头上下平移**（shift lens）把画面压到含脚含头，而不是低头去看。
+ *    低头会让竖线向内收，身体立刻变成"被俯视的模型"，1:1 的读数就没了 ——
+ *    而等身是这类作品的全部魔法。
+ *    画面框住多大一块世界由 `framing.ts` 按**身体实际的包围盒**算（docs/18 之后
+ *    身体不一定是人形：四足是横的矮的）。那里写了"有限插值"这个取舍的来龙去脉。
+ * 2. **影子必须落在地面上。** 真阴影贴图（身体形状）+ 着色器里的软接触阴影（贴地那一圈）。
+ *    地面圆盘的远端**颜色正好等于背景地平线色**，所以看不到盘子的边 —— 地面和背景连续。
+ * 3. **空场不黑屏。** IDLE 时地面上有一团缓慢呼吸的粒子；有人进场时它聚拢成最原始形态。
+ * 4. **升档有视觉事件。** `stage.pulse(tier)`：600ms 内全身亮度 +8% + 时间轻微停滞
+ *    （docs/23 §S5 把这两个数写死了）。
+ *
+ * 主题微调（每个主题一套灯光/背景/后期）住在 `look.ts`，是**纯函数**、有单元测试；
+ * 这里只负责把它插到 three 的对象上。23 个 roster 条目没有 23 个 if。
+ *
+ * ── 接入方式（给 main.ts 的一句话）──────────────────────────────────────────
+ * 后期需要 `RenderPipeline`，而它**必须替代** `renderer.render(scene, camera)`：
+ *
+ *     stage.render(renderer);            // 而不是 renderer.render(stage.scene, stage.camera)
+ *
+ * 不改也能跑 —— 那就等于全程 `?nopost=1`（灯光/阴影/地面/粒子/脉冲都还在），
+ * 只是没有 bloom/DOF/AO。`?nopost=1` 也正是排查性能时要的那条路径。
  */
 import * as THREE from 'three/webgpu';
-import type { MotionFeatures, Presence } from '../../../core/src/types.ts';
+import {
+  float, mix, positionWorld, screenUV, smoothstep, uniform,
+} from 'three/tsl';
+import type {
+  MaterialDef, MotionFeatures, PartLibraryIndex, Presence, Skeleton, ThemeDef,
+} from '../../../core/src/types.ts';
 import { SKELETON } from '../../../core/src/tuning.ts';
+import { readFlags } from '../shell/kiosk.ts';
+import { createBreathField, type BreathField } from './particles.ts';
+import { createPost, POST_DEFAULTS, type PostChain } from './post.ts';
+import { deriveLook, lerpLook, NEUTRAL_LOOK, type LookProfile, type RGB } from './look.ts';
+import {
+  boundsOfPlan, boundsOfSkeleton, fitFrame, lerpBounds, DEFAULT_BOUNDS, type BodyBounds,
+} from './framing.ts';
+
+/**
+ * ⚠️ 这些数**本该住在 `tuning.ts`**（P0：现场要调的旋钮只有一个文件）。
+ * 但 `tuning.ts` 是冻结契约，T-09 不自行修改 —— 已在交付报告里提"需要变更契约"。
+ * 在它搬过去之前，这里是唯一一份。
+ */
+const STAGE = {
+  // ── 等身（docs/00 §6）：观众站在 2.5–3m 外，眼高 1.58m ──
+  /** 相机到身体的距离（米） */
+  viewDistance: 2.8,
+  /** 机位高度 = 观众眼高（米） */
+  eyeHeight: 1.58,
+  /**
+   * 换条目时相机重新取景的时间常数（秒）。
+   * 取景**必须**是渐变的：docs/23 §S3 要求进场无缝，而遥控器数字键直选是一下一个物种。
+   */
+  framingTau: 0.45,
+  near: 0.08,
+  /** 远裁剪面必须比背景布还远，否则背景布被裁掉、露出 scene.background 那条路径 */
+  far: 260,
+  /** 极缓慢的机位呼吸（米）。只为了让静帧之外的画面不像贴图，别调大 */
+  sway: 0.012,
+
+  // ── 灯 ──
+  /** 三盏灯的方向（会被归一化后放到 lightDistance 上），面朝 +Z 的身体 */
+  keyDir: [1.5, 2.35, 1.85] as const,
+  fillDir: [-2.3, 1.25, 1.7] as const,
+  rimDir: [-0.85, 2.1, -2.5] as const,
+  lightDistance: 5.0,
+  /** 灯瞄准的高度（米）：胸口略下，阴影和高光都落在最该看的地方 */
+  aimHeight: 0.98,
+  /** IDLE 时灯保留的比例。**不是 0** —— 黑屏会让观众以为坏了（docs/05 §5） */
+  idleFloor: 0.40,
+
+  // ── 阴影 ──
+  shadowMapSize: 2048,
+  /** 阴影正交相机的半宽/半高（米） */
+  shadowExtent: 1.9,
+  shadowBias: -0.0009,
+  shadowNormalBias: 0.022,
+
+  // ── 地面 ──
+  /**
+   * 地面圆盘的半径（米）。**很大是故意的**：盘子的边缘必须落在地平线上，
+   * 否则画面里会出现一条弧 —— 观众一眼就看出这是一张摆在虚空里的圆盘。
+   * 18m 的时候那条弧清清楚楚（第一轮取证图里就是）。
+   */
+  groundRadius: 48,
+  /** 地面开始淡进背景色的半径（米） */
+  groundFadeStart: 3.0,
+  groundFadeEnd: 16.0,
+  groundRoughNear: 0.58,
+  groundRoughFar: 0.96,
+  /** 背景布（朝内的圆筒）的半径与高度（米）。必须比地面盘子更远 */
+  backdropRadius: 62,
+  backdropHeight: 140,
+
+  // ── 粒子 ──
+  particleCount: 760,
+  particleSeed: 0x5EC0D1,
+  /**
+   * 雾团半径（米）。1.75m 时它会铺满整个下半屏，读起来是"到处都是灰"而不是
+   * "地上有一团东西在呼吸"——空场那一帧要能看出是**一个**东西。
+   */
+  particleRadius: 1.2,
+
+  // ── 升档脉冲（docs/23 §S5：600ms / 亮度 +8% / 0.15s 内 dt×0.4）──
+  // 这三个数是**规格**，不是口味。docs/23 写死了它们，改之前先改那份文档。
+  /** 整个事件的时长（秒） */
+  pulseDuration: 0.60,
+  /** 起落时间（秒）：这么快亮起来，剩下的时间落回去 */
+  pulseAttack: 0.09,
+  /** 峰值时全身亮多少。+8%，**再多一点就成了闪光灯** */
+  pulseGain: 0.08,
+  /** 时间停滞：脉冲瞬间 dt 缩到这个倍率 */
+  stasisScale: 0.40,
+  /** 停滞恢复到 1 的时长（秒） */
+  stasisRecover: 0.15,
+};
 
 export interface Stage {
   readonly scene: THREE.Scene;
@@ -13,49 +127,546 @@ export interface Stage {
   update(p: Presence, m: MotionFeatures | null, dt: number): void;
   resize(w: number, h: number): void;
   dispose(): void;
+
+  // ── 以下是 T-09 新增的能力（只增不改，见 P0） ──
+  /**
+   * 走后期的渲染入口。**main.ts 用它替代 `renderer.render(scene, camera)`。**
+   * 没接也不会坏：不调用就是直出（= `?nopost=1`）。
+   */
+  render(renderer: THREE.Renderer): void;
+  /** 换主题的灯光/背景/后期微调。传 id 需要同时给 index 才查得到 palette */
+  setTheme(theme: ThemeDef | string | null, index?: PartLibraryIndex | null): void;
+  /**
+   * 升档的视觉事件（docs/23 §S5）：600ms 内全身亮度 +8%，同时时间轻微停滞。
+   * **只管舞台这一半。** 停滞要作用到身体上，收口的人把 `stage.timeScale` 乘进
+   * 传给 creature / act 的 dt 里即可 —— 不乘也不会坏，只是身体不一起停。
+   */
+  pulse(tier: number): void;
+  /** 当前的时间缩放（升档停滞期间 < 1，其余时候正好 1） */
+  readonly timeScale: number;
+  /** 当前脉冲给全身加了多少亮度（0 = 没在脉冲；峰值 ≈ 0.08，即 docs/23 §S5 的 +8%） */
+  readonly pulseGain: number;
+  /**
+   * 告诉舞台"身体现在有多大、在哪"，取景据此走（docs/18 之后不能再假设人形）。
+   * 传**重映射之后**的那副骨架（就是喂给 creature.pose() 的那副）；每帧调都行，
+   * 内部只量 34 个端点并平滑过渡。传 null = 没有可信骨架，保持当前取景。
+   *
+   * 不调也不会出画：换主题时舞台已经按该物种的 `bodyPlan` 摆好了取景，
+   * 这个方法是用真人的高矮胖瘦去**细化**它。
+   */
+  frame(skeleton: Skeleton | null): void;
+  /** 当前取景依据的包围盒（HUD / 截图取证用） */
+  readonly bounds: BodyBounds;
+  /** 运行时开关后期（HUD / 现场排查用） */
+  setPost(on: boolean): void;
+  readonly post: boolean;
+  /** 当前生效的 look，给 HUD 和 dev 页面看 */
+  readonly look: LookProfile;
 }
 
-export function createStage(): Stage {
+export interface StageOptions {
+  /** 主题。给字符串就需要 `index` 才能查到 palette */
+  theme?: ThemeDef | string | null;
+  index?: PartLibraryIndex | null;
+  /** 覆盖 `?nopost=` 的判断 */
+  post?: boolean;
+  /** parts.json 的基址，默认 `/parts/`。只在没人调 setTheme 时用来自举主题 */
+  baseUrl?: string;
+  /** 覆盖 URL flags（dev 页面用） */
+  search?: string;
+}
+
+const toColor = (c: RGB): THREE.Color =>
+  new THREE.Color().setRGB(c[0], c[1], c[2], THREE.LinearSRGBColorSpace);
+
+const setColor = (target: THREE.Color, c: RGB): void => {
+  target.setRGB(c[0], c[1], c[2], THREE.LinearSRGBColorSpace);
+};
+
+/**
+ * 着色器里的颜色一律走 `Vector3`，不走 `Color`。两个理由，踩过才知道：
+ *  1. `uniform(Color)` 出来的是 `Node<'color'>`，在 TSL 的类型里**不是** vec3，
+ *     喂给 `mix()` / `vec3()` 会被拒（就是 T-09 中断时那七个红点里的六个）。
+ *  2. `Color` 的赋值会牵扯色彩空间转换，而 `look.ts` 给的已经是**线性** RGB，
+ *     再转一次就偏色了。Vector3 是纯数字，没有这层魔法。
+ */
+const toVec3 = (c: RGB): THREE.Vector3 => new THREE.Vector3(c[0], c[1], c[2]);
+
+const setVec3 = (target: THREE.Vector3, c: RGB): void => { target.set(c[0], c[1], c[2]); };
+
+/** 帧率无关的 EMA（docs/05 §2 的同一条约定：a = 1 - exp(-dt/τ)） */
+const ease = (cur: number, target: number, dt: number, tau: number): number =>
+  cur + (target - cur) * (1 - Math.exp(-dt / Math.max(1e-4, tau)));
+
+const clamp01 = (x: number): number => (x < 0 ? 0 : x > 1 ? 1 : x);
+
+/**
+ * 升档脉冲的包络：age（秒）→ 0..1。快起慢落。
+ * 用**显式时长**而不是指数衰减，因为 docs/23 §S5 规定的是"600ms"这个数，
+ * 指数衰减只有时间常数、没有终点，说不清什么时候算结束。
+ */
+function pulseEnvelope(age: number): number {
+  if (age <= 0 || age >= STAGE.pulseDuration) return 0;
+  if (age < STAGE.pulseAttack) return age / STAGE.pulseAttack;
+  const k = (age - STAGE.pulseAttack) / (STAGE.pulseDuration - STAGE.pulseAttack);
+  return (1 - k) * (1 - k);        // 二次落回：尾巴够长，能被看见，但不拖成一段动画
+}
+
+function dirLight(dir: readonly [number, number, number], aim: THREE.Vector3): THREE.DirectionalLight {
+  const light = new THREE.DirectionalLight(0xffffff, 1);
+  const v = new THREE.Vector3(dir[0], dir[1], dir[2]).normalize().multiplyScalar(STAGE.lightDistance);
+  light.position.copy(aim).add(v);
+  light.target.position.copy(aim);
+  return light;
+}
+
+export function createStage(opt: StageOptions = {}): Stage {
+  const flags = readFlags(opt.search ?? (typeof location !== 'undefined' ? location.search : ''));
+  const baseUrl = (opt.baseUrl ?? '/parts/').replace(/\/?$/, '/');
+  let postEnabled = opt.post ?? !flags.nopost;
+
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0e0f12);
+  const aim = new THREE.Vector3(0, STAGE.aimHeight, 0);
 
-  // 1:1 等身：相机在人眼高度附近、看向胸口。等身是这类作品的全部魔法（docs/00 §6）
-  const camera = new THREE.PerspectiveCamera(34, 1, 0.05, 60);
-  camera.position.set(0, SKELETON.referenceHeight * 0.62, 3.1);
-  camera.lookAt(0, SKELETON.referenceHeight * 0.55, 0);
+  // ── 相机：水平 + 镜头平移，见文件头 §1 ──────────────────────────────────
+  const camera = new THREE.PerspectiveCamera(45, 1, STAGE.near, STAGE.far);
+  camera.position.set(0, STAGE.eyeHeight, STAGE.viewDistance);
+  camera.lookAt(0, STAGE.eyeHeight, 0);          // **水平**。不要 lookAt 胸口
+  let viewW = 1280;
+  let viewH = 720;
 
-  scene.add(new THREE.HemisphereLight(0xdfe6ef, 0x191a1f, 1.25));
-  const key = new THREE.DirectionalLight(0xffffff, 2.3);
-  key.position.set(1.8, 3.4, 2.6);
-  scene.add(key);
-  const rim = new THREE.DirectionalLight(0x8fb4d8, 1.15);
-  rim.position.set(-2.4, 1.6, -2.2);
-  scene.add(rim);
+  // ── look（主题微调）────────────────────────────────────────────────────
+  let look: LookProfile = NEUTRAL_LOOK;
+  let lookFrom: LookProfile = NEUTRAL_LOOK;
+  let lookTo: LookProfile = NEUTRAL_LOOK;
+  let lookMix = 1;
+  let themeSet = false;
 
-  const ground = new THREE.Mesh(
-    new THREE.CircleGeometry(3.2, 64),
-    new THREE.MeshStandardMaterial({ color: 0x15161a, roughness: 1 }),
+  // ── 灯 ────────────────────────────────────────────────────────────────
+  const hemi = new THREE.HemisphereLight(0xffffff, 0xffffff, 1);
+  scene.add(hemi);
+
+  const key = dirLight(STAGE.keyDir, aim);
+  key.castShadow = true;
+  key.shadow.mapSize.set(STAGE.shadowMapSize, STAGE.shadowMapSize);
+  key.shadow.bias = STAGE.shadowBias;
+  key.shadow.normalBias = STAGE.shadowNormalBias;
+  {
+    const cam = key.shadow.camera;
+    cam.left = -STAGE.shadowExtent;
+    cam.right = STAGE.shadowExtent;
+    cam.top = STAGE.shadowExtent * 1.35;
+    cam.bottom = -STAGE.shadowExtent * 0.5;
+    cam.near = 0.5;
+    cam.far = STAGE.lightDistance * 2.4;
+    cam.updateProjectionMatrix();
+  }
+  scene.add(key, key.target);
+
+  const fill = dirLight(STAGE.fillDir, aim);
+  scene.add(fill, fill.target);
+
+  const rim = dirLight(STAGE.rimDir, aim);
+  scene.add(rim, rim.target);
+
+  // ── 地面 ──────────────────────────────────────────────────────────────
+  // 一整块盘子，颜色在远端淡成背景色。**接缝不是靠雾，是靠颜色正好相等**：
+  // 远端 albedo → 0、emissive → 背景地平线色，所以那一圈既不吃光也不吃阴影，
+  // 和背景是同一个数值 —— 盘子的边界在画面上不存在。
+  const uGroundNear = uniform(toVec3(look.groundNear));
+  const uGroundFar = uniform(toVec3(look.groundFar));
+  const uContact = uniform(look.contactStrength);
+  const uContactR = uniform(look.contactRadius);
+
+  const groundDist = positionWorld.xz.length();
+  const farMix = smoothstep(float(STAGE.groundFadeStart), float(STAGE.groundFadeEnd), groundDist);
+  // 软接触阴影：中心最暗，uContactR 之外归零。和真阴影贴图叠加，
+  // 负责"贴地"那一小圈 —— 单靠 PCF 阴影脚下永远差一口气
+  const contact = float(1).sub(uContact.mul(float(1).sub(smoothstep(float(0), uContactR, groundDist))));
+
+  // 用 Physical 而不是 Standard，只为了一个字段：`specularIntensityNode`。
+  // 地面在远端是**掠射**的，菲涅耳会把高光推到接近全反射 —— 于是那一圈比背景亮一大截，
+  // 地平线上出现一条清清楚楚的边。把远端的高光强度按同一条 farMix 收到 0，
+  // 远端就真的只剩 emissive（= 背景色），接缝才真正消失。
+  const groundMat = new THREE.MeshPhysicalNodeMaterial();
+  groundMat.specularIntensityNode = float(1).sub(farMix);
+  groundMat.colorNode = uGroundNear.mul(contact).mul(float(1).sub(farMix));
+  groundMat.emissiveNode = uGroundFar.mul(farMix);
+  groundMat.roughnessNode = mix(
+    float(STAGE.groundRoughNear), float(STAGE.groundRoughFar),
+    smoothstep(float(0), float(6), groundDist),
   );
+  groundMat.metalnessNode = float(0);
+  const groundGeo = new THREE.CircleGeometry(STAGE.groundRadius, 128);
+  const ground = new THREE.Mesh(groundGeo, groundMat);
+  ground.name = 'stage-ground';
   ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  ground.castShadow = false;
   scene.add(ground);
 
-  return {
+  // ── 背景：影棚的无缝背景纸（上暗下亮），地平线和地面远端同色 ──────────────
+  const uBgTop = uniform(toVec3(look.bgTop));
+  const uBgBottom = uniform(toVec3(look.bgBottom));
+  /**
+   * ⚠️ 背景**不能**用 `scene.backgroundNode`。踩过的坑，值得写清楚：
+   * 背景节点和场景里的物体走的不是同一条输出路径（色调映射 / 输出色彩空间那一段），
+   * 于是**即使把两边设成同一个 uniform**，地面远端看上去也比背景亮一大截 ——
+   * 地平线上就是一条硬边。（验证方法：把 backgroundNode 直接设成 uGroundFar，边还在。）
+   *
+   * 所以这里挂一块**真的背景布**：一个朝内的大圆筒，无光照材质。
+   * 它和地面走同一条路径，同一个数值就真的是同一个颜色，接缝才消失。
+   * 这也正好是影棚的做法 —— 无缝背景纸，不是"天空盒"。
+   */
+  const backdropMat = new THREE.MeshBasicNodeMaterial();
+  backdropMat.colorNode = mix(uBgBottom, uBgTop, smoothstep(float(1.5), float(55), positionWorld.y));
+  backdropMat.side = THREE.BackSide;
+  backdropMat.fog = false;
+  const backdropGeo = new THREE.CylinderGeometry(
+    STAGE.backdropRadius, STAGE.backdropRadius, STAGE.backdropHeight, 64, 1, true,
+  );
+  const backdrop = new THREE.Mesh(backdropGeo, backdropMat);
+  backdrop.name = 'stage-backdrop';
+  backdrop.position.y = STAGE.backdropHeight / 2 - 20;   // 往下埋一段，低头也看不到筒底
+  backdrop.castShadow = false;
+  backdrop.receiveShadow = false;
+  scene.add(backdrop);
+  // 背景布万一没画上也不能是黑的（P3：观众永远不该看见"出错了"）
+  scene.background = toColor(look.bgBottom);
+
+  // ── 空场的呼吸粒子（docs/05 §5）────────────────────────────────────────
+  const field: BreathField = createBreathField({
+    count: STAGE.particleCount,
+    seed: STAGE.particleSeed,
+    radius: STAGE.particleRadius,
+  });
+  field.setLook(look.particle, look.particleGain, look.particleDrift);
+  scene.add(field.object);
+
+  // ── 状态 ──────────────────────────────────────────────────────────────
+  let renderer: THREE.Renderer | null = null;
+  let post: PostChain | null = null;
+  let postFailed = false;
+  let renderedViaStage = false;
+  let warnedWiring = false;
+  let frames = 0;
+
+  // ── 取景（framing.ts）：当前用的盒子 + 想去的盒子，之间是时间常数 framingTau ──
+  let bounds: BodyBounds = { ...DEFAULT_BOUNDS };
+  let boundsTarget: BodyBounds = { ...DEFAULT_BOUNDS };
+  let framingSettled = true;
+
+  let aliveMix = 0;
+  let gather = 0;
+  let particleFade = 1;
+  /** 升档事件已经走了多久（秒）。`Infinity` = 没有正在进行的事件 */
+  let pulseAge = Infinity;
+  let pulseAmp = 0;
+  /** 这一帧脉冲加了多少亮度（0..pulseAmp） */
+  let pulse = 0;
+  let timeScale = 1;
+  let swayT = 0;
+
+  /**
+   * 借用渲染器：阴影开关、色调映射、曝光都是"这件作品长什么样"的一部分，
+   * 但它们住在 renderer 上，而 renderer 归 main.ts 管。
+   * three 会把 renderer 传进 `scene.onBeforeRender`，我们在第一帧接住它。
+   * 这样 main.ts 一行都不用改，灯光/阴影就是对的。
+   */
+  function adopt(r: THREE.Renderer): void {
+    if (renderer === r) return;
+    renderer = r;
+    try {
+      r.shadowMap.enabled = true;
+      r.shadowMap.type = THREE.PCFShadowMap;      // WebGPU 后端会把 PCFSoft 降级回 PCF，别自欺欺人
+      r.toneMapping = THREE.NeutralToneMapping;    // 克制的胶片感；ACES 会把暖黄推成橙色
+      r.toneMappingExposure = look.exposure;
+    } catch (e) {
+      console.warn('[stage] 接管渲染器设置失败，画面会偏亮/没有阴影', e);
+    }
+  }
+  scene.onBeforeRender = ((r: THREE.Renderer) => { adopt(r); }) as unknown as THREE.Scene['onBeforeRender'];
+
+  function applyLook(): void {
+    setColor(key.color, look.key);
+    setColor(fill.color, look.fill);
+    setColor(rim.color, look.rim);
+    setColor(hemi.color, look.sky);
+    setColor(hemi.groundColor, look.bounce);
+    setVec3(uGroundNear.value, look.groundNear);
+    setVec3(uGroundFar.value, look.groundFar);
+    setVec3(uBgTop.value, look.bgTop);
+    setVec3(uBgBottom.value, look.bgBottom);
+    setColor(scene.background as THREE.Color, look.bgBottom);
+    uContact.value = look.contactStrength;
+    uContactR.value = look.contactRadius;
+    key.shadow.intensity = look.shadowIntensity;
+    field.setLook(look.particle, look.particleGain, look.particleDrift);
+    post?.setLook(look);
+  }
+  applyLook();
+
+  /**
+   * 换一个取景目标。相同的目标不重启过渡 —— 每帧调 `frame()` 时这一点很重要，
+   * 否则过渡永远停不下来（值一直在追一个一直在变的目标，看起来就是相机在抖）。
+   */
+  function aimAt(next: BodyBounds): void {
+    const same = Math.abs(next.height - boundsTarget.height) < 0.01
+      && Math.abs(next.centerY - boundsTarget.centerY) < 0.01
+      && Math.abs(next.width - boundsTarget.width) < 0.02;
+    if (same) return;
+    boundsTarget = next;
+    framingSettled = false;
+  }
+
+  function useTheme(theme: ThemeDef | null, materials: readonly MaterialDef[]): void {
+    lookFrom = look;
+    lookTo = deriveLook(theme, materials);
+    lookMix = 0;
+    // 物种的身体方案决定"没有真人时按什么取景"（docs/18）。
+    // `?plan=` 优先：现场调试时要能强行看某一种方案。
+    aimAt(boundsOfPlan(flags.plan ?? theme?.bodyPlan ?? "rig"));
+    if (flags.debug) {
+      console.info(
+        `[stage] look ${theme?.id ?? '(none)'} · temp=${lookTo.temperature.toFixed(2)}` +
+        ` cool=${lookTo.coolBias.toFixed(2)} hue=${lookTo.hueWeight.toFixed(2)}` +
+        ` key=#${toColor(lookTo.key).getHexString()}`,
+      );
+    }
+  }
+
+  function resolveTheme(id: string, index: PartLibraryIndex | null | undefined): void {
+    const t = index?.themes.find((x) => x.id === id) ?? null;
+    useTheme(t, index?.materials ?? []);
+  }
+
+  /**
+   * 没人调 `setTheme()` 时的自举：URL 里有 `?theme=` 就自己去拿一次主题表。
+   * 这样在 main.ts 接上之前，`/?theme=xeno` 也已经是对的灯光。
+   * 失败完全静默 —— 没有主题就是中性影棚，不是坏了（P3）。
+   */
+  function bootstrapTheme(): void {
+    const id = opt.theme ?? flags.theme;
+    if (typeof id !== 'string' || !id) return;
+    void fetch(baseUrl + 'parts.json', { cache: 'no-cache' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((raw: PartLibraryIndex | null) => {
+        if (!raw || themeSet) return;              // 谁先明确设过主题，谁说了算
+        resolveTheme(id, raw);
+      })
+      .catch(() => {});
+  }
+
+  if (opt.theme && typeof opt.theme !== 'string') {
+    useTheme(opt.theme, opt.index?.materials ?? []);
+    themeSet = true;
+  } else if (typeof opt.theme === 'string' && opt.index) {
+    resolveTheme(opt.theme, opt.index);
+    themeSet = true;
+  } else {
+    bootstrapTheme();
+  }
+
+  function buildPost(): void {
+    if (!renderer || post || postFailed || !postEnabled) return;
+    post = createPost(renderer, scene, camera, { ...POST_DEFAULTS, focusDistance: STAGE.viewDistance });
+    if (!post) postFailed = true;
+    else post.setLook(look);
+  }
+
+  /**
+   * 画面的取景：**先定世界坐标里要框住的那块矩形，再反算 fov**，
+   * 而不是先拍一个 fov 再挪相机。竖屏/横屏都保证含头含脚、手臂不出画。
+   *
+   * 那块矩形有多大由 `framing.ts` 按**身体实际的包围盒**给出 —— 见那个文件里
+   * 「有限插值」的取舍：人形严格等身，非人形连续地偏离，偏离量有上限。
+   */
+  function fitCamera(): void {
+    const aspect = viewW / Math.max(1, viewH);
+    const fit = fitFrame(bounds);
+    let h = fit.frameHeight;
+    if (h * aspect < fit.frameWidth) h = fit.frameWidth / aspect;   // 太窄了就往高了框
+
+    // 取景平面放在身体的**近面**，不是身体中心。
+    // 四足沿 Z 有 1.1m 进深，最近的那条前腿离镜头只有 2.25m —— 按 2.8m 反算 fov，
+    // 它会因为透视被放大到出画。这一行是"四足的腿跑出画面外"那个 bug 的修法。
+    const dist = Math.max(0.8, STAGE.viewDistance - Math.min(1.0, bounds.depth / 2));
+
+    camera.aspect = aspect;
+    camera.fov = (2 * Math.atan((h / 2) / dist) * 180) / Math.PI;
+
+    // 镜头上下平移：相机保持水平，把整个视锥往下推 (eyeHeight - 画面中心)。
+    // width/height 用满 → 不裁剪、只平移，等价于移轴镜头：竖线仍然是竖的。
+    const shift = (STAGE.eyeHeight - fit.centerY) / h;
+    const full = 1000;
+    camera.setViewOffset(full * aspect, full, 0, shift * full, full * aspect, full);
+    camera.updateProjectionMatrix();
+
+    // 聚拢形态跟着身体走（四足的粒子不该聚成一个站着的人影）
+    field.setBody(bounds.height / DEFAULT_BOUNDS.height, bounds.centerY);
+
+    // 灯与阴影跟着身体中心走。四足的"胸口"在 0.4m 高，
+    // 照着人形的 0.98m 打，它整只都会留在暗部里。
+    if (Math.abs(aim.y - fit.aimY) > 1e-4) {
+      const dy = fit.aimY - aim.y;
+      aim.y = fit.aimY;
+      for (const l of [key, fill, rim]) { l.position.y += dy; l.target.position.y += dy; }
+      key.target.updateMatrixWorld();
+    }
+  }
+  fitCamera();
+
+  const stage: Stage = {
     scene,
     camera,
-    update(p) {
-      // IDLE 时压暗，人来了提亮。**不要黑屏** —— 黑屏会让观众以为坏了（docs/05 §5）
-      const alive = p.state === 'ALIVE' || p.state === 'ENTERING';
-      const target = alive ? 1 : 0.35;
-      key.intensity += (2.3 * target - key.intensity) * 0.05;
-      rim.intensity += (1.15 * target - rim.intensity) * 0.05;
+
+    update(p, m, dt) {
+      frames++;
+      const step = Math.min(Math.max(dt, 1 / 240), 1 / 15);
+
+      // ── 主题过渡：换主题不该是一次跳变 ──
+      if (lookMix < 1) {
+        lookMix = Math.min(1, lookMix + step / 0.7);
+        look = lerpLook(lookFrom, lookTo, lookMix * lookMix * (3 - 2 * lookMix));
+        applyLook();
+      }
+
+      // ── 取景过渡 ──
+      if (!framingSettled) {
+        const t = 1 - Math.exp(-step / STAGE.framingTau);
+        bounds = lerpBounds(bounds, boundsTarget, t);
+        if (Math.abs(bounds.height - boundsTarget.height) < 0.003
+          && Math.abs(bounds.centerY - boundsTarget.centerY) < 0.003) {
+          bounds = { ...boundsTarget };
+          framingSettled = true;
+        }
+        fitCamera();
+      }
+
+      // ── 在场 ──
+      const state = p?.state ?? 'IDLE';
+      const alive = state === 'ALIVE' || state === 'ENTERING';
+      aliveMix = ease(aliveMix, alive ? 1 : 0, step, 0.85);
+
+      // ── 升档脉冲与时间停滞（docs/23 §S5）──
+      // 注意用的是**真实 dt（step）**而不是被停滞缩过的时间：
+      // 否则停滞会把自己的恢复也拖慢，600ms 会变成一段随帧率漂移的动画。
+      if (pulseAge < STAGE.pulseDuration) {
+        pulseAge += step;
+        pulse = pulseAmp * pulseEnvelope(pulseAge);
+        timeScale = 1 - (1 - STAGE.stasisScale) * Math.max(0, 1 - pulseAge / STAGE.stasisRecover);
+      } else {
+        pulse = 0;
+        timeScale = 1;
+      }
+
+      // ── 运动 → 极轻的呼应。能被单独看出来就是过了 ──
+      const energy = clamp01((m?.energy ?? 0) / 1.5);
+      const presenceGain = STAGE.idleFloor + (1 - STAGE.idleFloor) * aliveMix;
+      // 「全身亮度 +8%」就是字面意思：只乘在灯上。
+      // 不动曝光、不在后期加常数 —— 那两种做法会把背景一起提亮，读成闪光灯而不是身体在发光。
+      const pulseGain = 1 + pulse;
+
+      key.intensity = look.keyIntensity * presenceGain * (1 + 0.10 * energy) * pulseGain;
+      fill.intensity = look.fillIntensity * (0.55 + 0.45 * aliveMix) * pulseGain;
+      rim.intensity = look.rimIntensity * presenceGain * (1 + 0.22 * energy) * pulseGain;
+      hemi.intensity = look.hemiIntensity * (0.7 + 0.3 * aliveMix);
+      // 接触阴影跟着"人有多大"走：张得越开，脚下那摊越大越淡
+      uContact.value = look.contactStrength * aliveMix;
+      uContactR.value = look.contactRadius * (1 + 0.5 * clamp01(((m?.expansiveness ?? 0.4) - 0.2) / 0.6));
+
+      // ── 粒子：IDLE 散开呼吸 → 进场聚拢成最原始形态 → 身体接管后**彻底**淡出 ──
+      // 淡到 0 而不是 0.12：docs/23 §S4 说共舞时"满屏只有身体、地面、影子"。
+      // 加性混合的粒子哪怕只剩一点点，也会在身体前面留下一层挥不掉的星尘。
+      gather = ease(gather, state === 'IDLE' ? 0 : 1, step, 0.75);
+      particleFade = ease(particleFade, state === 'ALIVE' ? 0 : 1, step, state === 'ALIVE' ? 1.1 : 0.9);
+      field.update(step, gather, particleFade, timeScale);
+
+      // ── 机位呼吸：厘米级。只为了让画面不像一张贴图 ──
+      swayT += step * timeScale;
+      camera.position.set(
+        Math.sin(swayT * 0.11) * STAGE.sway,
+        STAGE.eyeHeight + Math.sin(swayT * 0.083 + 1.3) * STAGE.sway * 0.6,
+        STAGE.viewDistance,
+      );
+      camera.lookAt(0, camera.position.y, 0);
+
+      if (renderer) renderer.toneMappingExposure = look.exposure;
+      post?.tick(step);
+
+      // 后期没接上时提醒一次 —— 否则"为什么没有 bloom"会被查半天
+      if (postEnabled && !renderedViaStage && !warnedWiring && frames > 120) {
+        warnedWiring = true;
+        console.info('[stage] 后期未接入：main.ts 请用 stage.render(renderer) 替代 renderer.render(...)');
+      }
     },
+
     resize(w, h) {
-      camera.aspect = w / Math.max(1, h);
-      camera.updateProjectionMatrix();
+      viewW = Math.max(1, w);
+      viewH = Math.max(1, h);
+      fitCamera();
     },
+
+    render(r) {
+      renderedViaStage = true;
+      adopt(r);
+      if (postEnabled) buildPost();
+      // 后期没建起来（旧后端 / 建链失败）就直出。帧循环里永不抛异常（P2）
+      if (postEnabled && post) post.render();
+      else r.render(scene, camera);
+    },
+
+    setTheme(theme, index) {
+      themeSet = true;
+      if (theme === null) { useTheme(null, index?.materials ?? []); return; }
+      if (typeof theme === 'string') resolveTheme(theme, index ?? null);
+      else useTheme(theme, index?.materials ?? []);
+    },
+
+    pulse(tier) {
+      const t = Math.max(0, Math.min(3, Number.isFinite(tier) ? tier : 0));
+      // 档位只微调幅度（tier 3 比 tier 1 重一点点），**峰值仍然锁在规格的 +8% 附近**。
+      // 冷却与滞回不在这里挡（docs/23 §S5 说那是 tuning.ts 的事）：重复调用就是重新开始一次。
+      pulseAmp = STAGE.pulseGain * (0.85 + 0.05 * t);
+      pulseAge = 0;
+    },
+
+    get timeScale() { return timeScale; },
+    get pulseGain() { return pulse; },
+
+    frame(skeleton) {
+      const b = boundsOfSkeleton(skeleton);
+      if (b) aimAt(b);
+    },
+
+    get bounds() { return bounds; },
+
+    setPost(on) {
+      postEnabled = on;
+      if (!on) { post?.dispose(); post = null; postFailed = false; }
+    },
+
+    get post() { return postEnabled && post !== null; },
+    get look() { return look; },
+
     dispose() {
-      ground.geometry.dispose();
-      (ground.material as THREE.Material).dispose();
+      scene.onBeforeRender = (() => {}) as THREE.Scene['onBeforeRender'];
+      post?.dispose();
+      post = null;
+      field.dispose();
+      scene.remove(field.object);
+      groundGeo.dispose();
+      groundMat.dispose();
+      backdropGeo.dispose();
+      backdropMat.dispose();
+      key.shadow.dispose?.();
     },
   };
+
+  // 身高参考只有一份（docs/04）：如果哪天 referenceHeight 变了，取景要跟着变
+  if (Math.abs(SKELETON.referenceHeight - 1.7) > 0.001 && flags.debug) {
+    console.info(`[stage] referenceHeight=${SKELETON.referenceHeight}m，取景仍按 STAGE.frameHeight 走`);
+  }
+
+  return stage;
 }

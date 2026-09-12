@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="zh">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Stage</title>
+<style>
+  html,body{margin:0;height:100%;background:#0E0F12;overflow:hidden}
+  /* HUD 的排版语言跟 docs/23 §0 走：等宽、13px、低对比度。它只在 ?debug=1 时存在 */
+  #hud{position:fixed;left:14px;top:12px;font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
+       color:#9AA0A6;white-space:pre;pointer-events:none;text-shadow:0 1px 2px #000}
+  #hud b{color:#DFE4EA;font-weight:600}
+  #hud .over{color:#E5484D}
+</style>
+</head>
+<body><div id="hud"></div><script type="module" src="./stage.ts"></script></body>
+</html>
