@@ -150,10 +150,10 @@
         <p class="p-label-micro">docs/25-COMPLETENESS.md §B1</p>
       </div>
       <div class="p-cols p-c4" style="margin-top:5mm;gap:0 9mm">
-        <div class="p-reject-bar">
+        <div class="p-partial-bar">
           <p class="p-h3 p-bi" style="margin:0"><span class="sb-zh">慢回路</span><span class="sb-en">The slow loop</span></p>
           <p class="p-small p-dim" style="margin-top:3mm">把观众的剪影送去 3D 生成，再穿回身上。这是 2026 年做这件事和 2019 年做这件事的<b class="p-ink" style="font-weight:600">唯一区别</b>。</p>
-          <p class="p-micro p-reject" style="margin-top:3mm">只有规格。一行代码没写。</p>
+          <p class="p-micro p-partial" style="margin-top:3mm">两端已接通，血统跨会话留存。<b class="p-ink" style="font-weight:600">但真实的生成调用一次没打过</b> —— 验的是回路，不是生成。</p>
         </div>
         <div class="p-reject-bar">
           <p class="p-h3 p-bi" style="margin:0"><span class="sb-zh">真人录制</span><span class="sb-en">A real recording</span></p>
@@ -249,7 +249,10 @@
     `SEE-ME SEE-YOU / 看我看你 · 工程代号 second-body<br>` +
     `判据原文：${m('docs/PRD.md §5')}。逐条对照：${m('docs/25-COMPLETENESS.md §A')}（记录于 2026-09-12）。<br>` +
     `第 3 条的证据与右栏的两个条目由 ${m('poster/build-data.mjs')} 从 ` +
-    `${m('assets/parts/parts.json')} 与 ${m('assets/parts/curation.json')} 现算。`;
+    `${m('assets/parts/parts.json')} 与 ${m('assets/parts/curation.json')} 现算。<br>` +
+    // 这张海报答应过会过期就换一张。这一行是它第一次兑现。
+    `<b style="color:var(--sb-ink)">第 2 版 · 2026-09-13</b>：慢回路从「只有规格、一行代码没写」` +
+    `改为「两端已接通，但真实生成调用一次没打过」。第 1 版印于 2026-09-12。`;
   $('colophon-r').innerHTML =
     `成立 1 · 部分 2 · 无法判断 1 · 不成立 2<br>` +
     `${C.entries} 条目 · ${C.partsLive}/${C.parts} 件在池 · ${C.plans} 种身体方案<br>` +

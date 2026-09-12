@@ -119,6 +119,10 @@ html, body { margin: 0; padding: 0; background: #000; }
 .p-admit  { color: var(--sb-accent); }
 /* 拒入的那一条左边一根竖线 —— 颜色只在这一根线和一个字上，不铺面 */
 .p-reject-bar { border-left: 0.8mm solid var(--sb-warn); padding-left: 3mm; }
+/* 缺口清单里"已经不全缺了"的那一类。灰而不是蓝 —— 这张海报上的强调色
+   只留给"成立"，一件半成品不配拿它。 */
+.p-partial-bar { border-left: 0.8mm solid var(--sb-ink-dim); padding-left: 3mm; }
+.p-partial { color: var(--sb-ink-dim); }
 .p-admit-bar  { border-left: 0.8mm solid var(--sb-accent); padding-left: 3mm; }
 
 /* ── 页脚：每张海报都带出处 ─────────────────────────────────────────── */
