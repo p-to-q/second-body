@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-09-12T15:28:24.479Z",
+  "generatedAt": "2026-09-12T19:49:07.086Z",
   "units": "meters",
   "convention": {
     "axis": "+Y",
@@ -554,6 +554,84 @@
       "bodyPlan": {
         "head": 1.35,
         "limb": 0.9
+      }
+    },
+    {
+      "id": "char.inflate",
+      "kind": "character",
+      "name": "充气",
+      "nameEn": "Inflate",
+      "tagline": "一个被气撑起来的看护者",
+      "taglineEn": "A caretaker held up by air",
+      "palette": [
+        "matte.bone",
+        "ceramic.pearl",
+        "matte.ash"
+      ],
+      "source": "rodin",
+      "axes": {
+        "humanLike": 0.55,
+        "lifeLike": 0.8
+      },
+      "coverage": "light",
+      "base": "porcelain",
+      "bodyPlan": {
+        "limb": 0.55,
+        "torso": 1.95,
+        "head": 0.85,
+        "arm": 0.75
+      }
+    },
+    {
+      "id": "char.diva",
+      "kind": "character",
+      "name": "歌姬",
+      "nameEn": "Diva",
+      "tagline": "一个被投影出来的人",
+      "taglineEn": "A person made of projected light",
+      "palette": [
+        "glow.signal",
+        "ceramic.pearl",
+        "matte.ash"
+      ],
+      "source": "rodin",
+      "axes": {
+        "humanLike": 0.8,
+        "lifeLike": 0.45
+      },
+      "coverage": "light",
+      "base": "char.ghost",
+      "bodyPlan": {
+        "kind": "towering",
+        "limb": 1.35,
+        "torso": 0.88,
+        "head": 0.95
+      }
+    },
+    {
+      "id": "char.line",
+      "kind": "character",
+      "name": "线",
+      "nameEn": "Line",
+      "tagline": "一个被画出来的东西",
+      "taglineEn": "Something that was drawn, not built",
+      "palette": [
+        "matte.bone",
+        "matte.ash",
+        "paint.hazard"
+      ],
+      "source": "rodin",
+      "axes": {
+        "humanLike": 0.25,
+        "lifeLike": 0.9
+      },
+      "coverage": "light",
+      "base": "char.dumpling",
+      "bodyPlan": {
+        "kind": "stub",
+        "head": 2.1,
+        "limb": 0.3,
+        "torso": 0.9
       }
     }
   ],
@@ -4444,6 +4522,34 @@
         "model": "Gen-2.5-Low",
         "seed": 39687,
         "recipeId": "spine.char.idol.a"
+      }
+    },
+    {
+      "id": "spine.char.inflate.a",
+      "slot": "spine",
+      "tier": 1,
+      "file": "spine.char.inflate.a.glb",
+      "family": "char.inflate",
+      "localGirth": 0.8446,
+      "triCount": 2814,
+      "aabb": {
+        "min": [
+          -0.42229987487411114,
+          0,
+          -0.2597430341502121
+        ],
+        "max": [
+          0.42229987487411114,
+          1,
+          0.2597430341502121
+        ]
+      },
+      "symmetry": "none",
+      "source": {
+        "provider": "hyper3d",
+        "model": "Gen-2.5-Low",
+        "seed": 61850,
+        "recipeId": "spine.char.inflate.a"
       }
     },
     {

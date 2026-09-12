@@ -29,6 +29,8 @@ import type { Tier } from '../../core/src/types.ts';
 export type RosterKind = 'archetype' | 'guest' | 'character';
 export type Clearance = 'own' | 'public-figure' | 'third-party-ip' | 'licensed';
 
+import { INVITED } from './invited.ts';
+
 export interface RosterEntry {
   id: string;
   kind: RosterKind;
@@ -322,7 +324,9 @@ for (const e of ROSTER_ALL_FOR_PLAN()) if (BODY_PLAN[e.id]) e.bodyPlan = BODY_PL
 
 function ROSTER_ALL_FOR_PLAN(): RosterEntry[] { return [...ARCHETYPES, ...GUESTS, ...CHARACTERS]; }
 
-export const ROSTER: RosterEntry[] = [...ARCHETYPES, ...GUESTS, ...CHARACTERS];
+// 受邀角色自带 bodyPlan，所以**不**经过上面那轮 BODY_PLAN 覆盖 ——
+// 加人只改 recipes/invited.ts 一个文件（「后面还会有其他的」）。
+export const ROSTER: RosterEntry[] = [...ARCHETYPES, ...GUESTS, ...CHARACTERS, ...INVITED];
 
 /** 公开构建允许打包的条目 */
 export const PUBLIC_CLEARANCE: Clearance[] = ['own', 'licensed'];

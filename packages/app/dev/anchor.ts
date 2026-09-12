@@ -26,7 +26,41 @@ document.getElementById('log')!.textContent = '渲染主题参考图…';
 
 const SIZE = 1024;
 const index: PartLibraryIndex = await (await fetch('/parts/parts.json')).json();
-const themes = index.themes.filter((t) => t.source === 'rodin');
+/**
+ * 默认只渲**还没有参考图的**主题，并且 `?theme=<id>` 可以只挑一个。
+ *
+ * 为什么改成这样：原来它无条件把每个主题都重渲一遍。加一个新物种时，
+ * 已经好的那二十几张会被同一批灯光和相机重新覆盖一次 —— 万一这中间
+ * 舞台参数动过，一批风格统一的 anchor 就会悄悄变得不统一，
+ * 而这批图正是**下游所有零件风格一致的唯一来源**。
+ * 重渲全部要显式要：`?all=1`。
+ */
+const QS = new URLSearchParams(location.search);
+const ONLY = QS.get('theme');
+const ALL = QS.get('all') === '1';
+
+/**
+ * 只看 `res.ok` 是错的：**vite dev 的 SPA 兜底会把 404 变成 200**，
+ * 返回的是 index.html。于是"这张图在不在"永远答"在"，这一页就永远什么都不做。
+ * 判据必须是 content-type 真的是图。
+ */
+async function hasAnchor(id: string): Promise<boolean> {
+  try {
+    const res = await fetch(`/refs/${id}/_anchor.png`, { method: 'HEAD' });
+    return res.ok && (res.headers.get('content-type') ?? '').startsWith('image/');
+  } catch { return false; }
+}
+
+const candidates = index.themes.filter((t) => t.source === 'rodin' && (!ONLY || t.id === ONLY));
+const themes = ALL
+  ? candidates
+  : (await Promise.all(candidates.map(async (t) => (await hasAnchor(t.id)) ? null : t)))
+      .filter((t): t is NonNullable<typeof t> => t !== null);
+
+if (!themes.length) {
+  document.getElementById('log')!.textContent =
+    ONLY ? `${ONLY} 已经有参考图了（要重渲加 ?all=1）` : '每个主题都已经有参考图（要重渲加 ?all=1）';
+}
 
 const renderer = new THREE.WebGPURenderer({ antialias: true, alpha: false });
 renderer.setSize(SIZE, SIZE);

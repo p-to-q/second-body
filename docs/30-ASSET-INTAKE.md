@@ -70,3 +70,31 @@ assets/intake/_new/<你起的名字>/   ← 全新物种（还没有 id）放这
   这是 `docs/10` 记在案的已知偏差，**换参考图解决不了**，要改 bbox 或 prompt
 - `quality_override` 不是硬保证。50 件里有 2 件会返回百万面且完全未焊接的网格 ——
   流水线自带容差焊接兜底（`docs/07 §3` 第 3 条），你不用管
+
+
+## 7. 加一个新物种的完整步骤（踩过的坑都在这儿）
+
+```bash
+# 1. 在 recipes/invited.ts 里加条目（受邀角色），或 roster.ts（正式谱系）
+# 2. 先生成 anchor 几何（text-to-3D，1 件）
+npm run factory:generate -- --theme=<id>
+npm run factory:normalize -- --ids=spine.<id>.a
+npm run factory:index                      # ← 别漏这一步
+# 3. 渲参考图（要真 GPU，headless 的 swiftshader 跑不动 WebGPU）
+npm run dev   # 然后开 /dev/anchor.html?theme=<id>
+# 4. 拿这张图跑剩下 5 件（image-to-3D）
+npm run factory:generate -- --theme=<id>
+npm run factory:normalize -- --ids=...
+npm run factory:index
+```
+
+**三个会让人卡住的地方**，每个都是刚刚踩的：
+
+1. **`factory:normalize` 不重建 `themes`。** 它只写 `parts`。
+   新条目不会出现在 `parts.json` 的 themes 里，于是 `/dev/anchor.html` 遍历不到它，
+   页面显示"完成"但什么都没渲。必须单独跑 `factory:index`。
+2. **anchor 渲染必须在有真 GPU 的浏览器里。** 无头 Chrome 的 swiftshader
+   跑不动 WebGPU，页面会一直停在"渲染主题参考图…"，不报错。
+3. **`/dev/anchor.html` 默认只渲还没有参考图的主题。**
+   原来它无条件全渲一遍 —— 加一个新物种会把已经好的二十几张按当时的灯光重新覆盖，
+   而这批图正是下游所有零件风格一致的**唯一**来源。要重渲得显式加 `?all=1`。
