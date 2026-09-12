@@ -15,8 +15,14 @@
 import { captureKindFromUrl, createCapture, type Capture } from '../src/capture/capture.ts';
 import { CAPTURE } from '../../core/src/tuning.ts';
 import type { Landmark, RawPose } from '../../core/src/types.ts';
+import { mountPageHead } from '../src/ui/page.ts';
 
 const LM = { L_WRIST: 15, R_WRIST: 16, L_HIP: 23, R_HIP: 24 };
+
+mountPageHead({
+  title: '采集', titleEn: 'Capture', overlay: true,
+  note: '摄像头认到人了吗 —— 坐标、量程、置信度对不对。',
+});
 
 const hud = document.getElementById('hud')!;
 const axesBox = document.getElementById('axes')!;

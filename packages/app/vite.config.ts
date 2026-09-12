@@ -167,5 +167,29 @@ export default defineConfig({
   publicDir: process.env.NODE_ENV === 'production' ? false : resolve(__dirname, '../../assets'),
   plugins: [demoIndex(), anchorWriter(), shipAssets()],
   server: { port: 5173, host: true, fs: { allow: [ROOT] } },
-  build: { target: 'esnext', outDir: 'dist' },
+  build: {
+    target: 'esnext',
+    outDir: 'dist',
+    // Vite 默认只把 root 下的 index.html 当入口。`/dev/*.html` 因此**从来没有
+    // 进过 dist** —— 本机 dev server 上好好的，部署上去全是 404。
+    // 这是"规格写了不等于做到了"的又一次（§craft）：docs/13 里链着这些页面，
+    // 而线上一个都打不开。全部显式列进 input。
+    rollupOptions: { input: devPages() },
+  },
 });
+
+/**
+ * 入口清单 = 根 index.html + `dev/` 下的每一个 .html。
+ * 扫目录而不是写死名单：新增一页 dev 工具的人不会记得回来改构建配置，
+ * 而"忘了加"的症状是线上 404，本地完全看不出来。
+ */
+function devPages(): Record<string, string> {
+  const input: Record<string, string> = { main: resolve(__dirname, 'index.html') };
+  const dir = resolve(__dirname, 'dev');
+  if (!existsSync(dir)) return input;
+  for (const file of readdirSync(dir)) {
+    if (!file.endsWith('.html')) continue;
+    input[`dev-${file.replace(/\.html$/, '')}`] = resolve(dir, file);
+  }
+  return input;
+}

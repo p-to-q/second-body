@@ -1,0 +1,145 @@
+/**
+ * 页面外壳 —— 页头、细横线、HUD 的共用皮肤。
+ *
+ * 为什么单独一个文件而不是塞进 type.css：type.css 是**排版系统**（度量、色板、
+ * 字体栈），它应该能被任何一页原样引用而不带任何布局意见。这个文件是
+ * 在那套度量之上长出来的**这件作品的页面语言**：一条页头、一条细横线、
+ * 底下是内容。换一套排版度量时 type.css 会整个被替换，这个文件不会。
+ *
+ * 一条纪律：这里出现的每一个规则都必须能在 docs/23 §0 里找到理由。
+ * 没有阴影、没有圆角、没有图标、没有卡片 —— 分区只用细横线。
+ */
+
+/* ── 页头 ─────────────────────────────────────────────────────────────────
+ * 三行：作品名（全大写小标签）/ 页面名（h1）/ 一行说明。
+ * 下面一条细横线把它和内容分开。这就是全部。
+ */
+.sb-head {
+  padding: var(--sb-safe) var(--sb-safe) 0;
+}
+
+.sb-head__work {
+  display: block;
+  margin-bottom: 0.75em;
+}
+
+.sb-head__title {
+  margin: 0;
+}
+
+/* 英文副名跟在中文名后面，小一号、放开字距 —— 和选择页的 .sb-en 是同一套约定 */
+.sb-head__en {
+  font-size: var(--sb-size-small);
+  font-weight: var(--sb-weight-body);
+  letter-spacing: var(--sb-tracking-label);
+  text-transform: uppercase;
+  color: var(--sb-ink-dim);
+  margin-left: 0.9em;
+}
+
+.sb-head__note {
+  margin: 0.25em 0 0;
+  max-width: var(--sb-measure);
+}
+
+/* 页头右侧的状态字（只读 / 模式）。等宽，因为它是数据不是文案 */
+.sb-head__state {
+  font-family: var(--sb-mono);
+  font-size: var(--sb-size-small);
+  color: var(--sb-ink-dim);
+}
+
+.sb-head__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sb-gutter);
+  flex-wrap: wrap;
+}
+
+.sb-head__rule {
+  margin-top: calc(var(--sb-gutter) * 0.75);
+}
+
+/* ── 浮在画布上的页头 ──────────────────────────────────────────────────────
+ * 满屏 canvas 的那几页（stage / figure / mass / capture / choose）不能有
+ * 文档流里的页头 —— 它们的内容是那一帧画面。页头压到左上角安全区里，
+ * 低对比度、不吃指针事件，并且 4 秒后自己淡下去（docs/23 §S4：
+ * "观众需要知道自己在看什么，但只需要知道一次"）。
+ */
+.sb-head--overlay {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 4;
+  padding: calc(var(--sb-safe) * 0.5) calc(var(--sb-safe) * 0.5) 0;
+  pointer-events: none;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  transition: opacity 180ms cubic-bezier(0.4, 0, 1, 1);
+}
+
+/* 覆盖态下三行压成两行：作品名 · 页面名，然后说明 */
+.sb-head--overlay .sb-head__work { display: inline; margin: 0; }
+.sb-head--overlay .sb-head__title {
+  display: inline;
+  font-size: var(--sb-size-small);
+  letter-spacing: var(--sb-tracking-label);
+  text-transform: uppercase;
+  font-weight: var(--sb-weight-head);
+}
+.sb-head--overlay .sb-head__en { display: none; }
+.sb-head--overlay .sb-head__note {
+  font-size: var(--sb-size-small);
+  color: var(--sb-ink-dim);
+  opacity: 0.72;
+}
+.sb-head--overlay .sb-head__rule { display: none; }
+
+/* 淡出后只留一条极轻的痕迹，鼠标碰上去回来 —— 现场用不到，dev 页面要 */
+.sb-head--faded { opacity: 0.18; }
+.sb-head--overlay:hover { opacity: 1; }
+
+/* ── dev 页面自己的 HUD ────────────────────────────────────────────────────
+ * 原来每一页各写一份 `font:12px ui-monospace...`。统一到这里，
+ * 度量全部来自 type.css，颜色全部来自 --sb-*。
+ */
+.sb-hud-dev {
+  position: fixed;
+  left: calc(var(--sb-safe) * 0.5);
+  top: calc(var(--sb-safe) * 0.5 + 3.4em);
+  z-index: 3;
+  font-family: var(--sb-mono);
+  font-size: var(--sb-size-small);
+  line-height: var(--sb-lh-body);
+  color: var(--sb-ink-dim);
+  white-space: pre-line;
+  pointer-events: none;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+.sb-hud-dev b { color: var(--sb-ink); font-weight: var(--sb-weight-head); }
+.sb-hud-dev .over,
+.sb-hud-dev .bad { color: var(--sb-warn); }
+.sb-hud-dev .warn { color: #e8a33d; }
+
+/* 页脚提示条（capture / mass 那一行操作说明）。同样贴安全区 */
+.sb-foot-dev {
+  position: fixed;
+  left: calc(var(--sb-safe) * 0.5);
+  right: calc(var(--sb-safe) * 0.5);
+  bottom: calc(var(--sb-safe) * 0.5);
+  z-index: 3;
+  font-family: var(--sb-mono);
+  font-size: var(--sb-size-small);
+  color: var(--sb-ink-dim);
+  opacity: 0.6;
+  white-space: pre-line;
+  pointer-events: none;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+/* 满屏画布页的共用底：canvas 铺满，页面不滚 */
+.sb-canvas-page,
+.sb-canvas-page body { height: 100%; }
+.sb-canvas-page body { overflow: hidden; }
+.sb-canvas-page canvas { display: block; }

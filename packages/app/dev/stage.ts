@@ -31,6 +31,12 @@ import { partIdsOf } from '../src/creature/assemble.ts';
 import { createCreature } from '../src/creature/creature.ts';
 import { createStage } from '../src/stage/stage.ts';
 import { REFERENCE_POSE } from '../src/stage/framing.ts';
+import { mountPageHead } from '../src/ui/page.ts';
+
+mountPageHead({
+  title: '舞台', titleEn: 'Stage', overlay: true,
+  note: '这一帧像不像一件作品：灯光、地面、影子、后期、取景。',
+});
 
 const hud = document.getElementById('hud')!;
 const qs = new URLSearchParams(location.search);

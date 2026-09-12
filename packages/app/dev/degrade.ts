@@ -16,8 +16,14 @@ import {
   resetDegrade, setDegradeReloadAction,
 } from '../src/shell/degrade.ts';
 import { IDLE, idleState, noteActivity, notePresence, resetIdle } from '../src/shell/idle.ts';
+import { mountPageHead } from '../src/ui/page.ts';
 
-const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+mountPageHead({
+  title: '降级阶梯', titleEn: 'Degrade ladder',
+  note: '帧循环炸了会不会一级一级降下去，无人时是不是真的掉到 10fps —— 当场证明，不靠"应该能跑"。',
+});
+
+const $ =<T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const statEl = $('stat');
 const logEl = $('log');
 const realReload = $<HTMLInputElement>('realReload');

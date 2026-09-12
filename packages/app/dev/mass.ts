@@ -21,6 +21,12 @@ import { createPartLibrary } from '../src/assets/library.ts';
 import { partIdsOf } from '../src/creature/assemble.ts';
 import { createCreature } from '../src/creature/creature.ts';
 import { createMassBody } from '../src/creature/mass.ts';
+import { mountPageHead } from '../src/ui/page.ts';
+
+mountPageHead({
+  title: '团块身体', titleEn: 'Mass body', overlay: true,
+  note: '不走刚体挂载的那种身体：它由物质构成，不是由零件构成。',
+});
 
 const hud = document.getElementById('hud')!;
 const tag = document.getElementById('tag')!;

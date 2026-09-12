@@ -1,8 +1,22 @@
 <!doctype html>
-<html lang="zh"><head><meta charset="utf-8"><title>Theme anchors</title>
-<style>html,body{margin:0;background:#111;color:#9aa;font:13px ui-monospace,monospace}
-#log{padding:16px;white-space:pre-line;line-height:1.6}
-#shots{display:flex;flex-wrap:wrap;gap:8px;padding:0 16px}
-#shots img{width:180px;border:1px solid #333}</style></head>
-<body><div id="log">…</div><div id="shots"></div>
-<script type="module" src="./anchor.ts"></script></body></html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Anchor 渲染 · SEE-ME SEE-YOU</title>
+<link rel="stylesheet" href="../src/ui/type.css">
+<style>
+  #log { padding: 0 var(--sb-safe); white-space: pre-line; font-family: var(--sb-mono);
+         font-size: var(--sb-size-small); }
+  #shots { display: flex; flex-wrap: wrap; gap: var(--sb-gutter);
+           padding: var(--sb-gutter) var(--sb-safe) calc(var(--sb-safe) * 2); }
+  /* 边框而不是圆角卡片 —— docs/23 §0 明确禁止圆角面板和阴影 */
+  #shots img { width: 180px; border: 1px solid var(--sb-rule); display: block; }
+</style>
+</head>
+<body>
+<div id="log">…</div>
+<div id="shots"></div>
+<script type="module" src="./anchor.ts"></script>
+</body>
+</html>
