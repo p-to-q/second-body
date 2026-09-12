@@ -6,7 +6,7 @@
 >
 > 规则：**动完代码就更新这张表。** 证据一栏必须是"跑过的命令"或"截图路径"，不能是"应该可以"。
 
-最后更新：2026-09-12（主题系统落地后）
+最后更新：2026-09-12（T-07 Creature 落地后）
 
 ## 资产流水线
 
@@ -20,7 +20,7 @@
 | 容差焊接 + 逐级减面兜底 | `stable` | 对 Rodin 返回的 1.5M 面未焊接网格：1,515,338 → 4,884 tris，文件 66 MB → 148 KB |
 | 部件契约检查 `npm run check:parts` | `stable` | 50 件 0 错 0 警告；捕获过一次"prune 没跑导致 66 MB"的真实回归 |
 | 部件对照表 `/dev/parts.html`（行=槽位，列=变体） | `stable` | 截图见 `scratch/evidence/` |
-| 装配预览 `/dev/figure.html`（合成 A-pose × 真实部件 × core/attach） | `stable` | 六主题可切（`?theme=`），porcelain/patrol 已整具装出；它抓到了「头被颈骨压扁」这个真 bug |
+| 装配预览 `/dev/figure.html`（合成 A-pose × 运行时 PartLibrary/Creature） | `stable` | 已改为驱动真正的运行时模块；`?theme=&seed=&tier=&debug=1`，porcelain/industrial/coral 截图见 `scratch/evidence/creature-*.png`；它抓到了「头被颈骨压扁」这个真 bug |
 | 主题 anchor 渲染 `/dev/anchor.html` | `stable` | 5 个主题的 `_anchor.png` 全部生成（porcelain 白 / industrial 黑 / patrol 黄黑 / xeno 深蓝肋 / coral） |
 | image-to-3D（以 anchor 图为参考） | `experimental` | 提交路径已验证（HTTP 201）；全主题批量生成进行中 |
 | 100 件主题部件库（5 主题 × 10 槽位 × 2 变体） | `experimental` | 生成中 |
@@ -35,8 +35,9 @@
 | `presence.ts` 生命周期状态机 | `stable` | 3 个测试，含"离开途中回来不清零" |
 | `evolution.ts` 演化 | `stable` | 3 个测试，含阈值抖动与首次升档时机 |
 | `rng.ts` / `vec.ts` | `stable` | 被上述测试间接覆盖 |
-| `slots.ts`（BoneId→Slot、SLOT_WIDTH） | `stable` | 纯表，被 typecheck 覆盖；运行时尚未消费 |
-| `skeleton.ts` / `stabilize.ts` / `motion.ts` / `genome.ts` | `spec-only` | 见 `docs/11-TASKS.md` T-02/T-04/T-06/T-08 |
+| `slots.ts`（BoneId→Slot、SLOT_WIDTH） | `stable` | 纯表；已被 `app/src/creature/assemble.ts` 实际消费 |
+| `genome.ts` 抽取 | `stable` | 同 seed 两次刷新 genome 深度相等（`/dev/figure.html?seed=1234` 实测）|
+| `skeleton.ts` / `stabilize.ts` / `motion.ts` | `spec-only` | 见 `docs/11-TASKS.md` T-02/T-04/T-06 |
 
 ## Runtime（浏览器）
 
@@ -44,11 +45,14 @@
 |---|---|---|
 | Vite + `three/webgpu` 渲染栈 | `stable` | `/dev/parts.html` 在 WebGPU 下正常出图 |
 | 主程序 `src/main.ts` | `stub` | 只有一行 console.log |
+| `src/assets/library.ts` PartLibrary（parts.json + glb + 程序化占位） | `stable` | 把 `parts.json` 改名 → 页面照跑，30 个占位实例（`creature-fallback-no-partsjson.png`）；单个 glb 改名 → 只有那一个槽位退回占位，16/17 正常（`creature-one-glb-missing-head-fallback.png`）|
+| `src/creature/assemble.ts` 纯装配（挂载 + 关节盖片） | `stable` | 30 个实例的 `M·(0,0,0)` 与 `bone.p0` 误差 0；stretch 槽位 `M·(0,1,0)` 与 `p1` 误差 0 |
+| `src/creature/creature.ts` 实例化渲染 / remorph / graft | `experimental` | 30 实例 · 87k 三角 · 17 draw · `pose()` 0.06–0.21ms；换装最多 3 活并排队（18 槽位 438 帧 = 7.3s 排空）；`graft()` 热插拔 73 帧完成。**只在合成 A-pose 上跑过，没接过真骨架** |
 | 摄像头采集 / MediaPipe（`src/capture/webcam.ts`） | `experimental` | 整条路跑通但**没见过真人**：headless Chrome + `--use-fake-device-for-media-stream` 下 GPU delegate 起来、wasm 与两个模型加载、mask 产出、`latest()` 不抛也不阻塞（`scratch/evidence/capture-webcam-fakecam.png`）；权限被拒时不白屏且 `lastError=NotAllowedError`（`capture-permission-denied.png`）。**fps ≥ 30 未验证**（headless 软件渲染只有个位数），U1/U2 未实测 |
 | `/dev/capture.html` 调试页（33 点叠加 + fps/推理 Hz/置信度 + world xyz 量程/抖动） | `stable` | `scratch/evidence/capture-replay-demo.png`：33 点在位，fps 59 / 推理 31Hz |
-| Creature / Stage / 后期 | `spec-only` | T-07 / T-09 |
 | `?demo=1` 回放（`src/capture/replay.ts`） | `experimental` | 与 `WebcamCapture` 同接口、可直接互换，`capture-replay-demo.png` 是它在播。**播的是合成占位数据** `assets/demo/pose-synthetic.json`（程序生成，不是录制）—— 真录制仍欠 T-16，现场兜底在那之前不算数 |
 | 慢回路（代理 + 热插拔） | `spec-only` | T-17 |
+| Stage / 后期 | `spec-only` | T-09 |
 | 开场选择页（dither 轮播） | `experimental` | `/dev/choose.html`：6 张卡滚/选/进，`?theme=xeno` 跳过，数字键直选，空闲自动选（`?idle=6000` 验过）；截图 `scratch/evidence/choose-0*.png`。上游 `gl/` 已移植进 `src/vendor/dither-carousel/`（MIT + LICENSE 在位，`public/` 素材一张没拿）。未验：真实现场投影分辨率与触摸屏 |
 | 选择页无 WebGL 降级（DOM 列表） | `experimental` | `/dev/choose.html?gl=off`：6 张卡列出、点选写 `?theme=`、键盘与自动选择照常；控制台 `mode=fallback`。真实的 context lost 分支 `Not run` |
 | 形态空间排布（按 `axes` 绕质心成环） | `experimental` | `?roster=1` 下 23 个条目排成一圈（autonomous→wheelleg→patrol→field→…→orb）；旧版 parts.json 无 `axes` 时退回数组顺序，也验过 |
