@@ -145,18 +145,35 @@ const BODY_PLAN: Record<string, RosterEntry['bodyPlan']> = {
   'char.dumpling': { kind: 'mass', limb: 0.35, torso: 1.7, head: 0.8 },
   'char.ghost': { kind: 'mass', limb: 1.15, torso: 1.05 },
 
+  // ── 换拓扑：无躯干（docs/18 §2 A 档 radial）。部件绕核心成笼，没有脊柱也没有四肢链 ──
+  // 这两个条目在物种谱系里的全部意义就是"一个球"。给它们比例（巨大躯干 + 退化四肢）
+  // 只会得到一个胖人；给它们环绕拓扑，才第一次真的不是人。
+  // 选 radial 而不是 mass，是因为 radial **仍然用它们自己的刚体部件** —— 换成 mass
+  // 那 12 件已经花过 credits 的资产就永远用不上了，而球体并不需要"融成一团"的读法。
+  orb: { kind: 'radial', limb: 1.15 },                  // 球：环张得开，核心小
+  furball: { kind: 'radial', limb: 0.75, torso: 1.15 }, // 毛球：环盘得紧，核心大 —— 同一个拓扑，两种身材
+
+  // ── 换拓扑：单柱（docs/18 §2 A 档 column）。腿骨串成一根桅杆，双臂是顶端的分支 ──
+  // 这两个条目的共同点是"底盘 + 上面一套作业机构"，本来就不该有腿。
+  manipulator: { kind: 'column', arm: 1.45, leg: 0.92 },  // 移动机械臂：高桅杆 + 长分支
+  screenface: { kind: 'column', head: 1.9, arm: 0.6, leg: 0.5 }, // 桌宠：矮柱 + 一张大脸
+
+  // ── 换拓扑：四足底盘 ────────────────────────────────────────────────────
+  // 无人车不是"会走的车身"，是一个贴地的底盘 —— 四个短支撑比两条腿准得多。
+  autonomous: { kind: 'quadruped', limb: 0.45, torso: 1.35 },
+
+  // ── 换拓扑：倒置 ────────────────────────────────────────────────────────
+  // 异形的 tension 是"它在模仿你，但模仿错了"。把人体整个翻过来正是"模仿错了"，
+  // 而且它 20 件全 coverage 的部件一件都不浪费。
+  xeno: { kind: 'inverted', limb: 1.18, head: 1.15 },
+
   // ── 只换比例（零素材成本，但物种一眼不同） ──────────────────────────────
-  orb: { limb: 0.2, torso: 2.2, head: 0.4 },            // 球：躯干吞掉一切，四肢退化成痕迹
-  furball: { limb: 0.25, torso: 2.0, head: 0.6 },       // 毛球：同上，但更圆
-  screenface: { head: 1.9, torso: 0.95, limb: 0.8 },    // 桌宠：脸就是全部
-  manipulator: { arm: 1.5, leg: 0.82, torso: 0.95 },    // 移动机械臂：长臂短腿
-  autonomous: { limb: 0.5, torso: 1.6, head: 0.7 },     // 无人车：一个会走的车身
-  xeno: { limb: 1.18, torso: 0.92, head: 1.15 },        // 异形：拉长 + 大颅
   athlete: { limb: 1.1, torso: 1.05, arm: 1.05 },       // 运动员：四肢有力
   softwear: { limb: 0.95, torso: 1.12, head: 1.05 },    // 穿衣的：柔软的体量
   industrial: { torso: 1.08, limb: 0.98 },              // 工业：宽一点的躯干
   'char.idol': { head: 1.35, limb: 0.9 },               // 偶像：手办比例
-  // porcelain / char.paper 保持标准比例 —— 需要有一个基准，否则"不同"就没有参照
+  'char.paper': 'towering',                             // 纸人：折出来的东西本来就该又高又薄
+  // porcelain 保持标准比例 —— 需要有一个基准，否则"不同"就没有参照
 };
 
 export const ARCHETYPES: RosterEntry[] = [

@@ -9,9 +9,20 @@
 import type { Bone, BoneId, Skeleton, Vec3 } from './types.ts';
 import { add, dist, norm, scale, sub, sane } from './vec.ts';
 
-export type BodyPlanId = 'rig' | 'quadruped' | 'towering' | 'stub' | 'inverted';
+export type BodyPlanId =
+  | 'rig' | 'quadruped' | 'towering' | 'stub' | 'inverted' | 'radial' | 'column';
 
-export const BODY_PLANS: readonly BodyPlanId[] = ['rig', 'quadruped', 'towering', 'stub', 'inverted'];
+export const BODY_PLANS: readonly BodyPlanId[] =
+  ['rig', 'quadruped', 'towering', 'stub', 'inverted', 'radial', 'column'];
+
+/**
+ * 哪些方案**不能拿脚当落地基准**。这张表是给测试和 `rebuild()` 共用的。
+ *  - `radial` 把四肢拆成了绕核心的弧，"谁是脚"已经没有意义；
+ *  - `inverted` 翻过来之后脚在最上面，按脚落地会把头埋到地板以下 ——
+ *    倒立的东西就该拿**整体最低点**着地（A-pose 翻过来正好是头着地）。
+ * 两者都改成：整体最低的那个关节回到 y=0。
+ */
+export const PLANS_WITHOUT_FEET: readonly string[] = ['radial', 'inverted'];
 
 /**
  * 参数化身体方案。
@@ -70,7 +81,7 @@ const BONE_JOINTS: Record<BoneId, [string, string]> = {
   footL: ['ankleL', 'footIdxL'], footR: ['ankleR', 'footIdxR'],
 };
 
-function rebuild(sk: Skeleton, joints: Record<string, Vec3>): Skeleton {
+function rebuild(sk: Skeleton, joints: Record<string, Vec3>, groundAll = false): Skeleton {
   const conf = new Map(sk.bones.map((b) => [b.id, b.confidence]));
   const bones: Bone[] = [];
   for (const b of sk.bones) {
@@ -78,9 +89,12 @@ function rebuild(sk: Skeleton, joints: Record<string, Vec3>): Skeleton {
     const p0 = sane(joints[a] ?? b.p0), p1 = sane(joints[c] ?? b.p1);
     bones.push({ id: b.id, p0, p1, length: dist(p0, p1), roll: 0, confidence: conf.get(b.id) ?? b.confidence });
   }
-  // 落地：最低的脚回到 y=0（docs/04 §3.5 的同一条规矩，重映射之后必须再来一次）
+  // 落地：最低的脚回到 y=0（docs/04 §3.5 的同一条规矩，重映射之后必须再来一次）。
+  // groundAll：有些拓扑已经没有"脚"这个概念了（radial 把四肢拆成了绕核心的弧），
+  // 拿脚当基准会让半个身体沉到地板下面 —— 这时候基准换成整体最低点。
   let lo = Infinity;
-  for (const n of ['footIdxL', 'footIdxR', 'ankleL', 'ankleR']) {
+  const keys = groundAll ? Object.keys(joints) : ['footIdxL', 'footIdxR', 'ankleL', 'ankleR'];
+  for (const n of keys) {
     const y = joints[n]?.[1];
     if (Number.isFinite(y) && y < lo) lo = y;
   }
@@ -160,6 +174,207 @@ function quadruped(sk: Skeleton): Skeleton {
   return rebuild(sk, out);
 }
 
+// ── radial：无躯干型 ─────────────────────────────────────────────────────────
+
+/**
+ * 人体 → 环绕体。**没有脊柱，也没有四肢链。**
+ *
+ * 四条肢的部件被摊到四条绕着同一个核心的**轨道弧**上，四条轨道各自倾斜，
+ * 合起来是一个笼子而不是一具身体。核心（脊柱+颈+头压扁）悬在中间。
+ *
+ * 守住的那条因果（和 quadruped 同一条规矩：**保留肢体的世界量，只换插座**）：
+ *  - 每条弧的半径 = 那条肢的**末端离身体中心多远** → 张开双臂，弧真的扩大；
+ *    蹲下四肢收拢，整个笼子跟着收拢。
+ *  - 每条弧的高度 = 那条肢末端相对中心的**高度** → 抬左手，左前那条弧整条浮起来。
+ *  - 笼子的朝向 = 人的肩轴朝向 → 人转身，笼子跟着转。
+ *
+ * 为什么用「弦长 = 骨长」来排：这样部件一件都不被拉伸，还白捡一条读法 ——
+ * 半径小的时候同样的骨长要绕更多圈角度，笼子自己盘紧；张开时又松开。
+ *
+ * 两条锁骨在这里变成**核心到环的系绳**（会被拉长）。两条腿的弧没有对应的骨头
+ * 连回核心，所以它们是真的浮着的 —— 这正是"无躯干"该有的读法。
+ */
+const RADIAL = {
+  /** 四条轨道：绕 Y 的方位角、轨道面相对铅垂的倾角、弧的起始相位（弧度） */
+  arcs: [
+    { az: 0.0, tilt: 0.30, phase: -0.55 },   // 左臂
+    { az: Math.PI, tilt: -0.30, phase: -0.55 },   // 右臂
+    { az: Math.PI * 0.5, tilt: 0.95, phase: 2.30 },   // 左腿
+    { az: -Math.PI * 0.5, tilt: -0.95, phase: 2.30 },   // 右腿
+  ],
+  /** 核心（脊柱+颈+头）压到原长的多少 —— 不压就还是"躯干 + 一个环" */
+  coreScale: 0.40,
+  /** 弧半径 = 末端到中心的距离 × 它 */
+  radiusScale: 1.0,
+  /** 半径下限（米）：太小的时候弦长会超过直径，弧解不出来 */
+  minRadius: 0.22,
+  /** 弧的高度偏移 = 末端相对中心的高度 × 它 */
+  liftScale: 0.55,
+};
+
+const ARC_CHAINS: readonly (readonly string[])[] = [
+  ['shoulderL', 'elbowL', 'wristL', 'handTipL'],
+  ['shoulderR', 'elbowR', 'wristR', 'handTipR'],
+  ['hipL', 'kneeL', 'ankleL', 'footIdxL'],
+  ['hipR', 'kneeR', 'ankleR', 'footIdxR'],
+];
+
+/** 人面朝哪边：肩轴 × 上 = 前。缺肩时退回 +Z（合成骨架的朝向） */
+function facing(sk: Skeleton): { right: Vec3; fwd: Vec3 } {
+  const l = J(sk, 'shoulderL'), r = J(sk, 'shoulderR');
+  const right: Vec3 = l && r && dist(l, r) > 1e-3 ? norm(sub(l, r)) : [1, 0, 0];
+  const fwd: Vec3 = norm([-right[2], 0, right[0]]);       // cross(right, up)
+  return { right, fwd };
+}
+
+function radial(sk: Skeleton): Skeleton {
+  const pelvis = J(sk, 'pelvis') ?? [0, 0.9, 0];
+  const chest = J(sk, 'chest') ?? [0, 1.3, 0];
+  const hub: Vec3 = [(pelvis[0] + chest[0]) / 2, (pelvis[1] + chest[1]) / 2, (pelvis[2] + chest[2]) / 2];
+
+  const yaw = Math.atan2(facing(sk).fwd[0], facing(sk).fwd[2]);
+
+  const out: Record<string, Vec3> = {};
+
+  for (let i = 0; i < ARC_CHAINS.length; i++) {
+    const chain = ARC_CHAINS[i];
+    const cfg = RADIAL.arcs[i];
+    const tip = J(sk, chain[chain.length - 1]);
+    const reach = tip ? dist(hub, tip) : RADIAL.minRadius;
+    const R = Math.max(RADIAL.minRadius, reach * RADIAL.radiusScale);
+    const lift = tip ? (tip[1] - hub[1]) * RADIAL.liftScale : 0;
+
+    // 轨道面：u 在水平面里，v 是铅垂方向绕 u 倾斜 tilt 之后的那条
+    const a = cfg.az + yaw;
+    const u: Vec3 = [Math.cos(a), 0, Math.sin(a)];
+    const w: Vec3 = [-Math.sin(a), 0, Math.cos(a)];
+    const ct = Math.cos(cfg.tilt), st = Math.sin(cfg.tilt);
+    const v: Vec3 = norm([st * w[0], ct, st * w[2]]);
+    const c: Vec3 = [hub[0], hub[1] + lift, hub[2]];
+
+    let theta = cfg.phase;
+    const at = (t: number): Vec3 => [
+      c[0] + R * (Math.cos(t) * u[0] + Math.sin(t) * v[0]),
+      c[1] + R * (Math.cos(t) * u[1] + Math.sin(t) * v[1]),
+      c[2] + R * (Math.cos(t) * u[2] + Math.sin(t) * v[2]),
+    ];
+    out[chain[0]] = at(theta);
+    for (let k = 0; k + 1 < chain.length; k++) {
+      const p = J(sk, chain[k]), q = J(sk, chain[k + 1]);
+      const L = p && q ? dist(p, q) : 0;
+      // 弦长 L 对应的圆心角；L 超过直径时贴着半圆走（P2：不产生 NaN）
+      theta += 2 * Math.asin(Math.min(1, L / (2 * R)));
+      out[chain[k + 1]] = at(theta);
+    }
+  }
+
+  // 核心：把 脊柱→颈→头 压扁，居中悬在 hub 上。头仍然沿人的头向 —— 观众低头，核心低头
+  const spineLen = chainLength(sk, ['pelvis', 'chest']) * RADIAL.coreScale;
+  const neckLen = chainLength(sk, ['chest', 'neck']) * RADIAL.coreScale;
+  const headLen = chainLength(sk, ['neck', 'headCenter']) * RADIAL.coreScale;
+  const half = (spineLen + neckLen + headLen) / 2;
+  out.pelvis = [hub[0], hub[1] - half, hub[2]];
+  out.chest = [hub[0], hub[1] - half + spineLen, hub[2]];
+  out.neck = [hub[0], hub[1] - half + spineLen + neckLen, hub[2]];
+  const hd = J(sk, 'neck') && J(sk, 'headCenter')
+    ? norm(sub(J(sk, 'headCenter')!, J(sk, 'neck')!)) : [0, 1, 0] as Vec3;
+  out.headCenter = add(out.neck, scale(hd, headLen));
+
+  // 锁骨不动 —— 它的两端（chest 与 shoulderL/R）已经分别落在核心与环上，
+  // 于是它自己变成了那两根系绳。这是白捡的，不需要额外几何。
+  for (const k in sk.joints ?? {}) if (!out[k]) out[k] = sane(sk.joints[k]);
+  return rebuild(sk, out, true);
+}
+
+// ── column：单柱型 ──────────────────────────────────────────────────────────
+
+/**
+ * 人体 → 单柱。**没有腿**：两条腿的六块骨头被首尾串成一根从地面长上来的桅杆，
+ * 脊柱与颈接在它顶上，人的两条手臂变成桅杆顶端的两条分支。
+ *
+ * 守住的那条因果：
+ *  - 两条手臂**世界方向原样保留**（和 quadruped 同一招）→ 抬手，分支跟着抬。
+ *  - 人蹲下 → 桅杆按之字折叠（每一节交替倾斜），整根柱子真的变矮、真的折起来。
+ *    这是"没有膝盖也能读出蹲"的那条路。
+ *  - 人转身 → 折叠平面跟着肩轴转。
+ *
+ * 为什么是折叠而不是缩短：骨长是部件的长度，缩短会把部件压扁。
+ * 折叠只改方向不改长度，部件一件都不变形，而高度一样会掉下来。
+ */
+const COLUMN = {
+  /** 常驻的轻微之字（弧度）。完全笔直读作一根杆子，不读作"一节一节堆起来的" */
+  baseLean: 0.14,
+  /** 蹲到底时额外增加的倾角（弧度）≈ 69° */
+  foldLean: 1.2,
+  /** 顶端两条分支的横向间距 = 人的肩宽 × 它 */
+  branchSpread: 0.8,
+};
+
+/**
+ * 桅杆从地面往上的堆叠顺序。相邻两节共用一个关节，所以没有空档。
+ * `footIdxL` 与 `hipR` 是**同一个点**（右腿顶 = 左脚底），`pelvis` 与 `hipL` 同理 ——
+ * 人体骨架里那两处本来就没有骨头相连，重合就是把缝合上。
+ */
+const MAST: readonly [string, string][] = [
+  ['footIdxR', 'ankleR'], ['ankleR', 'kneeR'], ['kneeR', 'hipR'],
+  ['footIdxL', 'ankleL'], ['ankleL', 'kneeL'], ['kneeL', 'hipL'],
+];
+/** MAST 每一节对应到人体上是哪根骨头（取长度用） */
+const MAST_SRC: readonly [string, string][] = [
+  ['ankleR', 'footIdxR'], ['kneeR', 'ankleR'], ['hipR', 'kneeR'],
+  ['ankleL', 'footIdxL'], ['kneeL', 'ankleL'], ['hipL', 'kneeL'],
+];
+
+function column(sk: Skeleton): Skeleton {
+  const { right, fwd } = facing(sk);
+
+  // 蹲的程度：胯离地多高 / 腿链有多长。站直 ≈ 0，蹲到底 ≈ 0.5+
+  const legChain = Math.max(0.05, chainLength(sk, ['hipL', 'kneeL', 'ankleL', 'footIdxL']));
+  const hipY = Math.max(0, ((J(sk, 'hipL')?.[1] ?? 0) + (J(sk, 'hipR')?.[1] ?? 0)) / 2);
+  const crouch = Math.min(1, Math.max(0, 1 - hipY / legChain));
+  const lean = COLUMN.baseLean + crouch * COLUMN.foldLean;
+  const cl = Math.cos(lean), sl = Math.sin(lean);
+
+  const out: Record<string, Vec3> = {};
+  let cursor: Vec3 = [0, 0, 0];
+  out[MAST[0][0]] = cursor;
+  for (let i = 0; i < MAST.length; i++) {
+    if (i === 3) out.footIdxL = cursor;         // 左脚底接在右腿顶上，柱子在这里不断
+    const [sa, sb] = MAST_SRC[i];
+    const a = J(sk, sa), b = J(sk, sb);
+    const L = a && b ? dist(a, b) : 0.1;
+    const sign = i % 2 === 0 ? 1 : -1;          // 之字：一节朝前，一节朝后
+    const d: Vec3 = [sign * sl * fwd[0], cl, sign * sl * fwd[2]];
+    cursor = add(cursor, scale(norm(d), L));
+    out[MAST[i][1]] = cursor;
+  }
+
+  // 桅杆顶 = pelvis。脊柱是桅杆的**最后一节**，也参加之字 ——
+  // 让它笔直会把躯干立成一个正面朝人的胸腔，整根柱子立刻被读回"半个人"。
+  // 颈和头不折：头是这具身体唯一的朝向线索，甩掉它就没有"它在看哪"了。
+  out.pelvis = out.hipL;
+  const spineLen = Math.max(0.02, chainLength(sk, ['pelvis', 'chest']));
+  const neckLen = Math.max(0.02, chainLength(sk, ['chest', 'neck']));
+  const headLen = Math.max(0.02, chainLength(sk, ['neck', 'headCenter']));
+  const spineDir = norm([sl * fwd[0], cl, sl * fwd[2]] as Vec3);   // MAST 有 6 节，第 7 节是偶数号 → 正向
+  out.chest = add(out.pelvis, scale(spineDir, spineLen));
+  out.neck = [out.chest[0], out.chest[1] + neckLen, out.chest[2]];
+  const hd = J(sk, 'neck') && J(sk, 'headCenter')
+    ? norm(sub(J(sk, 'headCenter')!, J(sk, 'neck')!)) : [0, 1, 0] as Vec3;
+  out.headCenter = add(out.neck, scale(hd, headLen));
+
+  // 顶端的两条分支：插座搬到 chest 两侧，手臂的世界方向一点不动
+  const shHalf = Math.abs((J(sk, 'shoulderL')?.[0] ?? 0.19) - (J(sk, 'shoulderR')?.[0] ?? -0.19)) / 2;
+  const halfSpread = Math.max(0.03, shHalf * COLUMN.branchSpread);
+  out.shoulderL = add(out.chest, scale(right, halfSpread));
+  out.shoulderR = add(out.chest, scale(right, -halfSpread));
+  regrow(sk, out, 'shoulderL', ['shoulderL', 'elbowL', 'wristL', 'handTipL']);
+  regrow(sk, out, 'shoulderR', ['shoulderR', 'elbowR', 'wristR', 'handTipR']);
+
+  for (const k in sk.joints ?? {}) if (!out[k]) out[k] = sane(sk.joints[k]);
+  return rebuild(sk, out);
+}
+
 // ── 纯比例类重映射 ──────────────────────────────────────────────────────────
 
 /**
@@ -168,7 +383,7 @@ function quadruped(sk: Skeleton): Skeleton {
  * 注意这里是**逐链**缩放而不是整体缩放：手臂链从肩开始缩，腿链从胯开始缩，
  * 头从颈开始缩。整体缩放会让四肢连着躯干一起飞出去，比例就不是比例了，是放大镜。
  */
-function proportion(sk: Skeleton, spec: BodyPlanSpec): Skeleton {
+function proportion(sk: Skeleton, spec: BodyPlanSpec, groundAll = false): Skeleton {
   const root = J(sk, 'pelvis') ?? [0, 0, 0];
   const torso = spec.torso ?? 1;
   const limb = spec.limb ?? 1;
@@ -205,7 +420,7 @@ function proportion(sk: Skeleton, spec: BodyPlanSpec): Skeleton {
   }
   // 兜底：没被算到的关节原样搬过来（P2：宁可不动，不要留空）
   for (const kk in sk.joints ?? {}) if (!out[kk]) out[kk] = sane(sk.joints[kk]);
-  return rebuild(sk, out);
+  return rebuild(sk, out, groundAll);
 }
 
 /** 上下颠倒，手当脚 */
@@ -216,7 +431,7 @@ function inverted(sk: Skeleton): Skeleton {
     const p = sane(sk.joints[k]);
     out[k] = [p[0], root[1] - (p[1] - root[1]), p[2]];
   }
-  return rebuild(sk, out);
+  return rebuild(sk, out, true);
 }
 
 // ── 入口 ────────────────────────────────────────────────────────────────────
@@ -238,6 +453,18 @@ const changesProportion = (s: BodyPlanSpec): boolean =>
   [s.limb, s.torso, s.head, s.arm, s.leg].some((v) => v !== undefined && v !== 1);
 
 /**
+ * 这些 kind 自己已经把比例消化掉了，出口不许再来一遍。
+ * towering / stub 是因为它们**就是**比例预设；
+ * radial / column 是因为 `proportion()` 依赖"肩是肩、胯是胯"这套人体语义，
+ * 而这两个拓扑把那套语义拆了 —— 拓扑之后再缩放会把环和桅杆撕开。
+ * 所以它们改成**先缩放人体、再换拓扑**：比例仍然生效，而且作用在一具还是人的骨架上。
+ */
+const FIXED_PROPORTION = new Set(['towering', 'stub', 'radial', 'column']);
+
+const pre = (sk: Skeleton, spec: BodyPlanSpec): Skeleton =>
+  changesProportion(spec) ? proportion(sk, spec) : sk;
+
+/**
  * 把人体骨架翻译成某个物种的身体。永不抛异常，未知 plan 按 'rig' 处理（P2）。
  *
  * 顺序是固定的：**先改拓扑，再改比例**。反过来的话比例会被拓扑重映射冲掉 ——
@@ -255,8 +482,15 @@ export function remapSkeleton(sk: Skeleton, plan: BodyPlan = 'rig'): Skeleton {
     case 'inverted': out = inverted(sk); break;
     case 'towering': out = proportion(sk, PRESETS.towering); break;
     case 'stub': out = proportion(sk, PRESETS.stub); break;
+    // radial / column 的比例是**先**做的，见下面 PRE_PROPORTION 的理由
+    case 'radial': out = radial(pre(sk, spec)); break;
+    case 'column': out = column(pre(sk, spec)); break;
     default: break;                            // 'rig' 与任何未知值 = 不改拓扑
   }
-  if (changesProportion(spec) && kind !== 'towering' && kind !== 'stub') out = proportion(out, spec);
+  // 出口的比例遍要沿用这个拓扑自己的落地基准 —— 否则 inverted 会被重新按"脚"贴地，
+  // 而它的脚在最上面，头就被按到地板以下去了（这条是 xeno 换成 inverted 时抓到的）
+  if (changesProportion(spec) && !FIXED_PROPORTION.has(kind)) {
+    out = proportion(out, spec, PLANS_WITHOUT_FEET.includes(kind));
+  }
   return out;
 }

@@ -9,6 +9,11 @@
  * 而且看到的就是运行时真正会跑的那份代码。
  *
  * URL：?theme=porcelain  ?seed=1234  ?tier=0..3  ?debug=1
+ *     ?plan=<拓扑>        强制身体方案，压过条目自己声明的
+ *     ?pose=raise|crouch|open|apose   换一副合成姿态 —— 用来证明"因果还在"
+ *     ?angle=0.35         冻结转台角度（弧度）
+ *     ?still=90           跑满 N 帧就停 —— headless 取证必须有这个
+ * 一排并排比较不同物种的形体，见 dev/lineup.html。
  * 键：←/→ 换主题，↑/↓ 换 tier，N 下一个 seed，空格暂停旋转，S 显示/隐藏骨架线。
  */
 import * as THREE from 'three/webgpu';
@@ -40,6 +45,32 @@ const J0_SRC: Record<string, Vec3> = {
   hipL: [0.09, 0.93, 0], kneeL: [0.10, 0.51, 0.01], ankleL: [0.10, 0.09, 0], footIdxL: [0.10, 0.03, 0.16],
   hipR: [-0.09, 0.93, 0], kneeR: [-0.10, 0.51, 0.01], ankleR: [-0.10, 0.09, 0], footIdxR: [-0.10, 0.03, 0.16],
 };
+/**
+ * 另外几副合成姿态。**它们的唯一用途是证明因果**：同一个身体方案，
+ * 换一副人的姿态，身体必须跟着变 —— 而且要以这个物种自己的方式变
+ * （抬手 / 蹲下 / 张开，docs/PRD.md §5 第 2 条）。
+ */
+const POSES: Record<string, Record<string, Vec3>> = {
+  apose: {},
+  raise: {   // 抬左手
+    elbowL: [0.24, 1.66, 0], wristL: [0.28, 1.90, 0], handTipL: [0.30, 1.99, 0],
+  },
+  open: {    // 双臂平举张开
+    elbowL: [0.50, 1.38, 0], wristL: [0.74, 1.38, 0], handTipL: [0.83, 1.38, 0],
+    elbowR: [-0.50, 1.38, 0], wristR: [-0.74, 1.38, 0], handTipR: [-0.83, 1.38, 0],
+  },
+  crouch: {  // 蹲下
+    pelvis: [0, 0.55, 0], chest: [0, 0.95, 0], neck: [0, 1.05, 0], headCenter: [0, 1.20, 0],
+    hipL: [0.09, 0.53, 0], hipR: [-0.09, 0.53, 0],
+    kneeL: [0.16, 0.32, 0.25], kneeR: [-0.16, 0.32, 0.25],
+    shoulderL: [0.19, 0.98, 0], shoulderR: [-0.19, 0.98, 0],
+    elbowL: [0.33, 0.70, 0.02], wristL: [0.44, 0.46, 0.04], handTipL: [0.48, 0.37, 0.05],
+    elbowR: [-0.33, 0.70, 0.02], wristR: [-0.44, 0.46, 0.04], handTipR: [-0.48, 0.37, 0.05],
+  },
+};
+const POSE_NAME = new URLSearchParams(location.search).get('pose') ?? 'apose';
+Object.assign(J0_SRC, POSES[POSE_NAME] ?? {});
+
 /** J 是每帧被重映射结果覆盖的工作副本；J0 是原始人体姿态，永不修改 */
 const J0: Record<string, Vec3> = { ...J0_SRC };
 const J: Record<string, Vec3> = { ...J0_SRC };
@@ -263,13 +294,22 @@ addEventListener('keydown', async (e) => {
 // ── 帧循环 ──────────────────────────────────────────────────────────────────
 let last = performance.now();
 let hudAt = 0;
+/**
+ * `?still=N`：跑满 N 帧就停。**headless 截图必须有这个** ——
+ * 永不停的 rAF 会把 Chrome 的 `--virtual-time-budget` 一直吊住，截出来是空白页。
+ * 这条和 dev/mass.ts 是同一条规矩，照抄过来的。
+ */
+const stillFrames = qs.has('still') ? Math.max(1, asInt(qs.get('still'), 60)) : 0;
+/** `?angle=`：冻结转台角度，取证图之间才能比较（同一个机位看不同的身体） */
+const fixedAngle = qs.has('angle') ? Number(qs.get('angle')) : null;
+let frameNo = 0;
 renderer.setAnimationLoop((now: number) => {
   const dt = Math.min(TIME.dtMax, Math.max(TIME.dtMin, (now - last) / 1000));
   last = now;
   fps = fps * 0.92 + (1 / dt) * 0.08;
   const t0 = performance.now();
   if (!paused) spin += dt * 0.3;
-  const a = Math.sin(spin) * 0.9;
+  const a = fixedAngle !== null && Number.isFinite(fixedAngle) ? fixedAngle : Math.sin(spin) * 0.9;
   camera.position.set(Math.sin(a) * camDist, center[1] + span * 0.35, Math.cos(a) * camDist);
   camera.lookAt(center[0], center[1], center[2]);
   creature.pose(skeleton, presence, dt);
@@ -280,4 +320,9 @@ renderer.setAnimationLoop((now: number) => {
   poseMs = poseMs * 0.9 + (t1 - t0) * 0.1;
   jsMs = jsMs * 0.9 + (performance.now() - t0) * 0.1;
   if (now - hudAt > 200) { hudAt = now; drawHud(); }   // HUD 每 200ms 一次，别让 innerHTML 进预算
+  if (stillFrames && ++frameNo >= stillFrames) {
+    drawHud();
+    renderer.setAnimationLoop(null);
+    document.title = `装配 · still · ${planLabel}`;
+  }
 });

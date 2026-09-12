@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { remapSkeleton, BODY_PLANS } from '../src/bodyplan.ts';
+import { remapSkeleton, BODY_PLANS, PLANS_WITHOUT_FEET } from '../src/bodyplan.ts';
 import { buildSkeleton } from '../src/skeleton.ts';
 import { dist } from '../src/vec.ts';
 import type { Skeleton, Vec3 } from '../src/types.ts';
@@ -16,6 +16,8 @@ const POSE: Record<string, Vec3> = {
 
 const human = (over: Record<string, Vec3> = {}): Skeleton =>
   buildSkeleton({ ...POSE, ...over }, [], 0);
+
+const lowestJoint = (sk: Skeleton) => Math.min(...Object.values(sk.joints).map((p) => p[1]));
 
 const lowestFoot = (sk: Skeleton) => Math.min(
   sk.joints.footIdxL?.[1] ?? Infinity, sk.joints.footIdxR?.[1] ?? Infinity,
@@ -53,11 +55,15 @@ test('重映射之后要重新贴地（rig 除外 —— 它是恒等，落地�
   // 为什么排除 rig：remapSkeleton('rig') 原样返回同一个对象（上面第一条测试写死了这点）。
   // 落地已经由 stabilize.ts 在 FK 之后做过（docs/04 §3.5），这里不该再做一遍 ——
   // 为了让一条断言更整齐而去拷贝一份骨架，是拿性能换整齐。
+  //
+  // PLANS_WITHOUT_FEET 的基准不一样：radial 把四肢拆成了绕核心的弧，"脚"这个概念没了，
+  // 贴地只能按整体最低点算。拿脚当基准会让半个笼子沉到地板下面。
   const sk = human();
   for (const plan of BODY_PLANS) {
     if (plan === 'rig') continue;
-    const y = lowestFoot(remapSkeleton(sk, plan));
-    assert.ok(Math.abs(y) < 1e-9, `${plan} 的最低脚在 y=${y}，没贴地`);
+    const out = remapSkeleton(sk, plan);
+    const y = PLANS_WITHOUT_FEET.includes(plan) ? lowestJoint(out) : lowestFoot(out);
+    assert.ok(Math.abs(y) < 1e-9, `${plan} 的最低点在 y=${y}，没贴地`);
   }
 });
 
@@ -200,4 +206,123 @@ test('未知 kind 按 rig 处理，但比例照常生效（外部数据可能带
   const t0 = dist(base.joints.pelvis, base.joints.chest);
   const t1 = dist(out.joints.pelvis, out.joints.chest);
   assert.ok(t1 > t0 * 1.4, '未知拓扑时比例也该生效');
+});
+
+// ── radial：真的没有躯干吗，因果还在吗 ──────────────────────────────────────
+
+/** 骨链末端到 pelvis 的距离 —— 拿它当"这条肢伸出去多远" */
+const spread = (sk: Skeleton) => Math.max(
+  Math.abs(sk.joints.handTipL[0]), Math.abs(sk.joints.handTipR[0]),
+  Math.abs(sk.joints.footIdxL[0]), Math.abs(sk.joints.footIdxR[0]),
+);
+
+/** 张开双臂的人 */
+const armsOpen = () => human({
+  elbowL: [0.50, 1.38, 0], wristL: [0.74, 1.38, 0], handTipL: [0.83, 1.38, 0],
+  elbowR: [-0.50, 1.38, 0], wristR: [-0.74, 1.38, 0], handTipR: [-0.83, 1.38, 0],
+});
+/** 抬起左手的人 */
+const armRaised = () => human({
+  elbowL: [0.24, 1.66, 0], wristL: [0.28, 1.90, 0], handTipL: [0.30, 1.99, 0],
+});
+/** 蹲下的人 */
+const crouched = () => human({
+  pelvis: [0, 0.55, 0], chest: [0, 0.95, 0], neck: [0, 1.05, 0], headCenter: [0, 1.20, 0],
+  hipL: [0.09, 0.53, 0], hipR: [-0.09, 0.53, 0],
+  kneeL: [0.16, 0.32, 0.25], kneeR: [-0.16, 0.32, 0.25],
+  shoulderL: [0.19, 0.98, 0], shoulderR: [-0.19, 0.98, 0],
+  elbowL: [0.33, 0.70, 0.02], wristL: [0.44, 0.46, 0.04], handTipL: [0.48, 0.37, 0.05],
+  elbowR: [-0.33, 0.70, 0.02], wristR: [-0.44, 0.46, 0.04], handTipR: [-0.48, 0.37, 0.05],
+});
+
+test('radial：没有脊柱 —— 核心被压扁到人体躯干的一半以下', () => {
+  const base = human();
+  const r = remapSkeleton(base, 'radial');
+  const coreBase = dist(base.joints.pelvis, base.joints.headCenter);
+  const core = dist(r.joints.pelvis, r.joints.headCenter);
+  assert.ok(core < coreBase * 0.5, `核心还有 ${core.toFixed(2)}（人体 ${coreBase.toFixed(2)}），没压扁就还是"躯干 + 一个环"`);
+});
+
+test('radial：四条弧真的绕着核心 —— 每条弧都有一段绕到了核心背面', () => {
+  const r = remapSkeleton(human(), 'radial');
+  const hub = r.joints.pelvis;   // 核心底端，够用来判断"环"是不是包住了它
+  // 环绕的判据：至少有一个肢体关节的 Z 在核心前面，另一个在后面
+  const zs = ['handTipL', 'handTipR', 'footIdxL', 'footIdxR', 'elbowL', 'kneeR']
+    .map((n) => r.joints[n][2] - hub[2]);
+  assert.ok(Math.max(...zs) > 0.2 && Math.min(...zs) < -0.2,
+    `部件全挤在核心的一侧（Z 范围 ${Math.min(...zs).toFixed(2)}..${Math.max(...zs).toFixed(2)}），那不是环，是身体`);
+});
+
+test('radial：张开双臂 → 环扩大；蹲下 → 环收拢', () => {
+  const stand = remapSkeleton(human(), 'radial');
+  const open = remapSkeleton(armsOpen(), 'radial');
+  const low = remapSkeleton(crouched(), 'radial');
+  assert.ok(spread(open) > spread(stand) * 1.2,
+    `张开双臂环没扩大：${spread(stand).toFixed(2)} → ${spread(open).toFixed(2)}`);
+  assert.ok(low.height < stand.height * 0.85,
+    `蹲下环没收拢：${stand.height.toFixed(2)} → ${low.height.toFixed(2)}`);
+});
+
+test('radial：因果没断 —— 抬左手，左边那条弧整条浮起来', () => {
+  const before = remapSkeleton(human(), 'radial').joints.handTipL[1];
+  const after = remapSkeleton(armRaised(), 'radial').joints.handTipL[1];
+  assert.ok(after > before + 0.2, `抬手之后只从 ${before.toFixed(2)} 变到 ${after.toFixed(2)} —— 因果链断了`);
+});
+
+// ── column：真的没有腿吗，因果还在吗 ────────────────────────────────────────
+
+test('column：没有腿 —— 六块腿骨串成一根柱子，不是两条并排的链', () => {
+  const c = remapSkeleton(human(), 'column');
+  // 两条腿如果还并排，左右脚的 X 会分开；串成一柱之后它们全在轴线上
+  const dx = Math.abs(c.joints.footIdxL[0] - c.joints.footIdxR[0]);
+  assert.ok(dx < 0.05, `左右脚还分开 ${dx.toFixed(2)}m，说明还是两条腿`);
+  // 而且是首尾相接的：右腿顶端 = 左脚底端
+  assert.ok(dist(c.joints.hipR, c.joints.ankleL) < 0.5, '柱子断开了');
+  assert.ok(c.joints.headCenter[1] > c.joints.hipL[1], '头应该在柱子顶上');
+});
+
+test('column：柱子比人高 —— 两条腿串起来本来就该长', () => {
+  const base = human();
+  const c = remapSkeleton(base, 'column');
+  assert.ok(c.height > base.height * 1.2, `只有 ${c.height.toFixed(2)}，没有"从地面长上来"的读法`);
+});
+
+test('column：因果没断 —— 抬手，顶端的分支跟着抬', () => {
+  const before = remapSkeleton(human(), 'column').joints.handTipL[1];
+  const after = remapSkeleton(armRaised(), 'column').joints.handTipL[1];
+  assert.ok(after > before + 0.5, `分支只从 ${before.toFixed(2)} 抬到 ${after.toFixed(2)}`);
+});
+
+test('column：蹲下 → 柱子按之字折叠，真的变矮（而不是把部件压扁）', () => {
+  const stand = remapSkeleton(human(), 'column');
+  const low = remapSkeleton(crouched(), 'column');
+  assert.ok(low.height < stand.height * 0.92,
+    `蹲下柱子没矮：${stand.height.toFixed(2)} → ${low.height.toFixed(2)}`);
+  // 折叠只改方向不改长度：同一个人身上，桅杆每一节的骨长必须等于人体那根骨头的长度
+  const boneLen = (sk: Skeleton, id: string) => sk.bones.find((b) => b.id === id)!.length;
+  const src = crouched();
+  for (const id of ['shinL', 'shinR', 'thighL', 'thighR', 'footL', 'footR']) {
+    assert.ok(Math.abs(boneLen(low, id) - boneLen(src, id)) < 1e-6,
+      `${id} 的长度被改了 —— 那是压扁部件，不是折叠`);
+  }
+});
+
+test('column：张开双臂 → 顶端分支跟着张开', () => {
+  const stand = remapSkeleton(human(), 'column');
+  const open = remapSkeleton(armsOpen(), 'column');
+  const w = (sk: Skeleton) => Math.abs(sk.joints.handTipL[0] - sk.joints.handTipR[0]);
+  assert.ok(w(open) > w(stand) * 1.3, `分支没张开：${w(stand).toFixed(2)} → ${w(open).toFixed(2)}`);
+});
+
+test('radial / column：比例 spec 仍然生效（它们是先缩放再换拓扑）', () => {
+  const base = human();
+  const plain = remapSkeleton(base, 'column');
+  const longArm = remapSkeleton(base, { kind: 'column', arm: 1.5 });
+  const a0 = dist(plain.joints.shoulderL, plain.joints.handTipL);
+  const a1 = dist(longArm.joints.shoulderL, longArm.joints.handTipL);
+  assert.ok(a1 > a0 * 1.35, `column 的 arm 比例没生效：${a0.toFixed(2)} → ${a1.toFixed(2)}`);
+
+  const r0 = remapSkeleton(base, 'radial');
+  const r1 = remapSkeleton(base, { kind: 'radial', limb: 0.6 });
+  assert.ok(spread(r1) < spread(r0) * 0.85, `radial 的 limb 比例没生效：${spread(r0).toFixed(2)} → ${spread(r1).toFixed(2)}`);
 });
