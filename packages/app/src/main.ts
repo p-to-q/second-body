@@ -39,7 +39,9 @@ import { showNotice } from './shell/notice.ts';
 import { mountNav } from './ui/nav.ts';
 import { createHud } from './shell/hud.ts';
 import { createSound } from './sound/sound.ts';
-import { COPY } from './ui/i18n.ts';import { ACTS, createDirector, type World } from './acts/index.ts';
+import { createCues } from './sound/cues.ts';
+import { COPY } from './ui/i18n.ts';
+import { ACTS, createDirector, type World } from './acts/index.ts';
 
 const flags = readFlags();
 
@@ -65,6 +67,12 @@ async function boot(): Promise<void> {
   // 一次权限都不问。现场（?kiosk=1）和深链拿到 null，这一层等于不存在。
   // 它不阻塞下面的加载 —— 只有进 S2 之前会 await 一次 entry.started。
   const entry = mountEntry(flags);
+
+  // 离散接触音（docs/29 §第五层）。**必须在这里建**，不能跟着 createSound 走：
+  // 它要放的四记里有三记发生在选择页上，而 createSound 是选完主题才建的。
+  // 建它只是发四个 fetch + 一次离线解码，不碰输出设备、不等用户手势，
+  // 所以展签还立着的时候素材就已经就位了。加载不上就是那一记没声音（P3）。
+  const cues = createCues({ muted: flags.mute });
 
   // ── 1. 资产先开跑。它不依赖渲染器 ────────────────────────────────────────
   // 原来它排在 `renderer.init()` **后面**。可 parts.json 和 anchor 图跟渲染器
@@ -129,12 +137,21 @@ async function boot(): Promise<void> {
   // 展签还立着的时候不要把选择页顶出来。加载在后面照常进行，这里只等那一下点击。
   await entry?.started;
 
+  // 「开始」那一下同时是 AudioContext 的解锁时刻，一声轻触是"系统醒了"的唯一回执。
+  // 放在 await 之后而不是塞进 entry.ts：`started` 是在 click 处理里 resolve 的，
+  // 紧接着的这一个微任务仍在同一次用户手势内，浏览器照样放行。
+  // 深链与现场（entry === null）没有这一下点击，也就没有这一声 —— 那是对的。
+  if (entry) cues.play('enter');
+
   let theme = flags.theme ?? themeFromUrl();
   if (!theme) {
     await new Promise<void>((done) => {
       void chooseTheme({
         onChoose: (id) => { theme = id; done(); },
         seed: flags.seed ?? undefined,
+        onPass: () => cues.play('pass'),
+        // 自动选择必须和手动确认**不是同一声**，否则观众会以为自己碰到了什么
+        onCommit: (_id, how) => cues.play(how === 'idle' ? 'idle' : 'commit'),
         // 这一页真正的等待在它返回之前（23 张 anchor 图）。只上报，不改这一页的任何表现。
         onProgress: (n, total) => loading.progress(
           'parts', PARTS_INDEX_SHARE + (1 - PARTS_INDEX_SHARE) * (total ? n / total : 1),

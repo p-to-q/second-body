@@ -24,6 +24,10 @@ import { SOUND } from '../../../core/src/tuning.ts';
 import { mulberry32 } from '../../../core/src/rng.ts';
 import type { ThemeDef, Tier } from '../../../core/src/types.ts';
 import { buildSoundGraph, type LayerId, type SoundGraph } from './graph.ts';
+// AudioContext 归 cues.ts 所有，不归这里：离散音**先被需要**（入口那一下点击和
+// 整个选择页都发生在 createSound() 之前），所以 context 的生命周期必须比这里长。
+// 两个 context 就是两条音频线程，而且按 `m` 只关得掉一个。
+import { releaseSharedAudioContext, setCuesMuted, sharedAudioContext } from './cues.ts';
 import type { SoundSignal } from './signal.ts';
 import { voiceOf } from './voice.ts';
 
@@ -82,7 +86,7 @@ export function createSound(opts: SoundOptions): Sound {
     console.warn(`[sound] ${where} 失败，本次会话静音继续`, err);
     try { graph?.dispose(); } catch { /* 已经坏了 */ }
     graph = null;
-    void ctx?.close().catch(() => {});
+    releaseSharedAudioContext();
     ctx = null;
   }
 
@@ -94,9 +98,9 @@ export function createSound(opts: SoundOptions): Sound {
   function unlock(): void {
     if (graph || state === 'failed') return;
     try {
-      const Ctor = (globalThis as { AudioContext?: typeof AudioContext }).AudioContext;
-      if (!Ctor) { state = 'failed'; console.warn('[sound] 这个浏览器没有 AudioContext，静音继续'); return; }
-      ctx = new Ctor({ latencyHint: 'interactive' });
+      // 可能已经被离散音那一层建好了（入口那一下点击就会建）—— 那就直接用同一个
+      ctx = sharedAudioContext();
+      if (!ctx) { state = 'failed'; return; }   // 没有 AudioContext，cues.ts 已经吼过一次了
       graph = buildSoundGraph(ctx, { rng: mulberry32(opts.seed), voice: voiceOf(pending) });
       // 从 0 淡进来。直接给 master 一个值会在第一下点击上带一声"啪"
       graph.master.gain.setValueAtTime(0.0001, ctx.currentTime);
@@ -117,6 +121,8 @@ export function createSound(opts: SoundOptions): Sound {
   });
 
   function setMuted(next: boolean): void {
+    // 离散音那一层也要跟着走。取绝对值不取反，所以它自己的 `m` 处理先跑过一遍也无所谓
+    setCuesMuted(next);
     if (!graph || !ctx) { state = next ? 'muted' : 'locked'; return; }
     const now = ctx.currentTime;
     graph.master.gain.cancelScheduledValues(now);
@@ -174,7 +180,7 @@ export function createSound(opts: SoundOptions): Sound {
       cleanups.length = 0;
       try { graph?.dispose(); } catch { /* 收尾不该再抛 */ }
       graph = null;
-      void ctx?.close().catch(() => {});
+      releaseSharedAudioContext();
       ctx = null;
       state = 'off';
     },

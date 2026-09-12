@@ -39,6 +39,19 @@ export interface ChooseOptions {
   /** 让 canvas 可读回（截图取证用）。现场不要开。 */
   capture?: boolean;
   /**
+   * 中心卡换了一张（滚动 / 拖动 / 键盘 / 降级列表上划过一行都算）。
+   * 挂上来的第一张**不算** —— 那不是"经过"，那是页面刚打开。
+   * 不传时这一页的行为逐字不变。
+   */
+  onPass?: () => void;
+  /**
+   * 选定了。`onChoose` 之外**另开一个**，是因为这两件事问的不是同一个问题：
+   * `onChoose` 问"选了谁"，这里问"**是谁选的**"——
+   * `how` 只有 30 秒无操作那一条是 `'idle'`，其余六条入口全是 `'manual'`。
+   * 声音需要这个区分（观众得听得出这一下不是自己碰出来的），别的消费者可以不看。
+   */
+  onCommit?: (id: string, how: 'manual' | 'idle') => void;
+  /**
    * 卡片图的到货进度（`done / total`）。**只是上报，不影响这一页的任何表现。**
    *
    * 为什么加在这里：这一页真正的等待在 `mountChoose` 返回**之前** ——
@@ -161,6 +174,10 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
     idleMs = DEFAULT_IDLE_MS,
     forceFallback = false,
     capture = false,
+    // 不传 = 一个什么都不做的函数。这样下面的调用点不需要每处写 `?.()`，
+    // 「不传时行为逐字不变」也就只有这一处需要保证
+    onPass = () => {},
+    onCommit = () => {},
   } = options;
   // 非确定性只从这里进来一次，之后全程用这个 Rng。
   const rng: Rng = mulberry32(options.seed ?? (Date.now() >>> 0));
@@ -208,9 +225,18 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
   const indexOfId = (id: string) => cards.findIndex((c) => c.theme.id === id);
   const activeIndex = () => (carousel ? carousel.activeIndex() : fallbackIndex);
 
+  /**
+   * 上一次真正显示过的那一张。**初值 -1 而不是 0**：
+   * 挂上来的第一次 showActive 不是"经过"，它是页面打开 ——
+   * 给它配一声就等于每次进这一页都先"咔"一下，那是提示音不是反馈。
+   */
+  let shown = -1;
+
   function showActive(index: number): void {
     const card = cards[index];
     if (!card) return;
+    if (shown >= 0 && index !== shown) onPass();
+    shown = index;
     ui.name.textContent = card.theme.name;
     ui.nameEn.textContent = card.theme.nameEn;
     ui.tag.textContent = card.theme.tagline;
@@ -220,12 +246,21 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
     });
   }
 
-  /** 选定。写 URL → 放退出动画 → 回调。任何一步坏了都不能卡住现场。 */
-  function commit(index: number): void {
+  /**
+   * 选定。写 URL → 放退出动画 → 回调。任何一步坏了都不能卡住现场。
+   *
+   * `how` 默认 `'manual'`：六条入口（键盘数字、回车、降级列表点击、GL onPick、
+   * 外部 `choose()`、以及 idle 超时）里**只有 idle 那一条**要显式传 `'idle'`，
+   * 其余全是观众自己动的手。默认值选 manual 是因为漏传一处的代价不对称 ——
+   * 把手动读成自动只是少了点区分，把自动读成手动会让观众以为是自己碰的。
+   */
+  function commit(index: number, how: 'manual' | 'idle' = 'manual'): void {
     const card = cards[index];
     if (!card || committed || disposed) return;
     committed = true;
     const id = card.theme.id;
+    // 在退出动画之前叫：声音是"这一下发生了"的回执，不是动画的收尾音
+    onCommit(id, how);
     writeThemeToUrl(id);
     ui.idle.classList.remove('is-on');   // 选定了，倒计时那条线立刻收起来
     ui.root.classList.add('is-leaving');
@@ -272,7 +307,7 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
     ui.idleFill.style.width = showing
       ? `${Math.min(100, Math.max(0, (1 - left / COUNTDOWN_MS) * 100))}%`
       : '0';
-    if (left <= 0) commit(rng.int(cards.length));
+    if (left <= 0) commit(rng.int(cards.length), 'idle');
   }, 60);
 
   // ── 键盘 ─────────────────────────────────────────────────────────────────
