@@ -3,6 +3,7 @@
  * 只在 ?debug=1 时挂上去。
  */
 import { BUDGET } from '../../../core/src/tuning.ts';
+import { label } from './degrade.ts';
 import type { FrameStats } from './safe-frame.ts';
 
 export interface HudCounts {
@@ -35,6 +36,8 @@ export function createHud(): { update(s: FrameStats, c: Partial<HudCounts>): voi
         row('draws', c.drawCalls ?? 0, BUDGET.maxDrawCalls),
         row('infer', c.inferenceHz ?? 0, 30, ' Hz', true),
         c.act ? `<span style="color:#7fb3d5">act        ${c.act}${c.note ? '  ' + c.note : ''}</span>` : '',
+        s.throttled ? '<span style="color:#e8a33d">idle       无人降帧中</span>' : '',
+        s.degraded ? `<span style="color:#e0455a">degraded   ${label(s.degraded)}</span>` : '',
         s.errors ? `<span style="color:#e0455a">errors ${s.errors}  ${s.lastError ?? ''}</span>` : '',
       ].filter(Boolean).join('\n');
     },

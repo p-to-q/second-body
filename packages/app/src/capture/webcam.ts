@@ -20,6 +20,7 @@
 import { FilesetResolver, ImageSegmenter, PoseLandmarker } from '@mediapipe/tasks-vision';
 import type { Landmark, RawPose } from '../../../core/src/types.ts';
 import { CAPTURE } from '../../../core/src/tuning.ts';
+import { notePresence } from '../shell/idle.ts';
 import type { Capture } from './capture.ts';
 
 // 本地 wasm：打包进产物，现场断网也能起（Vite 把它们当静态资源发出去）
@@ -222,6 +223,10 @@ export class WebcamCapture implements Capture {
       this.#latest = null;   // 没人：返回 null，不是返回上一帧的幽灵
     }
     res.close?.();
+
+    // 顺手上报"有没有人"给无人降帧（shell/idle.ts）。
+    // 这件事只有采集端知道，让它自己说，收口的 main.ts 就一行都不用改。
+    notePresence((this.#latest?.score ?? 0) > CAPTURE.minScore, now);
 
     this.#tick++;
     this.#countTick(now);

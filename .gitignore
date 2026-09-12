@@ -6,6 +6,9 @@ dist/
 assets/raw/*/
 !assets/raw/ledger.json
 scratch/
+
+# 由 vite 插件在 dev/build 时扫 assets/demo/ 生成，不该手写也不该提交
+assets/demo/index.json
 *.log
 .DS_Store
 

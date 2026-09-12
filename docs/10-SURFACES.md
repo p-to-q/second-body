@@ -6,7 +6,7 @@
 >
 > 规则：**动完代码就更新这张表。** 证据一栏必须是"跑过的命令"或"截图路径"，不能是"应该可以"。
 
-最后更新：2026-09-12（T-07 Creature 落地后）
+最后更新：2026-09-12（T-16 kiosk 加固 + 录制页落地后）
 
 ## 资产流水线
 
@@ -53,7 +53,12 @@
 | `src/creature/creature.ts` 实例化渲染 / remorph / graft | `experimental` | 30 实例 · 87k 三角 · 17 draw · `pose()` 0.06–0.21ms；换装最多 3 活并排队（18 槽位 438 帧 = 7.3s 排空）；`graft()` 热插拔 73 帧完成。**只在合成 A-pose 上跑过，没接过真骨架** |
 | 摄像头采集 / MediaPipe（`src/capture/webcam.ts`） | `experimental` | 整条路跑通但**没见过真人**：headless Chrome + `--use-fake-device-for-media-stream` 下 GPU delegate 起来、wasm 与两个模型加载、mask 产出、`latest()` 不抛也不阻塞（`scratch/evidence/capture-webcam-fakecam.png`）；权限被拒时不白屏且 `lastError=NotAllowedError`（`capture-permission-denied.png`）。**fps ≥ 30 未验证**（headless 软件渲染只有个位数），U1/U2 未实测 |
 | `/dev/capture.html` 调试页（33 点叠加 + fps/推理 Hz/置信度 + world xyz 量程/抖动） | `stable` | `scratch/evidence/capture-replay-demo.png`：33 点在位，fps 59 / 推理 31Hz |
-| `?demo=1` 回放（`src/capture/replay.ts`） | `experimental` | 与 `WebcamCapture` 同接口、可直接互换，`capture-replay-demo.png` 是它在播。**播的是合成占位数据** `assets/demo/pose-synthetic.json`（程序生成，不是录制）—— 真录制仍欠 T-16，现场兜底在那之前不算数 |
+| `?demo=1` 回放（`src/capture/replay.ts`） | `experimental` | 与 `WebcamCapture` 同接口、可直接互换，`capture-replay-demo.png` 是它在播。片段由 `/demo/index.json` 列出、`?clip=<name>` 指定（三种写法 + "真录制永远排在合成数据前"有单测：`packages/app/test/clip.test.ts`，随 `npm run check` 跑）。**但目前库里只有合成占位数据** `assets/demo/pose-synthetic.json`（程序生成，2 秒，不是录制）—— **所以现在没有真正的现场兜底** —— 断网 / 逆光 / 没人敢上台时，`?demo=1` 放出来的是一段 2 秒的程序生成数据，不是一个人。录制页已就绪（下一行），欠的只是一个站到摄像头前面的真人 |
+| **`/dev/record.html` 真人 pose 录制页（T-16）** | `experimental` | 页面 UI 完整、六段录制脚本（走进→站定→挥手→蹲下→转身→走出）、定速 30Hz 采样、没人的帧记成 `world: []`（"走出画面"在数据里就长这样）。写回中间件 `/__demo` 五条路都用 curl 当场验过：正常写入 → `assets/demo/pose-writetest.json` + 自动重建 `index.json` 且真录制排到了合成数据前面（测试文件已删）；`synthetic:true` / 整段没人 / 坏片段名（`../evil`）/ GET 四条都被拒。摄像头分支只验到**报错不白屏**：浏览器面板里 `NotAllowedError: Permission denied`，headless 里看门狗 15s 后说人话（截图 `scratch/evidence/record-nocam-t16.png`）。**真正的录制没做 —— 本机有摄像头，缺的是一个站在它前面做完那六件事的真人** |
+| kiosk 外壳无人降帧（`src/shell/idle.ts`） | `stable` | 无人 300s → 渲染降到 10fps，人一回来立刻满帧；采集端（webcam/replay 都改了）上报在场，鼠标键盘也算有人。手动步进 rAF 的单测证明"1 秒只跑 11 帧"而不是"打算降"（`packages/app/test/frame-loop.test.ts`、`idle.test.ts`，随 `npm run check` 跑）；`/dev/degrade.html` 上手动触发实测 fps 130 → 9.5（目标 10），记录在 `scratch/evidence/degrade-ladder-t16.log`。**阈值 300s/10fps 是 `shell/idle.ts` 的局部常量，没进 `tuning.ts`（要收口的人点头）** |
+| **连续出错降级阶梯（`src/shell/degrade.ts` + `safe-frame.ts`）** | `stable` | 以前只打一行日志，现在真降：连续 N 帧出错 → 关后期（`readFlags().nopost` 翻真）→ 再错 N 帧 → 占位几何 → 再错 N 帧 → 重载（会话内最多 2 次，防重载循环）。三级在 `/dev/degrade.html` 注入"每帧抛异常"的假 tick 后逐级触发，事件日志与状态面板读数抄在 `scratch/evidence/degrade-ladder-t16.log`（`data-sb-degrade=reload`、nopost/placeholder 双真）；另有单测 `packages/app/test/degrade.test.ts`、`frame-loop.test.ts`。各级动作用 `registerDegradeHandler()` 认领，**舞台/creature 还没认领（要在 main.ts 收口时接）**，在那之前第 1/2 级只翻状态位 + 发 `sb:degrade` + 写 `<html data-sb-degrade>` |
+| **`?selftest=1` 开场自检页（`src/shell/selftest.ts`）** | `experimental` | 逐条检查 WebGPU / 摄像头权限 / parts.json / demo 片段 / 本地模型，✓⚠✗ 各带一句人话；视觉按 `docs/23 §0`（等宽、两级字号、48px 安全边距、无圆角无图标）。不进主程序，主程序起不来也能开（独立 8.3KB chunk）。每条检查 8s 超时 —— **串行跑，一条挂住会把后面全部钉死在"检查中…"**（headless Chrome 的 `enumerateDevices()` 真的会挂）。实测截图 `scratch/evidence/selftest-t16.png`：parts.json ✓ 191 件/23 主题 · demo ⚠ 只有合成数据 · 本地模型 ⚠ 缺 · 摄像头 ⚠ 超时（headless）/ ✗ 权限被拒（浏览器面板） |
+| `npm run kiosk` 一条命令进现场 | `stable` | = build + preview + 自动开 `/?kiosk=1`。实跑一遍：build ✓ → `http://localhost:4173/?kiosk=1` 200、`/?selftest=1` 200、`/demo/index.json` 200。`/demo/index.json` 现在由 vite 插件在 **build 时**（不只是 dev server 起来时）扫 `assets/demo/` 生成 —— 删掉它重新 build 会长回来，新机器 clone 下来直接 `npm run kiosk` 不会缺索引。另有 `npm run selftest` 直接开自检页 |
 | 慢回路（代理 + 热插拔） | `spec-only` | T-17 |
 | Stage / 后期 | `spec-only` | T-09 |
 | 开场选择页（dither 轮播） | `experimental` | `/dev/choose.html`：6 张卡滚/选/进，`?theme=xeno` 跳过，数字键直选，空闲自动选（`?idle=6000` 验过）；截图 `scratch/evidence/choose-0*.png`。上游 `gl/` 已移植进 `src/vendor/dither-carousel/`（MIT + LICENSE 在位，`public/` 素材一张没拿）。未验：真实现场投影分辨率与触摸屏 |

@@ -13,6 +13,8 @@
  */
 import type { RawPose } from '../../../core/src/types.ts';
 import { CAPTURE } from '../../../core/src/tuning.ts';
+import { readFlags } from '../shell/kiosk.ts';
+import { notePresence } from '../shell/idle.ts';
 import type { Capture } from './capture.ts';
 
 /** 找不到别的就用它。T-16 录到真数据后把真文件名写进 /demo/index.json */
@@ -93,6 +95,8 @@ export class ReplayCapture implements Capture {
     const f = clip.frames[i];
     // score 低于门限 = 录制里那一段确实没人，照原样传下去（docs/06 §1 自己会判）
     this.#latest = f.world?.length ? { ...f, t: now } : null;
+    // 和 WebcamCapture 同构：顺手把"有没有人"喂给无人降帧（shell/idle.ts）
+    notePresence((this.#latest?.score ?? 0) > CAPTURE.minScore, now);
 
     this.#serveTimes.push(now);
     while (this.#serveTimes.length && now - this.#serveTimes[0] > 1000) this.#serveTimes.shift();
@@ -100,19 +104,67 @@ export class ReplayCapture implements Capture {
   }
 }
 
-/** `?clip=` > /demo/index.json 的第一条 > 默认文件 */
-async function pickClip(): Promise<string> {
-  const asked = new URLSearchParams(location.search).get('clip');
-  if (asked) return asked;
+/**
+ * `?clip=` 的写法（三种都认，因为现场手打 URL 的人不会记得前缀）：
+ *   `?clip=walkwave`                 → /demo/pose-walkwave.json
+ *   `?clip=pose-walkwave.json`       → /demo/pose-walkwave.json
+ *   `?clip=/demo/pose-walkwave.json` → 原样
+ */
+export function resolveClipUrl(asked: string): string {
+  const s = asked.trim();
+  if (!s) return DEFAULT_CLIP;
+  if (s.startsWith('/') || /^https?:\/\//.test(s)) return s;
+  const named = s.startsWith('pose-') ? s : `pose-${s}`;
+  return `/demo/${named.endsWith('.json') ? named : `${named}.json`}`;
+}
+
+/** index.json 里的一条。只有 url 是必需的，其余是给自检页显示用的 */
+export interface ClipEntry {
+  url: string;
+  name?: string;
+  fps?: number;
+  frames?: number;
+  seconds?: number;
+  /** 合成占位数据 = 不是录制 = 不算现场兜底（docs/11 T-16） */
+  synthetic?: boolean;
+}
+
+/** 宽松解析：数组 of string / 数组 of 对象 / `{clips:[…]}` 都认 */
+export function parseClipIndex(raw: unknown): ClipEntry[] {
+  const list = Array.isArray(raw) ? raw : (raw as { clips?: unknown })?.clips;
+  if (!Array.isArray(list)) return [];
+  const out: ClipEntry[] = [];
+  for (const item of list) {
+    if (typeof item === 'string' && item) out.push({ url: resolveClipUrl(item), name: item });
+    else if (item && typeof item === 'object') {
+      const o = item as Partial<ClipEntry>;
+      const url = typeof o.url === 'string' ? o.url : (typeof o.name === 'string' ? resolveClipUrl(o.name) : null);
+      if (url) out.push({ ...o, url });
+    }
+  }
+  return out;
+}
+
+/** 真录制排在合成占位前面 —— 默认永远不该挑到假数据 */
+export function preferredClip(entries: ClipEntry[]): ClipEntry | null {
+  return entries.find((e) => e.synthetic !== true) ?? entries[0] ?? null;
+}
+
+export async function fetchClipIndex(): Promise<ClipEntry[]> {
   try {
     const r = await fetch(INDEX);
-    if (r.ok) {
-      const list: unknown = await r.json();
-      const first = Array.isArray(list) ? list[0] : (list as { clips?: string[] })?.clips?.[0];
-      if (typeof first === 'string' && first) return first;
-    }
-  } catch { /* 没有 index 就走默认 */ }
-  return DEFAULT_CLIP;
+    if (!r.ok) return [];
+    return parseClipIndex(await r.json());
+  } catch {
+    return [];   // 没有 index 就走默认
+  }
+}
+
+/** `?clip=` > /demo/index.json 里第一条**真录制** > 默认文件 */
+async function pickClip(): Promise<string> {
+  const asked = readFlags().clip;
+  if (asked) return resolveClipUrl(asked);
+  return preferredClip(await fetchClipIndex())?.url ?? DEFAULT_CLIP;
 }
 
 async function loadClip(url: string): Promise<Clip> {

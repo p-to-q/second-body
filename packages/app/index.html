@@ -6,5 +6,15 @@
  html,body{margin:0;height:100%;background:#0e0f12;overflow:hidden}
  canvas{display:block}
 </style></head>
-<body><script type="module" src="/src/main.ts"></script></body>
+<body><script type="module">
+ // ?selftest=1 走开场自检页，**不启动主程序**（docs/09 §C：开场前先跑一遍自检）。
+ // 分叉放在这里而不是 main.ts 里：自检页要在"主程序起不来"的时候也能打开，
+ // 所以它不能是主程序的一部分。两个分支都是字面量 import，打包器照样能静态分析。
+ if (new URLSearchParams(location.search).get('selftest') === '1') {
+   document.documentElement.style.overflow = 'auto';
+   import('./src/shell/selftest.ts');
+ } else {
+   import('./src/main.ts');
+ }
+</script></body>
 </html>
