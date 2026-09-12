@@ -124,5 +124,15 @@ async function loadClip(url: string): Promise<Clip> {
   const fps = (!Array.isArray(raw) && typeof (raw as { fps?: unknown }).fps === 'number')
     ? (raw as { fps: number }).fps
     : CAPTURE.targetHz;
+
+  // 合成数据是按 docs/04 §1 那套**尚未实测**的轴向假设造出来的。
+  // 用它来校准坐标转换，等于把假设当成证据 —— 所以每次加载都要吼一声。
+  if (!Array.isArray(raw) && (raw as { synthetic?: unknown }).synthetic === true) {
+    console.warn(
+      `[replay] ${url} 是合成占位数据，不是录制。\n` +
+      '它的轴向来自 docs/04 §1 尚未实测的假设，**不能**用来验证 U1/U2 或校准坐标转换。\n' +
+      '真实录制见 docs/11 T-16，录到之后直接替换该文件。',
+    );
+  }
   return { fps: fps > 0 ? fps : CAPTURE.targetHz, frames: frames as RawPose[] };
 }
