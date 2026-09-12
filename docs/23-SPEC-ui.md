@@ -7,13 +7,25 @@
 
 ## 0. 视觉语言
 
+> **实现在 `packages/app/src/ui/type.css`，这一节是它的说明。**
+> 度量取自 zkm.de 线上 CSS（2026-09-12 实测）：body 1.0rem/400/1.5，
+> h1 2.00rem/1.15/600，h2 1.50rem/1.25/600，html 100%→105%。
+>
+> **字体不打包。** ZKM 线上引用的 `ZKMSerendipity` 没有 `@font-face` ——
+> 靠本机已装字体，装不上落到 `sans-serif`；ZKM 自己把
+> "no web fonts, only browser fonts" 当成极简策略。我们照做。
+> 栈是 `Helvetica Neue → Neue Haas Grotesk → Suisse Int'l → Univers → Arial → system-ui`：
+> macOS/iOS 落到 Helvetica Neue（Typographic Style 的本尊），Windows 落到 Arial。
+> 要更独特的字形就买一份 Suisse Int'l 授权加在栈首 —— 只改一行。
+
 | | 值 | 理由 |
 |---|---|---|
 | 底色 | `#0E0F12`（近黑，不是纯黑） | 纯黑在投影上会和关机分不清 |
 | 前景文字 | `#9AA0A6`，强调 `#DFE4EA` | 不用纯白：纯白会和身体的高光抢注意力 |
 | 强调色 | 取当前条目 `palette` 的 accent | UI 跟着物种走，而不是有自己的品牌色 |
-| 字体 | 系统等宽（`ui-monospace`） | 器械感，且零版权风险、零加载 |
-| 字号 | 正文 13px / 标题 20px，**只有两级** | 三级以上就开始像后台系统 |
+| 字体 | 正文 grotesk 系统栈；**数据/标注用等宽** | 数字要能对齐，这是「档案感」的来源之一 |
+| 字号 | 正文 1rem / 小号 0.8125rem / h2 1.5rem / h1 2rem | 三级以上就开始像后台系统 |
+| 字距 | h1 −0.02em、h2 −0.01em、全大写标签 +0.08em | grotesk 大字号要收紧、小字号要放开 —— 这套风格最容易被忽略的一半 |
 | 文案长度 | 单行 ≤ 14 字，全场景总字数 ≤ 60 | 现场没人会读第二行 |
 | 动效时长 | 进 240ms / 出 180ms / 过场 1200ms | 出比进快，符合直觉 |
 | 缓动 | 进 `cubic-bezier(.16,1,.3,1)`，出 `cubic-bezier(.4,0,1,1)` | — |

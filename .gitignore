@@ -14,3 +14,7 @@ assets/demo/index.json
 
 # agent worktrees（每个都是独立 git 仓库，绝不能被当成 submodule 提交进来）
 .claude/worktrees/
+.vercel
+
+# 本地字体：使用授权 ≠ 再分发授权，而本仓库是公开的（见 assets/fonts-local/README.md）
+assets/fonts-local/

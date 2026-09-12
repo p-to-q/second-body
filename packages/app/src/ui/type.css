@@ -1,0 +1,126 @@
+/**
+ * 排版系统 —— International Typographic Style，搬到 web 上。
+ *
+ * 度量取自 zkm.de 线上 CSS（2026-09-12 实测）：
+ *   body  1.0rem / 400 / line-height 1.5
+ *   h1    2.00rem / line-height 1.15 / 600
+ *   h2    1.50rem / line-height 1.25 / 600
+ *   html  font-size 100% → 105%
+ *
+ * **字体本身不打包。** ZKM 线上引用的 `ZKMSerendipity` 没有对应的 `@font-face` ——
+ * 它靠本机已装字体，装不上就落到 `sans-serif`。ZKM 自己把
+ * "no web fonts, only browser fonts" 当成极简策略之一，我们照做：
+ * 零字节、零许可风险，而且这个味道本来就来自**度量和留白**，不来自字形文件。
+ *
+ * 栈的顺序是有讲究的：macOS/iOS 落到 Helvetica Neue（Typographic Style 的本尊），
+ * Windows 落到 Arial（同一套骨架的另一次实现），Linux 落到系统 grotesk。
+ * 想要更独特的字形就买一份 Suisse Int'l 的授权，把它加在栈首即可 —— 只改这一行。
+ */
+
+:root {
+  /* ── 字体栈 ────────────────────────────────────────────────────────── */
+  --sb-grotesk: "Helvetica Neue", "Neue Haas Grotesk Display", "Suisse Int'l",
+                Univers, Helvetica, Arial, "Segoe UI", system-ui, sans-serif;
+  --sb-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* ── 字号：只有两级正文 + 两级标题。三级以上就开始像后台系统 ───────── */
+  --sb-size-body: 1rem;         /* 16px */
+  --sb-size-small: 0.8125rem;   /* 13px，数据/标注 */
+  --sb-size-h2: 1.5rem;
+  --sb-size-h1: 2rem;
+
+  --sb-lh-body: 1.5;
+  --sb-lh-h1: 1.15;
+  --sb-lh-h2: 1.25;
+
+  --sb-weight-body: 400;
+  --sb-weight-head: 600;
+
+  /* grotesk 在大字号下要收紧，小字号下要放开 —— 这是这套风格最容易被忽略的一半 */
+  --sb-tracking-h1: -0.02em;
+  --sb-tracking-h2: -0.01em;
+  --sb-tracking-body: 0;
+  --sb-tracking-label: 0.08em;   /* 全大写标签 */
+
+  /* ── 颜色（docs/23 §0）────────────────────────────────────────────── */
+  --sb-paper: #0e0f12;
+  --sb-ink: #dfe4ea;
+  --sb-ink-dim: #9aa0a6;
+  --sb-rule: #2a3038;
+  --sb-accent: #7fb3d5;
+  --sb-warn: #e0455a;
+
+  /* ── 栅格：Typographic Style 的骨架 ───────────────────────────────── */
+  --sb-gutter: 24px;
+  --sb-safe: 48px;              /* 投影会切边，安全区不能小于这个数 */
+  --sb-measure: 68ch;           /* 正文行长上限 */
+}
+
+html { font-size: 100%; -webkit-text-size-adjust: 100%; }
+@media (min-width: 1200px) { html { font-size: 105%; } }
+
+body {
+  margin: 0;
+  background: var(--sb-paper);
+  color: var(--sb-ink-dim);
+  font-family: var(--sb-grotesk);
+  font-size: var(--sb-size-body);
+  font-weight: var(--sb-weight-body);
+  line-height: var(--sb-lh-body);
+  letter-spacing: var(--sb-tracking-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3 { color: var(--sb-ink); font-weight: var(--sb-weight-head); margin: 0 0 0.5em; }
+h1 { font-size: var(--sb-size-h1); line-height: var(--sb-lh-h1); letter-spacing: var(--sb-tracking-h1); }
+h2 { font-size: var(--sb-size-h2); line-height: var(--sb-lh-h2); letter-spacing: var(--sb-tracking-h2); }
+h3 { font-size: var(--sb-size-body); line-height: var(--sb-lh-body); }
+
+p { max-width: var(--sb-measure); margin: 0 0 1em; }
+a { color: var(--sb-ink); text-decoration: none; border-bottom: 1px solid var(--sb-rule); }
+a:hover { border-bottom-color: var(--sb-accent); }
+
+/** 全大写小标签：这套风格里承担"分类"的那个角色 */
+.sb-label {
+  font-size: var(--sb-size-small);
+  letter-spacing: var(--sb-tracking-label);
+  text-transform: uppercase;
+  color: var(--sb-ink-dim);
+}
+
+/** 数据一律等宽 —— 数字要能对齐，这是"档案感"的来源之一 */
+.sb-data, code, pre { font-family: var(--sb-mono); font-size: var(--sb-size-small); }
+.sb-num { font-variant-numeric: tabular-nums; }
+
+/** 细横线。Typographic Style 用线分区，不用卡片和阴影 */
+.sb-rule { border: 0; border-top: 1px solid var(--sb-rule); margin: 0; }
+
+/** 页面外壳：安全区 + 行长上限 */
+.sb-page { padding: var(--sb-safe) var(--sb-safe) calc(var(--sb-safe) * 2); }
+.sb-grid { display: grid; gap: var(--sb-gutter); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/**
+ * 渐进增强：本机装了 / 本地软链了 ZKMSerendipity 就用它，否则落到系统栈。
+ * 字体文件**不在版本库也不在产物里**（见 assets/fonts-local/README.md）：
+ * 使用授权不等于再分发授权，而这个仓库是公开的。
+ *
+ * 两种情况下**排版度量完全一致** —— 那才是这套风格的来源。
+ * 加 `?font=zkm` 或给 <html> 加 class="font-zkm" 启用。
+ */
+@font-face {
+  font-family: "ZKMSerendipity";
+  src: url("/fonts/ZKMSerendipity/ZKMSerendipity-Regular.woff") format("woff");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "ZKMSerendipity";
+  src: url("/fonts/ZKMSerendipity/ZKMSerendipity-Medium.woff") format("woff");
+  font-weight: 600; font-style: normal; font-display: swap;
+}
+
+html.font-zkm { --sb-grotesk: "ZKMSerendipity", "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif; }

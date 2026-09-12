@@ -23,7 +23,8 @@
     "check:parts": "node packages/factory/src/check-parts.ts",
     "doctor": "node packages/factory/src/doctor.ts",
     "factory:curate": "node --env-file=.env packages/factory/src/cli.ts curate",
-    "factory:roster": "node --env-file=.env packages/factory/src/cli.ts roster"
+    "factory:roster": "node --env-file=.env packages/factory/src/cli.ts roster",
+    "fonts:link": "mkdir -p packages/app/public && ln -sfn ../../../assets/fonts-local packages/app/public/fonts && echo '已软链 → packages/app/public/fonts（仅本地，不进产物）'"
   },
   "devDependencies": {
     "@types/node": "^22.20.2",

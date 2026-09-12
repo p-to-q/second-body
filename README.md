@@ -1,4 +1,8 @@
-# SECOND BODY
+# SEE-ME SEE-YOU
+
+> 作品名 **SEE-ME SEE-YOU**；工程代号仍是 `second-body`（仓库名、包名、`@sb/*` 前缀）。
+> 分开是故意的：观众看到的是展签，不是仓库名；而几十个 commit、全套文档和两个
+> 已经上线的服务都以 `second-body` 做内部指代，改代号的成本是真实的、收益是零。
 
 [![check](https://img.shields.io/badge/check-typecheck%20%2B%20103%20tests%20%2B%20parts%20contract-brightgreen)]()
 [![parts](https://img.shields.io/badge/parts-191-blue)]()

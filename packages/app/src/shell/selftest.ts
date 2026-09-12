@@ -204,7 +204,7 @@ function build(): void {
 
   const h = document.createElement('div');
   h.innerHTML =
-    `<div style="font-size:${TITLE};color:${FG_HI};letter-spacing:.06em">SECOND BODY · 开场自检</div>` +
+    `<div style="font-size:${TITLE};color:${FG_HI};letter-spacing:.06em">SEE-ME SEE-YOU · 开场自检</div>` +
     '<div style="margin-top:6px">?selftest=1 —— 开场前跑一遍。' +
     '✗ 是真的演不了，⚠ 是能演但知道自己在打什么折。</div>';
   document.body.appendChild(h);

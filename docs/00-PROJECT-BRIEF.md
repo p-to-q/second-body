@@ -1,4 +1,4 @@
-# 00 · Project Brief — SECOND BODY
+# 00 · Project Brief — SEE-ME SEE-YOU
 
 > 工作代号 `second-body`。对标并逆向 Universal Everything《Future You》(Barbican, 2019)，
 > 但把 2019 年不存在的那一层——**实时 AI 3D 生成**——真正放进交互回路。
