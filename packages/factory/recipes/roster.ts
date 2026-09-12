@@ -34,7 +34,8 @@ export interface RosterEntry {
   kind: RosterKind;
   name: string;
   nameEn: string;
-  tagline: string;
+  tagline: string;      // 中文是原文
+  taglineEn: string;    // 对照
   tension: string;
   /** 喂给生成模型的造型语言段 */
   look: string;
@@ -67,6 +68,37 @@ export interface RosterEntry {
 /** light 条目只生成这 6 个槽位 —— 决定剪影的那几件 */
 export const SIGNATURE_SLOTS = ['spine', 'head', 'upperArm', 'shin', 'foot', 'joint'];
 
+/**
+ * 英文对照。中文是原文 —— 这件作品的思考是用中文进行的，英文是对照不是源。
+ * 所以这里允许换说法：`furball` 的中文是"它放弃了腿、手和任务"，
+ * 英文写成 "gave up limbs, hands, and usefulness" —— usefulness 比 tasks 准。
+ */
+const TAGLINE_EN: Record<string, string> = {
+  "porcelain": "An idealised version of you",
+  "industrial": "It came to work, not to keep you company",
+  "patrol": "Something that should not stand, standing",
+  "xeno": "It is imitating you, and getting it wrong",
+  "coral": "Neither human nor machine",
+  "athlete": "The body is human. The motion is not.",
+  "softwear": "A stranger who lives in your house",
+  "compact": "Human-shaped, but only 130 cm",
+  "digitigrade": "Human hands on animal legs",
+  "wheelleg": "It walks and it rolls",
+  "droid": "It does not perform tasks. It has a character.",
+  "petbot": "Not like a dog — but you will think it is alive",
+  "furball": "It gave up limbs, hands, and usefulness",
+  "screenface": "A few degrees of freedom are enough for a personality",
+  "orb": "Why would a robot need legs",
+  "manipulator": "The species the humanoid hype buried",
+  "autonomous": "Also a robot. Just much larger.",
+  "field": "The body disappears. Only motion remains.",
+  "guest.founder": "(vacant) Wear a real person",
+  "char.dumpling": "Something soft, round, and breathing",
+  "char.ghost": "Translucent, unsure whether it is here",
+  "char.paper": "A body that was folded",
+  "char.idol": "You, made into merchandise"
+};
+
 export const STYLE_BASE =
   'isolated single object on a plain background, one continuous solid part, ' +
   'symmetrical along its long axis, studio product render, neutral lighting, ' +
@@ -77,7 +109,7 @@ const A = (
   look: string, palette: string[], humanLike: number, lifeLike: number,
   reference: string, coverage: 'full' | 'light' = 'light', base = 'porcelain',
 ): RosterEntry => ({
-  id, kind: 'archetype', name, nameEn, tagline, tension, look, palette,
+  id, kind: 'archetype', name, nameEn, tagline, taglineEn: TAGLINE_EN[id] ?? nameEn, tension, look, palette,
   source: 'rodin', clearance: 'own', axes: { humanLike, lifeLike },
   coverage, base: coverage === 'light' ? base : undefined,
   tierOfVariant: coverage === 'full' ? { a: 1, b: 2 } : { a: 1 },
@@ -220,7 +252,7 @@ export const ARCHETYPES: RosterEntry[] = [
   // 程序化，不花 credits
   {
     id: 'field', kind: 'archetype', name: '场', nameEn: 'Field',
-    tagline: '身体消失，只剩运动',
+    tagline: '身体消失，只剩运动', taglineEn: TAGLINE_EN['field'],
     tension: '唯一不靠生成的条目：只有关节球和它们之间的张力线。玩过前面那些之后，它让人意识到一直在动的是自己。',
     look: '', palette: ['glow.signal', 'matte.ash', 'ceramic.pearl'],
     source: 'procedural', clearance: 'own', axes: { humanLike: 0.5, lifeLike: 0.5 },
@@ -243,7 +275,7 @@ export const ARCHETYPES: RosterEntry[] = [
 export const GUESTS: RosterEntry[] = [
   {
     id: 'guest.founder', kind: 'guest', name: '创始人', nameEn: 'The Founder',
-    tagline: '（空位）把一个真实的人穿在身上',
+    tagline: '（空位）把一个真实的人穿在身上', taglineEn: TAGLINE_EN['guest.founder'],
     tension: '当你抬手，一个你认得出的人也抬手 —— 这是这件作品能做的最冒犯也最有力的一件事。正因为有力，才不该随手做。',
     look: '', palette: ['matte.bone', 'metal.graphite', 'ceramic.pearl'],
     source: 'rodin', clearance: 'public-figure',
@@ -261,7 +293,7 @@ const C = (
   id: string, name: string, nameEn: string, tagline: string, tension: string,
   look: string, palette: string[], humanLike: number, lifeLike: number, base: string,
 ): RosterEntry => ({
-  id, kind: 'character', name, nameEn, tagline, tension, look, palette,
+  id, kind: 'character', name, nameEn, tagline, taglineEn: TAGLINE_EN[id] ?? nameEn, tension, look, palette,
   source: 'rodin', clearance: 'own', axes: { humanLike, lifeLike },
   coverage: 'light', base, tierOfVariant: { a: 1 },
 });

@@ -143,7 +143,8 @@ export interface ThemeDef {
   kind: 'archetype' | 'guest' | 'character';
   name: string;      // 中文名
   nameEn: string;
-  tagline: string;   // 轮播卡片上的一行
+  tagline: string;   // 轮播卡片上的一行（中文原文）
+  taglineEn?: string; // 对照
   /** [primary, secondary, accent] 的 materialId */
   palette: string[];
   /** procedural 条目不依赖 parts.json 里的部件，运行时用程序化几何 */

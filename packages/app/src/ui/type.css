@@ -124,3 +124,28 @@ a:hover { border-bottom-color: var(--sb-accent); }
 
 /** 排查用：?font=system 强制走系统栈，用来确认"度量一致"这件事没骗人 */
 html.font-system { --sb-grotesk: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif; }
+
+/* ── 中英对照（见 src/ui/i18n.ts 的设计说明：并置，不切换）──────────────── */
+.sb-bi { display: block; }
+.sb-zh { display: block; color: var(--sb-ink); }
+.sb-en {
+  display: block;
+  color: var(--sb-ink-dim);
+  font-size: 0.82em;
+  letter-spacing: 0.01em;
+  /* 英文比中文矮一截，基线对不齐；这一点点上边距是靠眼睛调的，不是算出来的 */
+  margin-top: 0.15em;
+}
+/* 行内并置：短标签用这个，中英之间一条细竖线 */
+.sb-bi-inline { display: inline-flex; align-items: baseline; gap: 0.5em; }
+.sb-bi-inline .sb-zh, .sb-bi-inline .sb-en { display: inline; }
+.sb-bi-inline .sb-en::before {
+  content: '';
+  display: inline-block;
+  width: 1px; height: 0.8em;
+  margin-right: 0.5em;
+  vertical-align: -0.05em;
+  background: var(--sb-rule);
+}
+/* 标题里的对照：英文跟着标题的字距走，否则会散 */
+h1 .sb-en, h2 .sb-en { letter-spacing: var(--sb-tracking-h2); font-weight: 400; }

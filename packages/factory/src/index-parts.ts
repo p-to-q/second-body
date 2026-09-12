@@ -16,7 +16,7 @@ export async function buildIndex(): Promise<PartLibraryIndex> {
     units: 'meters',
     convention: { axis: '+Y', socketA: [0, 0, 0], socketB: [0, 1, 0], length: 1 },
     themes: ROSTER.map((t) => ({
-      id: t.id, kind: t.kind, name: t.name, nameEn: t.nameEn, tagline: t.tagline,
+      id: t.id, kind: t.kind, name: t.name, nameEn: t.nameEn, tagline: t.tagline, taglineEn: t.taglineEn,
       palette: t.palette, source: t.source, axes: t.axes, coverage: t.coverage, base: t.base,
       bodyPlan: t.bodyPlan,
     })),
