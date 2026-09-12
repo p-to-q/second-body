@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>慢回路靶场 · SEE-ME SEE-YOU</title>
+<link rel="stylesheet" href="../src/ui/type.css">
+<style>
+  body { padding: var(--sb-safe); }
+  main { max-width: var(--sb-measure); }
+  #log { margin-top: 1.5em; border-top: 1px solid var(--sb-rule); }
+  #log div { padding: 0.4em 0; border-bottom: 1px solid var(--sb-rule); font-variant-numeric: tabular-nums; }
+  #log b { color: var(--sb-ink); font-weight: 400; }
+  .ok { color: var(--sb-accent); }
+  .bad { color: var(--sb-warn); }
+  canvas { border: 1px solid var(--sb-rule); margin-top: 1em; }
+</style>
+</head>
+<body>
+<main>
+  <p class="sb-label">DEV · 慢回路靶场</p>
+  <h1>慢回路靶场</h1>
+  <p>
+    用一张<strong>画出来的</strong>剪影，打真的 <code>/__slow</code>，跑真的 <code>createSlowLoop</code>。
+    验的是前端那一半：提交 → 轮询 → 取 glb → <code>graft()</code> 到底被没被调用。
+    <br>
+    剪影是假的（现场那张来自 MediaPipe 的人像 mask）；<strong>服务端、规范化、血统池、graft 全是真的</strong>。
+    不带 <code>SLOW_FAKE=1</code> 起 dev server 的话，这一页会真的打 Rodin、真的花钱。
+  </p>
+  <canvas id="mask" width="256" height="256"></canvas>
+  <div id="log"></div>
+</main>
+<script type="module" src="./slow.ts"></script>
+</body>
+</html>

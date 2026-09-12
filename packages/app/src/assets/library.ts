@@ -63,6 +63,13 @@ export interface PartLibrary {
   onGeometry(cb: (partId: string) => void): () => void;
   /** 慢回路产物：把运行时生成的部件塞进库里，之后 geometry()/metaOf() 就认识它 */
   register(meta: PartMeta, geometry: THREE.BufferGeometry): void;
+  /**
+   * 按**任意 URL**拉一个 glb（慢回路的产物不在 `/parts/` 下，它由 localhost 代理提供）。
+   * 之所以不让调用方自己 new 一个 GLTFLoader：meshopt decoder 必须只有一份。
+   * 少挂一次的症状是"部件全变成胶囊"，而且不报错 —— 见上面 createPartLibrary 里的注释。
+   * 失败时 reject（与 preload 不同）：调用方要据此决定放弃，而不是拿占位几何接上去。
+   */
+  loadUrl(url: string): Promise<THREE.BufferGeometry>;
   readonly stats: { loaded: number; failed: number; pending: number; queued: number };
   dispose(): void;
 }
@@ -514,6 +521,15 @@ export function createPartLibrary(opt: PartLibraryOptions = {}): PartLibrary {
       geometries.set(meta.id, geometry);
       failed.delete(meta.id);
       emit(meta.id);
+    },
+
+    async loadUrl(url) {
+      const gltf = await loader.loadAsync(url);
+      const geo = geometryFromScene(gltf.scene);
+      if (!geo) throw new Error(`glb 里没有 mesh：${url}`);
+      geo.computeBoundingBox();
+      geo.computeBoundingSphere();
+      return geo;
     },
 
     get stats() {

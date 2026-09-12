@@ -30,6 +30,7 @@ import { createStage } from './stage/stage.ts';
 import { chooseTheme, themeFromUrl } from './choose/choose.ts';
 import { createFrameLoop } from './shell/safe-frame.ts';
 import { showBootError } from './shell/boot-error.ts';
+import { createSlowLoop } from './slow/slow.ts';
 import { enterKiosk, readFlags } from './shell/kiosk.ts';
 import { mountCameraButton, mountEntry } from './shell/entry.ts';
 import { createHud } from './shell/hud.ts';
@@ -91,6 +92,22 @@ async function boot(): Promise<void> {
         seed: flags.seed ?? undefined,
       }).then((handle) => { if (!handle) done(); });   // handle 为 null = URL 里已经有主题
     });
+  }
+
+  // 血统：前人留在这台机器上的件，有机会进下一个人的候选池（docs/17 §5）。
+  // 这是「模型会被改变、会留下后果」的那一半 —— 没有它，慢回路只是一次性的礼物；
+  // 有了它，这台机器上的物种池是被历任观众改写过的。
+  // 生产构建下这个端点是 404，`lineage()` 返回空数组，开场一点都不受影响。
+  const slow = createSlowLoop({
+    mask: () => capture.latestMask(),
+    species: () => theme ?? '',
+    loadGeometry: (url) => library.loadUrl(url),
+    // 团块身体没有槽位，也就没有"接一个零件上去"这回事 —— 它的表达是连续的。
+    // 这不是缺陷，是 docs/18 里两种表达的分界；慢回路对它静默跳过。
+    body: () => (massBody ? null : creature),
+  });
+  for (const p of await slow.lineage(theme ?? '')) {
+    if (!library.index.parts.some((q) => q.id === p.id)) library.index.parts.push(p);
   }
 
   // 预取被选中主题的部件，免得进场后第一秒还在拿占位几何顶着
@@ -192,6 +209,10 @@ async function boot(): Promise<void> {
     // 否则 charge 和在场判定会跟着一起变慢，观众会觉得"卡了一下"而不是"顿了一下"。
     director.update(world, dt * stage.timeScale);
 
+    // 慢回路：站够 SLOW_LOOP.armAfter 秒才武装。它内部**从不 await**在这一帧上，
+    // 失败的正确表现是什么都没发生 —— 观众不该知道刚才有东西在跑（P3）。
+    slow.update(p.state === 'ALIVE', dt);
+
     // 人走了 → 换一个种子，下一个人是全新的身体（docs/05 §5）
     if (presence.justReset) {
       seed = (Math.random() * 0xffffffff) >>> 0;
@@ -199,6 +220,7 @@ async function boot(): Promise<void> {
       evolution.reset();
       stabilizer.reset();
       refiner?.reset();
+      slow.reset();
       lastSkeleton = null;
       morph((flags.tier ?? 0) as Tier);
     }
@@ -214,9 +236,11 @@ async function boot(): Promise<void> {
         act: director.currentId ?? '—',
         // 精化的三个数挂在 note 上而不是扩 HudCounts：它们只在调参时看，
         // 不值得为此动一个被所有页面共用的契约。
-        note: refiner
-          ? `${note ? `${note} · ` : ''}hold=${refiner.stats.held} drop=${refiner.stats.dropped} q=${refiner.stats.cutoffScale.toFixed(2)}`
-          : note,
+        note: [
+          note,
+          refiner && `hold=${refiner.stats.held} drop=${refiner.stats.dropped} q=${refiner.stats.cutoffScale.toFixed(2)}`,
+          slow.phase !== 'idle' && `slow:${slow.phase}${slow.note ? `(${slow.note})` : ''}`,
+        ].filter(Boolean).join(' · '),
       });
     }
   });
