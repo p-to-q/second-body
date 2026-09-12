@@ -19,13 +19,14 @@ import { createPresence } from '../../core/src/presence.ts';
 import { makeGenome } from '../../core/src/genome.ts';
 import { remapSkeleton } from '../../core/src/bodyplan.ts';
 import { mulberry32 } from '../../core/src/rng.ts';
-import { CAPTURE, REFINE } from '../../core/src/tuning.ts';
+import { CAPTURE, NASCENT, REFINE } from '../../core/src/tuning.ts';
 import type { MotionFeatures, Skeleton, Tier } from '../../core/src/types.ts';
 
 import { createCapture } from './capture/capture.ts';
 import { createPartLibrary } from './assets/library.ts';
 import { createCreature } from './creature/creature.ts';
 import { createMassBody } from './creature/mass.ts';
+import { createNascent } from './creature/nascent.ts';
 import type { BodyInstance } from './creature/body.ts';
 import { createStage } from './stage/stage.ts';
 import { chooseTheme, themeFromUrl } from './choose/choose.ts';
@@ -213,7 +214,16 @@ async function boot(): Promise<void> {
   const isMass = planKind === 'mass';
   const creature = createCreature({ library });
   const massBody = isMass ? createMassBody({ library, theme: theme ?? undefined }) : null;
-  const body: BodyInstance = massBody ?? creature;
+  // 开场那一具：tier 0 是一个还没分化出零件的团块，tier ≥ 1 才长出刚体件。
+  // 理由全写在 `creature/nascent.ts` 的文件头 —— 一句话是：兜底几何是 catch 块，
+  // 不是形态，拿它当开场，观众读到的是"它坏了"。
+  // `bodyPlan:'mass'` 的物种本来就全程是团块，不需要这一层。
+  // `NASCENT.enabled=false` 时这里是 null，下面的 morph 就退回"每档都 remorph"，
+  // 也就是改这版之前的行为 —— 那个开关的理由写在 tuning.ts 的 NASCENT.enabled 上。
+  const nascent = isMass || !NASCENT.enabled
+    ? null
+    : createNascent({ creature, library, theme: theme ?? undefined });
+  const body: BodyInstance = massBody ?? nascent ?? creature;
   stage.scene.add(body.object);
 
   let seed = flags.seed ?? (Math.random() * 0xffffffff) >>> 0;   // 会话级种子，仅此一处
@@ -232,7 +242,13 @@ async function boot(): Promise<void> {
   const morph = (t?: Tier) => {
     if (t !== undefined) tier = t;
     // 团块没有槽位件可换 —— 它的"演化"由 tier 驱动的表面参数表达，不是换装。
-    if (!isMass) creature.remorph(makeGenome(seed, tier, library.index, { theme: theme ?? undefined }));
+    if (isMass) return;
+    nascent?.setTier(tier);
+    // tier 0 一件部件都没有（parts.json 里 tier 0 的件数是 0），有开场形态接着的时候
+    // remorph 只会白建 30 个占位实例然后被团块盖住 —— 那 30 个实例正是这次要拿掉的东西。
+    if (!nascent || tier >= 1) {
+      creature.remorph(makeGenome(seed, tier, library.index, { theme: theme ?? undefined }));
+    }
   };
   morph(tier);
 
@@ -277,6 +293,7 @@ async function boot(): Promise<void> {
       const evo = evolution.update(lastFeatures, dt);
       // 团块的"沸腾"层由运动能量驱动 —— 动得越猛表面越沸（tuning 的 MASS.surface）
       massBody?.setEnergy(lastFeatures.energy);
+      nascent?.setEnergy(lastFeatures.energy);
       // ?tier= 锁定时不让演化改形态 —— look dev 要的是一个不动的靶子
       if (evo.tierChanged && flags.tier === null) {
         morph(evo.tier);

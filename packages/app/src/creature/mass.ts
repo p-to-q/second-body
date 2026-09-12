@@ -74,6 +74,18 @@ export interface MassOptions {
   theme?: string;
   /** 初始分辨率，默认 MASS.res */
   res?: number;
+  /**
+   * 球半径系数，默认 `MASS.radiusScale`。开场形态（tier 0）用它把相邻骨头的场
+   * 彻底融在一起 —— 见 `NASCENT.radiusScale`。这里只是把那一个数开成参数，
+   * 别的什么都没改。
+   */
+  radiusScale?: number;
+  /**
+   * 覆盖 `MASS.slotScale` 里的若干槽位（其余仍取 MASS 的值）。
+   * 开场形态拿它把躯干收窄、把头放大 —— 整个身体越融，头越需要主动探出来，
+   * 否则"它在看哪"这条线索会被躯干吞掉（`docs/26 §F`：头是唯一的朝向线索）。
+   */
+  slotScale?: Partial<Record<string, number>>;
 }
 
 // ─────────────────────────── 实现 ───────────────────────────
@@ -112,6 +124,8 @@ export function createMassBody(opt: MassOptions = {}): MassBody {
   material.name = 'mass';
 
   let res = clamp(Math.round(opt.res ?? MASS.res), MASS.resMin, MASS.resMax);
+  const radiusScale = Number.isFinite(opt.radiusScale) ? opt.radiusScale! : MASS.radiusScale;
+  const slotScale: Partial<Record<string, number>> = { ...MASS.slotScale, ...(opt.slotScale ?? {}) };
 
   // 常驻对象：每帧只 reset + addBall + update，绝不重建（见文件头 §2）。
   // MarchingCubes 来自 `three` 主构建，我们的场景是 `three/webgpu`——
@@ -264,7 +278,7 @@ export function createMassBody(opt: MassOptions = {}): MassBody {
         if (!slot) continue;
 
         const girth = (SLOT_WIDTH[slot] ?? 0.12) * 0.5 * bodyScale
-          * MASS.radiusScale * (MASS.slotScale[slot] ?? 1);
+          * radiusScale * (slotScale[slot] ?? 1);
         const baseRadius = Math.max(girth, minRadius) * (0.55 + 0.45 * conf) * shrink;
         const phase = phaseOf(b.id);
 
