@@ -89,4 +89,72 @@ export const INVITED: RosterEntry[] = [
     0.25, 0.9, 'char.dumpling',
     // 头就是全部，四肢是两根小棍 —— 这是"被画出来"的体型逻辑
     { kind: 'stub', head: 2.1, limb: 0.3, torso: 0.9 }),
+
+  /**
+   * 发布会 —— 舞台上那具身体。
+   *
+   * 项目负责人给了 Sam Altman 和 Tim Cook 两张照片。**它们是同一具身体**：
+   * 同样的站姿、同样的素色针织衫、同样的深裤、同样的白球鞋、同样摊开到胸前的手。
+   * 那不是两个人，那是一套制服 —— 所以这里是**一个**条目，不是两个。
+   *
+   * 做成制服而不是做成谁，有一条硬理由：这两位是真实在世的人。
+   * 做出可识别的三维像再公开发布，和拿照片当参考不是一回事。
+   * 而 roster 里的 `guest.founder` 早就把这件事写清楚了 ——
+   * 「当你抬手，一个你认得出的人也抬手，这是这件作品能做的最冒犯也最有力的一件事。
+   * 正因为有力，才不该随手做。」那个条目是一个**故意的空位**。
+   * 这一条是那个空位的答案：**站上去的不是某个人，是那身衣服。**
+   *
+   * 技术轴：**织物**。这是全谱系里唯一一个身体由布构成的 —— 针织的起伏、
+   * 袖口的罗纹、裤子的垂坠。刚体挂载在布上最难，正因为难才值得做。
+   */
+  I('guest.keynote', '发布会', 'Keynote',
+    '舞台上的那套制服', 'The uniform worn on stage',
+    '所有人都穿成这样站在同一束光里。观众认得出这具身体属于谁 ——' +
+    '但它谁也不是，它是一个位置。这是全谱系里唯一一个用"衣服"而不是"结构"定义的身体。',
+    'a knitwear-clad torso segment: fine-gauge merino sweater in muted heather grey-green, ' +
+    'soft fabric folds and gentle drape, ribbed cuff texture, matte wool fibre surface, ' +
+    'no logo no text, calm studio key light on a dark stage',
+    ['matte.ash', 'matte.bone', 'metal.graphite'],
+    1.0, 0.55, 'porcelain',
+    // 标准比例。它的不同全在材质上 —— 一旦改比例，"制服"这件事就散了
+    undefined),
+
+  /**
+   * 特摄 —— 被巨大化的光之战士。
+   *
+   * 技术轴：**镀铬 + 三原色**。这是全谱系里唯一一个高饱和、高反射的身体，
+   * 也是唯一一个明确"里面有人"的身体 —— 特摄的全部前提就是一件人穿的衣服。
+   * 那层"知道里面是人"的意识，和这件作品要观众感觉到的东西正好同构。
+   */
+  I('char.tokusatsu', '特摄', 'Tokusatsu',
+    '一件被人穿着的光', 'A light with a person inside it',
+    '所有人都知道里面是人，但所有人都愿意不去想它 —— 这正是这件作品每一秒都在发生的事。' +
+    '它是唯一一个把"这是一具被穿上的身体"直接说出口的物种。',
+    'a suited hero body segment: mirror-polished chrome armour plate over a smooth red and ' +
+    'cobalt-blue bodysuit, sharp angular silver crest lines, high-gloss lacquer finish, ' +
+    'crisp colour boundaries, no weathering, studio rim light',
+    ['metal.graphite', 'paint.hazard', 'glow.signal'],
+    0.95, 0.5, 'industrial',
+    { limb: 1.08, torso: 1.05, head: 0.92 }),
+
+  /**
+   * 画 —— 一幅画站了起来。
+   *
+   * 技术轴：**油画表面**。它不是被做出来的，是被**画**出来的：
+   * 罩染的暖褐、看不见边界的过渡、厚重的织物褶。
+   * 和「线」正好是一对 —— 一个是轮廓给了厚度，一个是笔触给了厚度。
+   *
+   * 蒙娜丽莎本身是公有领域（达·芬奇，1503），所以这一条是这批里
+   * 唯一可以直接依据原作做的。参考取自画，不取自任何一件衍生商品的产品照。
+   */
+  I('char.painting', '画', 'Painting',
+    '一幅画站了起来', 'A painting that stood up',
+    '它被看了五百年，现在它反过来跟着你动。观众第一次意识到"被看"这件事是双向的 ——' +
+    '而这正是这件作品的名字在说的事。',
+    'an oil-painted figure body segment: aged varnish surface with warm umber and olive glazing, ' +
+    'soft sfumato transitions with no hard edges, heavy draped fabric folds, ' +
+    'fine craquelure across the surface, dim gallery light from the left',
+    ['matte.ash', 'matte.bone', 'ceramic.pearl'],
+    1.0, 0.65, 'porcelain',
+    { torso: 1.12, limb: 0.95, head: 0.95 }),
 ];

@@ -17,6 +17,8 @@ import { loadCuration, isKept } from './curation.ts';
 /** 硬预算闸门：任何一次调用最多花这么多 credits，防止脚本跑飞（docs/09 §C） */
 const MAX_CREDITS_PER_RUN = 40;
 const REFS_DIR = resolve(ROOT, 'assets/refs');
+/** 项目负责人丢图的入口（docs/30）。这里的图优先级最高，有它就不自渲锚 */
+const INTAKE_DIR = resolve(ROOT, 'assets/intake');
 /** 每个主题的 anchor 用哪个槽位 —— 躯干信息量最大，最能定调 */
 const ANCHOR_SLOT = 'spine';
 
@@ -34,13 +36,39 @@ function genHash(r: Recipe, refKey: string): string {
 
 export interface ThemeRefs { files: { name: string; data: Buffer }[]; key: string; }
 
-/** 读该主题的参考图；人工放的优先，其次是自动生成的 _anchor.png */
-function loadRefs(themeId: string): ThemeRefs {
-  const dir = resolve(REFS_DIR, themeId);
-  if (!existsSync(dir)) return { files: [], key: 'none' };
-  const names = readdirSync(dir).filter((f) => /\.(png|jpe?g|webp)$/i.test(f)).sort();
+const IMG = /\.(png|jpe?g|webp)$/i;
+
+const imagesIn = (dir: string, keepUnderscore = false): string[] => {
+  if (!existsSync(dir)) return [];
+  const names = readdirSync(dir).filter((f) => IMG.test(f)).sort();
   const manual = names.filter((n) => !n.startsWith('_'));
-  const use = manual.length ? manual.slice(0, 5) : names.slice(0, 5);
+  return manual.length || !keepUnderscore ? manual : names;
+};
+
+/**
+ * 读该主题的参考图，三级优先：
+ *
+ *   1. `assets/intake/<id>/`  —— **项目负责人自己丢进来的图**
+ *   2. `assets/refs/<id>/`    里不以 `_` 开头的（历史上的人工放置位）
+ *   3. `assets/refs/<id>/_anchor.png` —— 我们自渲的锚
+ *
+ * 为什么 intake 要排第一：`docs/30-ASSET-INTAKE.md` 告诉他把图丢 `assets/intake/`，
+ * 而这里原来只读 `assets/refs/`。两处不一致的后果不是报错，是**他丢了图，
+ * 管线照样拿自渲的锚去生成**，而且一声不吭 —— 等发现时 credits 已经烧完了。
+ *
+ * 有 intake 图就**不需要**自渲锚那一步：那一步存在的唯一理由就是"没有参考图"。
+ */
+function loadRefs(themeId: string): ThemeRefs {
+  const intake = imagesIn(resolve(INTAKE_DIR, themeId));
+  if (intake.length) {
+    const use = intake.slice(0, 5);
+    return {
+      files: use.map((n) => ({ name: n, data: readFileSync(resolve(INTAKE_DIR, themeId, n)) })),
+      key: `intake:${use.join(',')}`,
+    };
+  }
+  const dir = resolve(REFS_DIR, themeId);
+  const use = imagesIn(dir, true).slice(0, 5);
   if (!use.length) return { files: [], key: 'none' };
   return {
     files: use.map((n) => ({ name: n, data: readFileSync(resolve(dir, n)) })),
