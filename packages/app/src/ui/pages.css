@@ -87,3 +87,17 @@
 
 .sb-foot { padding: 2.5rem 0 4rem; color: var(--sb-ink-dim); }
 .sb-foot .sb-en { font-size: 0.8em; }
+
+
+/* 目录挂上来时，题头那一行要给右上角让出位置。
+   `sb-has-nav` 由 `ui/nav.ts` 在挂载时打在 <html> 上 —— 页面不需要知道
+   目录存不存在，也不需要各自躲。
+   5.5rem 是收起状态下"目录 Contents"加上安全边距的实测宽度；
+   展开后目录是覆盖层，不参与文档流，所以不必为展开态留位。 */
+html.sb-has-nav .sb-room-head,
+html.sb-has-nav .ed-hero__meta { padding-right: 5.5rem; }
+@media (max-width: 560px) {
+  /* 窄屏下房间号本来就换行到题的下面，不需要留位，留了反而挤掉正文行长 */
+  html.sb-has-nav .sb-room-head,
+  html.sb-has-nav .ed-hero__meta { padding-right: 0; }
+}

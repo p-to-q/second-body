@@ -130,6 +130,11 @@ export function mountNav(options: NavOptions = {}): Nav | null {
 
   root.append(toggle, panel);
   mount.append(root);
+  // 告诉页面"右上角被占了"。没有这一条，题头右侧的房间号会和目录压在一起 ——
+  // 实测 724px 视口下 `VII`(r=694) 正好撞进目录(l=613)。
+  // 两条线各自都对：目录该在右上角，房间号也该在题头右端。冲突要在一处解决，
+  // 而不是让每一页各自躲。
+  document.documentElement.classList.add('sb-has-nav');
 
   let open = false;
   const setOpen = (next: boolean): void => {
