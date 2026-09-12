@@ -1018,30 +1018,30 @@
       "durationSec": 35
     },
     "joint.xeno.a": {
-      "recipeHash": "sha256:b429bf25fc9c173c",
+      "recipeHash": "sha256:4fe6a5791258d1d1",
       "status": "normalized",
-      "submittedAt": "2026-09-12T06:17:39.554Z",
+      "submittedAt": "2026-09-12T07:48:54.920Z",
       "error": null,
-      "taskUuid": "8bef91a8-b64b-406b-93f6-d99acd0f09c0",
+      "taskUuid": "2529db93-530c-4697-8cc8-3c4b99da9561",
       "consumed": 0.5,
       "files": [
         "joint.xeno.a/base_basic_pbr.glb"
       ],
-      "completedAt": "2026-09-12T06:18:12.071Z",
-      "durationSec": 33
+      "completedAt": "2026-09-12T07:49:44.773Z",
+      "durationSec": 50
     },
     "joint.xeno.b": {
-      "recipeHash": "sha256:6732d41c744bed4f",
+      "recipeHash": "sha256:362d82004d5abde7",
       "status": "normalized",
-      "submittedAt": "2026-09-12T06:17:51.545Z",
+      "submittedAt": "2026-09-12T07:43:01.516Z",
       "error": null,
-      "taskUuid": "52231bfa-bff6-4a83-bcf4-ab0769f5d84a",
+      "taskUuid": "a1ff0cf6-075b-476b-9aa3-ebb836735d5c",
       "consumed": 0.5,
       "files": [
         "joint.xeno.b/base_basic_pbr.glb"
       ],
-      "completedAt": "2026-09-12T06:18:29.340Z",
-      "durationSec": 38
+      "completedAt": "2026-09-12T07:43:52.329Z",
+      "durationSec": 51
     },
     "head.coral.a": {
       "recipeHash": "sha256:506dab1c15c5ba1d",
@@ -1551,17 +1551,17 @@
       "durationSec": 43
     },
     "joint.softwear.a": {
-      "recipeHash": "sha256:76746f5e0ee4b5b1",
+      "recipeHash": "sha256:cc3d252a4c94813a",
       "status": "normalized",
-      "submittedAt": "2026-09-12T06:52:23.884Z",
+      "submittedAt": "2026-09-12T07:43:01.518Z",
       "error": null,
-      "taskUuid": "79e847df-ca97-441e-a86b-4677ff5f0224",
+      "taskUuid": "db8961cd-5e37-40f5-ba9a-f98b17e8b3af",
       "consumed": 0.5,
       "files": [
         "joint.softwear.a/base_basic_pbr.glb"
       ],
-      "completedAt": "2026-09-12T06:52:52.585Z",
-      "durationSec": 29
+      "completedAt": "2026-09-12T07:44:10.220Z",
+      "durationSec": 69
     },
     "head.compact.a": {
       "recipeHash": "sha256:91ba426c806159ec",
@@ -1811,17 +1811,17 @@
       "durationSec": 27
     },
     "joint.petbot.a": {
-      "recipeHash": "sha256:30e6335d041cacba",
+      "recipeHash": "sha256:56447bf0f0709a1a",
       "status": "normalized",
-      "submittedAt": "2026-09-12T06:57:01.950Z",
+      "submittedAt": "2026-09-12T07:48:54.943Z",
       "error": null,
-      "taskUuid": "3e037688-154b-4ad7-a313-365e9d4822b2",
+      "taskUuid": "b3cfa2cb-7ba0-48f3-8e0a-50240081ac4e",
       "consumed": 0.5,
       "files": [
         "joint.petbot.a/base_basic_pbr.glb"
       ],
-      "completedAt": "2026-09-12T06:57:31.311Z",
-      "durationSec": 29
+      "completedAt": "2026-09-12T07:49:33.333Z",
+      "durationSec": 38
     },
     "head.furball.a": {
       "recipeHash": "sha256:b9765dfbbd79f96a",
@@ -1941,17 +1941,17 @@
       "durationSec": 20
     },
     "joint.screenface.a": {
-      "recipeHash": "sha256:497cb3e9da6d67d7",
+      "recipeHash": "sha256:1262c87279b7d761",
       "status": "normalized",
-      "submittedAt": "2026-09-12T06:59:15.194Z",
+      "submittedAt": "2026-09-12T07:43:56.908Z",
       "error": null,
-      "taskUuid": "d2ef00ba-6924-40d9-bc87-ed05e081ae6f",
+      "taskUuid": "fe71e859-fd36-447b-b65d-f6dbd11f2634",
       "consumed": 0.5,
       "files": [
         "joint.screenface.a/base_basic_pbr.glb"
       ],
-      "completedAt": "2026-09-12T06:59:45.035Z",
-      "durationSec": 30
+      "completedAt": "2026-09-12T07:44:36.889Z",
+      "durationSec": 40
     },
     "head.orb.a": {
       "recipeHash": "sha256:88b1d1ff91ea82ca",
@@ -2006,17 +2006,17 @@
       "durationSec": 45
     },
     "joint.orb.a": {
-      "recipeHash": "sha256:19aa84e19dca4164",
+      "recipeHash": "sha256:0b8c5dca14d11112",
       "status": "normalized",
-      "submittedAt": "2026-09-12T07:00:18.782Z",
+      "submittedAt": "2026-09-12T07:44:10.221Z",
       "error": null,
-      "taskUuid": "95c19c22-5022-4059-b1f9-8f47c350e397",
+      "taskUuid": "c54684ec-3928-44c7-bcf0-6f17358dd952",
       "consumed": 0.5,
       "files": [
         "joint.orb.a/base_basic_pbr.glb"
       ],
-      "completedAt": "2026-09-12T07:00:53.507Z",
-      "durationSec": 35
+      "completedAt": "2026-09-12T07:44:54.491Z",
+      "durationSec": 44
     },
     "head.manipulator.a": {
       "recipeHash": "sha256:585d3b44c19973e3",
@@ -2071,17 +2071,17 @@
       "durationSec": 24
     },
     "joint.manipulator.a": {
-      "recipeHash": "sha256:757ef501e41dfd29",
+      "recipeHash": "sha256:ce6a678a3cdebaa9",
       "status": "normalized",
-      "submittedAt": "2026-09-12T07:02:48.421Z",
+      "submittedAt": "2026-09-12T07:44:33.516Z",
       "error": null,
-      "taskUuid": "11c1276b-cb6a-449a-8be4-8fae11570d5c",
+      "taskUuid": "7c7caf16-b000-4473-a63c-6ada386b1129",
       "consumed": 0.5,
       "files": [
         "joint.manipulator.a/base_basic_pbr.glb"
       ],
-      "completedAt": "2026-09-12T07:03:19.223Z",
-      "durationSec": 31
+      "completedAt": "2026-09-12T07:45:23.029Z",
+      "durationSec": 50
     },
     "head.char.dumpling.a": {
       "recipeHash": "sha256:a8d096c075767910",
@@ -2136,17 +2136,17 @@
       "durationSec": 24
     },
     "joint.char.dumpling.a": {
-      "recipeHash": "sha256:70c4681f199854cb",
+      "recipeHash": "sha256:e885441e7138169b",
       "status": "normalized",
-      "submittedAt": "2026-09-12T07:03:49.024Z",
+      "submittedAt": "2026-09-12T07:44:36.891Z",
       "error": null,
-      "taskUuid": "1be4d452-5272-4b06-9c5b-1fdf457b7e46",
+      "taskUuid": "e4675649-024a-4fd4-977d-5d2b2a97f028",
       "consumed": 0.5,
       "files": [
         "joint.char.dumpling.a/base_basic_pbr.glb"
       ],
-      "completedAt": "2026-09-12T07:04:22.024Z",
-      "durationSec": 33
+      "completedAt": "2026-09-12T07:45:57.662Z",
+      "durationSec": 81
     },
     "head.char.ghost.a": {
       "recipeHash": "sha256:f7e204404553d4af",
@@ -2342,7 +2342,105 @@
       ],
       "completedAt": "2026-09-12T07:09:53.288Z",
       "durationSec": 36
+    },
+    "spine.digitigrade.a": {
+      "recipeHash": "sha256:6199954a484805ff",
+      "taskUuid": "6d5544cf-ba18-41b8-be47-3aee88cfdd89",
+      "status": "normalized",
+      "consumed": 0.5,
+      "files": [
+        "spine.digitigrade.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T07:37:03.485Z",
+      "error": null
+    },
+    "spine.wheelleg.a": {
+      "recipeHash": "sha256:bfeb829a14c25100",
+      "taskUuid": "34c907c1-8631-4a36-ba7b-59c8c5702911",
+      "status": "normalized",
+      "consumed": 0.5,
+      "files": [
+        "spine.wheelleg.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T07:37:39.029Z",
+      "error": null
+    },
+    "spine.autonomous.a": {
+      "recipeHash": "sha256:408a21fd719c69ea",
+      "taskUuid": "de7b049a-58e5-469f-9b1c-77b346576402",
+      "status": "normalized",
+      "consumed": 0.5,
+      "files": [
+        "spine.autonomous.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T07:38:10.798Z",
+      "error": null
+    },
+    "head.autonomous.a": {
+      "recipeHash": "sha256:0890e021443cae2f",
+      "status": "normalized",
+      "submittedAt": "2026-09-12T07:41:03.832Z",
+      "error": null,
+      "taskUuid": "ab98e6e9-df4a-4516-be7c-e0881f9f483b",
+      "consumed": 0.5,
+      "files": [
+        "head.autonomous.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T07:42:53.260Z",
+      "durationSec": 109
+    },
+    "upperArm.autonomous.a": {
+      "recipeHash": "sha256:d7b85e3343a0ab54",
+      "status": "normalized",
+      "submittedAt": "2026-09-12T07:41:03.836Z",
+      "error": null,
+      "taskUuid": "743cdf9f-a1d3-42d0-a4e0-c51dfac3eac6",
+      "consumed": 0.5,
+      "files": [
+        "upperArm.autonomous.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T07:41:39.162Z",
+      "durationSec": 35
+    },
+    "shin.autonomous.a": {
+      "recipeHash": "sha256:0616411993547814",
+      "status": "normalized",
+      "submittedAt": "2026-09-12T07:41:03.838Z",
+      "error": null,
+      "taskUuid": "58d1d9b4-1cbc-4562-857b-973b40826fc3",
+      "consumed": 0.5,
+      "files": [
+        "shin.autonomous.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T07:41:40.283Z",
+      "durationSec": 36
+    },
+    "foot.autonomous.a": {
+      "recipeHash": "sha256:9706f3d29962246e",
+      "status": "normalized",
+      "submittedAt": "2026-09-12T07:41:39.163Z",
+      "error": null,
+      "taskUuid": "e484296b-8f31-4de4-b29d-38fbc0a9552f",
+      "consumed": 0.5,
+      "files": [
+        "foot.autonomous.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T07:42:06.422Z",
+      "durationSec": 27
+    },
+    "joint.autonomous.a": {
+      "recipeHash": "sha256:b0c6063240432a0c",
+      "status": "normalized",
+      "submittedAt": "2026-09-12T07:41:40.285Z",
+      "error": null,
+      "taskUuid": "c18cf478-904b-4f9b-81f3-5966caa42425",
+      "consumed": 0.5,
+      "files": [
+        "joint.autonomous.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T07:42:16.683Z",
+      "durationSec": 36
     }
   },
-  "totalConsumed": 91.5
+  "totalConsumed": 95.5
 }

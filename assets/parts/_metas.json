@@ -308,6 +308,34 @@
     }
   },
   {
+    "id": "foot.autonomous.a",
+    "slot": "foot",
+    "tier": 1,
+    "file": "foot.autonomous.a.glb",
+    "family": "autonomous",
+    "localGirth": 0.5338,
+    "triCount": 2898,
+    "aabb": {
+      "min": [
+        -0.2337789088487625,
+        0,
+        -0.26689252257347107
+      ],
+      "max": [
+        0.2337789088487625,
+        1,
+        0.26689252257347107
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 35540,
+      "recipeId": "foot.autonomous.a"
+    }
+  },
+  {
     "id": "foot.char.dumpling.a",
     "slot": "foot",
     "tier": 1,
@@ -1540,6 +1568,34 @@
     }
   },
   {
+    "id": "head.autonomous.a",
+    "slot": "head",
+    "tier": 1,
+    "file": "head.autonomous.a.glb",
+    "family": "autonomous",
+    "localGirth": 0.95,
+    "triCount": 2914,
+    "aabb": {
+      "min": [
+        -0.43462735414505005,
+        0,
+        -0.4750045835971832
+      ],
+      "max": [
+        0.43462735414505005,
+        1,
+        0.4750045835971832
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 38466,
+      "recipeId": "head.autonomous.a"
+    }
+  },
+  {
     "id": "head.char.dumpling.a",
     "slot": "head",
     "tier": 1,
@@ -2212,23 +2268,51 @@
     }
   },
   {
+    "id": "joint.autonomous.a",
+    "slot": "joint",
+    "tier": 1,
+    "file": "joint.autonomous.a.glb",
+    "family": "autonomous",
+    "localGirth": 0.9897,
+    "triCount": 2856,
+    "aabb": {
+      "min": [
+        -0.49487271904945374,
+        0,
+        -0.4835805594921112
+      ],
+      "max": [
+        0.49487271904945374,
+        1,
+        0.4835805594921112
+      ]
+    },
+    "symmetry": "none",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 8686,
+      "recipeId": "joint.autonomous.a"
+    }
+  },
+  {
     "id": "joint.char.dumpling.a",
     "slot": "joint",
     "tier": 1,
     "file": "joint.char.dumpling.a.glb",
     "family": "char.dumpling",
-    "localGirth": 0.9899,
-    "triCount": 2954,
+    "localGirth": 0.9911,
+    "triCount": 4868,
     "aabb": {
       "min": [
-        -0.4913630187511444,
+        -0.4922357499599457,
         0,
-        -0.4949337840080261
+        -0.49553707242012024
       ],
       "max": [
-        0.4913630187511444,
+        0.4922357499599457,
         1,
-        0.4949337840080261
+        0.49553707242012024
       ]
     },
     "symmetry": "none",
@@ -2553,18 +2637,18 @@
     "tier": 1,
     "file": "joint.manipulator.a.glb",
     "family": "manipulator",
-    "localGirth": 0.993,
-    "triCount": 2868,
+    "localGirth": 0.9938,
+    "triCount": 2884,
     "aabb": {
       "min": [
-        -0.4964902698993683,
+        -0.4969175457954407,
         0,
-        -0.2742171883583069
+        -0.27165353298187256
       ],
       "max": [
-        0.4964902698993683,
+        0.4969175457954407,
         1,
-        0.2742171883583069
+        0.27165353298187256
       ]
     },
     "symmetry": "none",
@@ -2581,18 +2665,18 @@
     "tier": 1,
     "file": "joint.orb.a.glb",
     "family": "orb",
-    "localGirth": 0.9922,
-    "triCount": 2966,
+    "localGirth": 0.9956,
+    "triCount": 2848,
     "aabb": {
       "min": [
-        -0.4952695071697235,
+        -0.49780258536338806,
         0,
-        -0.4961240291595459
+        -0.4974973797798157
       ],
       "max": [
-        0.4952695071697235,
+        0.49780258536338806,
         1,
-        0.4961240291595459
+        0.4974973797798157
       ]
     },
     "symmetry": "none",
@@ -2665,18 +2749,18 @@
     "tier": 1,
     "file": "joint.petbot.a.glb",
     "family": "petbot",
-    "localGirth": 0.9975,
-    "triCount": 2878,
+    "localGirth": 0.9998,
+    "triCount": 2858,
     "aabb": {
       "min": [
-        -0.49874868988990784,
+        -0.4998779296875,
         0,
-        -0.30034181475639343
+        -0.4994811713695526
       ],
       "max": [
-        0.49874868988990784,
+        0.4998779296875,
         1,
-        0.30034181475639343
+        0.4994811713695526
       ]
     },
     "symmetry": "none",
@@ -2749,18 +2833,18 @@
     "tier": 1,
     "file": "joint.screenface.a.glb",
     "family": "screenface",
-    "localGirth": 0.9963,
-    "triCount": 2990,
+    "localGirth": 0.9899,
+    "triCount": 2964,
     "aabb": {
       "min": [
-        -0.49813830852508545,
+        -0.4949643015861511,
         0,
-        -0.48507601022720337
+        -0.4876701533794403
       ],
       "max": [
-        0.49813830852508545,
+        0.4949643015861511,
         1,
-        0.48507601022720337
+        0.4876701533794403
       ]
     },
     "symmetry": "none",
@@ -2777,18 +2861,18 @@
     "tier": 1,
     "file": "joint.softwear.a.glb",
     "family": "softwear",
-    "localGirth": 0.988,
-    "triCount": 2820,
+    "localGirth": 0.9951,
+    "triCount": 2854,
     "aabb": {
       "min": [
-        -0.49401822686195374,
+        -0.49752792716026306,
         0,
-        -0.3441677391529083
+        -0.35066837072372437
       ],
       "max": [
-        0.49401822686195374,
+        0.49752792716026306,
         1,
-        0.3441677391529083
+        0.35066837072372437
       ]
     },
     "symmetry": "none",
@@ -2805,18 +2889,18 @@
     "tier": 1,
     "file": "joint.xeno.a.glb",
     "family": "xeno",
-    "localGirth": 0.9936,
-    "triCount": 2928,
+    "localGirth": 0.9999,
+    "triCount": 2898,
     "aabb": {
       "min": [
-        -0.4967954754829407,
+        -0.4921870231628418,
         0,
-        -0.4964597225189209
+        -0.499969482421875
       ],
       "max": [
-        0.4967954754829407,
+        0.4921870231628418,
         1,
-        0.4964597225189209
+        0.499969482421875
       ]
     },
     "symmetry": "none",
@@ -2833,18 +2917,18 @@
     "tier": 2,
     "file": "joint.xeno.b.glb",
     "family": "xeno",
-    "localGirth": 0.9998,
-    "triCount": 2930,
+    "localGirth": 0.9876,
+    "triCount": 2956,
     "aabb": {
       "min": [
-        -0.4998779296875,
+        -0.49380454421043396,
         0,
-        -0.49050846695899963
+        -0.4922480583190918
       ],
       "max": [
-        0.4998779296875,
+        0.49380454421043396,
         1,
-        0.49050846695899963
+        0.4922480583190918
       ]
     },
     "symmetry": "none",
@@ -2881,6 +2965,34 @@
       "model": "Gen-2.5-Low",
       "seed": 62985,
       "recipeId": "shin.athlete.a"
+    }
+  },
+  {
+    "id": "shin.autonomous.a",
+    "slot": "shin",
+    "tier": 1,
+    "file": "shin.autonomous.a.glb",
+    "family": "autonomous",
+    "localGirth": 0.3384,
+    "triCount": 2978,
+    "aabb": {
+      "min": [
+        -0.16919979453086853,
+        0,
+        -0.16407251358032227
+      ],
+      "max": [
+        0.16919979453086853,
+        1,
+        0.16407251358032227
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 27484,
+      "recipeId": "shin.autonomous.a"
     }
   },
   {
@@ -3561,18 +3673,18 @@
     "tier": 1,
     "file": "spine.autonomous.a.glb",
     "family": "autonomous",
-    "localGirth": 0.6302,
-    "triCount": 4604,
+    "localGirth": 0.8422,
+    "triCount": 2784,
     "aabb": {
       "min": [
-        -0.3151242434978485,
+        -0.4210767447948456,
         0,
-        -0.248602494597435
+        -0.26719769835472107
       ],
       "max": [
-        0.3151242434978485,
+        0.4210767447948456,
         1,
-        0.248602494597435
+        0.26719769835472107
       ]
     },
     "symmetry": "none",
@@ -3785,18 +3897,18 @@
     "tier": 1,
     "file": "spine.digitigrade.a.glb",
     "family": "digitigrade",
-    "localGirth": 0.8229,
+    "localGirth": 0.8529,
     "triCount": 2940,
     "aabb": {
       "min": [
-        -0.4114325940608978,
+        -0.42644813656806946,
         0,
-        -0.2658853828907013
+        -0.26481717824935913
       ],
       "max": [
-        0.4114325940608978,
+        0.42644813656806946,
         1,
-        0.2658853828907013
+        0.26481717824935913
       ]
     },
     "symmetry": "none",
@@ -4177,18 +4289,18 @@
     "tier": 1,
     "file": "spine.wheelleg.a.glb",
     "family": "wheelleg",
-    "localGirth": 0.2298,
-    "triCount": 4792,
+    "localGirth": 0.8329,
+    "triCount": 2854,
     "aabb": {
       "min": [
-        -0.11417323350906372,
+        -0.4164682924747467,
         0,
-        -0.1149056926369667
+        -0.26075810194015503
       ],
       "max": [
-        0.11417323350906372,
+        0.4164682924747467,
         1,
-        0.1149056926369667
+        0.26075810194015503
       ]
     },
     "symmetry": "none",
@@ -4561,6 +4673,34 @@
       "model": "Gen-2.5-Low",
       "seed": 37991,
       "recipeId": "upperArm.athlete.a"
+    }
+  },
+  {
+    "id": "upperArm.autonomous.a",
+    "slot": "upperArm",
+    "tier": 1,
+    "file": "upperArm.autonomous.a.glb",
+    "family": "autonomous",
+    "localGirth": 0.3162,
+    "triCount": 2946,
+    "aabb": {
+      "min": [
+        -0.15809069573879242,
+        0,
+        -0.1510101854801178
+      ],
+      "max": [
+        0.15809069573879242,
+        1,
+        0.1510101854801178
+      ]
+    },
+    "symmetry": "mirror",
+    "source": {
+      "provider": "hyper3d",
+      "model": "Gen-2.5-Low",
+      "seed": 63886,
+      "recipeId": "upperArm.autonomous.a"
     }
   },
   {

@@ -113,6 +113,19 @@ export interface GenerateOptions {
   dryRun?: boolean;
   /** 跳过 anchor 流程，全部用纯 text-to-3D（风格一致性会差一截） */
   noAnchor?: boolean;
+  /**
+   * 不把主题参考图当 image-to-3D 输入，只用文字（anchor 几何该生成还是生成）。
+   *
+   * 为什么需要：近立方槽位（joint/head/foot）的 bbox_condition 是个立方体，
+   * 对形状没有约束力，于是**躯干 anchor 图压过文字提示**，产出的是一个小躯干。
+   * `geometry_instruct_mode=creative` 治不了这个 —— 实测重生成 8 个 joint 前后
+   * 「像自己主题躯干」的程度几乎没变（Δ +0.24..+0.43 → +0.24..+0.44）。
+   * 这个开关是用来做对照实验的：同一件，只去掉图，看形状是否回到槽位语义。
+   *
+   * 注意：规范化会丢掉全部贴图与材质（docs/03 §4），所以对小件来说
+   * anchor 图贡献的只有几何风格，代价却是整块形状被照抄。
+   */
+  noImages?: boolean;
 }
 
 function select(opt: GenerateOptions): Recipe[] {
@@ -132,7 +145,8 @@ export async function generate(opt: GenerateOptions = {}): Promise<void> {
   if (!all.length) { console.log('没有匹配的配方'); return; }
 
   const themes = [...new Set(all.map((r) => r.theme))];
-  const refsByTheme = new Map(themes.map((t) => [t, loadRefs(t)]));
+  const NO_REFS: ThemeRefs = { files: [], key: 'none' };
+  const refsByTheme = new Map(themes.map((t) => [t, opt.noImages ? NO_REFS : loadRefs(t)]));
   // keep 的部件已经是资产，不再是配方的产物 —— 改 prompt 也不重生成（docs/14 §5）
   const curation = loadCuration();
   const protectedIds = all.filter((r) => isKept(curation, r.id)).map((r) => r.id);
@@ -142,14 +156,15 @@ export async function generate(opt: GenerateOptions = {}): Promise<void> {
   if (protectedIds.length) console.log(`保护 ${protectedIds.length} 件已标 keep 的素材，不重新生成`);
 
   // anchor 自己不算在 todo 里（它要先跑），但要计入预算
-  const needAnchor = themes.filter((t) => !refsByTheme.get(t)!.files.length);
+  // --no-images 是「故意不用图」，不是「还缺图」—— 不要因此触发 anchor 流程
+  const needAnchor = opt.noImages ? [] : themes.filter((t) => !refsByTheme.get(t)!.files.length);
   const estimate = (todo.length + needAnchor.length) * 0.5;
 
   console.log(`主题 ${themes.join(', ')}`);
   console.log(`选中 ${all.length} 个配方，需要生成 ${todo.length} 个（其余已完成/未变更）`);
   for (const t of themes) {
     const r = refsByTheme.get(t)!;
-    console.log(`  ${t}: 参考图 ${r.files.length ? r.key : '（将自动生成 anchor）'}`);
+    console.log(`  ${t}: 参考图 ${r.files.length ? r.key : opt.noImages ? '（--no-images：只用文字）' : '（将自动生成 anchor）'}`);
   }
   console.log(`预计消耗 ≈ ${estimate} credits`);
 

@@ -34,6 +34,7 @@ switch (cmd) {
       concurrency: Number(val('concurrency') ?? 3),
       dryRun: flag('dry-run'),
       noAnchor: flag('no-anchor'),
+      noImages: flag('no-images'),
     });
     break;
 
@@ -87,6 +88,7 @@ switch (cmd) {
   npm run factory:generate -- --theme=patrol --pilot   # 一个主题先跑 6 件（3.5 credits，含 anchor）
   npm run factory:generate -- --theme=patrol           # 一个主题全量 20 件（10 credits）
   npm run factory:generate -- --ids=a,b                # 指定
+  npm run factory:generate -- --ids=a,b --no-images     # 只用文字，不拿主题图做 image-to-3D
   npm run factory:generate -- --dry-run
   npm run factory:normalize
   npm run factory:index
