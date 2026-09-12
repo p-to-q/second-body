@@ -1,42 +1,55 @@
 <!doctype html>
 <html lang="zh">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>降级与降帧自测</title>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>降级阶梯 · SEE-ME SEE-YOU</title>
+<link rel="stylesheet" href="../src/ui/type.css">
 <style>
- html,body{margin:0;min-height:100%;background:#0e0f12;color:#cdd3da;
-           font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace}
- body{padding:28px 26px 60px}
- h1{font-size:16px;color:#eef2f6;margin:0 0 4px;letter-spacing:.05em}
- .sub{color:#5c626b;margin-bottom:18px;max-width:62em}
- .card{border:1px solid #24272c;border-radius:6px;padding:12px 14px;margin-bottom:14px;background:#141619}
- .k{color:#5c626b}
- pre{margin:0;white-space:pre-wrap}
- button{font:13px ui-monospace,monospace;color:#cdd3da;background:#1b1e23;border:1px solid #2f333a;
-        border-radius:5px;padding:9px 14px;cursor:pointer;margin:0 6px 6px 0}
- button.hot{color:#fff;background:#8d2230;border-color:#a8323f}
- label{color:#9aa;margin-right:14px}
- #log{max-height:240px;overflow:auto;color:#9aa}
-</style></head>
+  /* 整页等宽：它是一张检查表，不是一段正文。其余度量全部来自 type.css。 */
+  body { font-family: var(--sb-mono); font-size: var(--sb-size-small); }
+  main { padding: 0 var(--sb-safe) calc(var(--sb-safe) * 2); }
+
+  /* 分区用细横线，不用圆角卡片 —— docs/23 §0 的禁止项里就有"圆角面板"和"阴影卡片"。
+     原来这一页用的是 border-radius:6px 的深色面板，那是后台系统的语言。 */
+  .card {
+    border: 0; border-top: 1px solid var(--sb-rule);
+    padding: 0.9em 0; margin: 0 0 1em; background: none;
+  }
+  .k { color: var(--sb-rule); letter-spacing: var(--sb-tracking-label); text-transform: uppercase; }
+  pre { margin: 0; white-space: pre-wrap; font-size: var(--sb-size-small); }
+
+  /* "按钮"= 一段带下划线的等宽文字。禁止图标按钮（§0） */
+  button {
+    font: inherit; font-family: var(--sb-mono);
+    color: var(--sb-ink); background: none;
+    border: 0; border-bottom: 1px solid var(--sb-rule);
+    padding: 2px 0; margin: 0 1.6em 0.6em 0; cursor: pointer;
+  }
+  button:hover { border-bottom-color: var(--sb-ink-dim); }
+  button.hot { color: var(--sb-warn); border-bottom-color: var(--sb-warn); }
+
+  label { color: var(--sb-ink-dim); margin-right: 1.2em; }
+  #log { max-height: 240px; overflow: auto; color: var(--sb-ink-dim); }
+</style>
+</head>
 <body>
-<h1>降级与降帧自测 · T-16</h1>
-<div class="sub">两条现场兜底在这里当场被证明，而不是靠"应该能跑"：
-  <b>①</b> 注入一个每帧抛异常的假 tick，看降级阶梯是不是真的一级一级往下走（关后期 → 占位几何 → 重载）；
-  <b>②</b> 把"上次见到人"的时间戳推到 5 分钟前，看帧率是不是真的掉到 10fps。</div>
+<main>
+  <div class="card"><pre id="stat">…</pre></div>
 
-<div class="card"><pre id="stat">…</pre></div>
+  <div>
+    <button id="inject" class="hot">注入每帧抛异常的 tick</button>
+    <button id="heal">停止注入</button>
+    <button id="idle">模拟无人 5 分钟</button>
+    <button id="wake">有人来了</button>
+    <button id="reset">全部重置</button>
+  </div>
+  <div style="margin:0.6em 0 1.2em">
+    <label><input type="checkbox" id="realReload"> 第 3 级真的重载页面（默认只记录，不重载）</label>
+  </div>
 
-<div>
-  <button id="inject" class="hot">注入每帧抛异常的 tick</button>
-  <button id="heal">停止注入</button>
-  <button id="idle">模拟无人 5 分钟</button>
-  <button id="wake">有人来了</button>
-  <button id="reset">全部重置</button>
-</div>
-<div style="margin:8px 0 14px">
-  <label><input type="checkbox" id="realReload"> 第 3 级真的重载页面（默认只记录，不重载）</label>
-</div>
-
-<div class="card"><div class="k">事件</div><pre id="log"></pre></div>
-</body>
+  <div class="card"><div class="k">事件</div><pre id="log"></pre></div>
+</main>
 <script type="module" src="./degrade.ts"></script>
+</body>
 </html>

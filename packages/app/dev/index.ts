@@ -1,0 +1,123 @@
+/**
+ * 目录 —— `/dev/`。
+ *
+ * 这件作品的可见面散在十几个 URL 里，谁都记不住。这一页就是它们的目录：
+ * **每一条只有一句话，说清楚它能回答什么问题。** 不是"这个页面有什么功能"，
+ * 而是"我有哪个疑问的时候该打开它"。
+ *
+ * 为什么值得存在（docs/02 §craft：每多一个 UI 元素都要论证）：
+ * 没有它，一个第一次接手的人只能靠 grep 找页面；而这些页面恰恰是
+ * 这个项目最贵的部分 —— 每一页都是一条被证明过的降级路径或一次判断的留痕。
+ *
+ * 分三组，用细横线分区：
+ *   作品     观众会看见的那几个 URL
+ *   档案     可以直接给人看的东西
+ *   工作台   我们自己用的验收台，现场不出现
+ */
+import './archive.css';
+import { mountPageHead } from '../src/ui/page.ts';
+
+interface Item {
+  href: string;
+  name: string;
+  /** 它能回答什么问题。一句话，以问号或句号结束 */
+  answers: string;
+  /** 需要 dev server（有中间件 / 有原始资产）才完整的，标出来 */
+  devOnly?: boolean;
+}
+
+interface Group { title: string; note: string; items: Item[] }
+
+const GROUPS: Group[] = [
+  {
+    title: '作品',
+    note: '观众会看见的那几个 URL。参数全部写在 docs/06 §6。',
+    items: [
+      { href: '/', name: '正式运行', answers: '这件作品现在跑起来是什么样？' },
+      { href: '/?demo=1&debug=1', name: '回放兜底', answers: '没有摄像头 / 没人敢上台的时候演什么？' },
+      { href: '/?kiosk=1', name: '现场模式', answers: '投影上全屏、无光标的那一份长什么样？' },
+      { href: '/?selftest=1', name: '开场自检', answers: '今天能不能开场？哪一条坏了？' },
+    ],
+  },
+  {
+    title: '档案',
+    note: '可以直接给人看的东西 —— 不需要解释就能读。',
+    items: [
+      { href: '/dev/parts.html', name: '部件档案', answers: '这件作品到现在为止长出了什么？谁是谁？哪些被留下了？' },
+      { href: '/dev/choose.html?roster=1', name: '形态空间', answers: '可以变成的身体有哪些？它们在形态图上怎么分布？' },
+    ],
+  },
+  {
+    title: '工作台',
+    note: '我们自己的验收台，现场不出现。每一页只回答一个很窄的问题 —— 越窄越早发现是谁的锅。',
+    items: [
+      { href: '/dev/stage.html', name: '舞台', answers: '这一帧像不像一件作品？灯光、地面、影子、取景对不对？' },
+      { href: '/dev/figure.html', name: '装配', answers: '部件挂到骨架上，比例和朝向对不对？' },
+      { href: '/dev/mass.html', name: '团块身体', answers: '不走刚体挂载的那种身体（mass）长什么样？' },
+      { href: '/dev/choose.html', name: '选择页', answers: '开场轮播、30 秒自动选、无 WebGL 降级列表，都还好用吗？' },
+      { href: '/dev/capture.html', name: '采集', answers: '摄像头认到人了吗？坐标和量程对不对？' },
+      { href: '/dev/degrade.html', name: '降级阶梯', answers: '帧循环炸了会不会一级一级降下去？无人时真的掉到 10fps 吗？' },
+      { href: '/dev/record.html', name: 'Pose 录制', answers: '怎么录一段真人动作当现场兜底？', devOnly: true },
+      { href: '/dev/anchor.html', name: 'Anchor 渲染', answers: '轮播卡片上那张参考图怎么来的？', devOnly: true },
+    ],
+  },
+];
+
+mountPageHead({
+  title: '目录',
+  titleEn: 'Contents',
+  note: '这件作品的每一个可见面，以及它各自能回答的那个问题。',
+});
+
+const page = document.createElement('div');
+page.className = 'sb-page';
+page.style.paddingTop = '0';
+document.body.appendChild(page);
+
+for (const group of GROUPS) {
+  const section = document.createElement('section');
+  section.style.marginBottom = 'calc(var(--sb-gutter) * 2)';
+
+  const h2 = document.createElement('h2');
+  h2.textContent = group.title;
+  const note = document.createElement('p');
+  note.textContent = group.note;
+  const rule = document.createElement('hr');
+  rule.className = 'sb-rule';
+  section.append(h2, note, rule);
+
+  for (const item of group.items) {
+    const row = document.createElement('a');
+    row.href = item.href;
+    // 一行一条：左边名字 + 路径，右边那句话。行与行之间只有一条细线
+    row.style.cssText =
+      'display:grid;grid-template-columns:16rem 1fr;gap:var(--sb-gutter);' +
+      'padding:0.75em 0;border-bottom:1px solid var(--sb-rule);border-top:0;align-items:baseline';
+
+    const left = document.createElement('span');
+    const name = document.createElement('span');
+    name.textContent = item.name;
+    const path = document.createElement('span');
+    path.className = 'sb-data';
+    path.style.cssText = 'display:block;color:var(--sb-ink-dim)';
+    path.textContent = item.href + (item.devOnly ? '   仅 dev server' : '');
+    left.append(name, path);
+
+    const answers = document.createElement('span');
+    answers.style.color = 'var(--sb-ink-dim)';
+    answers.textContent = item.answers;
+
+    row.append(left, answers);
+    section.appendChild(row);
+  }
+  page.appendChild(section);
+}
+
+// 页脚：这一页自己也该说清楚它不是什么
+const foot = document.createElement('p');
+foot.className = 'sb-data';
+foot.style.marginTop = 'calc(var(--sb-gutter) * 2)';
+foot.textContent =
+  '排版系统 packages/app/src/ui/type.css · 场景规格 docs/23-SPEC-ui.md · ' +
+  '「什么真的跑通了」以 docs/10-SURFACES.md 为准';
+page.appendChild(foot);

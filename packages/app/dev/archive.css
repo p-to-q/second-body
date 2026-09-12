@@ -1,0 +1,264 @@
+/**
+ * 部件档案页的版式。
+ *
+ * 一句话：**左边一列目录，右边一列档案，中间一条细线。**
+ * 全部度量来自 type.css 的 --sb-*，这个文件里不许出现任何写死的字号和颜色。
+ *
+ * 为什么是"档案"不是"仪表盘"：这一页要被人**读**，不是被人监控。
+ * 所以它有行长上限、有层级、有留白，没有卡片、没有阴影、没有圆角。
+ * 分区一律用 1px 的细横线（docs/23 §0）。
+ */
+
+.sb-archive {
+  display: grid;
+  grid-template-columns: 16rem 1fr;
+  align-items: start;
+  gap: 0;
+}
+
+/* ── 目录 ─────────────────────────────────────────────────────────────── */
+
+.sb-toc {
+  position: sticky;
+  top: 0;
+  max-height: 100vh;
+  overflow-y: auto;
+  padding: calc(var(--sb-safe) * 0.5) var(--sb-gutter) var(--sb-safe) var(--sb-safe);
+  border-right: 1px solid var(--sb-rule);
+  /* 目录是导航，不是正文 —— 整列小一号 */
+  font-size: var(--sb-size-small);
+}
+
+.sb-toc__group {
+  margin: 0 0 0.4em;
+  padding-top: 1.4em;
+}
+
+.sb-toc__group:first-child { padding-top: 0; }
+
+.sb-toc a {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6em;
+  padding: 0.22em 0;
+  border: 0;
+  color: var(--sb-ink-dim);
+}
+
+.sb-toc a:hover,
+.sb-toc a.is-current { color: var(--sb-ink); }
+
+/* 件数右对齐、等宽 —— 一列数字要能竖着比较 */
+.sb-toc a span:last-child {
+  font-family: var(--sb-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--sb-rule);
+}
+
+.sb-toc a:hover span:last-child,
+.sb-toc a.is-current span:last-child { color: var(--sb-ink-dim); }
+
+/* 槽位子层。缩进一格，用一条竖线挂住 —— 层级靠位置，不靠图标 */
+.sb-toc__slots {
+  margin: 0.1em 0 0.6em 0.5em;
+  padding-left: 0.8em;
+  border-left: 1px solid var(--sb-rule);
+  display: none;
+}
+
+.sb-toc__entry.is-open .sb-toc__slots { display: block; }
+
+.sb-toc__slots a { font-family: var(--sb-mono); }
+
+/* ── 档案主体 ─────────────────────────────────────────────────────────── */
+
+.sb-body {
+  padding: calc(var(--sb-safe) * 0.5) var(--sb-safe) calc(var(--sb-safe) * 2);
+  min-width: 0;
+}
+
+.sb-entry {
+  padding: calc(var(--sb-gutter) * 1.5) 0 var(--sb-gutter);
+  border-top: 1px solid var(--sb-rule);
+  scroll-margin-top: var(--sb-gutter);
+}
+
+.sb-entry:first-of-type { border-top: 0; }
+
+/* 条目头：左边 anchor 图，右边身份与数据。图缺了就整列不占位（见 parts.ts） */
+.sb-entry__head {
+  display: grid;
+  grid-template-columns: 15rem 1fr;
+  gap: var(--sb-gutter);
+  align-items: start;
+}
+
+.sb-entry__head.no-anchor { grid-template-columns: 1fr; }
+
+.sb-anchor {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 2 / 1;
+  object-fit: cover;
+  background: #000;
+  border: 1px solid var(--sb-rule);
+}
+
+.sb-entry__name { margin: 0 0 0.15em; }
+
+.sb-entry__en {
+  font-size: var(--sb-size-small);
+  font-weight: var(--sb-weight-body);
+  letter-spacing: var(--sb-tracking-label);
+  text-transform: uppercase;
+  color: var(--sb-ink-dim);
+  margin-left: 0.8em;
+}
+
+.sb-entry__tagline { margin: 0 0 0.8em; color: var(--sb-ink); }
+
+/* tension 是这个条目存在的理由 —— 比 tagline 长，所以缩进 + 左侧一条细线 */
+.sb-entry__tension {
+  margin: 0 0 1em;
+  padding-left: var(--sb-gutter);
+  border-left: 1px solid var(--sb-rule);
+  max-width: var(--sb-measure);
+}
+
+/* 事实表：标签 + 值，两列。值一律等宽 */
+.sb-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.15em 1.2em;
+  margin: 0;
+  font-size: var(--sb-size-small);
+}
+
+.sb-facts dt {
+  letter-spacing: var(--sb-tracking-label);
+  text-transform: uppercase;
+  color: var(--sb-rule);
+  white-space: nowrap;
+}
+
+.sb-facts dd {
+  margin: 0;
+  font-family: var(--sb-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--sb-ink-dim);
+}
+
+/* ── 槽位分组与部件 ───────────────────────────────────────────────────── */
+
+.sb-slot { margin-top: calc(var(--sb-gutter) * 1.2); scroll-margin-top: var(--sb-gutter); }
+
+.sb-slot__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sb-gutter);
+  padding-bottom: 0.35em;
+  border-bottom: 1px solid var(--sb-rule);
+}
+
+/* 16rem 而不是 11rem：部件 id（`clavicle.porcelain.a`）在窄格里会断成两行，
+   而 id 的价值就在于能被一眼认出来、被整段复制走 */
+.sb-parts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: var(--sb-gutter);
+  margin-top: var(--sb-gutter);
+  padding: 0;
+  list-style: none;
+}
+
+.sb-part { display: flex; gap: 0.8em; align-items: flex-start; }
+
+/* 策展外框：绿 = keep，红 = reject，灰 = 未评。这是原来接触表上唯一
+   非排版的信号，保留原样 —— 它承载的是判断，不是装饰 */
+.sb-part__thumb {
+  flex: none;
+  border: 1px solid var(--sb-rule);
+  background: #000;
+  line-height: 0;
+}
+
+.sb-part[data-verdict="keep"] .sb-part__thumb { border-color: #3ddc84; }
+.sb-part[data-verdict="reject"] .sb-part__thumb { border-color: var(--sb-warn); }
+
+.sb-part__meta {
+  min-width: 0;
+  font-family: var(--sb-mono);
+  font-size: var(--sb-size-small);
+  line-height: 1.45;
+}
+
+.sb-part__id {
+  display: block;
+  color: var(--sb-ink);
+  /* 先按 `.` 这样的连接处断，实在放不下才从中间劈开 */
+  word-break: break-word;
+}
+
+.sb-part__num { color: var(--sb-ink-dim); font-variant-numeric: tabular-nums; }
+
+/* 可疑比例：不上红（红是"要人当场处理"），用强调色点一下就够 */
+.sb-part__num.is-odd { color: #e8a33d; }
+
+.sb-part__note { color: var(--sb-ink-dim); display: block; overflow-wrap: anywhere; }
+
+/* 可评级时整格可点。没有中间件时它就是一段静态文字 —— 不加 cursor、不加 hover */
+.sb-archive.can-curate .sb-part { cursor: pointer; }
+.sb-archive.can-curate .sb-part:hover .sb-part__thumb { border-color: var(--sb-ink-dim); }
+.sb-archive.can-curate .sb-part[data-verdict="keep"]:hover .sb-part__thumb { border-color: #3ddc84; }
+.sb-archive.can-curate .sb-part[data-verdict="reject"]:hover .sb-part__thumb { border-color: var(--sb-warn); }
+
+/* ── 过滤条 ───────────────────────────────────────────────────────────── */
+
+.sb-filter {
+  display: flex;
+  gap: 1.4em;
+  flex-wrap: wrap;
+  align-items: baseline;
+  padding: 0 0 var(--sb-gutter);
+  font-size: var(--sb-size-small);
+}
+
+/* "按钮"= 一段带下划线的文字。禁止图标按钮和圆角面板（docs/23 §0） */
+.sb-filter button {
+  font: inherit;
+  font-family: var(--sb-mono);
+  color: var(--sb-ink-dim);
+  background: none;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  padding: 0 0 2px;
+  cursor: pointer;
+}
+
+.sb-filter button:hover { color: var(--sb-ink); }
+.sb-filter button.is-on { color: var(--sb-ink); border-bottom-color: var(--sb-accent); }
+
+.sb-entry[hidden] { display: none; }
+
+/* 空状态是被设计的，不是被遗漏的（docs/02 §craft） */
+.sb-empty {
+  padding: calc(var(--sb-gutter) * 2) 0;
+  max-width: var(--sb-measure);
+}
+
+/* 窄屏：目录收到顶上变成一条，不做汉堡菜单（那是"应用"的语言） */
+@media (max-width: 880px) {
+  .sb-archive { grid-template-columns: 1fr; }
+  .sb-toc {
+    position: static;
+    max-height: none;
+    border-right: 0;
+    border-bottom: 1px solid var(--sb-rule);
+    padding: 0 var(--sb-safe) var(--sb-gutter);
+  }
+  .sb-body { padding-left: var(--sb-safe); }
+  .sb-entry__head { grid-template-columns: 1fr; }
+  .sb-entry__head .sb-anchor { max-width: 20rem; }
+}

@@ -12,6 +12,13 @@
 import * as THREE from 'three/webgpu';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { PartLibraryIndex } from '../../core/src/types.ts';
+import { mountPageHead } from '../src/ui/page.ts';
+
+mountPageHead({
+  title: 'Anchor 渲染', titleEn: 'Theme anchors',
+  note: '轮播卡片上那张参考图怎么来的 —— 每个主题的 spine.a 渲成 1024² 单体图。',
+  state: '需要 dev server',
+});
 
 const log = (s: string) => { document.getElementById('log')!.textContent += '\n' + s; };
 const shots = document.getElementById('shots')!;

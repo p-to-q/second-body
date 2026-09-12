@@ -9,12 +9,21 @@
  *   /dev/choose.html?gl=off          强制走无 WebGL 的 DOM 降级列表
  *   /dev/choose.html?capture=1       让 canvas 可读回，用来截证据图
  *   /dev/choose.html?idle=5000       缩短自动选择的等待，用来验那条 30 秒规则
+ *   /dev/choose.html?n=2             只留前 2 个条目 —— 验「< 3 个退化成横向一排」
  *   /dev/choose.html?seed=1          固定随机种子
  *
  * 运行时（src/main.ts）还没接这一页 —— T-01…T-09 落地后再接。
  */
 import { chooseTheme } from '../src/choose/choose.ts';
+import { mountPageHead } from '../src/ui/page.ts';
 import type { ThemeDef } from '../../core/src/types.ts';
+
+// 页头 4 秒后自己淡下去（见 ui/page.ts）—— 这一页也是拿来截图的，
+// 而 S2 的规格里没有任何页头，截图上不该留着我们的调试文字。
+mountPageHead({
+  title: '选择页', titleEn: 'Choose', overlay: true,
+  note: '开场轮播、30 秒自动选、无 WebGL 降级列表 —— 观众选身体的那一刻。',
+});
 
 const q = new URLSearchParams(location.search);
 const num = (key: string): number | undefined => {
@@ -31,6 +40,23 @@ if (q.get('roster')) {
   }));
 }
 
+/**
+ * `?n=2` —— 只留前 n 个条目。
+ *
+ * 这是为了**跑得到** docs/23 §S2 那条「可选条目 < 3 个 → 螺旋退化成横向一排」。
+ * 没有这个开关，那条降级路径只在"库里真的只剩两个条目"时才出现，
+ * 也就是永远不会被验证（AGENTS.md：每条降级路径必须存在**且被跑过**）。
+ * 它只截断这一页传进去的条目表，不碰 parts.json。
+ */
+const n = num('n');
+if (n !== undefined && Number.isFinite(n) && n > 0) {
+  const { ROSTER } = await import('../../factory/recipes/roster.ts');
+  themes = (themes ?? ROSTER.map((e) => ({
+    id: e.id, kind: e.kind, name: e.name, nameEn: e.nameEn, tagline: e.tagline,
+    palette: e.palette, source: e.source, axes: e.axes, coverage: e.coverage, base: e.base,
+  }))).slice(0, n);
+}
+
 const handle = await chooseTheme({
   themes,
   idleMs: num('idle'),
@@ -41,13 +67,14 @@ const handle = await chooseTheme({
     // 真的运行时会在这里造身体。调试页只把结果摆出来。
     const done = document.createElement('div');
     done.id = 'chosen';
+    // 排版全部走 type.css：字号、颜色、字距都不在这里定义（docs/23 §0）
     done.style.cssText =
-      'position:fixed;inset:0;display:grid;place-content:center;gap:10px;text-align:center;' +
-      'background:#000;color:#e8eaee;font:16px/1.6 system-ui,sans-serif;z-index:9;';
+      'position:fixed;inset:0;display:grid;place-content:center;gap:0.6em;text-align:center;' +
+      'background:var(--sb-paper);z-index:9';
     done.innerHTML =
-      `<div style="font-size:12px;letter-spacing:.3em;opacity:.45">CHOSEN</div>` +
-      `<div style="font-size:40px;font-weight:600" data-theme>${id}</div>` +
-      `<div style="opacity:.5;font:12px ui-monospace,monospace">?theme=${id} · 刷新即复现</div>`;
+      '<div class="sb-label">CHOSEN</div>' +
+      `<h1 style="margin:0" data-theme>${id}</h1>` +
+      `<div class="sb-data">?theme=${id} · 刷新即复现</div>`;
     document.body.appendChild(done);
     console.log('[choose] onChoose', id, '→', location.search);
   },

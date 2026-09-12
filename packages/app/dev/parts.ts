@@ -1,149 +1,485 @@
 /**
- * 部件对照表（dev 工具，不进现场）。
- * 用途：一眼看出哪些部件比例崩了、风格不统一、正反颠倒。
+ * 部件档案 —— `/dev/parts.html`。
  *
- * 布局 = 真正的 contact sheet：正交相机、平铺网格、每格一个单位高度。
- * 红点 = socketA(0,0,0) 必须在底；蓝点 = socketB(0,1,0) 必须在顶。
- * 每个部件绕自身 Y 轴慢转，方便看四面。空格键暂停。
+ * 它以前是一张调试用的接触表（正交相机 + 平铺网格），回答"哪件比例崩了"。
+ * 现在它要多回答一个问题：**这件作品到现在为止长出了什么？**
+ * 所以它变成一份可以直接给人看的档案：
+ *
+ *   左边一列目录  kind → 条目 → 槽位，点哪跳哪
+ *   右边一份档案  每个条目一栏（anchor 图 / 名字 / tagline / 形态空间 / 身体方案 / 件数），
+ *                 下面按槽位分组列出它的每一件部件
+ *
+ * ── 三条约束决定了它的形状 ──
+ *
+ * 1. **它要能在公网打开。** 所以数据只来自 `/parts/parts.json` 和 `/parts/curation.json`
+ *    这两个会被 build 复制进 dist 的文件，不依赖任何 dev-only 中间件。
+ *    评级写回（`POST /__curate`）在生产上不存在 —— 那里没有中间件，
+ *    于是这一页**优雅降级成只读**：页头如实写「只读」，格子不再可点，
+ *    不弹错、不报 404。能读的部分一点不少。
+ *
+ * 2. **不显示破图。** 没有 anchor 图的条目整列不占位（docs/23 §S2：
+ *    「破图会立刻毁掉整个气质」）。缩略图那边同理，见 thumbs.ts。
+ *
+ * 3. **空状态是被设计的。** parts.json 缺失 / 解析不出来 / 一件都没有，
+ *    这一页要显示一段说得通的话，而不是白屏或一行红色异常（docs/02 §craft）。
+ *
+ * ── 保留下来的东西 ──
+ * 策展的绿框/红框、点一下循环 未评→keep→reject 的手势、可疑比例的标注 ——
+ * 这一页原来的全部工作价值都在这三样里，一样没删。
  */
-import * as THREE from 'three/webgpu';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import type { PartMeta } from '../../core/src/types.ts';
+import './archive.css';
+import { mountPageHead } from '../src/ui/page.ts';
+import { loadImage } from '../src/choose/cards.ts';
+import { createThumb, createThumbObserver, thumbsUseGl } from './thumbs.ts';
+import type { PartLibraryIndex, PartMeta, ThemeDef } from '../../core/src/types.ts';
 
-const hud = document.getElementById('hud')!;
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x17181a);
+const PARTS_URL = '/parts/parts.json';
+const PARTS_BASE = '/parts';
+const REFS_BASE = '/refs';
 
-const renderer = new THREE.WebGPURenderer({ antialias: true });
-renderer.setSize(innerWidth, innerHeight);
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-document.body.appendChild(renderer.domElement);
+/** 槽位的固定顺序：从头到脚。档案要能竖着读，不能按字母序 */
+const SLOT_ORDER = [
+  'head', 'neck', 'spine', 'clavicle', 'upperArm', 'foreArm', 'hand',
+  'thigh', 'shin', 'foot', 'joint',
+];
 
-scene.add(new THREE.HemisphereLight(0xdfe6ef, 0x23242a, 1.4));
-const key = new THREE.DirectionalLight(0xffffff, 2.4); key.position.set(1.5, 3, 2.5); scene.add(key);
-const rim = new THREE.DirectionalLight(0x9ab6d8, 1.1); rim.position.set(-2, 1, -2); scene.add(rim);
+const KIND_ORDER: ThemeDef['kind'][] = ['archetype', 'character', 'guest'];
+const KIND_LABEL: Record<string, string> = {
+  archetype: '物种 ARCHETYPE',
+  character: '角色 CHARACTER',
+  guest: '嘉宾 GUEST',
+};
 
-const material = new THREE.MeshStandardMaterial({ color: 0xe9e5dd, roughness: 0.7, metalness: 0.0 });
-const loader = new GLTFLoader();
+type Verdict = 'keep' | 'reject';
+interface CurationRow { verdict: Verdict | null; note?: string }
 
-const metas: PartMeta[] = await (await fetch('/parts/_metas.json')).json();
+/**
+ * `tension`（这个条目为什么存在）**还不在 parts.json 里** ——
+ * 它只活在 `packages/factory/recipes/roster.ts`，而 `ThemeDef`（core/src/types.ts）
+ * 是冻结契约，不能由这一页去加字段。
+ * 所以这里按"可能有"处理：有就渲染，没有就整段不出现。
+ * 哪天契约扩了、index 把它写出来了，这一页自己就会亮起来，不用再改一行。
+ */
+function tensionOf(theme: ThemeDef): string | null {
+  const t = (theme as ThemeDef & { tension?: unknown }).tension;
+  return typeof t === 'string' && t.trim() ? t : null;
+}
 
-// 行 = 槽位，列 = family.variant。同一行横着看就能比出风格/比例是否一致。
-const SLOT_ORDER = ['head', 'neck', 'spine', 'clavicle', 'upperArm', 'foreArm', 'hand', 'thigh', 'shin', 'foot', 'joint'];
-const variantOf = (id: string) => id.split('.').slice(1).join('.');     // "shell.a"
-const VARIANT_ORDER = [...new Set(metas.map((m) => variantOf(m.id)))].sort();
-const usedSlots = SLOT_ORDER.filter((s) => metas.some((m) => m.slot === s));
-const COLS = Math.max(1, VARIANT_ORDER.length);
-const ROWS = Math.max(1, usedSlots.length);
-const CW = 1.25, CH = 1.5;   // 每格宽/高
+function bodyPlanOf(theme: ThemeDef): string {
+  const plan = theme.bodyPlan;
+  if (!plan) return 'rig';
+  if (typeof plan === 'string') return plan;
+  const kind = plan.kind ?? 'rig';
+  const ratios = (['limb', 'torso', 'head', 'arm', 'leg'] as const)
+    .filter((k) => typeof plan[k] === 'number')
+    .map((k) => `${k} ${plan[k]!.toFixed(2)}`);
+  return ratios.length ? `${kind} · ${ratios.join(' · ')}` : kind;
+}
 
-type Verdict = 'keep' | 'reject' | null;
-const curation: Record<string, { verdict: Verdict }> =
-  await fetch('/parts/curation.json').then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
+/** 和原来接触表同一条判据：比例离谱或面数过高的，标出来 */
+const isOdd = (m: PartMeta): boolean => m.localGirth > 1.2 || m.localGirth < 0.08 || m.triCount > 5000;
 
-const spinners: THREE.Group[] = [];
-const cells: { meta: PartMeta; cell: THREE.Group; frame: THREE.LineSegments }[] = [];
-const FRAME_COLOR: Record<string, number> = { keep: 0x3ddc84, reject: 0xe0455a, none: 0x2a3038 };
-metas.forEach((meta) => {
-  const col = Math.max(0, VARIANT_ORDER.indexOf(variantOf(meta.id)));
-  const row = Math.max(0, usedSlots.indexOf(meta.slot));
-  const cell = new THREE.Group();
-  cell.position.set((col - (COLS - 1) / 2) * CW, (ROWS - 1 - row) * CH, 0);
-  scene.add(cell);
+// ── 数据 ────────────────────────────────────────────────────────────────────
 
-  const dot = (y: number, color: number) => {
-    const m = new THREE.Mesh(new THREE.SphereGeometry(0.028, 12, 8), new THREE.MeshBasicMaterial({ color }));
-    m.position.y = y; cell.add(m); return m;
+async function readJson<T>(url: string): Promise<T | null> {
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    // dev server 和 Vercel 都会把不存在的路径回成 index.html，别把一页 HTML 当 JSON 解析
+    if ((r.headers.get('content-type') ?? '').includes('text/html')) return null;
+    return (await r.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 评级写回还在不在。
+ *
+ * 探针用的是一个**注定被拒**的请求：没有 id 的 POST。
+ * 中间件在的时候回 400（它读懂了请求并拒绝了）；中间件不在的时候
+ * 静态托管回 404/405，或者直接把 index.html 回过来。
+ * 400 = 有中间件，其余 = 只读。没有副作用，因为它什么都没写。
+ */
+async function probeCurateWriteback(): Promise<boolean> {
+  try {
+    const r = await fetch('/__curate', { method: 'POST', body: '{}' });
+    return r.status === 400;
+  } catch {
+    return false;
+  }
+}
+
+// ── 页面 ────────────────────────────────────────────────────────────────────
+
+const index = await readJson<PartLibraryIndex>(PARTS_URL);
+const curation = (await readJson<Record<string, CurationRow>>('/parts/curation.json')) ?? {};
+const canCurate = await probeCurateWriteback();
+
+const themes = index?.themes ?? [];
+const parts = index?.parts ?? [];
+
+const head = mountPageHead({
+  title: '部件档案',
+  titleEn: 'Parts Archive',
+  note: '这件作品到现在为止长出来的每一件东西：谁是谁、由什么组成、哪些被留下了。',
+  state: canCurate ? '可评级' : '只读',
+});
+
+const root = document.createElement('div');
+root.className = canCurate ? 'sb-archive can-curate' : 'sb-archive';
+document.body.appendChild(root);
+
+// parts.json 读不到 / 是空的：这一页仍然要说人话（docs/02 §craft）
+if (!index || (!themes.length && !parts.length)) {
+  root.classList.remove('sb-archive');
+  const empty = document.createElement('div');
+  empty.className = 'sb-empty';
+  empty.style.padding = 'var(--sb-safe)';
+  empty.innerHTML =
+    '<h2>档案还是空的</h2>' +
+    '<p>没有读到 <code>/parts/parts.json</code>，或者它里面还没有条目。' +
+    '这不是故障：应用在没有部件库的时候用程序化占位几何照常运行。</p>' +
+    '<p>要把档案填起来，先跑一次资产流水线（<code>npm run factory:generate</code> → ' +
+    '<code>npm run factory:index</code>），再刷新这一页。</p>';
+  root.appendChild(empty);
+} else {
+  buildArchive();
+}
+
+function buildArchive(): void {
+  const observer = createThumbObserver();
+
+  // theme id → 它的部件。family 就是 theme id（docs/03：两者是同一个概念）
+  const byFamily = new Map<string, PartMeta[]>();
+  for (const p of parts) {
+    const list = byFamily.get(p.family) ?? [];
+    list.push(p);
+    byFamily.set(p.family, list);
+  }
+
+  // 库里有部件、但 themes[] 里没有对应条目的 family。
+  // 档案不许默默吞掉数据 —— 造一个最小条目把它们摆出来。
+  const orphanFamilies = [...byFamily.keys()].filter((f) => !themes.some((t) => t.id === f)).sort();
+  const orphans: ThemeDef[] = orphanFamilies.map((id) => ({
+    id, kind: 'archetype', name: id, nameEn: id,
+    tagline: '库里有部件，但 parts.json 的 themes[] 里没有这个条目',
+    palette: [], source: 'rodin', axes: { humanLike: 0.5, lifeLike: 0.5 }, coverage: 'light',
+  }));
+
+  const all = [...themes, ...orphans];
+  const ordered = KIND_ORDER.flatMap((kind) => all.filter((t) => t.kind === kind))
+    .concat(all.filter((t) => !KIND_ORDER.includes(t.kind)));
+
+  const toc = document.createElement('nav');
+  toc.className = 'sb-toc';
+  const body = document.createElement('div');
+  body.className = 'sb-body';
+  root.append(toc, body);
+
+  // ── 过滤条：只按 kind 过滤。再多一档就开始像后台系统了 ──────────────────
+  const filter = document.createElement('div');
+  filter.className = 'sb-filter';
+  const counts = new Map<string, number>();
+  for (const t of ordered) counts.set(t.kind, (counts.get(t.kind) ?? 0) + 1);
+
+  const summary = document.createElement('div');
+  summary.className = 'sb-data';
+  filter.appendChild(summary);
+  const paintSummary = () => {
+    const k = Object.values(curation).filter((c) => c?.verdict === 'keep').length;
+    const r = Object.values(curation).filter((c) => c?.verdict === 'reject').length;
+    summary.textContent =
+      `${ordered.length} 条目 · ${parts.length} 件 · keep ${k} · reject ${r} · 未评 ${parts.length - k - r}`;
   };
-  dot(0, 0xff3355);
-  dot(1, 0x3399ff);
-  cell.add(new THREE.Line(
-    new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 1, 0)]),
-    new THREE.LineBasicMaterial({ color: 0x3a4450 }),
-  ));
+  paintSummary();
 
-  // 评级外框：绿=keep 红=reject 灰=未评
-  const frameGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(CW * 0.9, 1.18, CW * 0.9));
-  const frame = new THREE.LineSegments(frameGeo, new THREE.LineBasicMaterial({ color: FRAME_COLOR.none }));
-  frame.position.y = 0.5;
-  cell.add(frame);
-
-  const spin = new THREE.Group();
-  cell.add(spin);
-  spinners.push(spin);
-  cells.push({ meta, cell, frame });
-
-  loader.load(`/parts/${meta.file}`, (gltf) => {
-    gltf.scene.traverse((o) => { if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).material = material; });
-    spin.add(gltf.scene);
-  }, undefined, () => console.warn('load failed', meta.file));
-});
-
-const worldW = COLS * CW, worldH = ROWS * CH;
-let camera: THREE.OrthographicCamera;
-function fit() {
-  const aspect = innerWidth / innerHeight;
-  const pad = 1.12;
-  let w = worldW * pad, h = worldH * pad;
-  if (w / h < aspect) w = h * aspect; else h = w / aspect;
-  camera = new THREE.OrthographicCamera(-w / 2, w / 2, h / 2, -h / 2, -50, 50);
-  camera.position.set(0, (ROWS - 1) * CH / 2 + 0.5, 10);
-  camera.lookAt(0, (ROWS - 1) * CH / 2 + 0.5, 0);
-  renderer.setSize(innerWidth, innerHeight);
-}
-fit();
-addEventListener('resize', fit);
-
-const odd = metas.filter((m) => m.localGirth > 1.2 || m.localGirth < 0.08 || m.triCount > 5000);
-hud.textContent = [
-  `${metas.length} parts · 红=socketA(底) 蓝=socketB(顶) · 空格暂停 · 点部件评级(未评→keep→reject)`,
-  `行(上→下): ${usedSlots.join(' / ')}`,
-  `列(左→右): ${VARIANT_ORDER.join(' / ')}`,
-  odd.length ? `\n⚠ 可疑: ${odd.map((m) => `${m.id}(girth=${m.localGirth.toFixed(2)})`).join(', ')}` : '\n✓ 没有明显异常的比例',
-].join('\n');
-
-function paintFrames() {
-  for (const c of cells) {
-    const v = curation[c.meta.id]?.verdict ?? 'none';
-    (c.frame.material as THREE.LineBasicMaterial).color.setHex(FRAME_COLOR[v] ?? FRAME_COLOR.none);
+  let activeKind: string | null = null;
+  const kindButtons: HTMLButtonElement[] = [];
+  for (const kind of [null, ...KIND_ORDER] as (string | null)[]) {
+    if (kind !== null && !counts.get(kind)) continue;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = kind === null ? `全部 ${ordered.length}` : `${KIND_LABEL[kind] ?? kind} ${counts.get(kind)}`;
+    b.classList.toggle('is-on', kind === activeKind);
+    b.addEventListener('click', () => {
+      activeKind = kind;
+      for (const other of kindButtons) other.classList.toggle('is-on', other === b);
+      applyFilter();
+    });
+    kindButtons.push(b);
+    filter.appendChild(b);
   }
-  const keep = Object.values(curation).filter((x) => x.verdict === 'keep').length;
-  const rej = Object.values(curation).filter((x) => x.verdict === 'reject').length;
-  stat.textContent = `策展: keep ${keep} · reject ${rej} · 未评 ${metas.length - keep - rej}`;
-}
-const stat = document.createElement('div');
-stat.style.cssText = 'position:fixed;right:12px;top:10px;color:#9aa;font:12px ui-monospace,monospace';
-document.body.appendChild(stat);
-paintFrames();
+  body.appendChild(filter);
 
-// 点一下循环 未评 → keep → reject → 未评。好素材必须显式保留（docs/14 §5）
-const ray = new THREE.Raycaster();
-renderer.domElement.addEventListener('pointerdown', async (ev) => {
-  const rect = renderer.domElement.getBoundingClientRect();
-  const ndc = new THREE.Vector2(
-    ((ev.clientX - rect.left) / rect.width) * 2 - 1,
-    -((ev.clientY - rect.top) / rect.height) * 2 + 1,
-  );
-  ray.setFromCamera(ndc, camera);
-  let best: typeof cells[number] | null = null, bestD = Infinity;
-  for (const c of cells) {
-    const d = Math.hypot(c.cell.position.x - ray.ray.origin.x - ray.ray.direction.x * 10,
-                         c.cell.position.y + 0.5 - ray.ray.origin.y - ray.ray.direction.y * 10);
-    if (d < bestD) { bestD = d; best = c; }
+  const entryEls = new Map<string, HTMLElement>();
+  const tocEntryEls = new Map<string, HTMLElement>();
+
+  function applyFilter(): void {
+    for (const t of ordered) {
+      const hidden = activeKind !== null && t.kind !== activeKind;
+      entryEls.get(t.id)?.toggleAttribute('hidden', hidden);
+      const tocEl = tocEntryEls.get(t.id);
+      if (tocEl) tocEl.hidden = hidden;
+    }
   }
-  if (!best || bestD > CW * 0.6) return;
-  const cur = curation[best.meta.id]?.verdict ?? null;
-  const next: Verdict = cur === null ? 'keep' : cur === 'keep' ? 'reject' : null;
-  if (next === null) delete curation[best.meta.id]; else curation[best.meta.id] = { verdict: next };
-  paintFrames();
-  await fetch('/__curate', { method: 'POST', body: JSON.stringify({ id: best.meta.id, verdict: next }) });
-});
 
-let paused = false;
-addEventListener('keydown', (e) => { if (e.code === 'Space') { paused = !paused; e.preventDefault(); } });
+  // ── 目录 + 档案，一趟建完 ─────────────────────────────────────────────
+  let currentKind: string | null = null;
+  for (const theme of ordered) {
+    if (theme.kind !== currentKind) {
+      currentKind = theme.kind;
+      const g = document.createElement('div');
+      g.className = 'sb-label sb-toc__group';
+      g.textContent = KIND_LABEL[currentKind] ?? currentKind;
+      toc.appendChild(g);
+    }
+    const mine = (byFamily.get(theme.id) ?? []).slice()
+      .sort((a, b) => slotRank(a.slot) - slotRank(b.slot) || a.id.localeCompare(b.id));
 
-let t = 0;
-renderer.setAnimationLoop(() => {
-  if (!paused) { t += 0.006; for (const s of spinners) s.rotation.y = t; }
-  renderer.render(scene, camera);
-});
+    toc.appendChild(buildTocEntry(theme, mine));
+    body.appendChild(buildEntry(theme, mine, observer));
+  }
+
+  // 目录跟着滚动走。IntersectionObserver 比 scroll 事件省，而且它本来就在手边
+  const spy = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (!e.isIntersecting) continue;
+      const id = (e.target as HTMLElement).dataset.theme;
+      for (const [tid, el] of tocEntryEls) {
+        el.classList.toggle('is-open', tid === id);
+        el.querySelector('a')?.classList.toggle('is-current', tid === id);
+      }
+    }
+  }, { rootMargin: '-10% 0px -75% 0px' });
+  for (const el of entryEls.values()) spy.observe(el);
+
+  head.setState(canCurate
+    ? (thumbsUseGl() ? '可评级' : '可评级 · 无 WebGL，缩略图为比例剪影')
+    : (thumbsUseGl() ? '只读' : '只读 · 无 WebGL，缩略图为比例剪影'));
+
+  // ── 目录条目 ────────────────────────────────────────────────────────────
+  function buildTocEntry(theme: ThemeDef, mine: PartMeta[]): HTMLElement {
+    const wrap = document.createElement('div');
+    wrap.className = 'sb-toc__entry';
+    const a = document.createElement('a');
+    a.href = `#t-${cssId(theme.id)}`;
+    const label = document.createElement('span');
+    label.textContent = theme.name === theme.id ? theme.id : `${theme.name} ${theme.nameEn}`;
+    const n = document.createElement('span');
+    n.textContent = String(mine.length);
+    a.append(label, n);
+    wrap.appendChild(a);
+
+    const slots = document.createElement('div');
+    slots.className = 'sb-toc__slots';
+    for (const slot of slotsOf(mine)) {
+      const sa = document.createElement('a');
+      sa.href = `#s-${cssId(theme.id)}-${slot}`;
+      const sl = document.createElement('span');
+      sl.textContent = slot;
+      const sn = document.createElement('span');
+      sn.textContent = String(mine.filter((m) => m.slot === slot).length);
+      sa.append(sl, sn);
+      slots.appendChild(sa);
+    }
+    wrap.appendChild(slots);
+    tocEntryEls.set(theme.id, wrap);
+    return wrap;
+  }
+
+  // ── 档案条目 ────────────────────────────────────────────────────────────
+  function buildEntry(theme: ThemeDef, mine: PartMeta[], obs: IntersectionObserver): HTMLElement {
+    const section = document.createElement('section');
+    section.className = 'sb-entry';
+    section.id = `t-${cssId(theme.id)}`;
+    section.dataset.theme = theme.id;
+    entryEls.set(theme.id, section);
+
+    const headRow = document.createElement('div');
+    headRow.className = 'sb-entry__head no-anchor';   // 图到了再改回来
+    section.appendChild(headRow);
+
+    const figure = document.createElement('div');
+    const info = document.createElement('div');
+    headRow.appendChild(info);
+
+    // anchor 图：先不挂，加载成功了才挂上去 —— 破图一次都不会出现
+    if (theme.source !== 'procedural') {
+      void loadImage(`${REFS_BASE}/${theme.id}/_anchor.png`).then((img) => {
+        if (!img) return;
+        img.className = 'sb-anchor';
+        img.alt = `${theme.name} anchor`;
+        figure.appendChild(img);
+        headRow.prepend(figure);
+        headRow.classList.remove('no-anchor');
+      });
+    }
+
+    const h2 = document.createElement('h2');
+    h2.className = 'sb-entry__name';
+    h2.textContent = theme.name;
+    if (theme.nameEn && theme.nameEn !== theme.name) {
+      const en = document.createElement('span');
+      en.className = 'sb-entry__en';
+      en.textContent = theme.nameEn;
+      h2.appendChild(en);
+    }
+    info.appendChild(h2);
+
+    if (theme.tagline) {
+      const tag = document.createElement('p');
+      tag.className = 'sb-entry__tagline';
+      tag.textContent = theme.tagline;
+      info.appendChild(tag);
+    }
+
+    const tension = tensionOf(theme);
+    if (tension) {
+      const t = document.createElement('p');
+      t.className = 'sb-entry__tension';
+      t.textContent = tension;
+      info.appendChild(t);
+    }
+
+    const kept = mine.filter((m) => curation[m.id]?.verdict === 'keep').length;
+    const rejected = mine.filter((m) => curation[m.id]?.verdict === 'reject').length;
+
+    const facts: Array<[string, string]> = [
+      ['id', theme.id],
+      ['kind / coverage', `${theme.kind} · ${theme.coverage}${theme.base ? ` · base ${theme.base}` : ''}`],
+      ['形态空间', `humanLike ${theme.axes.humanLike.toFixed(2)} · lifeLike ${theme.axes.lifeLike.toFixed(2)}`],
+      ['身体方案', bodyPlanOf(theme)],
+      ['件数', `${mine.length}${mine.length ? ` · keep ${kept} · reject ${rejected}` : ''}`],
+    ];
+    if (theme.palette.length) facts.push(['palette', theme.palette.join(' · ')]);
+    const dl = document.createElement('dl');
+    dl.className = 'sb-facts';
+    for (const [k, v] of facts) {
+      const dt = document.createElement('dt');
+      dt.textContent = k;
+      const dd = document.createElement('dd');
+      dd.textContent = v;
+      dl.append(dt, dd);
+    }
+    info.appendChild(dl);
+
+    if (!mine.length) {
+      const none = document.createElement('p');
+      none.className = 'sb-empty';
+      none.textContent = theme.source === 'procedural'
+        ? '程序化条目：它不用部件库，身体在运行时按规则长出来。'
+        : '这个条目还没有部件 —— 它是一个空位，说明这个位置想要什么样的存在。';
+      section.appendChild(none);
+      return section;
+    }
+
+    for (const slot of slotsOf(mine)) {
+      const group = mine.filter((m) => m.slot === slot);
+      const sec = document.createElement('div');
+      sec.className = 'sb-slot';
+      sec.id = `s-${cssId(theme.id)}-${slot}`;
+
+      const sh = document.createElement('div');
+      sh.className = 'sb-slot__head';
+      const name = document.createElement('span');
+      name.className = 'sb-label';
+      name.textContent = slot;
+      const n = document.createElement('span');
+      n.className = 'sb-data sb-num';
+      n.textContent = `${group.length} 件`;
+      sh.append(name, n);
+      sec.appendChild(sh);
+
+      const ul = document.createElement('ul');
+      ul.className = 'sb-parts';
+      for (const meta of group) ul.appendChild(buildPart(meta, obs));
+      sec.appendChild(ul);
+      section.appendChild(sec);
+    }
+    return section;
+  }
+
+  // ── 一件部件 ────────────────────────────────────────────────────────────
+  function buildPart(meta: PartMeta, obs: IntersectionObserver): HTMLElement {
+    const li = document.createElement('li');
+    li.className = 'sb-part';
+    li.dataset.verdict = curation[meta.id]?.verdict ?? '';
+
+    const thumb = document.createElement('div');
+    thumb.className = 'sb-part__thumb';
+    thumb.appendChild(createThumb(meta, obs, PARTS_BASE));
+
+    const info = document.createElement('div');
+    info.className = 'sb-part__meta';
+    const id = document.createElement('span');
+    id.className = 'sb-part__id';
+    id.textContent = meta.id;
+    const nums = document.createElement('span');
+    nums.className = 'sb-part__num sb-num';
+    nums.textContent = `t${meta.tier} · girth ${meta.localGirth.toFixed(2)} · ${meta.triCount} tri`;
+    if (isOdd(meta)) nums.classList.add('is-odd');
+    info.append(id, nums);
+
+    const note = curation[meta.id]?.note;
+    if (note) {
+      const n = document.createElement('span');
+      n.className = 'sb-part__note';
+      n.textContent = note;
+      info.appendChild(n);
+    }
+
+    li.append(thumb, info);
+
+    // 点一下循环 未评 → keep → reject → 未评（docs/14 §5：好素材必须显式保留）。
+    // 只有中间件在的时候才挂这个监听 —— 只读时它就是一段静态文字，
+    // 点了什么都不会发生，也不会有一个失败的请求飞出去。
+    if (canCurate) {
+      li.addEventListener('click', () => { void cycleVerdict(meta, li); });
+    }
+    return li;
+  }
+
+  async function cycleVerdict(meta: PartMeta, li: HTMLElement): Promise<void> {
+    const cur = curation[meta.id]?.verdict ?? null;
+    const next: Verdict | null = cur === null ? 'keep' : cur === 'keep' ? 'reject' : null;
+    const before = curation[meta.id];
+    if (next === null) delete curation[meta.id]; else curation[meta.id] = { verdict: next, note: before?.note };
+    li.dataset.verdict = next ?? '';
+    paintSummary();
+
+    let ok = false;
+    try {
+      const r = await fetch('/__curate', { method: 'POST', body: JSON.stringify({ id: meta.id, verdict: next }) });
+      ok = r.ok;
+    } catch { /* 下面统一处理 */ }
+    if (ok) return;
+
+    // 写回没成功：把本地状态**放回去**，并且从此转成只读。
+    // 显示一个和磁盘不一致的绿框，比不让评级糟得多 —— 那会让人以为自己评过了。
+    if (before) curation[meta.id] = before; else delete curation[meta.id];
+    li.dataset.verdict = before?.verdict ?? '';
+    paintSummary();
+    root.classList.remove('can-curate');
+    head.setState('只读 · 评级写回不可用');
+    console.warn('[archive] /__curate 写回失败，转为只读');
+  }
+}
+
+// ── 小工具 ──────────────────────────────────────────────────────────────────
+
+// 这三个要写成函数声明而不是 const 箭头函数：`buildArchive()` 在模块顶层就被调用了，
+// 那时文件尾部的 const 还在 TDZ 里 —— 写成箭头函数这一页会当场白屏。
+function slotRank(slot: string): number {
+  const i = SLOT_ORDER.indexOf(slot);
+  return i < 0 ? SLOT_ORDER.length : i;
+}
+
+function slotsOf(metas: PartMeta[]): string[] {
+  return [...new Set(metas.map((m) => m.slot))].sort((a, b) => slotRank(a) - slotRank(b));
+}
+
+/** id 里有点（char.dumpling），直接当 CSS 选择器/锚点会炸 */
+function cssId(id: string): string {
+  return id.replace(/[^a-z0-9_-]/gi, '_');
+}

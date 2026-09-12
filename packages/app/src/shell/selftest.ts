@@ -14,6 +14,7 @@
  *     现场开场前站在一个永远转不完的自检页前面，比没有自检页还糟。
  */
 import { fetchClipIndex, type ClipEntry } from '../capture/replay.ts';
+import { mountPageHead } from '../ui/page.ts';
 import { readFlags } from './kiosk.ts';
 
 type Verdict = 'pass' | 'warn' | 'fail' | 'running';
@@ -29,8 +30,10 @@ interface Check {
 }
 
 /**
- * 视觉语言按 `docs/23 §0`：底色 #0E0F12、前景 #9AA0A6、强调 #DFE4EA、系统等宽、
- * **只有两级字号**（正文 13px / 标题 20px）、安全边距 ≥48px、**无圆角面板无图标**。
+ * 视觉语言按 `docs/23 §0`，而**实现只有一处**：`ui/type.css`。
+ * 这一页原来把那一套（#0E0F12 / 13px / 48px 安全区…）又抄了一遍常量 ——
+ * 抄一遍就意味着有一天两边会不一样，而且没人会发现。现在全部指向 `--sb-*`：
+ * 换底色、换字号、换字体栈，改 type.css 一个地方，这一页跟着变。
  *
  * 打勾的那一条刻意**不上绿色**：绿色是仪表盘的语言，这件作品的气质是影棚（§0 开头那条总规矩）。
  * 通过 = 用强调前景色亮一格就够了；只有"要人当场处理"的两档才允许烧颜色，
@@ -38,18 +41,21 @@ interface Check {
  */
 const GLYPH: Record<Verdict, string> = { pass: '✓', warn: '⚠', fail: '✗', running: '·' };
 const COLOR: Record<Verdict, string> = {
-  pass: '#DFE4EA', warn: '#E8A33D', fail: '#E0455A', running: '#5C626B',
+  pass: 'var(--sb-ink)',
+  // 警告用的琥珀色是这一页独有的第三档，type.css 里没有对应变量 ——
+  // 因为除了"逐条打勾"的自检页，没有第二个场景需要"能演但打折"这个状态。
+  warn: '#E8A33D',
+  fail: 'var(--sb-warn)',
+  running: 'var(--sb-rule)',
 };
-const FG = '#9AA0A6';
-const FG_HI = '#DFE4EA';
-const BG = '#0E0F12';
-const RULE = '#1C1F24';
-/** 两级字号，没有第三级 —— 三级以上就开始像后台系统（§0） */
-const BODY = '13px';
-const TITLE = '20px';
-const MONO = 'ui-monospace,SFMono-Regular,Menlo,monospace';
+const FG = 'var(--sb-ink-dim)';
+const FG_HI = 'var(--sb-ink)';
+const BG = 'var(--sb-paper)';
+const RULE = 'var(--sb-rule)';
+const BODY = 'var(--sb-size-small)';
+const MONO = 'var(--sb-mono)';
 /** 投影会切边（§0） */
-const SAFE = '48px';
+const SAFE = 'var(--sb-safe)';
 
 const flags = readFlags();
 
@@ -198,21 +204,28 @@ let banner: HTMLElement;
 
 function build(): void {
   document.documentElement.style.cssText = `background:${BG}`;
+  // 排版由 type.css 负责；这里只补这一页特有的两件事：整页等宽（它是一张检查表，
+  // 不是一段正文），以及底部多留 96px 免得最后一行贴着窗口底边
   document.body.style.cssText =
-    `margin:0;min-height:100vh;background:${BG};color:${FG};overflow:auto;` +
-    `font:${BODY}/1.7 ${MONO};padding:${SAFE} ${SAFE} 96px`;
+    `min-height:100vh;color:${FG};overflow:auto;font:${BODY}/1.7 ${MONO};padding-bottom:96px`;
 
-  const h = document.createElement('div');
-  h.innerHTML =
-    `<div style="font-size:${TITLE};color:${FG_HI};letter-spacing:.06em">SEE-ME SEE-YOU · 开场自检</div>` +
-    '<div style="margin-top:6px">?selftest=1 —— 开场前跑一遍。' +
-    '✗ 是真的演不了，⚠ 是能演但知道自己在打什么折。</div>';
-  document.body.appendChild(h);
+  mountPageHead({
+    title: '开场自检',
+    titleEn: 'Selftest',
+    note: '开场前跑一遍：✗ 是真的演不了，⚠ 是能演但知道自己在打什么折。',
+  });
+
+  // 页头自己带安全区，所以内容区单独一层 —— 两边各加一次就成了 96px
+  const main = document.createElement('main');
+  main.style.cssText = `padding:0 ${SAFE}`;
+  document.body.appendChild(main);
 
   banner = document.createElement('div');
-  banner.style.cssText = `margin:22px 0 26px;padding:10px 0;border-top:1px solid ${RULE};border-bottom:1px solid ${RULE}`;
+  // 只有下边框：上面那条线由页头出（两条挨在一起会读成一个边框，
+  // 而这套风格里一条线就是一次分区，不是装饰）
+  banner.style.cssText = `margin:0 0 26px;padding:12px 0;border-bottom:1px solid ${RULE}`;
   banner.textContent = '自检中…';
-  document.body.appendChild(banner);
+  main.appendChild(banner);
 
   for (const c of checks) {
     const row = document.createElement('div');
@@ -228,7 +241,7 @@ function build(): void {
     detail.style.cssText = `color:${FG};white-space:pre-wrap`;
     detail.textContent = '检查中…';
     row.append(v, name, detail);
-    document.body.appendChild(row);
+    main.appendChild(row);
     rowEls.set(c.id, { verdict: v, detail });
   }
 
@@ -249,7 +262,7 @@ function build(): void {
     link('回放兜底 /?demo=1', '/?demo=1&debug=1'),
     link('录制页 /dev/record.html', '/dev/record.html'),
   );
-  document.body.appendChild(bar);
+  main.appendChild(bar);
 }
 
 function button(text: string, onClick: () => void): HTMLElement {

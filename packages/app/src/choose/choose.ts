@@ -14,6 +14,9 @@
  * 排布不是数组顺序，是**形态空间**：按 `axes.humanLike` / `axes.lifeLike` 绕
  * 质心排成一圈，滑动时观众是在穿越那张图（docs/14 §4）而不是翻列表。
  */
+// 排版系统是硬约束：这一页的 CSS 全靠 --sb-*，所以它必须自己把 type.css 带上 ——
+// 不能指望每个宿主 HTML 都记得 <link> 它（主程序的 index.html 就没有）。
+import '../ui/type.css';
 import { mulberry32 } from '../../../core/src/rng.ts';
 import type { PartLibraryIndex, Rng, ThemeDef } from '../../../core/src/types.ts';
 import { createCarousel, type CarouselHandle } from '../vendor/dither-carousel/scene.ts';
@@ -210,7 +213,7 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
     committed = true;
     const id = card.theme.id;
     writeThemeToUrl(id);
-    ui.idle.textContent = '';
+    ui.idle.classList.remove('is-on');   // 选定了，倒计时那条线立刻收起来
     ui.root.classList.add('is-leaving');
     if (!carousel) {
       finish(id);
@@ -235,16 +238,28 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
 
   // ── 空闲自动选择 ──────────────────────────────────────────────────────────
   // 现场不能停在菜单上：30 秒没人动，自己挑一个进去。
+  //
+  // docs/23 §S2 对这件事的表现有明确规定：**最后 5 秒**，中心卡下方出现
+  // **一条极细的进度线**，走完自动选中。理由是"没有倒计时的话，突然跳转会吓到人"。
+  // 所以它必须可见；同时 §0 又禁止进度条百分比 —— 一条正在走完的 1px 横线
+  // 同时满足这两条：它说得出"还有一会儿"，但说不出"62%"。
+  const COUNTDOWN_MS = 5000;
   let idleAt = performance.now() + idleMs;
   const bump = (): void => {
     idleAt = performance.now() + idleMs;
   };
+  // 60ms 而不是 200ms：200ms 一跳的线肉眼能看出台阶，那会读成"卡了"
   const idleTick = window.setInterval(() => {
     if (committed || idleMs <= 0) return;
     const left = idleAt - performance.now();
-    ui.idle.textContent = left <= 10_000 ? `${Math.max(0, Math.ceil(left / 1000))}s 后自动选择` : '';
+    const showing = left <= COUNTDOWN_MS;
+    ui.idle.classList.toggle('is-on', showing);
+    // 线从 0 走到满 = 剩余时间从 5 秒走到 0
+    ui.idleFill.style.width = showing
+      ? `${Math.min(100, Math.max(0, (1 - left / COUNTDOWN_MS) * 100))}%`
+      : '0';
     if (left <= 0) commit(rng.int(cards.length));
-  }, 200);
+  }, 60);
 
   // ── 键盘 ─────────────────────────────────────────────────────────────────
   const onKeyDown = (e: KeyboardEvent): void => {
@@ -285,7 +300,14 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
     carousel = null;
     ui.canvas.style.display = 'none';
     ui.list.hidden = false;
-    console.warn('[choose] 轮播不可用，走 DOM 降级列表：', reason);
+    ui.root.classList.add('is-fallback');
+    // 提示语必须跟着降级路径一起变：没有螺旋可以"穿越"，
+    // 一条教人做不到的事的提示比没有提示更糟
+    ui.hint.textContent = '点一行即确认\n数字键直选 · ↑↓ 移动 · Enter 确认';
+    // 条目太少是**设计好的**退化，不是故障 —— 别在控制台吼它，
+    // 否则真正的 GL 失败会淹没在噪音里（P14：测量工具本身会骗人）
+    if (reason === 'cards < 3') console.info('[choose] 条目 < 3，螺旋退化成横向一排（docs/23 §S2）');
+    else console.warn('[choose] 轮播不可用，走 DOM 降级列表：', reason);
     cards.forEach((card, index) => {
       const row = document.createElement('button');
       row.className = 'sb-row';
@@ -309,6 +331,14 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
     ui.tag.textContent = 'parts.json 里没有条目，或者它们都还没有 anchor 图与部件。';
   } else if (forceFallback) {
     toFallback('forceFallback');
+  } else if (cards.length < 3) {
+    // docs/23 §S2：「可选条目 < 3 个 → 螺旋退化成横向一排」。
+    // 理由写在规格里：3 个以下的螺旋看起来像坏了 —— 卡片绕不满一圈，
+    // 观众看到的是一个转不动的轮子，而不是一条可以穿越的形态空间。
+    // 走的是同一条 DOM 路径（键盘、自动选择、退出动画全部照常），只是排成一排。
+    toFallback('cards < 3');
+    ui.list.classList.add('is-row');
+    ui.list.style.setProperty('--sb-row-n', String(cards.length));
   } else {
     try {
       carousel = createCarousel(ui.canvas, {
@@ -383,32 +413,69 @@ interface Ui {
   nameEn: HTMLElement;
   tag: HTMLElement;
   kind: HTMLElement;
+  /** 倒计时那条极细横线的容器 */
   idle: HTMLElement;
+  /** 线里正在变长的那一段 */
+  idleFill: HTMLElement;
+  /** 右下角那几行操作提示。降级到列表时要改写 */
+  hint: HTMLElement;
 }
 
+/**
+ * 这一页的皮肤。**度量和颜色一律来自 `ui/type.css` 的 `--sb-*`，这里一个写死的
+ * 字号/颜色都不许有**（docs/23 §0）—— 排版系统是全场景的硬约束，不是"文字页专用"。
+ *
+ * 原来这里是一套自己的字体栈和一串 px 值，于是选择页和其它页面差了半档：
+ * 同一个作品名在两页里不是同一个字。改成变量之后，换字体只用改 type.css 一行。
+ */
 const CSS = `
-.sb-choose{position:fixed;inset:0;background:#000;color:#e8eaee;
-  font:14px/1.5 system-ui,-apple-system,"PingFang SC","Noto Sans CJK SC",sans-serif;overflow:hidden}
+.sb-choose{position:fixed;inset:0;background:#000;color:var(--sb-ink);
+  font-family:var(--sb-grotesk);font-size:var(--sb-size-body);line-height:var(--sb-lh-body);overflow:hidden}
 .sb-choose canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
-.sb-hud{position:absolute;left:0;right:0;bottom:0;padding:28px 32px;pointer-events:none;
+.sb-hud{position:absolute;left:0;right:0;bottom:0;padding:var(--sb-safe);pointer-events:none;
   background:linear-gradient(to top,rgba(0,0,0,.75),transparent)}
-.sb-name{font-size:34px;font-weight:600;letter-spacing:.04em}
-.sb-name .sb-en{font-size:15px;font-weight:400;letter-spacing:.18em;opacity:.55;margin-left:14px;
-  text-transform:uppercase}
-.sb-tag{opacity:.75;margin-top:4px}
-.sb-kind{margin-top:6px;font:11px ui-monospace,monospace;letter-spacing:.22em;text-transform:uppercase;opacity:.5}
-.sb-hint{position:absolute;right:32px;bottom:28px;text-align:right;font:12px ui-monospace,monospace;
-  opacity:.4;line-height:1.9;white-space:pre}
-.sb-idle{position:absolute;right:32px;top:24px;font:12px ui-monospace,monospace;opacity:.55;letter-spacing:.1em}
+.sb-name{font-size:var(--sb-size-h1);font-weight:var(--sb-weight-head);
+  line-height:var(--sb-lh-h1);letter-spacing:var(--sb-tracking-h1)}
+.sb-name .sb-en{font-size:var(--sb-size-small);font-weight:var(--sb-weight-body);
+  letter-spacing:var(--sb-tracking-label);color:var(--sb-ink-dim);margin-left:0.8em;text-transform:uppercase}
+.sb-tag{color:var(--sb-ink-dim);margin-top:0.25em}
+.sb-kind{margin-top:0.4em;font-family:var(--sb-mono);font-size:var(--sb-size-small);
+  letter-spacing:var(--sb-tracking-label);text-transform:uppercase;color:var(--sb-ink-dim);opacity:.7}
+.sb-hint{position:absolute;right:var(--sb-safe);bottom:var(--sb-safe);text-align:right;
+  font-family:var(--sb-mono);font-size:var(--sb-size-small);color:var(--sb-ink-dim);opacity:.55;
+  line-height:1.9;white-space:pre}
 .sb-choose.is-leaving .sb-hud,.sb-choose.is-leaving .sb-hint,
 .sb-choose.is-leaving .sb-idle{opacity:0;transition:opacity .5s}
-.sb-list{position:absolute;inset:0;overflow-y:auto;padding:24px;display:grid;gap:14px;
-  grid-template-columns:repeat(auto-fill,minmax(280px,1fr));align-content:start}
-.sb-row{background:none;border:1px solid rgba(232,234,238,.18);color:inherit;padding:0;cursor:pointer;
+
+/* 自动选择的倒计时（docs/23 §S2）：最后 5 秒，中心卡下方**一条极细的线**走完。
+   规格明确不要百分比、不要数字 —— 一条正在走完的线已经说清楚"还有一会儿"，
+   而一个跳动的秒数会把人的注意力从卡片上拽走。 */
+.sb-idle{position:absolute;left:50%;bottom:calc(var(--sb-safe) * 2.6);transform:translateX(-50%);
+  width:min(22rem,40vw);height:1px;background:var(--sb-rule);opacity:0;
+  transition:opacity 240ms cubic-bezier(.16,1,.3,1);pointer-events:none}
+.sb-idle.is-on{opacity:1}
+.sb-idle i{display:block;height:1px;width:0;background:var(--sb-ink-dim)}
+
+/* 无 WebGL 的降级列表。**同样的排版语言**（等宽字、同底色、卡片图）——
+   docs/23 §S2：「降级路径也是作品的一部分」，不是丑陋兜底。 */
+.sb-list{position:absolute;inset:0;overflow-y:auto;padding:var(--sb-safe);display:grid;
+  gap:var(--sb-gutter);grid-template-columns:repeat(auto-fill,minmax(18rem,1fr));align-content:start}
+.sb-row{background:none;border:1px solid var(--sb-rule);color:inherit;padding:0;cursor:pointer;
   font:inherit;text-align:left;display:block}
 .sb-row canvas{position:static;width:100%;height:auto}
-.sb-row span{display:block;padding:8px 10px}
-.sb-row.is-active{border-color:rgba(232,234,238,.8)}
+.sb-row span{display:block;padding:0.5em 0.7em;font-family:var(--sb-mono);
+  font-size:var(--sb-size-small);color:var(--sb-ink-dim)}
+.sb-row.is-active{border-color:var(--sb-ink-dim)}
+.sb-row.is-active span{color:var(--sb-ink)}
+
+/* 列表模式下每一行自己带名字，底部那块常驻的名牌就成了重复信息 ——
+   而且它会压在正在滚动的卡片上。删掉（§0：每多一个元素都要论证它不该被删） */
+.sb-choose.is-fallback .sb-hud{display:none}
+
+/* 可选条目 < 3：螺旋退化成横向一排（docs/23 §S2）。
+   三个以下的螺旋看起来像坏了 —— 所以那一档根本不进螺旋。 */
+.sb-list.is-row{grid-template-columns:repeat(var(--sb-row-n,2),minmax(0,1fr));
+  align-content:center;height:100%;align-items:center}
 `;
 
 function buildDom(mount: HTMLElement): Ui {
@@ -428,7 +495,7 @@ function buildDom(mount: HTMLElement): Ui {
       <div class="sb-tag"></div>
       <div class="sb-kind"></div>
     </div>
-    <div class="sb-idle"></div>
+    <div class="sb-idle"><i></i></div>
     <div class="sb-hint">滚动 / 拖动 穿越形态空间\n数字键直选 · ↑↓ 移动 · Enter 确认\n点中间那张即确认</div>`;
   mount.appendChild(root);
   return {
@@ -440,5 +507,7 @@ function buildDom(mount: HTMLElement): Ui {
     tag: root.querySelector<HTMLElement>('.sb-tag')!,
     kind: root.querySelector<HTMLElement>('.sb-kind')!,
     idle: root.querySelector<HTMLElement>('.sb-idle')!,
+    idleFill: root.querySelector<HTMLElement>('.sb-idle i')!,
+    hint: root.querySelector<HTMLElement>('.sb-hint')!,
   };
 }

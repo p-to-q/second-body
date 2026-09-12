@@ -20,6 +20,12 @@ import { createPartLibrary } from '../src/assets/library.ts';
 import { partIdsOf } from '../src/creature/assemble.ts';
 import { createCreature } from '../src/creature/creature.ts';
 import { remapSkeleton } from '../../core/src/bodyplan.ts';
+import { mountPageHead } from '../src/ui/page.ts';
+
+mountPageHead({
+  title: '装配', titleEn: 'Figure assembly', overlay: true,
+  note: '部件挂到骨架上，比例和朝向对不对 —— 一具身体是怎么被拼出来的。',
+});
 
 const hud = document.getElementById('hud')!;
 const qs = new URLSearchParams(location.search);

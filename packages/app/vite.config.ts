@@ -160,23 +160,6 @@ function shipAssets(): Plugin {
   };
 }
 
-/**
- * 构建入口 = `packages/app/` 下所有 .html，自动发现。
- *
- * 为什么不写死一张 input 表：展陈层的页面（护照、目录、自述、施工现场…）
- * 是分几条线并行加出来的。写死表意味着每加一页都要回来改这个文件 ——
- * 既是 merge 冲突点，也是"页面加了但 build 里没有"这种只在生产暴露的错。
- * 放一个 html 进来就是一页，没有第二处登记。
- */
-function htmlInputs(): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const f of readdirSync(__dirname)) {
-    if (!f.endsWith('.html')) continue;
-    out[f.replace(/\.html$/, '')] = resolve(__dirname, f);
-  }
-  return out;
-}
-
 export default defineConfig({
   root: __dirname,
   // dev 下 assets/ 整个作为静态根（/raw/ 在 anchor 渲染时要用）；
@@ -184,5 +167,39 @@ export default defineConfig({
   publicDir: process.env.NODE_ENV === 'production' ? false : resolve(__dirname, '../../assets'),
   plugins: [demoIndex(), anchorWriter(), shipAssets()],
   server: { port: 5173, host: true, fs: { allow: [ROOT] } },
-  build: { target: 'esnext', outDir: 'dist', rollupOptions: { input: htmlInputs() } },
+  build: {
+    target: 'esnext',
+    outDir: 'dist',
+    // Vite 默认只把 root 下的 index.html 当入口。`/dev/*.html` 因此**从来没有
+    // 进过 dist** —— 本机 dev server 上好好的，部署上去全是 404。
+    // 这是"规格写了不等于做到了"的又一次（§craft）：docs/13 里链着这些页面，
+    // 而线上一个都打不开。全部显式列进 input。
+    rollupOptions: { input: pages() },
+  },
 });
+
+/**
+ * 入口清单 = 根目录下的每一个 .html（主程序 + 展陈层：护照、目录、自述…）
+ * 加 `dev/` 下的每一个 .html（工具页）。
+ *
+ * 扫目录而不是写死名单，有两个各自独立的理由：
+ * - dev 工具页一直**没有进过 dist** —— 本机好好的，线上全 404，
+ *   因为 Vite 默认只认 root 的 index.html。新增一页的人不会记得回来改构建配置。
+ * - 展陈层的页面是分几条线并行加出来的。写死名单既是 merge 冲突点，
+ *   也是同一类"加了但没进构建"的错。
+ * 放一个 html 进来就是一页，没有第二处登记。
+ */
+function pages(): Record<string, string> {
+  const input: Record<string, string> = {};
+  const scan = (dir: string, prefix: string) => {
+    if (!existsSync(dir)) return;
+    for (const file of readdirSync(dir)) {
+      if (!file.endsWith('.html')) continue;
+      const base = file.replace(/\.html$/, '');
+      input[`${prefix}${base === 'index' && !prefix ? 'main' : base}`] = resolve(dir, file);
+    }
+  };
+  scan(__dirname, '');
+  scan(resolve(__dirname, 'dev'), 'dev-');
+  return input;
+}
