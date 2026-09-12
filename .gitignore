@@ -8,3 +8,6 @@ assets/raw/*/
 scratch/
 *.log
 .DS_Store
+
+# agent worktrees（每个都是独立 git 仓库，绝不能被当成 submodule 提交进来）
+.claude/worktrees/
