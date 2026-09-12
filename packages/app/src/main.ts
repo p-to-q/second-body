@@ -29,6 +29,7 @@ import type { BodyInstance } from './creature/body.ts';
 import { createStage } from './stage/stage.ts';
 import { chooseTheme, themeFromUrl } from './choose/choose.ts';
 import { createFrameLoop } from './shell/safe-frame.ts';
+import { showBootError } from './shell/boot-error.ts';
 import { enterKiosk, readFlags } from './shell/kiosk.ts';
 import { createHud } from './shell/hud.ts';
 import { ACTS, createDirector, type World } from './acts/index.ts';
@@ -216,12 +217,4 @@ async function boot(): Promise<void> {
   );
 }
 
-void boot().catch((err) => {
-  // 启动失败必须看得见 —— 现场白屏是最糟的失败（P3）
-  console.error('[main] boot failed:', err);
-  const el = document.createElement('pre');
-  el.style.cssText = 'color:#e0455a;font:13px ui-monospace,monospace;padding:2rem;white-space:pre-wrap';
-  el.textContent = `启动失败：${err instanceof Error ? err.message : String(err)}\n\n` +
-    '试试 ?demo=1（不需要摄像头），或看控制台。';
-  document.body.appendChild(el);
-});
+void boot().catch(showBootError);
