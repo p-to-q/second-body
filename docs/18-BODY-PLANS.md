@@ -179,8 +179,8 @@ A 档条目只填一个字段就换了物种；B 档条目需要一个新模块�
 
 | 方案 | 条目 | 为什么是它 |
 |---|---|---|
-| `rig` | porcelain · industrial · athlete · softwear · char.idol · field · guest.founder | 需要有一个人形基准，否则"不同"就没有参照 |
-| `quadruped` | patrol · digitigrade · wheelleg · petbot · **autonomous** | 无人车不是"会走的车身"，是一个贴地底盘 —— 四个短支撑比两条腿准 |
+| `rig` | porcelain · industrial · athlete · softwear · char.idol · field · guest.founder · **digitigrade** | 需要有一个人形基准，否则"不同"就没有参照。digitigrade 是 2026-09-13 从 `quadruped` 挪回来的：Digit 和同拓扑的 Cassie 都是**两足**，做成四足，"人的手 / 鸟的腿"这句 tagline 就没有对比了（docs/31 §4.1） |
+| `quadruped` | patrol · wheelleg · petbot · **autonomous** | 无人车不是"会走的车身"，是一个贴地底盘 —— 四个短支撑比两条腿准 |
 | `radial` | **orb** · **furball** | 它们在谱系里的全部意义就是"一个球"。同一个拓扑，两种身材：球张得开，毛球盘得紧 |
 | `column` | **manipulator** · **screenface** | 共同点是"底盘 + 上面一套作业机构"，本来就不该有腿 |
 | `inverted` | **xeno** | 它的 tension 是"它在模仿你，但模仿错了"。把人整个翻过来正是"模仿错了" |

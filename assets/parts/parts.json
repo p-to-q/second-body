@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-09-12T21:43:09.806Z",
+  "generatedAt": "2026-09-12T22:49:28.225Z",
   "units": "meters",
   "convention": {
     "axis": "+Y",
@@ -218,7 +218,6 @@
       "coverage": "light",
       "base": "porcelain",
       "bodyPlan": {
-        "kind": "quadruped",
         "leg": 1.28,
         "arm": 1.1
       }
@@ -551,7 +550,7 @@
         "lifeLike": 0.6
       },
       "coverage": "light",
-      "base": "compact",
+      "base": "porcelain",
       "bodyPlan": {
         "head": 1.35,
         "limb": 0.9
@@ -816,6 +815,33 @@
   ],
   "parts": [
     {
+      "id": "clavicle.compact.real",
+      "slot": "clavicle",
+      "tier": 1,
+      "file": "clavicle.compact.real.glb",
+      "family": "compact",
+      "localGirth": 0.8243,
+      "triCount": 3534,
+      "aabb": {
+        "min": [
+          -0.34324167607654044,
+          0,
+          -0.4121677297280801
+        ],
+        "max": [
+          0.34324167607654044,
+          1,
+          0.4121677297280801
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/unitree_g1/assets/left_shoulder_pitch_link.STL",
+        "recipeId": "clavicle.compact.real"
+      }
+    },
+    {
       "id": "clavicle.coral.a",
       "slot": "clavicle",
       "tier": 1,
@@ -869,6 +895,33 @@
         "model": "Gen-2.5-Low",
         "seed": 51645,
         "recipeId": "clavicle.coral.b"
+      }
+    },
+    {
+      "id": "clavicle.digitigrade.real",
+      "slot": "clavicle",
+      "tier": 1,
+      "file": "clavicle.digitigrade.real.glb",
+      "family": "digitigrade",
+      "localGirth": 0.5416,
+      "triCount": 2022,
+      "aabb": {
+        "min": [
+          -0.2707907345805231,
+          0,
+          -0.09613330484939116
+        ],
+        "max": [
+          0.2707907345805231,
+          1,
+          0.09613330484939116
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/agility_cassie/assets/knee-spring.obj",
+        "recipeId": "clavicle.digitigrade.real"
       }
     },
     {
@@ -928,59 +981,30 @@
       }
     },
     {
-      "id": "clavicle.patrol.a",
+      "id": "clavicle.patrol.real",
       "slot": "clavicle",
       "tier": 1,
-      "file": "clavicle.patrol.a.glb",
+      "file": "clavicle.patrol.real.glb",
       "family": "patrol",
-      "localGirth": 0.5475,
-      "triCount": 2900,
+      "localGirth": 0.7276,
+      "triCount": 256,
       "aabb": {
         "min": [
-          -0.2737593650817871,
+          -0.26157414471877194,
           0,
-          -0.2630775570869446
+          -0.3638111514633625
         ],
         "max": [
-          0.2737593650817871,
+          0.26157414471877194,
           1,
-          0.2630775570869446
+          0.3638111514633625
         ]
       },
       "symmetry": "mirror",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 39351,
-        "recipeId": "clavicle.patrol.a"
-      }
-    },
-    {
-      "id": "clavicle.patrol.b",
-      "slot": "clavicle",
-      "tier": 2,
-      "file": "clavicle.patrol.b.glb",
-      "family": "patrol",
-      "localGirth": 0.5555,
-      "triCount": 2858,
-      "aabb": {
-        "min": [
-          -0.2777574360370636,
-          0,
-          -0.2697308361530304
-        ],
-        "max": [
-          0.2777574360370636,
-          1,
-          0.2697308361530304
-        ]
-      },
-      "symmetry": "mirror",
-      "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 39754,
-        "recipeId": "clavicle.patrol.b"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/anybotics_anymal_c/assets/hip_l.obj",
+        "recipeId": "clavicle.patrol.real"
       }
     },
     {
@@ -1348,31 +1372,30 @@
       }
     },
     {
-      "id": "foot.compact.a",
+      "id": "foot.compact.real",
       "slot": "foot",
       "tier": 1,
-      "file": "foot.compact.a.glb",
+      "file": "foot.compact.real.glb",
       "family": "compact",
-      "localGirth": 0.5205,
-      "triCount": 2998,
+      "localGirth": 0.3628,
+      "triCount": 5000,
       "aabb": {
         "min": [
-          -0.2380211353302002,
+          -0.18141727958006532,
           0,
-          -0.26023927330970764
+          -0.14168218024231696
         ],
         "max": [
-          0.2380211353302002,
+          0.18141727958006532,
           1,
-          0.26023927330970764
+          0.14168218024231696
         ]
       },
       "symmetry": "mirror",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 52779,
-        "recipeId": "foot.compact.a"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/unitree_g1/assets/left_ankle_roll_link.STL",
+        "recipeId": "foot.compact.real"
       }
     },
     {
@@ -1432,31 +1455,30 @@
       }
     },
     {
-      "id": "foot.digitigrade.a",
+      "id": "foot.digitigrade.real",
       "slot": "foot",
       "tier": 1,
-      "file": "foot.digitigrade.a.glb",
+      "file": "foot.digitigrade.real.glb",
       "family": "digitigrade",
-      "localGirth": 0.5157,
-      "triCount": 2938,
+      "localGirth": 0.8617,
+      "triCount": 1328,
       "aabb": {
         "min": [
-          -0.2337789088487625,
+          -0.09381389812921537,
           0,
-          -0.2578587532043457
+          -0.4308450575273904
         ],
         "max": [
-          0.2337789088487625,
+          0.09381389812921537,
           1,
-          0.2578587532043457
+          0.4308450575273904
         ]
       },
       "symmetry": "mirror",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 5769,
-        "recipeId": "foot.digitigrade.a"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/agility_cassie/assets/foot.obj",
+        "recipeId": "foot.digitigrade.real"
       }
     },
     {
@@ -1628,59 +1650,30 @@
       }
     },
     {
-      "id": "foot.patrol.a",
+      "id": "foot.patrol.real",
       "slot": "foot",
       "tier": 1,
-      "file": "foot.patrol.a.glb",
+      "file": "foot.patrol.real.glb",
       "family": "patrol",
-      "localGirth": 0.5351,
-      "triCount": 2940,
+      "localGirth": 0.7064,
+      "triCount": 46,
       "aabb": {
         "min": [
-          -0.2343893051147461,
+          -0.3531907101657155,
           0,
-          -0.26753342151641846
+          -0.015015106662190619
         ],
         "max": [
-          0.2343893051147461,
+          0.3531907101657155,
           1,
-          0.26753342151641846
+          0.015015106662190619
         ]
       },
       "symmetry": "mirror",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 54522,
-        "recipeId": "foot.patrol.a"
-      }
-    },
-    {
-      "id": "foot.patrol.b",
-      "slot": "foot",
-      "tier": 2,
-      "file": "foot.patrol.b.glb",
-      "family": "patrol",
-      "localGirth": 0.9279,
-      "triCount": 2848,
-      "aabb": {
-        "min": [
-          -0.4639260172843933,
-          0,
-          -0.3730391263961792
-        ],
-        "max": [
-          0.4639260172843933,
-          1,
-          0.3730391263961792
-        ]
-      },
-      "symmetry": "mirror",
-      "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 54119,
-        "recipeId": "foot.patrol.b"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/anybotics_anymal_c/assets/hatch.obj",
+        "recipeId": "foot.patrol.real"
       }
     },
     {
@@ -1880,6 +1873,33 @@
       }
     },
     {
+      "id": "foreArm.compact.real",
+      "slot": "foreArm",
+      "tier": 1,
+      "file": "foreArm.compact.real.glb",
+      "family": "compact",
+      "localGirth": 0.5795,
+      "triCount": 1774,
+      "aabb": {
+        "min": [
+          -0.2544328135013886,
+          0,
+          -0.2897732474745933
+        ],
+        "max": [
+          0.2544328135013886,
+          1,
+          0.2897732474745933
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/unitree_g1/assets/left_elbow_link.STL",
+        "recipeId": "foreArm.compact.real"
+      }
+    },
+    {
       "id": "foreArm.coral.a",
       "slot": "foreArm",
       "tier": 1,
@@ -1933,6 +1953,33 @@
         "model": "Gen-2.5-Low",
         "seed": 41456,
         "recipeId": "foreArm.coral.b"
+      }
+    },
+    {
+      "id": "foreArm.digitigrade.real",
+      "slot": "foreArm",
+      "tier": 1,
+      "file": "foreArm.digitigrade.real.glb",
+      "family": "digitigrade",
+      "localGirth": 0.295,
+      "triCount": 4980,
+      "aabb": {
+        "min": [
+          -0.08978545487838374,
+          0,
+          -0.14748069704275643
+        ],
+        "max": [
+          0.08978545487838374,
+          1,
+          0.14748069704275643
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/agility_cassie/assets/tarsus.obj",
+        "recipeId": "foreArm.digitigrade.real"
       }
     },
     {
@@ -1992,59 +2039,30 @@
       }
     },
     {
-      "id": "foreArm.patrol.a",
+      "id": "foreArm.patrol.real",
       "slot": "foreArm",
       "tier": 1,
-      "file": "foreArm.patrol.a.glb",
+      "file": "foreArm.patrol.real.glb",
       "family": "patrol",
-      "localGirth": 0.3016,
-      "triCount": 2968,
+      "localGirth": 0.6217,
+      "triCount": 1602,
       "aabb": {
         "min": [
-          -0.1507965624332428,
+          -0.1218298898281808,
           0,
-          -0.1424342393875122
+          -0.3108310190130314
         ],
         "max": [
-          0.1507965624332428,
+          0.1218298898281808,
           1,
-          0.1424342393875122
+          0.3108310190130314
         ]
       },
       "symmetry": "mirror",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 27156,
-        "recipeId": "foreArm.patrol.a"
-      }
-    },
-    {
-      "id": "foreArm.patrol.b",
-      "slot": "foreArm",
-      "tier": 2,
-      "file": "foreArm.patrol.b.glb",
-      "family": "patrol",
-      "localGirth": 0.3133,
-      "triCount": 2846,
-      "aabb": {
-        "min": [
-          -0.15665629506111145,
-          0,
-          -0.14432643353939056
-        ],
-        "max": [
-          0.15665629506111145,
-          1,
-          0.14432643353939056
-        ]
-      },
-      "symmetry": "mirror",
-      "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 28365,
-        "recipeId": "foreArm.patrol.b"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/anybotics_anymal_c/assets/shank_r.obj",
+        "recipeId": "foreArm.patrol.real"
       }
     },
     {
@@ -2160,6 +2178,33 @@
       }
     },
     {
+      "id": "hand.compact.real",
+      "slot": "hand",
+      "tier": 1,
+      "file": "hand.compact.real.glb",
+      "family": "compact",
+      "localGirth": 0.8074,
+      "triCount": 5000,
+      "aabb": {
+        "min": [
+          -0.2521134067812128,
+          0,
+          -0.4036835840937529
+        ],
+        "max": [
+          0.2521134067812128,
+          1,
+          0.4036835840937529
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/unitree_g1/assets/left_rubber_hand.STL",
+        "recipeId": "hand.compact.real"
+      }
+    },
+    {
       "id": "hand.coral.a",
       "slot": "hand",
       "tier": 1,
@@ -2213,6 +2258,33 @@
         "model": "Gen-2.5-Low",
         "seed": 44699,
         "recipeId": "hand.coral.b"
+      }
+    },
+    {
+      "id": "hand.digitigrade.real",
+      "slot": "hand",
+      "tier": 1,
+      "file": "hand.digitigrade.real.glb",
+      "family": "digitigrade",
+      "localGirth": 0.5301,
+      "triCount": 665,
+      "aabb": {
+        "min": [
+          -0.1564531388286996,
+          0,
+          -0.26505325479903563
+        ],
+        "max": [
+          0.1564531388286996,
+          1,
+          0.26505325479903563
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/agility_cassie/assets/foot-crank.obj",
+        "recipeId": "hand.digitigrade.real"
       }
     },
     {
@@ -2272,59 +2344,30 @@
       }
     },
     {
-      "id": "hand.patrol.a",
+      "id": "hand.patrol.real",
       "slot": "hand",
       "tier": 1,
-      "file": "hand.patrol.a.glb",
+      "file": "hand.patrol.real.glb",
       "family": "patrol",
-      "localGirth": 0.6147,
-      "triCount": 2888,
+      "localGirth": 0.681,
+      "triCount": 196,
       "aabb": {
         "min": [
-          -0.24879448115825653,
+          -0.32773827326273386,
           0,
-          -0.30733078718185425
+          -0.34049501022370066
         ],
         "max": [
-          0.24879448115825653,
+          0.32773827326273386,
           1,
-          0.30733078718185425
+          0.34049501022370066
         ]
       },
       "symmetry": "mirror",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 53793,
-        "recipeId": "hand.patrol.a"
-      }
-    },
-    {
-      "id": "hand.patrol.b",
-      "slot": "hand",
-      "tier": 2,
-      "file": "hand.patrol.b.glb",
-      "family": "patrol",
-      "localGirth": 0.6267,
-      "triCount": 2984,
-      "aabb": {
-        "min": [
-          -0.2504425346851349,
-          0,
-          -0.3133430778980255
-        ],
-        "max": [
-          0.2504425346851349,
-          1,
-          0.3133430778980255
-        ]
-      },
-      "symmetry": "mirror",
-      "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 52584,
-        "recipeId": "hand.patrol.b"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/anybotics_anymal_c/assets/drive.obj",
+        "recipeId": "hand.patrol.real"
       }
     },
     {
@@ -2692,31 +2735,30 @@
       }
     },
     {
-      "id": "head.compact.a",
+      "id": "head.compact.real",
       "slot": "head",
       "tier": 1,
-      "file": "head.compact.a.glb",
+      "file": "head.compact.real.glb",
       "family": "compact",
-      "localGirth": 0.999,
-      "triCount": 2916,
+      "localGirth": 0.7562,
+      "triCount": 5000,
       "aabb": {
         "min": [
-          -0.45864614844322205,
+          -0.34098330637531665,
           0,
-          -0.4994811713695526
+          -0.37810907315286724
         ],
         "max": [
-          0.45864614844322205,
+          0.34098330637531665,
           1,
-          0.4994811713695526
+          0.37810907315286724
         ]
       },
       "symmetry": "none",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 31105,
-        "recipeId": "head.compact.a"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/unitree_g1/assets/head_link.STL",
+        "recipeId": "head.compact.real"
       }
     },
     {
@@ -2776,31 +2818,30 @@
       }
     },
     {
-      "id": "head.digitigrade.a",
+      "id": "head.digitigrade.real",
       "slot": "head",
       "tier": 1,
-      "file": "head.digitigrade.a.glb",
+      "file": "head.digitigrade.real.glb",
       "family": "digitigrade",
-      "localGirth": 0.9264,
-      "triCount": 2976,
+      "localGirth": 0.8232,
+      "triCount": 1598,
       "aabb": {
         "min": [
-          -0.4631935656070709,
+          -0.41161839655751215,
           0,
-          -0.2819080650806427
+          -0.2967314676351207
         ],
         "max": [
-          0.4631935656070709,
+          0.41161839655751215,
           1,
-          0.2819080650806427
+          0.2967314676351207
         ]
       },
       "symmetry": "none",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 28971,
-        "recipeId": "head.digitigrade.a"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/agility_cassie/assets/hip-yaw.obj",
+        "recipeId": "head.digitigrade.real"
       }
     },
     {
@@ -2972,59 +3013,30 @@
       }
     },
     {
-      "id": "head.patrol.a",
+      "id": "head.patrol.real",
       "slot": "head",
       "tier": 1,
-      "file": "head.patrol.a.glb",
+      "file": "head.patrol.real.glb",
       "family": "patrol",
-      "localGirth": 0.9296,
-      "triCount": 4814,
+      "localGirth": 0.5813,
+      "triCount": 4999,
       "aabb": {
         "min": [
-          -0.4067230522632599,
+          -0.18013550218207341,
           0,
-          -0.4648219645023346
+          -0.2906277657399213
         ],
         "max": [
-          0.4067230522632599,
+          0.18013550218207341,
           1,
-          0.4648219645023346
+          0.2906277657399213
         ]
       },
       "symmetry": "none",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 43464,
-        "recipeId": "head.patrol.a"
-      }
-    },
-    {
-      "id": "head.patrol.b",
-      "slot": "head",
-      "tier": 2,
-      "file": "head.patrol.b.glb",
-      "family": "patrol",
-      "localGirth": 0.9304,
-      "triCount": 2890,
-      "aabb": {
-        "min": [
-          -0.4406091868877411,
-          0,
-          -0.4651773273944855
-        ],
-        "max": [
-          0.4406091868877411,
-          1,
-          0.4651773273944855
-        ]
-      },
-      "symmetry": "none",
-      "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 44673,
-        "recipeId": "head.patrol.b"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/anybotics_anymal_c/assets/face.obj",
+        "recipeId": "head.patrol.real"
       }
     },
     {
@@ -3476,31 +3488,30 @@
       }
     },
     {
-      "id": "joint.compact.a",
+      "id": "joint.compact.real",
       "slot": "joint",
       "tier": 1,
-      "file": "joint.compact.a.glb",
+      "file": "joint.compact.real.glb",
       "family": "compact",
-      "localGirth": 0.9843,
-      "triCount": 2988,
+      "localGirth": 0.9613,
+      "triCount": 1422,
       "aabb": {
         "min": [
-          -0.4921259880065918,
+          -0.4806512649922178,
           0,
-          -0.28770679235458374
+          -0.17360454115421003
         ],
         "max": [
-          0.4921259880065918,
+          0.4806512649922178,
           1,
-          0.28770679235458374
+          0.17360454115421003
         ]
       },
       "symmetry": "none",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 46365,
-        "recipeId": "joint.compact.a"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/unitree_g1/assets/left_ankle_pitch_link.STL",
+        "recipeId": "joint.compact.real"
       }
     },
     {
@@ -3560,31 +3571,30 @@
       }
     },
     {
-      "id": "joint.digitigrade.a",
+      "id": "joint.digitigrade.real",
       "slot": "joint",
       "tier": 1,
-      "file": "joint.digitigrade.a.glb",
+      "file": "joint.digitigrade.real.glb",
       "family": "digitigrade",
-      "localGirth": 0.9902,
-      "triCount": 2810,
+      "localGirth": 0.9291,
+      "triCount": 3050,
       "aabb": {
         "min": [
-          -0.4950864017009735,
+          -0.39922788171025725,
           0,
-          -0.490935742855072
+          -0.46453749198889127
         ],
         "max": [
-          0.4950864017009735,
+          0.39922788171025725,
           1,
-          0.490935742855072
+          0.46453749198889127
         ]
       },
       "symmetry": "none",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 44975,
-        "recipeId": "joint.digitigrade.a"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/agility_cassie/assets/hip-roll.obj",
+        "recipeId": "joint.digitigrade.real"
       }
     },
     {
@@ -3756,59 +3766,30 @@
       }
     },
     {
-      "id": "joint.patrol.a",
+      "id": "joint.patrol.real",
       "slot": "joint",
       "tier": 1,
-      "file": "joint.patrol.a.glb",
+      "file": "joint.patrol.real.glb",
       "family": "patrol",
-      "localGirth": 0.9882,
-      "triCount": 2912,
+      "localGirth": 0.9985,
+      "triCount": 232,
       "aabb": {
         "min": [
-          -0.49407923221588135,
+          -0.4992675557725761,
           0,
-          -0.34389305114746094
+          -0.3534348582415235
         ],
         "max": [
-          0.49407923221588135,
+          0.4992675557725761,
           1,
-          0.34389305114746094
+          0.3534348582415235
         ]
       },
       "symmetry": "none",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 44476,
-        "recipeId": "joint.patrol.a"
-      }
-    },
-    {
-      "id": "joint.patrol.b",
-      "slot": "joint",
-      "tier": 2,
-      "file": "joint.patrol.b.glb",
-      "family": "patrol",
-      "localGirth": 0.9954,
-      "triCount": 2876,
-      "aabb": {
-        "min": [
-          -0.49768051505088806,
-          0,
-          -0.35152295231819153
-        ],
-        "max": [
-          0.49768051505088806,
-          1,
-          0.35152295231819153
-        ]
-      },
-      "symmetry": "none",
-      "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 45685,
-        "recipeId": "joint.patrol.b"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/anybotics_anymal_c/assets/lidar.obj",
+        "recipeId": "joint.patrol.real"
       }
     },
     {
@@ -4260,31 +4241,30 @@
       }
     },
     {
-      "id": "shin.compact.a",
+      "id": "shin.compact.real",
       "slot": "shin",
       "tier": 1,
-      "file": "shin.compact.a.glb",
+      "file": "shin.compact.real.glb",
       "family": "compact",
-      "localGirth": 0.3286,
-      "triCount": 2932,
+      "localGirth": 0.2923,
+      "triCount": 5000,
       "aabb": {
         "min": [
-          -0.16431665420532227,
+          -0.14613788262581257,
           0,
-          -0.16395042836666107
+          -0.10083315530869472
         ],
         "max": [
-          0.16431665420532227,
+          0.14613788262581257,
           1,
-          0.16395042836666107
+          0.10083315530869472
         ]
       },
       "symmetry": "mirror",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 3251,
-        "recipeId": "shin.compact.a"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/unitree_g1/assets/left_knee_link.STL",
+        "recipeId": "shin.compact.real"
       }
     },
     {
@@ -4344,31 +4324,30 @@
       }
     },
     {
-      "id": "shin.digitigrade.a",
+      "id": "shin.digitigrade.real",
       "slot": "shin",
       "tier": 1,
-      "file": "shin.digitigrade.a.glb",
+      "file": "shin.digitigrade.real.glb",
       "family": "digitigrade",
-      "localGirth": 0.8623,
-      "triCount": 2764,
+      "localGirth": 0.208,
+      "triCount": 4999,
       "aabb": {
         "min": [
-          -0.43114814162254333,
+          -0.08563493758964812,
           0,
-          -0.1708478331565857
+          -0.10400708029419843
         ],
         "max": [
-          0.43114814162254333,
+          0.08563493758964812,
           1,
-          0.1708478331565857
+          0.10400708029419843
         ]
       },
       "symmetry": "mirror",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 45889,
-        "recipeId": "shin.digitigrade.a"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/agility_cassie/assets/shin.obj",
+        "recipeId": "shin.digitigrade.real"
       }
     },
     {
@@ -4540,59 +4519,30 @@
       }
     },
     {
-      "id": "shin.patrol.a",
+      "id": "shin.patrol.real",
       "slot": "shin",
       "tier": 1,
-      "file": "shin.patrol.a.glb",
+      "file": "shin.patrol.real.glb",
       "family": "patrol",
-      "localGirth": 0.3404,
-      "triCount": 2922,
+      "localGirth": 0.6217,
+      "triCount": 1602,
       "aabb": {
         "min": [
-          -0.1702069193124771,
+          -0.1218298898281808,
           0,
-          -0.15543551743030548
+          -0.3108310190130314
         ],
         "max": [
-          0.1702069193124771,
+          0.1218298898281808,
           1,
-          0.15543551743030548
+          0.3108310190130314
         ]
       },
       "symmetry": "mirror",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 28370,
-        "recipeId": "shin.patrol.a"
-      }
-    },
-    {
-      "id": "shin.patrol.b",
-      "slot": "shin",
-      "tier": 2,
-      "file": "shin.patrol.b.glb",
-      "family": "patrol",
-      "localGirth": 0.3473,
-      "triCount": 2914,
-      "aabb": {
-        "min": [
-          -0.17365561425685883,
-          0,
-          -0.1593419909477234
-        ],
-        "max": [
-          0.17365561425685883,
-          1,
-          0.1593419909477234
-        ]
-      },
-      "symmetry": "mirror",
-      "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 27967,
-        "recipeId": "shin.patrol.b"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/anybotics_anymal_c/assets/shank_l.obj",
+        "recipeId": "shin.patrol.real"
       }
     },
     {
@@ -5072,31 +5022,30 @@
       }
     },
     {
-      "id": "spine.compact.a",
+      "id": "spine.compact.real",
       "slot": "spine",
       "tier": 1,
-      "file": "spine.compact.a.glb",
+      "file": "spine.compact.real.glb",
       "family": "compact",
-      "localGirth": 0.8433,
-      "triCount": 2864,
+      "localGirth": 0.6723,
+      "triCount": 4982,
       "aabb": {
         "min": [
-          -0.42165660858154297,
+          -0.23384807885982847,
           0,
-          -0.2623756229877472
+          -0.33616138187810907
         ],
         "max": [
-          0.42165660858154297,
+          0.23384807885982847,
           1,
-          0.2623756229877472
+          0.33616138187810907
         ]
       },
       "symmetry": "none",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 31826,
-        "recipeId": "spine.compact.a"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/unitree_g1/assets/torso_link_rev_1_0.STL",
+        "recipeId": "spine.compact.real"
       }
     },
     {
@@ -5156,31 +5105,30 @@
       }
     },
     {
-      "id": "spine.digitigrade.a",
+      "id": "spine.digitigrade.real",
       "slot": "spine",
       "tier": 1,
-      "file": "spine.digitigrade.a.glb",
+      "file": "spine.digitigrade.real.glb",
       "family": "digitigrade",
-      "localGirth": 0.8529,
-      "triCount": 2940,
+      "localGirth": 0.5996,
+      "triCount": 4918,
       "aabb": {
         "min": [
-          -0.42644813656806946,
+          -0.2997833185827204,
           0,
-          -0.26481717824935913
+          -0.28202154606769003
         ],
         "max": [
-          0.42644813656806946,
+          0.2997833185827204,
           1,
-          0.26481717824935913
+          0.28202154606769003
         ]
       },
       "symmetry": "none",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 12788,
-        "recipeId": "spine.digitigrade.a"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/agility_cassie/assets/pelvis.obj",
+        "recipeId": "spine.digitigrade.real"
       }
     },
     {
@@ -5352,59 +5300,30 @@
       }
     },
     {
-      "id": "spine.patrol.a",
+      "id": "spine.patrol.real",
       "slot": "spine",
       "tier": 1,
-      "file": "spine.patrol.a.glb",
+      "file": "spine.patrol.real.glb",
       "family": "patrol",
-      "localGirth": 0.8541,
-      "triCount": 2866,
+      "localGirth": 0.5142,
+      "triCount": 5000,
       "aabb": {
         "min": [
-          -0.42702803015708923,
+          -0.25711844233527636,
           0,
-          -0.26429834961891174
+          -0.09448530533768731
         ],
         "max": [
-          0.42702803015708923,
+          0.25711844233527636,
           1,
-          0.26429834961891174
+          0.09448530533768731
         ]
       },
       "symmetry": "none",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 51637,
-        "recipeId": "spine.patrol.a"
-      }
-    },
-    {
-      "id": "spine.patrol.b",
-      "slot": "spine",
-      "tier": 2,
-      "file": "spine.patrol.b.glb",
-      "family": "patrol",
-      "localGirth": 0.8458,
-      "triCount": 2946,
-      "aabb": {
-        "min": [
-          -0.42287737131118774,
-          0,
-          -0.2650003135204315
-        ],
-        "max": [
-          0.42287737131118774,
-          1,
-          0.2650003135204315
-        ]
-      },
-      "symmetry": "none",
-      "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 50428,
-        "recipeId": "spine.patrol.b"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/anybotics_anymal_c/assets/top_shell.obj",
+        "recipeId": "spine.patrol.real"
       }
     },
     {
@@ -5632,6 +5551,33 @@
       }
     },
     {
+      "id": "thigh.compact.real",
+      "slot": "thigh",
+      "tier": 1,
+      "file": "thigh.compact.real.glb",
+      "family": "compact",
+      "localGirth": 0.7941,
+      "triCount": 5000,
+      "aabb": {
+        "min": [
+          -0.39703054902798546,
+          0,
+          -0.19600512710959198
+        ],
+        "max": [
+          0.39703054902798546,
+          1,
+          0.19600512710959198
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/unitree_g1/assets/left_hip_yaw_link.STL",
+        "recipeId": "thigh.compact.real"
+      }
+    },
+    {
       "id": "thigh.coral.a",
       "slot": "thigh",
       "tier": 1,
@@ -5685,6 +5631,33 @@
         "model": "Gen-2.5-Low",
         "seed": 36672,
         "recipeId": "thigh.coral.b"
+      }
+    },
+    {
+      "id": "thigh.digitigrade.real",
+      "slot": "thigh",
+      "tier": 1,
+      "file": "thigh.digitigrade.real.glb",
+      "family": "digitigrade",
+      "localGirth": 0.9193,
+      "triCount": 1522,
+      "aabb": {
+        "min": [
+          -0.4596545304727317,
+          0,
+          -0.19606616412854397
+        ],
+        "max": [
+          0.4596545304727317,
+          1,
+          0.19606616412854397
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/agility_cassie/assets/knee.obj",
+        "recipeId": "thigh.digitigrade.real"
       }
     },
     {
@@ -5744,59 +5717,30 @@
       }
     },
     {
-      "id": "thigh.patrol.a",
+      "id": "thigh.patrol.real",
       "slot": "thigh",
       "tier": 1,
-      "file": "thigh.patrol.a.glb",
+      "file": "thigh.patrol.real.glb",
       "family": "patrol",
-      "localGirth": 0.395,
-      "triCount": 2840,
+      "localGirth": 0.3332,
+      "triCount": 1848,
       "aabb": {
         "min": [
-          -0.19749128818511963,
+          -0.16658528397473069,
           0,
-          -0.1822315752506256
+          -0.12219611194189275
         ],
         "max": [
-          0.19749128818511963,
+          0.16658528397473069,
           1,
-          0.1822315752506256
+          0.12219611194189275
         ]
       },
       "symmetry": "mirror",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 62212,
-        "recipeId": "thigh.patrol.a"
-      }
-    },
-    {
-      "id": "thigh.patrol.b",
-      "slot": "thigh",
-      "tier": 2,
-      "file": "thigh.patrol.b.glb",
-      "family": "patrol",
-      "localGirth": 0.3903,
-      "triCount": 2984,
-      "aabb": {
-        "min": [
-          -0.19514131546020508,
-          0,
-          -0.18934261798858643
-        ],
-        "max": [
-          0.19514131546020508,
-          1,
-          0.18934261798858643
-        ]
-      },
-      "symmetry": "mirror",
-      "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 63421,
-        "recipeId": "thigh.patrol.b"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/anybotics_anymal_c/assets/thigh.obj",
+        "recipeId": "thigh.patrol.real"
       }
     },
     {
@@ -6164,31 +6108,30 @@
       }
     },
     {
-      "id": "upperArm.compact.a",
+      "id": "upperArm.compact.real",
       "slot": "upperArm",
       "tier": 1,
-      "file": "upperArm.compact.a.glb",
+      "file": "upperArm.compact.real.glb",
       "family": "compact",
-      "localGirth": 0.3197,
-      "triCount": 2948,
+      "localGirth": 0.5589,
+      "triCount": 4982,
       "aabb": {
         "min": [
-          -0.15983031690120697,
+          -0.2794579912717063,
           0,
-          -0.15598486363887787
+          -0.2565080721457564
         ],
         "max": [
-          0.15983031690120697,
+          0.2794579912717063,
           1,
-          0.15598486363887787
+          0.2565080721457564
         ]
       },
       "symmetry": "mirror",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 47677,
-        "recipeId": "upperArm.compact.a"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/unitree_g1/assets/left_shoulder_yaw_link.STL",
+        "recipeId": "upperArm.compact.real"
       }
     },
     {
@@ -6248,31 +6191,30 @@
       }
     },
     {
-      "id": "upperArm.digitigrade.a",
+      "id": "upperArm.digitigrade.real",
       "slot": "upperArm",
       "tier": 1,
-      "file": "upperArm.digitigrade.a.glb",
+      "file": "upperArm.digitigrade.real.glb",
       "family": "digitigrade",
-      "localGirth": 0.9825,
-      "triCount": 2948,
+      "localGirth": 0.7154,
+      "triCount": 4988,
       "aabb": {
         "min": [
-          -0.491271436214447,
+          -0.3577074495681631,
           0,
-          -0.1584874540567398
+          -0.2892849513229774
         ],
         "max": [
-          0.491271436214447,
+          0.3577074495681631,
           1,
-          0.1584874540567398
+          0.2892849513229774
         ]
       },
       "symmetry": "mirror",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 46159,
-        "recipeId": "upperArm.digitigrade.a"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/agility_cassie/assets/hip-pitch.obj",
+        "recipeId": "upperArm.digitigrade.real"
       }
     },
     {
@@ -6444,59 +6386,30 @@
       }
     },
     {
-      "id": "upperArm.patrol.a",
+      "id": "upperArm.patrol.real",
       "slot": "upperArm",
       "tier": 1,
-      "file": "upperArm.patrol.a.glb",
+      "file": "upperArm.patrol.real.glb",
       "family": "patrol",
-      "localGirth": 0.3176,
-      "triCount": 2834,
+      "localGirth": 0.3332,
+      "triCount": 1848,
       "aabb": {
         "min": [
-          -0.1503387689590454,
+          -0.16658528397473069,
           0,
-          -0.1587926596403122
+          -0.12219611194189275
         ],
         "max": [
-          0.1503387689590454,
+          0.16658528397473069,
           1,
-          0.1587926596403122
+          0.12219611194189275
         ]
       },
       "symmetry": "mirror",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 64860,
-        "recipeId": "upperArm.patrol.a"
-      }
-    },
-    {
-      "id": "upperArm.patrol.b",
-      "slot": "upperArm",
-      "tier": 2,
-      "file": "upperArm.patrol.b.glb",
-      "family": "patrol",
-      "localGirth": 0.326,
-      "triCount": 2796,
-      "aabb": {
-        "min": [
-          -0.1630043387413025,
-          0,
-          -0.14862966537475586
-        ],
-        "max": [
-          0.1630043387413025,
-          1,
-          0.14862966537475586
-        ]
-      },
-      "symmetry": "mirror",
-      "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 533,
-        "recipeId": "upperArm.patrol.b"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/anybotics_anymal_c/assets/thigh.obj",
+        "recipeId": "upperArm.patrol.real"
       }
     },
     {

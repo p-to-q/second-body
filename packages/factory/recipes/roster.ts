@@ -133,7 +133,13 @@ const RE_ANCHOR: Record<string, number> = { digitigrade: 1, wheelleg: 1, autonom
 const BODY_PLAN: Record<string, RosterEntry['bodyPlan']> = {
   // ── 换拓扑 ────────────────────────────────────────────────────────────
   patrol: 'quadruped',                                  // 四足机的语言长在人身上
-  digitigrade: { kind: 'quadruped', leg: 1.28, arm: 1.1 }, // 鸟腿：细长的反关节后腿
+  // 鸟腿：细长的反关节腿 + 人的上半身。
+  // **它曾经是 `quadruped`，那是一个实质性错判**（docs/31 §4.1）：Digit 和
+  // 同拓扑的 Cassie 都是**两足**。做成四足，`arm: 1.1` 这个参数就没有落点了
+  // （四足没有手臂），而"人的手 / 鸟的腿"这句 tagline 也就没有对比了 ——
+  // 四足本来就都是兽腿。改回两足（kind 缺省即 'rig'）只留比例：腿拉长、手臂略长。
+  // 这一轮它整具换成了 Cassie 的真实几何，正好一起把拓扑改对。
+  digitigrade: { leg: 1.28, arm: 1.1 },
   wheelleg: { kind: 'quadruped', limb: 0.85, torso: 1.1 },
   petbot: { kind: 'quadruped', limb: 0.7, torso: 1.12 },   // 机器宠物：小一号的四足
   compact: 'stub',                                      // "人形，但只有一米三"
@@ -333,7 +339,10 @@ export const CHARACTERS: RosterEntry[] = [
   C('char.idol', '偶像', 'Idol', '一个被做成周边的你',
     '光滑、饱和、无瑕疵 —— 玩具化的身体。它问的是：把自己变成商品是什么感觉。',
     'a glossy vinyl figure body part: highly saturated candy-coloured plastic with a thick clear-coat sheen, chunky toy proportions, visible mould parting line, collectible figure finish',
-    ['ceramic.pearl', 'paint.hazard', 'glow.signal'], 0.85, 0.6, 'compact'),
+    // base 从 compact 改成 porcelain：compact 已经整具换成 G1 的真实几何（docs/26 §H），
+    // 再从它借件，就等于把真 CAD 穿插进一个**想象出来的**角色身上 ——
+    // 那正是"按物种整体换，不按槽位穿插"要避免的事。角色只能从生成件借。
+    ['ceramic.pearl', 'paint.hazard', 'glow.signal'], 0.85, 0.6, 'porcelain'),
 ];
 
 for (const e of ARCHETYPES) if (RE_ANCHOR[e.id]) e.seedSalt = RE_ANCHOR[e.id];
