@@ -32,8 +32,8 @@
    §S0 的降级提示只在启动那 4 秒里出现，那时按钮还没挂上，不会打架。 */
 .sb-notice--bottom-right { right: var(--sb-safe); text-align: right; }
 
-.sb-notice .sb-zh { color: var(--sb-ink); }
-.sb-notice .sb-en { color: var(--sb-ink-dim); }
+.sb-notice .sb-zh { color: var(--sb-on-stage); }
+.sb-notice .sb-en { color: var(--sb-on-stage-dim); }
 
 .sb-notice.is-leaving {
   opacity: 0;

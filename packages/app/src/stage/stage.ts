@@ -433,7 +433,30 @@ export function createStage(opt: StageOptions = {}): Stage {
   }
   scene.onBeforeRender = ((r: THREE.Renderer) => { adopt(r); }) as unknown as THREE.Scene['onBeforeRender'];
 
+  /**
+   * 把舞台底色的亮度发布成 CSS 变量，供**叠在画布上的那几层**取用
+   *（物种名牌 `shell/notice.css`、右上角目录 `ui/nav.css`）。
+   *
+   * 为什么需要它：那几层的颜色原来写死成 `--sb-ink`（浅灰，为深底设计）。
+   * 场景那条线做出了 `gallery` 白展厅之后，两边各自都是对的 ——
+   * 合在一起，白底上的浅灰字**几乎看不见**。
+   *
+   * 不去翻 `--sb-ink` 本身：它是全站共用的，文档页（深底）还要用它。
+   * 这里只覆盖 `--sb-on-stage`，而它的缺省值就是 `--sb-ink` ——
+   * 于是不在舞台上的页面一个字都不用改。
+   */
+  function publishStageInk(): void {
+    // 线性 RGB 的相对亮度。阈值 0.18 是"中灰"，两侧都留足对比
+    const [r, g, b] = look.bgBottom;
+    const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    const dark = lum < 0.18;
+    const root = document.documentElement.style;
+    root.setProperty('--sb-on-stage', dark ? '#dfe4ea' : '#1a1d21');
+    root.setProperty('--sb-on-stage-dim', dark ? '#9aa0a6' : '#5b6168');
+  }
+
   function applyLook(): void {
+    publishStageInk();
     setColor(key.color, look.key);
     setColor(fill.color, look.fill);
     setColor(rim.color, look.rim);

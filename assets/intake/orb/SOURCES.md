@@ -32,3 +32,17 @@ Samsung Newsroom 的「Press Resources」区通常同时放场景图和**纯产�
 
 按上面的路线逐条试。**不要为了凑数随便抓一张** —— 
 这个条目现在走纯文字 prompt（见同目录 `prompt.md`）是正确的状态，不是缺口。
+
+---
+
+## AI 生成参考图（2026-09-13 追加）
+
+| 文件 | 来源 | 版权 | 说明 |
+|---|---|---|---|
+| `spherical-ambient-home-robot.png` | MiniMax Design 图片生成（Design Image 2.5 Sunburst），2026-09-13 | AI 生成，无第三方权利 | 2496×1664。见下方 prompt 原文与生成记录。 |
+
+**提交的 prompt 原文：**
+
+> A studio product photograph of a spherical ambient home robot: a single smooth matte-white sphere about the size of a bowling ball, one subtle dark lens inset flush with the surface, a fine seam ring around its equator, no limbs, no face, no logo, no text. Plain flat light-grey seamless studio background, soft even diffuse lighting, no hard shadows, no stand, single object centred with margin.
+
+**生成记录：** 一次生成、一次采用。任务给的 prompt 原样提交。上面 Samsung 官方图那一节记的问题（客厅场景/真人/硬阴影）在这张上全部不存在：纯球体、浅灰无缝背景、赤道分模线和单只暗镜头都在。

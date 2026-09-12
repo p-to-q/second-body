@@ -83,6 +83,13 @@
   --sb-accent: #7fb3d5;
   --sb-warn: #e0455a;
 
+  /* 叠在舞台画布上的那几层用它，而不是 --sb-ink。
+     舞台会按当前场景的底色亮度覆盖它（见 stage.ts 的 publishStageInk）——
+     白展厅下浅灰字看不见，这个变量就是为那件事存在的。
+     缺省等于 --sb-ink，所以不在舞台上的页面不受影响。 */
+  --sb-on-stage: #dfe4ea;
+  --sb-on-stage-dim: #9aa0a6;
+
   /* ── 栅格：Typographic Style 的骨架 ───────────────────────────────── */
   --sb-gutter: 24px;
   --sb-safe: 48px;              /* 投影会切边，安全区不能小于这个数 */
