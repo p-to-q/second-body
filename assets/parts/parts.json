@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-09-12T19:49:07.086Z",
+  "generatedAt": "2026-09-12T19:59:15.178Z",
   "units": "meters",
   "convention": {
     "axis": "+Y",
@@ -98,8 +98,8 @@
       },
       "coverage": "full",
       "bodyPlan": {
+        "kind": "inverted",
         "limb": 1.18,
-        "torso": 0.92,
         "head": 1.15
       }
     },
@@ -317,9 +317,9 @@
       "coverage": "light",
       "base": "porcelain",
       "bodyPlan": {
-        "limb": 0.25,
-        "torso": 2,
-        "head": 0.6
+        "kind": "radial",
+        "limb": 0.75,
+        "torso": 1.15
       }
     },
     {
@@ -342,9 +342,10 @@
       "coverage": "light",
       "base": "porcelain",
       "bodyPlan": {
+        "kind": "column",
         "head": 1.9,
-        "torso": 0.95,
-        "limb": 0.8
+        "arm": 0.6,
+        "leg": 0.5
       }
     },
     {
@@ -367,9 +368,8 @@
       "coverage": "light",
       "base": "porcelain",
       "bodyPlan": {
-        "limb": 0.2,
-        "torso": 2.2,
-        "head": 0.4
+        "kind": "radial",
+        "limb": 1.15
       }
     },
     {
@@ -392,9 +392,9 @@
       "coverage": "light",
       "base": "porcelain",
       "bodyPlan": {
-        "arm": 1.5,
-        "leg": 0.82,
-        "torso": 0.95
+        "kind": "column",
+        "arm": 1.45,
+        "leg": 0.92
       }
     },
     {
@@ -417,9 +417,9 @@
       "coverage": "light",
       "base": "porcelain",
       "bodyPlan": {
-        "limb": 0.5,
-        "torso": 1.6,
-        "head": 0.7
+        "kind": "quadruped",
+        "limb": 0.45,
+        "torso": 1.35
       }
     },
     {
@@ -530,7 +530,8 @@
         "lifeLike": 0.4
       },
       "coverage": "light",
-      "base": "porcelain"
+      "base": "porcelain",
+      "bodyPlan": "towering"
     },
     {
       "id": "char.idol",
@@ -632,6 +633,76 @@
         "head": 2.1,
         "limb": 0.3,
         "torso": 0.9
+      }
+    },
+    {
+      "id": "guest.keynote",
+      "kind": "character",
+      "name": "发布会",
+      "nameEn": "Keynote",
+      "tagline": "舞台上的那套制服",
+      "taglineEn": "The uniform worn on stage",
+      "palette": [
+        "matte.ash",
+        "matte.bone",
+        "metal.graphite"
+      ],
+      "source": "rodin",
+      "axes": {
+        "humanLike": 1,
+        "lifeLike": 0.55
+      },
+      "coverage": "light",
+      "base": "porcelain"
+    },
+    {
+      "id": "char.tokusatsu",
+      "kind": "character",
+      "name": "特摄",
+      "nameEn": "Tokusatsu",
+      "tagline": "一件被人穿着的光",
+      "taglineEn": "A light with a person inside it",
+      "palette": [
+        "metal.graphite",
+        "paint.hazard",
+        "glow.signal"
+      ],
+      "source": "rodin",
+      "axes": {
+        "humanLike": 0.95,
+        "lifeLike": 0.5
+      },
+      "coverage": "light",
+      "base": "industrial",
+      "bodyPlan": {
+        "limb": 1.08,
+        "torso": 1.05,
+        "head": 0.92
+      }
+    },
+    {
+      "id": "char.painting",
+      "kind": "character",
+      "name": "画",
+      "nameEn": "Painting",
+      "tagline": "一幅画站了起来",
+      "taglineEn": "A painting that stood up",
+      "palette": [
+        "matte.ash",
+        "matte.bone",
+        "ceramic.pearl"
+      ],
+      "source": "rodin",
+      "axes": {
+        "humanLike": 1,
+        "lifeLike": 0.65
+      },
+      "coverage": "light",
+      "base": "porcelain",
+      "bodyPlan": {
+        "torso": 1.12,
+        "limb": 0.95,
+        "head": 0.95
       }
     }
   ],

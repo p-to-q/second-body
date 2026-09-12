@@ -8,7 +8,7 @@
 
 最后更新：2026-09-13（声音四层落地后）
 最后更新：2026-09-13（T-17 慢回路服务端落地后）
-最后更新：2026-09-12（B 档身体方案 `mass` 落地后）
+最后更新：2026-09-13（A 档新拓扑 `radial` / `column` 落地、六个条目重新分配之后）
 最后更新：2026-09-12（T-16 kiosk 加固 + 录制页落地后）
 最后更新：2026-09-12（T-09 Stage 落地后）
 
@@ -27,7 +27,8 @@
 | **页面目录 `/dev/index.html`** | `stable` | 列出全部可见页面，每条一句"它能回答什么问题"，分 作品 / 档案 / 工作台 三组。截图 `scratch/evidence/ui-index.png` |
 | **`/dev/*.html` 真的进 dist** | `stable` | 以前 vite 只把根 `index.html` 当入口，`/dev/*` **从来没进过产物** —— 本机好好的，部署上去全 404。现在 `build.rollupOptions.input` 扫 `dev/` 自动收全部 html（新增一页不用改配置）。`npm run build` 后 `dist/dev/` 有 10 个 html，`vite preview` 上 `/dev/parts.html` 实打开 |
 | 素材策展 `curation.json` / `factory:curate` | `stable` | 第一遍人工过筛：10 件 reject（digitigrade 全 6 件多物体、wheelleg/autonomous 的 spine、head.softwear.a、joint.patrol.a），0 件 keep —— keep 是审美判断，留给项目负责人 |
-| 装配预览 `/dev/figure.html`（合成 A-pose × 运行时 PartLibrary/Creature） | `stable` | 已改为驱动真正的运行时模块；`?theme=&seed=&tier=&debug=1`，porcelain/industrial/coral 截图见 `scratch/evidence/creature-*.png`；它抓到了「头被颈骨压扁」这个真 bug |
+| 装配预览 `/dev/figure.html`（合成 A-pose × 运行时 PartLibrary/Creature） | `stable` | 已改为驱动真正的运行时模块；`?theme=&seed=&tier=&plan=&pose=&angle=&still=&debug=1`，porcelain/industrial/coral 截图见 `scratch/evidence/creature-*.png`；它抓到了「头被颈骨压扁」这个真 bug。新增 `?pose=apose\|raise\|crouch\|open`（换一副合成姿态，用来证明因果还在）、`?angle=`（冻结转台，取证图之间才能比较）、`?still=N`（headless 必须，否则 rAF 吊住 `--virtual-time-budget`）|
+| **形体并排 `/dev/lineup.html`** | `stable` | 把若干条目同时摆一排，各用各自的 `bodyPlan`，验证 `docs/PRD.md §5` 第 3 条。摆位靠**平移骨架本身**，所以两种渲染器都管用。`?ids=&pose=&tier=&seed=&still=`。截图 `scratch/evidence/lineup-six.png`（orb·furball·manipulator·screenface·xeno·autonomous 六具剪影互不相同）|
 | 主题 anchor 渲染 `/dev/anchor.html` | `stable` | 21 个条目的 `_anchor.png` 全部生成，截图 `scratch/evidence/anchors-2026-09-12.png`；`guest.founder` 无 `look` 故无几何、渲染失败是预期 |
 | image-to-3D（以 anchor 图为参考） | `stable` | 14 个 light 条目 × 5 件跑完：70/70 成功 0 失败，35 credits。**已知偏差**：bbox 细长的槽位（upperArm/foreArm/shin/thigh）成形好；bbox 近立方的 `joint` / `foot` / 部分 `head` 会把躯干 anchor 的轮廓照抄成"小躯干"—— 需要改 prompt/bbox，花 credits，留给人决定 |
 | 186 件部件库（5 个 full × 20 + 16 个 light × 6） | `stable` | `factory:plan` 全部 done；`check:parts` 186 件 0 错。`wheelleg` / `autonomous` 只有 anchor 一件：它们的 `spine.<id>.a` 生成坏了，phase 2 已主动跳过，没烧那 5 credits |
@@ -61,6 +62,9 @@
 | 升档视觉事件 `stage.pulse(tier)`（600ms / 全身 +8% / 0.15s 内 dt×0.4） | `experimental` | `stage-pulse-before.png` vs `stage-pulse-peak.png`：HUD 现场读数 **全身 +7.1%**（截图那一刻的包络值，峰值 +7.6%），被照亮像素的线性亮度实测 +6.4%；`timeScale` 轨迹 0.40 → 0.47 → 0.67 → 0.87 → 1（0.15s 恢复）。**没接进 main.ts**：停滞要生效，收口时要把 `stage.timeScale` 乘进 creature/act 的 dt |
 | `src/assets/library.ts` PartLibrary（parts.json + glb + 程序化占位） | `stable` | 把 `parts.json` 改名 → 页面照跑，30 个占位实例（`creature-fallback-no-partsjson.png`）；单个 glb 改名 → 只有那一个槽位退回占位，16/17 正常（`creature-one-glb-missing-head-fallback.png`）|
 | `src/creature/assemble.ts` 纯装配（挂载 + 关节盖片） | `stable` | 30 个实例的 `M·(0,0,0)` 与 `bone.p0` 误差 0；stretch 槽位 `M·(0,1,0)` 与 `p1` 误差 0 |
+| **A 档新拓扑 `radial`（无躯干）/ `column`（单柱）** | `stable` | 纯函数，`packages/core/src/bodyplan.ts`。`radial`：四条肢摊成四条绕核心的轨道弧，弦长 = 骨长（部件不被拉伸），半径 = 末端离中心的距离、高度 = 末端相对中心的高度、朝向 = 肩轴；核心压到 0.40。`column`：六块腿骨首尾串成一根桅杆，双臂是顶端分支，蹲下按之字折叠（只改方向不改长度）。`test/bodyplan.test.ts` 新增 10 条，覆盖"真的没有躯干/没有腿"与三条因果（抬手 / 蹲下 / 张开），共 110 条全绿。取证 `scratch/evidence/plan-radial-*.png`、`plan-column-*.png`。**只在合成骨架上跑过，没接过真人** |
+| `inverted` 的落地基准修正 | `stable` | 原来按"最低的脚"贴地，而倒过来之后脚在最上面 → 头被按到地板以下。改成 `PLANS_WITHOUT_FEET`（`radial` / `inverted`）按**整体最低点**贴地，且出口的比例遍沿用同一基准。这是 `xeno` 换成 `inverted` 时抓到的 |
+| 六个条目重新分配身体方案 | `stable` | orb/furball→`radial`，manipulator/screenface→`column`，autonomous→`quadruped`，xeno→`inverted`，char.paper→`towering`（`towering` 与 `inverted` 从此不再是零使用）。改的是 `roster.ts` 的 `BODY_PLAN`，跑 `factory:index` 只重写 `parts.json` 的 themes；**191 件 parts 数组逐字节未变**（改前后 JSON 比对），`check:parts` 191 件 0 错 |
 | `src/creature/body.ts` `BodyInstance` 接口（身体方案的插拔点，docs/18 §3） | `stable` | 纯提取，`creature.ts` 一行没动。编译期断言 `Creature extends BodyInstance` 在 `npm run typecheck` 里（把 `pose` 签名改坏会立刻红）；`mass.ts` 是第二个实现 |
 | **`src/creature/mass.ts` 团块身体（B 档 · MarchingCubes metaball）** | `experimental` | `/dev/mass.html` 实测（M4 / Chrome WebGPU，合成 A-pose 17 骨 = **87 球**，`pose()` 连续 200 次）：**res40 = 1.85ms avg / 3.4ms p95 · 2,484 三角 · 1 draw call**。res 阶梯 16/24/32/40/48/64 → 0.27 / 0.61 / 0.89 / 1.85 / 3.97 / 9.64ms，三角 594 / 1152 / 1740 / 2484 / 3340 / 5928，**全部 1 draw**。大动作姿势（92 球）res40 = 2.98ms avg / 6.6ms p95。降级旋钮（`setRes`）实测有效。**CPU 比刚体贵、GPU 比刚体便宜**：同一副骨架下刚体版 `pose()` 0.17ms / 87,844 三角 / 17 draw，团块 1.85ms / 2,484 三角 / 1 draw。截图 `scratch/evidence/mass-still-res40.png`、`mass-big-res40.png`、`mass-lowres-res16.png`、`mass-highres-res64.png`。**只在合成骨架上跑过，没接过真骨架，也还没有任何条目真的用它**（见下） |
 | 团块 vs 刚体并排对照 | `stable` | `scratch/evidence/mass-vs-rig-compare.png`（`/dev/mass.html?mode=compare&pose=big`）：团块是一具连续的身体，刚体版在同一姿势下读作一堆悬空零件。这张图是「像不像原作那种流过身体的物质」的判断依据 |
@@ -125,10 +129,11 @@
   但 image-to-3D 那一段（剪影当参考图、`creative` 模式、真实耗时）是 `Not run`：
   这个 worktree 里没有 `.env`，一次真调用要 0.5 credits。`docs/09` U10 因此还空着。
 
-- **`mass` 还没有被任何条目选中。** docs/18 §3 要求 `RosterEntry` 增加 `bodyPlan: string`，
-  而 roster / `ThemeDef` 住在 `packages/core/src/types.ts` —— **冻结契约**。
-  在那个字段加上之前，`mass` 只能从 `/dev/mass.html` 进去，`main.ts` 仍然只会实例化刚体身体。
-  要点的条目：`coral` / `xeno` / `char.dumpling`（docs/18 §2 B 档表）。
+- **`mass` 的三个条目（coral / char.dumpling / char.ghost）不用它们自己的刚体件。**
+  B 档换的是渲染器，一个槽位件都不实例化 —— 那 32 件花过 credits 的资产在画面上看不见。
+  这是 mass 落地那一轮的取舍，不是新账。A 档的新拓扑没有这个代价（docs/18 §6）。
+- **`radial` / `column` 没接过真人骨架。** 合成 A-pose 与三副合成姿态下因果成立，
+  但真人追踪的抖动会怎么进到"弧半径"和"折叠角"里，没见过。
 - `mass` 里的旋钮（`res` 默认值、球间距、半径系数、`isolation`/`subtract`）按 `tuning.ts`
   的规矩本该住在 `tuning.ts`，同样因为冻结契约暂时留在模块里。
 

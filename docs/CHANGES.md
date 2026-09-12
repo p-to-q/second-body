@@ -14,6 +14,11 @@ Forecloses: 这让什么变难或不可能
 
 ---
 
+## 2026-09-13 — A 档新增两种**真的不是人**的拓扑，六个条目挪走
+Changed:    `BodyPlanId` 增加 `radial`（无躯干：四条肢摊成四条绕核心的轨道弧，核心压到 0.40）与 `column`（单柱：六块腿骨串成一根桅杆，双臂是顶端分支，蹲下按之字折叠）。两者输出仍是 17 根骨头的合法 `Skeleton`，走现有刚体渲染器。`orb`/`furball`→`radial`，`manipulator`/`screenface`→`column`，`autonomous`→`quadruped`，`xeno`→`inverted`，`char.paper`→`towering`。`radial` 与 `inverted` 改成按**整体最低点**贴地（`PLANS_WITHOUT_FEET`），不再按"最低的脚"。
+Why:        之前只有 `quadruped` 和 `mass` 真的换拓扑，`towering`/`stub` 只改比例 —— 所以 `xeno`（异形）、`orb`（球）、`furball`（毛球）这些"全部意义就是不是人"的条目仍然是穿着涂装的人形。光改数据解决不了，缺的是拓扑。选 A 档而不是 B 档，是因为 A 档**不作废任何已生成的部件**（这六个条目共 50 件）。
+Forecloses: `radial` / `column` 的比例是**先缩放人体、再换拓扑**（与 `quadruped` 相反），因为 `proportion()` 依赖"肩是肩、胯是胯"这套语义，而这两个拓扑把它拆了 —— 以后给它们加比例参数必须记住这个顺序。`radial` 的两条腿弧没有骨头连回核心，想给它们加系绳就要新增骨头，那是改冻结契约。`inverted` 的落地语义变了：之前按脚（头会沉到地板下），现在按整体最低点。
+
 ## 2026-09-12 — 挂载分成 stretch / uniform 两种模式
 Changed:    `SLOT_FIT` 决定一个槽位是"沿骨头拉长"（四肢）还是"三轴同比例、尺寸由 `SLOT_WIDTH` 定"（头/躯干/手/脚/关节）。`SLOT_WIDTH` 对 uniform 槽位读作"整体大小"。
 Why:        装配预览里头被颈骨压成了一坨 —— 头不是一段可以被拉长的管子。把"有固有比例的物体"和"可拉伸的管子"分开，是让身体看起来像身体的最小改动。
