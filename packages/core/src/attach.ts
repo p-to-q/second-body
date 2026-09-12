@@ -27,6 +27,23 @@ export interface AttachOptions {
   mirror?: boolean;
   /** 沿骨头方向的额外缩放，用于 crossfade/组装动画（0..1） */
   lengthScale?: number;
+  /**
+   * 直接指定长轴的世界尺寸（米）。给了它，`mode` 就只再管横向。
+   *
+   * 为什么需要这个口子：`mode` 的两档都假设**骨头量的就是部件的长轴**
+   * （stretch = 骨长，uniform = 与骨长无关的固有尺寸）。脚不满足这个假设 ——
+   * 见下面 `anchor` 的注释。除脚以外没有别的槽位用它。
+   */
+  axisLength?: number;
+  /**
+   * 部件长轴上的哪一点被钉在 `bone.p0` 上。0（默认）= socketA，也就是原来的行为。
+   *
+   * 为什么需要：管状件的插座在端点，所以"起点钉 socketA"一直成立。
+   * 脚不是管子 —— 踝既不在脚跟也不在脚尖，它在脚长的三成处、脚背上方。
+   * 把 socketA 钉在踝上，整只脚就会从踝往前平铺出去，脚跟那一截凭空消失，
+   * 看起来就是"脚掉在地上、脚踝以下是空的"。
+   */
+  anchor?: number;
 }
 
 export function attachMatrix(bone: Bone, out: Mat4, opt: AttachOptions = {}): Mat4 {
@@ -43,10 +60,15 @@ export function attachMatrix(bone: Bone, out: Mat4, opt: AttachOptions = {}): Ma
 
   const g = Number.isFinite(opt.girth) ? (opt.girth as number) : 1;
   const ls = Number.isFinite(opt.lengthScale) ? (opt.lengthScale as number) : 1;
-  const sy = opt.mode === 'uniform' ? g * ls : length * ls;
+  const axis = Number.isFinite(opt.axisLength) ? (opt.axisLength as number) : NaN;
+  const sy = (Number.isFinite(axis) ? axis : opt.mode === 'uniform' ? g : length) * ls;
   const sx = opt.mirror ? -g : g;
 
-  return compose(p0, q, [sx, sy, g], out);
+  // anchor 把部件沿骨头方向倒退 anchor×长度，于是钉在 p0 上的不再一定是 socketA
+  const a = Number.isFinite(opt.anchor) ? Math.min(1, Math.max(0, opt.anchor as number)) : 0;
+  const at: Vec3 = a ? [p0[0] - dir[0] * a * sy, p0[1] - dir[1] * a * sy, p0[2] - dir[2] * a * sy] : p0;
+
+  return compose(at, q, [sx, sy, g], out);
 }
 
 /** 关节盖片：只有位置和统一缩放，没有方向 */

@@ -1,51 +1,55 @@
 /* 由 build-data.mjs 生成，不要手改。跑 `node packages/app/poster/build-data.mjs` 重出。 */
 window.SB_POSTER = {
-  "generatedAt": "2026-09-12T16:37:32.528Z",
+  "generatedAt": "2026-09-12T21:04:50.181Z",
   "source": {
     "parts": "assets/parts/parts.json",
     "curation": "assets/parts/curation.json",
-    "partsGeneratedAt": "2026-09-12T15:28:24.479Z",
+    "partsGeneratedAt": "2026-09-12T20:28:13.805Z",
     "partsVersion": 1
   },
   "counts": {
-    "entries": 23,
-    "parts": 191,
+    "entries": 29,
+    "parts": 198,
     "partsRejected": 10,
-    "partsLive": 181,
+    "partsLive": 188,
     "slots": 10,
     "boneKeys": 18,
     "materials": 9,
-    "plans": 4,
-    "triangles": 562638,
-    "entriesWithAnchor": 21,
-    "vacancies": 2,
+    "plans": 8,
+    "triangles": 582546,
+    "entriesWithAnchor": 22,
+    "vacancies": 6,
     "fullyBorrowed": 2
   },
   "bySlot": {
     "clavicle": 10,
-    "foot": 25,
+    "foot": 26,
     "foreArm": 10,
     "hand": 10,
-    "head": 25,
-    "joint": 25,
-    "shin": 25,
-    "spine": 26,
+    "head": 26,
+    "joint": 26,
+    "shin": 26,
+    "spine": 28,
     "thigh": 10,
-    "upperArm": 25
+    "upperArm": 26
   },
   "byPlan": {
-    "rig": 14,
-    "quadruped": 4,
+    "rig": 11,
+    "quadruped": 5,
+    "inverted": 1,
     "mass": 3,
-    "stub": 2
+    "stub": 3,
+    "radial": 2,
+    "column": 2,
+    "towering": 2
   },
   "byKind": {
     "archetype": 18,
     "guest": 1,
-    "character": 4
+    "character": 10
   },
   "tier": 2,
-  "totalBodies": 1642496,
+  "totalBodies": 1773824,
   "entries": [
     {
       "id": "porcelain",
@@ -189,7 +193,7 @@ window.SB_POSTER = {
       "nameEn": "Xeno",
       "tagline": "它在模仿你，但模仿错了",
       "taglineEn": "It is imitating you, and getting it wrong",
-      "plan": "rig",
+      "plan": "inverted",
       "coverage": "full",
       "base": null,
       "axes": {
@@ -594,7 +598,7 @@ window.SB_POSTER = {
       "nameEn": "Furball",
       "tagline": "它放弃了腿、手和任务",
       "taglineEn": "It gave up limbs, hands, and usefulness",
-      "plan": "rig",
+      "plan": "radial",
       "coverage": "light",
       "base": "porcelain",
       "axes": {
@@ -639,7 +643,7 @@ window.SB_POSTER = {
       "nameEn": "Screenface",
       "tagline": "几个自由度就够它有人格",
       "taglineEn": "A few degrees of freedom are enough for a personality",
-      "plan": "rig",
+      "plan": "column",
       "coverage": "light",
       "base": "porcelain",
       "axes": {
@@ -684,7 +688,7 @@ window.SB_POSTER = {
       "nameEn": "Orb",
       "tagline": "机器人为什么一定要有腿",
       "taglineEn": "Why would a robot need legs",
-      "plan": "rig",
+      "plan": "radial",
       "coverage": "light",
       "base": "porcelain",
       "axes": {
@@ -729,7 +733,7 @@ window.SB_POSTER = {
       "nameEn": "Manipulator",
       "tagline": "被人形热潮盖住的那个真正重要的物种",
       "taglineEn": "The species the humanoid hype buried",
-      "plan": "rig",
+      "plan": "column",
       "coverage": "light",
       "base": "porcelain",
       "axes": {
@@ -774,7 +778,7 @@ window.SB_POSTER = {
       "nameEn": "Autonomous",
       "tagline": "它也是机器人，只是大了很多",
       "taglineEn": "Also a robot. Just much larger.",
-      "plan": "rig",
+      "plan": "quadruped",
       "coverage": "light",
       "base": "porcelain",
       "axes": {
@@ -961,7 +965,7 @@ window.SB_POSTER = {
       "nameEn": "Paper",
       "tagline": "一具折出来的身体",
       "taglineEn": "A body that was folded",
-      "plan": "rig",
+      "plan": "towering",
       "coverage": "light",
       "base": "porcelain",
       "axes": {
@@ -1043,6 +1047,200 @@ window.SB_POSTER = {
         "joint": 1
       },
       "anchor": true
+    },
+    {
+      "id": "char.inflate",
+      "kind": "character",
+      "name": "充气",
+      "nameEn": "Inflate",
+      "tagline": "一个被气撑起来的看护者",
+      "taglineEn": "A caretaker held up by air",
+      "plan": "rig",
+      "coverage": "light",
+      "base": "porcelain",
+      "axes": {
+        "humanLike": 0.55,
+        "lifeLike": 0.8
+      },
+      "palette": [
+        "matte.bone",
+        "ceramic.pearl",
+        "matte.ash"
+      ],
+      "ownParts": 1,
+      "ownRejected": 0,
+      "fullyBorrowed": false,
+      "bodies": 131072,
+      "perSlot": {
+        "spine": 1,
+        "neck": 2,
+        "head": 2,
+        "clavicleL": 2,
+        "clavicleR": 2,
+        "upperArmL": 2,
+        "upperArmR": 2,
+        "foreArmL": 2,
+        "foreArmR": 2,
+        "handL": 2,
+        "handR": 2,
+        "thighL": 2,
+        "thighR": 2,
+        "shinL": 2,
+        "shinR": 2,
+        "footL": 2,
+        "footR": 2,
+        "joint": 2
+      },
+      "anchor": true
+    },
+    {
+      "id": "char.diva",
+      "kind": "character",
+      "name": "歌姬",
+      "nameEn": "Diva",
+      "tagline": "一个被投影出来的人",
+      "taglineEn": "A person made of projected light",
+      "plan": "towering",
+      "coverage": "light",
+      "base": "char.ghost",
+      "axes": {
+        "humanLike": 0.8,
+        "lifeLike": 0.45
+      },
+      "palette": [
+        "glow.signal",
+        "ceramic.pearl",
+        "matte.ash"
+      ],
+      "ownParts": 0,
+      "ownRejected": 0,
+      "fullyBorrowed": false,
+      "bodies": null,
+      "perSlot": null,
+      "anchor": false
+    },
+    {
+      "id": "char.line",
+      "kind": "character",
+      "name": "线",
+      "nameEn": "Line",
+      "tagline": "一个被画出来的东西",
+      "taglineEn": "Something that was drawn, not built",
+      "plan": "stub",
+      "coverage": "light",
+      "base": "char.dumpling",
+      "axes": {
+        "humanLike": 0.25,
+        "lifeLike": 0.9
+      },
+      "palette": [
+        "matte.bone",
+        "matte.ash",
+        "paint.hazard"
+      ],
+      "ownParts": 0,
+      "ownRejected": 0,
+      "fullyBorrowed": false,
+      "bodies": null,
+      "perSlot": null,
+      "anchor": false
+    },
+    {
+      "id": "guest.keynote",
+      "kind": "character",
+      "name": "发布会",
+      "nameEn": "Keynote",
+      "tagline": "舞台上的那套制服",
+      "taglineEn": "The uniform worn on stage",
+      "plan": "rig",
+      "coverage": "light",
+      "base": "porcelain",
+      "axes": {
+        "humanLike": 1,
+        "lifeLike": 0.55
+      },
+      "palette": [
+        "matte.ash",
+        "matte.bone",
+        "metal.graphite"
+      ],
+      "ownParts": 0,
+      "ownRejected": 0,
+      "fullyBorrowed": false,
+      "bodies": null,
+      "perSlot": null,
+      "anchor": false
+    },
+    {
+      "id": "char.tokusatsu",
+      "kind": "character",
+      "name": "特摄",
+      "nameEn": "Tokusatsu",
+      "tagline": "一件被人穿着的光",
+      "taglineEn": "A light with a person inside it",
+      "plan": "rig",
+      "coverage": "light",
+      "base": "industrial",
+      "axes": {
+        "humanLike": 0.95,
+        "lifeLike": 0.5
+      },
+      "palette": [
+        "metal.graphite",
+        "paint.hazard",
+        "glow.signal"
+      ],
+      "ownParts": 0,
+      "ownRejected": 0,
+      "fullyBorrowed": false,
+      "bodies": null,
+      "perSlot": null,
+      "anchor": false
+    },
+    {
+      "id": "char.painting",
+      "kind": "character",
+      "name": "画",
+      "nameEn": "Painting",
+      "tagline": "一幅画站了起来",
+      "taglineEn": "A painting that stood up",
+      "plan": "rig",
+      "coverage": "light",
+      "base": "porcelain",
+      "axes": {
+        "humanLike": 1,
+        "lifeLike": 0.65
+      },
+      "palette": [
+        "matte.ash",
+        "matte.bone",
+        "ceramic.pearl"
+      ],
+      "ownParts": 6,
+      "ownRejected": 0,
+      "fullyBorrowed": false,
+      "bodies": 256,
+      "perSlot": {
+        "spine": 1,
+        "neck": 1,
+        "head": 1,
+        "clavicleL": 2,
+        "clavicleR": 2,
+        "upperArmL": 1,
+        "upperArmR": 1,
+        "foreArmL": 2,
+        "foreArmR": 2,
+        "handL": 2,
+        "handR": 2,
+        "thighL": 2,
+        "thighR": 2,
+        "shinL": 1,
+        "shinR": 1,
+        "footL": 1,
+        "footR": 1,
+        "joint": 1
+      },
+      "anchor": false
     }
   ],
   "rejects": [

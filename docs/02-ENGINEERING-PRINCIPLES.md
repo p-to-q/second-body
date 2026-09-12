@@ -1,256 +1,332 @@
 # 02 · Engineering Principles
 
-> **这份文档是给所有参与者（包括子代理）的宪法。任何一条与任务卡冲突时，以本文档为准。**
-> 违反其中任何一条的 PR/改动一律回退，不讨论。
+> This document was originally written in Chinese. **This English text is now the
+> source of truth.** The Chinese original has been superseded, not archived
+> alongside it — two copies of a rulebook drift, and a drifted rulebook is worse
+> than none. The old wording is recoverable from git history if you need it.
 
-## 这件事的落点
+> **This is the constitution for everyone working on the project, sub-agents
+> included. Where it conflicts with a task card, this document wins.**
+> Any change that violates one of these is reverted. No discussion.
 
-我们在做的是**一件装置作品**，不是一个产品、不是一个框架、不是一个 demo。
-最终交付是：一个陌生人站到屏幕前的 90 秒，和这 90 秒能被截下来发出去的那一帧。
+## Where this lands
 
-但**代码要像工艺品一样收口**。这两件事不矛盾，而且是同一件事：
+We are making **one installation artwork** — not a product, not a framework, not
+a demo. What we finally ship is: ninety seconds in which a stranger stands in
+front of a screen, and the one frame out of those ninety seconds that is worth
+screenshotting and sending to someone.
 
-> 现场只有一次机会。一件收口不干净的作品，
-> 会在**你最不希望它出事的那一刻**出事 —— 有观众站在前面的时候。
+But **the code has to be finished like a craft object.** Those two statements do
+not pull against each other; they are the same statement:
 
-所以"工艺品"在这里不是审美要求，是可靠性要求。具体标准见下面的 §craft。
+> The show happens once. A piece that is not finished cleanly underneath will
+> break at **exactly the moment you least want it to** — with an audience
+> standing in front of it.
 
-## §craft · "做完了"是什么意思
+So "craft object" here is not an aesthetic demand. It is a reliability demand.
+The concrete standard is §craft below.
 
-一件东西做完了，指的是**看不见的地方也收了口**：
+## §craft · What "done" means
 
-- **错误路径和正常路径一样被设计过。** 观众永远不该看见"出错了"（`docs/23-SPEC-ui.md` §S8）。
-- **空状态是被设计的，不是被遗漏的。** 没有资产、没有人、没有网络时画面长什么样，是作品的一部分。
-- **每个模块自带证据。** 没跑过的检查写 `Not run` 加理由；"我觉得应该能跑"不是证据。
-- **注释写给半年后第一次打开这个文件的人**，不写给自己。写清楚"为什么是这样"，
-  而不是复述代码在做什么。尤其要写清楚**踩过的坑**——那是最贵的信息。
-- **不留 TODO 当交付。** 要留就写清楚：谁、在什么条件出现时、来处理什么。
-- **删掉比加上更难，也更值钱。** 每多一个模块、一个依赖、一个 UI 元素，
-  都要能说出"它为什么不该被删掉"。
+Something is done when **the parts nobody sees are finished too**:
 
-## §plan · 每一轮怎么决定做什么
+- **The error path is designed as deliberately as the happy path.** The audience
+  must never see "something went wrong" (`docs/23-SPEC-ui.md` §S8).
+- **Empty states are designed, not forgotten.** What the screen looks like with
+  no assets, no person, and no network is part of the artwork.
+- **Every module carries its own evidence.** A check you did not run is written
+  `Not run` plus the reason; "I think it should work" is not evidence.
+- **Comments are written for the person opening this file for the first time six
+  months from now**, not for yourself. Explain *why it is this way* rather than
+  restating what the code does. Above all, write down **the traps you fell
+  into** — that is the most expensive information in the file.
+- **A TODO is not a deliverable.** If you leave one, say who, under what
+  condition it becomes live, and what they are supposed to do.
+- **Deleting is harder than adding, and worth more.** For every extra module,
+  dependency, or UI element, you must be able to say why it should *not* be
+  deleted.
 
-排优先级时按这个顺序问：
+## §plan · How each round decides what to do
 
-1. **这让作品更成立了吗？** 不是"这让管线更顺了吗"。
-   （我们已经在这上面栽过一次：管线、契约、编排全做扎实了，
-   而作品没成立 —— 因为只有一种表达。见 `docs/18-BODY-PLANS.md` §5。）
-2. **它是不是在解一个已经被证实的问题？** 证实 = 有人看见了、或者有数字。
-   没被证实的问题不要提前优化。
-3. **失败了会不会毁掉现场？** 会的话先做兜底，再做正事。
-4. **它便宜吗？** 同等收益下永远先做便宜的那个 —— 便宜意味着可以试错。
+Rank work by asking, in this order:
 
-## P0 · 契约先行，实现在后
+1. **Does this make the artwork more real?** Not "does this make the pipeline
+   smoother". (We have already been burned here once: the pipeline, the
+   contracts and the orchestration were all solid, and the artwork still did not
+   stand up — because it had only one mode of expression. See
+   `docs/18-BODY-PLANS.md` §5.)
+2. **Is it solving a problem we have actually confirmed?** Confirmed means
+   someone saw it, or there is a number. Do not pre-optimise an unconfirmed
+   problem.
+3. **If it fails, does it wreck the show?** If so, build the fallback first and
+   the feature second.
+4. **Is it cheap?** At equal payoff, always do the cheap one first — cheap is
+   what makes it affordable to be wrong.
 
-所有跨模块的类型、常量、文件格式都集中在两个地方：
+## P0 · Contract first, implementation second
 
-- `packages/core/src/types.ts` —— 运行时所有共享类型
-- `docs/03-SPEC-part-library.md` —— 磁盘资产格式（`parts.json`）
+Every cross-module type, constant, and file format lives in exactly two places:
 
-**这两处是冻结的。** 如果你的任务让你觉得必须改它们，那说明任务卡写错了：
-**停下来，在任务输出里写明"需要变更契约：<原因>"，不要自行修改。**
+- `packages/core/src/types.ts` — every shared runtime type
+- `docs/03-SPEC-part-library.md` — the on-disk asset format (`parts.json`)
 
-## P1 · 每个模块都是纯函数优先
+**Both are frozen.** If your task makes you feel you have to change them, the
+task card is wrong: **stop, write "contract change needed: `<reason>`" in your
+task output, and do not edit them yourself.**
 
-- 计算模块（滤波、骨架构建、运动特征、genome）必须是**纯函数**：输入 → 输出，无全局状态、无 DOM、无 `Date.now()`、无 `Math.random()`。
-- 需要状态的（滤波器、状态机）做成 `createX()` 工厂返回闭包，状态显式持有，可以 `reset()`。
-- 需要随机的，**必须**接收一个 `Rng` 参数（`packages/core/src/rng.ts`）。禁止裸用 `Math.random()`。
-  理由：同一个 `seed` 必须永远生成同一个身体，否则现场没法复现、没法调试、没法做留念二维码。
-- 需要时间的，**必须**接收 `dt` 或 `t` 参数。禁止模块内部读时钟。
+## P1 · Pure functions first, in every module
 
-## P2 · 帧循环里永不抛异常
+- Computational modules (filtering, skeleton construction, motion features,
+  genome) **must be pure**: input → output, no global state, no DOM, no
+  `Date.now()`, no `Math.random()`.
+- Anything that needs state becomes a `createX()` factory returning a closure —
+  state held explicitly, and `reset()`-able.
+- Anything that needs randomness **must** take an `Rng` argument
+  (`packages/core/src/rng.ts`). Bare `Math.random()` is forbidden.
+  The reason: the same `seed` must produce the same body forever, or the show
+  cannot be reproduced, cannot be debugged, and cannot mint a keepsake QR code.
+- Anything that needs time **must** take `dt` or `t` as an argument. Reading a
+  clock from inside a module is forbidden.
 
-渲染循环中的任何一环都不允许 `throw`。策略：
+## P2 · Never throw inside the frame loop
+
+Nothing in the render loop is allowed to `throw`. The strategy:
 
 ```ts
-// ✅ 正确
-const part = library.get(id) ?? library.fallback(slot);   // 资产缺失 → 占位几何
-if (!Number.isFinite(v)) v = lastGood;                     // NaN → 保持上一帧
+// ✅ right
+const part = library.get(id) ?? library.fallback(slot);   // missing asset → placeholder geometry
+if (!Number.isFinite(v)) v = lastGood;                     // NaN → hold last frame
 
-// ❌ 错误
-const part = library.get(id)!;   // 现场炸给观众看
+// ❌ wrong
+const part = library.get(id)!;   // blows up in front of the audience
 ```
 
-- 所有外部输入（摄像头、模型输出、网络）默认**不可信**：可能是 NaN、Infinity、undefined、空数组。
-- 每个 `update(dt)` 入口第一行做输入 clamp/sanitize。
-- 顶层有一个 `safeFrame()` 包一层 try/catch，捕获后写 `console.error` 并继续下一帧，**绝不中断 rAF**。
+- Treat every external input (camera, model output, network) as **untrusted** by
+  default: it may be NaN, Infinity, undefined, or an empty array.
+- The first line of every `update(dt)` entry point clamps and sanitises input.
+- One top-level `safeFrame()` wraps the loop in try/catch: it logs with
+  `console.error` and continues to the next frame. **It never breaks rAF.**
 
-## P3 · 降级路径必须存在且被测试过
+## P3 · Every fallback path must exist and must have been exercised
 
-| 失败 | 降级 | 谁负责 |
+| Failure | Fallback | Owner |
 |---|---|---|
-| WebGPU 不可用 | three.js `WebGPURenderer` 自动回退 WebGL2 backend | runtime |
-| `parts.json` 缺失/损坏 | 程序化占位几何（胶囊/盒子），**应用照常运行** | runtime |
-| 单个 `.glb` 加载失败 | 该槽位退回占位几何，其他槽位不受影响 | runtime |
-| 追踪丢失 < 1s | 保持最后姿态，轻微 idle 漂移 | runtime |
-| 追踪丢失 > 1s | 进入 LEAVING → 溶解 | runtime |
-| Hyper3D API 失败 | 慢回路静默放弃，快回路完全不受影响 | factory/runtime |
-| 摄像头权限被拒 | 显示一行提示 + 用录制的 pose 数据回放（demo 模式） | runtime |
+| WebGPU unavailable | three.js `WebGPURenderer` falls back to the WebGL2 backend on its own | runtime |
+| `parts.json` missing or corrupt | procedural placeholder geometry (capsules/boxes), **the app keeps running** | runtime |
+| a single `.glb` fails to load | that slot falls back to placeholder geometry, other slots unaffected | runtime |
+| tracking lost < 1s | hold the last pose, slight idle drift | runtime |
+| tracking lost > 1s | enter LEAVING → dissolve | runtime |
+| Hyper3D API fails | the slow loop gives up silently; the fast loop is completely unaffected | factory/runtime |
+| camera permission denied | show one line of guidance and replay recorded pose data (demo mode) | runtime |
 
-**`assets/parts/parts.json` 不存在时应用必须能跑。** 这条是硬性的：
-它让「运行时开发」和「资产生产」可以完全并行，互不阻塞。
+**The app must run when `assets/parts/parts.json` does not exist.** This one is
+hard-required: it is what lets runtime development and asset production proceed
+fully in parallel without blocking each other.
 
-## P4 · 单位与坐标系只定义一次
+## P4 · Units and coordinate systems are defined exactly once
 
-见 `docs/04-SPEC-rig-and-attach.md` §1。摘要：
+See `docs/04-SPEC-rig-and-attach.md` §1. In brief:
 
-- **单位：米。** 所有长度、位置、速度都是米/米每秒。不允许出现像素。
-- **坐标系：three.js 右手系，Y-up，-Z 指向屏幕内。**
-- **镜像在且仅在一个地方发生**：`mediapipeToWorld()`。之后所有代码都活在已镜像的世界里。
-- 任何函数如果做了坐标转换，函数名里必须带 `To`（`mediapipeToWorld`、`worldToScreen`）。
+- **Units: metres.** Every length, position and velocity is metres or
+  metres per second. Pixels are not allowed to appear.
+- **Coordinate system: the three.js right-handed system, Y-up, -Z into the
+  screen.**
+- **Mirroring happens in one place and one place only**: `mediapipeToWorld()`.
+  Every line of code after it lives in an already-mirrored world.
+- Any function that performs a coordinate conversion must carry `To` in its name
+  (`mediapipeToWorld`, `worldToScreen`).
 
-## P5 · 性能预算是需求，不是优化
+## P5 · The performance budget is a requirement, not an optimisation
 
-目标：**1440p / 60fps / MacBook Pro M 系列**。
+Target: **1440p / 60fps / Apple-silicon MacBook Pro**.
 
-| 项 | 预算 |
+| Item | Budget |
 |---|---|
-| 屏上部件实例总数 | ≤ 64 |
-| 三角形总数 | ≤ 250k |
-| 单个部件 glb | ≤ 5k tris, ≤ 1.5 MB |
-| draw call | ≤ 40 |
-| CPU 每帧 JS | ≤ 4 ms |
-| 推理（MediaPipe） | 独立于渲染，≥ 30 Hz，延迟 ≤ 60 ms |
+| part instances on screen | ≤ 64 |
+| total triangles | ≤ 250k |
+| single part `.glb` | ≤ 5k tris, ≤ 1.5 MB |
+| draw calls | ≤ 40 |
+| CPU JS per frame | ≤ 4 ms |
+| inference (MediaPipe) | independent of rendering, ≥ 30 Hz, latency ≤ 60 ms |
 
-超预算的模块不合并。`packages/app/src/debug/stats.ts` 里有实时读数，按 `` ` `` 键开关。
+A module over budget does not get merged. The numbers themselves live in
+`packages/core/src/tuning.ts` (`BUDGET`); the live readout is the HUD in
+`packages/app/src/shell/hud.ts`, which mounts when you pass `?debug=1`.
 
-## P6 · 一个任务 = 一个文件 + 一个验收标准
+## P6 · One task = one file + one acceptance criterion
 
-任务卡（`docs/10-TASKS.md`）的格式是固定的：
+The task-card format (`docs/11-TASKS.md`) is fixed:
 
 ```
-### T-xx 标题
-- 文件: packages/.../foo.ts       ← 只碰这个文件（和它的测试）
-- 依赖: T-yy 已完成
-- 契约: 从 types.ts 里 import 这些类型，不要重新定义
-- 做什么: ...
-- 不要做: ...
-- 验收: `npm run test -w @sb/core -- foo` 通过，且 <可观察的现象>
+### T-xx Title
+- File:       packages/.../foo.ts       ← touch only this file (and its test)
+- Depends on: T-yy is done
+- Contract:   import these types from types.ts, do not redeclare them
+- Do:         ...
+- Do not:     ...
+- Acceptance: `npm run test -w @sb/core -- foo` passes, and <observable phenomenon>
 ```
 
-- **不要顺手重构别的文件。** 看到别处有 bug，写进任务输出，不要动手。
-- **不要引入新的运行时依赖。** 需要就在输出里申请，理由写清。devDependency 同理。
-- **不要加抽象层。** 这是一个要在 48 小时后被扔掉或被展出的项目，不是一个要维护五年的库。
+- **Do not refactor other files on the way past.** If you see a bug elsewhere,
+  write it into your task output; do not touch it.
+- **Do not introduce new runtime dependencies.** If you need one, ask for it in
+  your output with the reasoning spelled out. Same for devDependencies.
+- **Do not add abstraction layers.** This is a project that will be thrown away
+  or exhibited in 48 hours — it is not a library to be maintained for five years.
 
-## P7 · 每个模块自带可运行的证据
+## P7 · Every module carries runnable evidence
 
-- `packages/core` 的每个模块配一个 `*.test.ts`，用 node 内置 `node:test` + `node:assert`，零依赖。
-- 视觉/交互类改动的"证据"是**截图或 10 秒录屏**，放进 `scratch/evidence/`，在输出里引用。
-- "我觉得应该能跑" ≠ 证据。没有证据的任务视为未完成。
+- Every module in `packages/core` gets a `*.test.ts` using the built-in
+  `node:test` + `node:assert`. Zero dependencies.
+- For visual or interaction changes, the "evidence" is a screenshot or a
+  ten-second screen recording, dropped in `scratch/evidence/` and cited in your
+  output.
+- "I think it should work" ≠ evidence. A task with no evidence counts as unfinished.
 
-## P8 · 秘密只在一个地方
+## P8 · Secrets live in exactly one place
 
-- `RODIN_API_KEY` 只从 `.env` 读，只在 `packages/factory` 里用，**永远不进浏览器包**。
-- 任何文件里出现硬编码的 key = 立即回退。
-- 慢回路需要从浏览器触发生成时，走本地 `packages/factory` 起的 localhost 代理，key 留在 Node 侧。
+- `RODIN_API_KEY` is read only from `.env`, used only inside
+  `packages/factory`, and **never enters a browser bundle**.
+- A hard-coded key anywhere in any file = immediate revert.
+- When the slow loop needs the browser to trigger a generation, it goes through
+  a localhost proxy served by `packages/factory`; the key stays on the Node side.
 
-## P9 · 确定性与可复现
+## P9 · Determinism and reproducibility
 
-- 部件生成（factory）用固定 `seed`，`recipes/*.json` 是唯一真相，生成结果记录在 `assets/raw/ledger.json`。
-- 已成功的 recipe **不重复生成**（省 credits，也保证资产稳定）。
-- 运行时的一个身体完全由 `Genome { seed, tier }` 决定。给定 seed 必须像素级复现。
+- Part generation (factory) uses fixed `seed`s; `recipes/*.json` is the single
+  source of truth, and results are recorded in `assets/raw/ledger.json`.
+- A recipe that already succeeded is **never regenerated** — it saves credits and
+  it keeps the assets stable.
+- At runtime a body is fully determined by `Genome { seed, tier }`. Given a seed,
+  it must reproduce pixel for pixel.
 
-## P10 · 现场优先
+## P10 · The show comes first
 
-任何"更优雅但现场更容易出事"的方案，一律不选。具体化：
+Any approach that is "more elegant but more likely to break on site" is not
+chosen. Concretely:
 
-- 不依赖网络（慢回路是唯一例外，且失败不影响主体验）。
-- 不依赖登录、不依赖云端状态。
-- 启动 = 打开一个 URL，全屏，结束。不需要终端里敲第二条命令。
-- 有 `?demo=1` 模式：无摄像头也能放一段录好的 pose 回放，用于评委演示和断网兜底。
+- No dependency on the network (the slow loop is the single exception, and its
+  failure must not affect the main experience).
+- No dependency on login, no dependency on cloud state.
+- Starting up = open one URL, go fullscreen, done. Nobody types a second command
+  into a terminal.
+- There is a `?demo=1` mode: with no camera it replays recorded pose data, for
+  showing judges and for surviving a dead network.
 
 ---
 
-# 这一路踩出来的（P11–P20）
+# Earned the hard way (P11–P20)
 
-> 每一条都附上教会我们的那件事。**没有故事的原则活不过三天。**
+> Each of these carries the thing that taught it to us.
+> **A principle without a story does not survive three days.**
 
-## P11 · 契约的错由契约持有者裁决，不在下游打补丁
+## P11 · A bad contract is fixed by its owner, never patched downstream
 
-任务卡的验收标准写错过一次：要求断言"抬左手 → `handL` 在世界 +X"。
-实际上 MediaPipe 的 `left_*` 是**被摄者的**左侧，正对相机时在图像右侧，镜像后落在 -X。
+A task card's acceptance criterion was wrong once: it demanded an assertion that
+raising the left hand puts `handL` at world +X. In fact MediaPipe's `left_*` is
+**the subject's** left side, which — facing the camera — appears on the right of
+the image, and after mirroring lands at -X.
 
-领卡的人**没有**为了让测试变绿去改实现，而是停下来报上来 ——
-这是对的。修法是：改契约、写下推导过程（`docs/04 §1` 的"左右"一节）、
-让下一个人不会再写反一次。
+The agent holding that card **did not** bend the implementation to make the test
+go green. It stopped and reported upward — which was the right call. The fix was:
+change the contract, write down the derivation (the "left and right" section of
+`docs/04` §1), and make sure the next person cannot get it backwards again.
 
-> 发现契约有问题 → 停下来报告 `需要变更契约：<原因>`。
-> 不要为了通过验收去迁就一个错的规格。
+> Find a problem in a contract → stop and report `contract change needed:
+> <reason>`. Never accommodate a wrong spec in order to pass acceptance.
 
-## P12 · 坏的上游会放大成一批坏的下游
+## P12 · A bad upstream multiplies into a batch of bad downstream
 
-素材线发现三个物种的 anchor 图本身是碎片/多物体，**停下来问人**，
-而不是照着坏 anchor 再生成 15 件垃圾交差。
+The asset line found that the anchor images for three species were themselves
+fragmentary or contained multiple objects. It **stopped and asked a human**
+rather than generating fifteen more pieces of garbage from a bad anchor and
+calling it delivered.
 
-> 一个环节的产出要作为下一个环节的输入时，先验它。
-> "先做完再说"在有成本的管线上是最贵的做法。
+> When one stage's output becomes the next stage's input, validate it first.
+> On a pipeline that costs money, "just finish it and see" is the most expensive
+> way to work.
 
-## P13 · 破坏性默认必须设计成安全的
+## P13 · A destructive default has to be designed to be safe
 
-`factory:normalize --ids=` 当时会把整个索引重写成那几件。
-用它做定向规范化 → 186 件的索引变成 2 件 → 运行时变空场，
-而现象只是"应用好像坏了"，完全看不出索引被删了。
+`factory:normalize --ids=` used to rewrite the entire index down to just the
+named pieces. Someone used it for a targeted normalisation → an index of 186
+parts became an index of 2 → the runtime went to an empty stage. And the only
+visible symptom was "the app seems broken"; there was no way to tell from the
+screen that the index had been gutted.
 
-> "部分操作"的语义默认必须是**合并**，不是替换。
-> 一个操作如果可能删掉你没点名的东西，它的默认行为就是错的。
+> The default semantics of a "partial" operation must be **merge**, not replace.
+> If an operation can delete things you did not name, its default behaviour is
+> wrong.
 
-## P14 · 测量工具本身会骗人
+## P14 · The measuring instrument will lie to you
 
-`renderAsync()` 每帧 `await` 会把渲染塞进微任务队列，**帧时间读数不准**。
-这种问题留到现场调性能时会非常难查 —— 因为你信的那个数字本身是错的。
+`await`-ing `renderAsync()` every frame pushes rendering into the microtask
+queue, which makes the **frame-time readout itself wrong**. Left to be discovered
+while tuning performance on site, this is brutal to track down — because the
+number you are trusting is the thing that is broken.
 
-> 先确认测量是对的，再去优化被测的东西。
+> Confirm the measurement is right before you optimise the thing being measured.
 
-## P15 · 数据结论不要为了优雅变回公式
+## P15 · Do not turn a conclusion from data back into a formula for elegance
 
-"哪些槽位会照抄躯干轮廓"这张表来自目检 186 件。
-曾想用"长宽比 < 1.6 算近立方"去推它，结果把 `foot`（比值 2.1）漏掉 —— 而 foot 恰恰最严重。
+The table of "which slots copy the torso silhouette" came from eyeballing 186
+parts. We nearly replaced it with a rule — "aspect ratio < 1.6 counts as
+near-cubic" — which dropped `foot` (ratio 2.1), and `foot` was the worst offender
+of the lot.
 
-> 目检出来的列表就让它是列表。
-> 为了少几行代码把它换成一个公式，是在用优雅换正确。
+> A list you got by looking at things gets to stay a list.
+> Swapping it for a formula to save a few lines trades correctness for elegance.
 
-## P16 · 扩展点必须自带故障隔离
+## P16 · An extension point must carry its own fault isolation
 
-玩法扩展点（`docs/16-SPEC-acts.md`）的 Director 规定：
-一个 Act 连续 3 次抛异常就被永久禁用并回落到 `follow`。
+The Director behind the gameplay extension point (`docs/16-SPEC-acts.md`)
+specifies: an Act that throws three times in a row is permanently disabled and
+falls back to `follow`.
 
-> 让"随便试新玩法"变安全，是那块空间能成立的前提。
-> 一个会把整件作品带走的扩展点，没有人敢用第二次。
+> Making "try any new idea you like" *safe* is the precondition for that space
+> existing at all. Nobody uses an extension point twice if it can take the whole
+> artwork down with it.
 
-## P17 · 没有真人就不编数
+## P17 · No real person, no invented numbers
 
-采集线写完了整条链，但拒绝回答"MediaPipe 的轴向是什么"——
-因为这台机器上没有真人能站到摄像头前蹲一下。它报了 `partial`，
-并且明确说"十分钟就能解，但需要一个有身体的人"。
+The capture line finished the whole chain but refused to answer "which way do
+MediaPipe's axes point" — because there was no real human on that machine who
+could stand in front of the camera and crouch. It reported `partial`, and stated
+plainly: "ten minutes to solve, but it needs a person with a body."
 
-> 这是 §craft 里"每个模块自带证据"的最硬的一种表现形式：
-> **宁可交一个诚实的半成品，不要交一个编出来的完成品。**
+> This is the hardest form of §craft's "every module carries its own evidence":
+> **better an honest half-finished thing than a fabricated finished one.**
 
-## P18 · 合成数据要在使用路径上吼
+## P18 · Synthetic data has to shout from the path that uses it
 
-上面那条的直接后果：项目里有一份程序生成的占位 pose 数据。
-文件里有注记，但**只有打开文件才看得到**。
-所以在加载路径上补了一条 `console.warn` —— 每次用它都会被提醒一次。
+A direct consequence of P17: the project contains a procedurally generated
+placeholder pose file. It had a note inside it — but **you only saw the note if
+you opened the file**. So we added a `console.warn` on the load path, and now
+every single use of it reminds you once.
 
-> 一个陷阱如果只在文档里标注，它就还是个陷阱。
-> 要让它在**被踩到的那一刻**出声。
+> A trap that is only labelled in the documentation is still a trap.
+> It has to make a noise **at the moment somebody steps on it**.
 
-## P19 · 并行度要留余量，长任务要能断点续跑
+## P19 · Leave headroom in parallelism; long jobs must resume from where they stopped
 
-一次开了九条线，撞上会话限额，**九条同时被中断**。
-活下来的是：已经提交的、和写进文件的。死掉的是：还在内存里的。
+We once ran nine lines at once, hit the session quota, and **all nine were
+interrupted together**. What survived: what had been committed, and what had been
+written to a file. What died: whatever was still in memory.
 
-> 并行不是越多越好。每多一条线，"全部一起失败"的概率就高一分。
-> 长任务要设计成可以从中断处继续 —— 幂等台账救了素材线，
-> 因为它重跑时只会重试失败项。
+> More parallel is not better. Every additional line raises the odds of
+> "everything fails at once". Long jobs must be designed to resume from the point
+> of interruption — the idempotent ledger is what saved the asset line, because
+> a rerun only retries the failures.
 
-## P20 · 编排者自己的手也会滑
+## P20 · The orchestrator's own hand slips too
 
-按时间顺序：`git add -A` 把五个 worktree 当 submodule 加进索引；
-给出的等待命令 `pgrep -f "cli.ts generate"` 匹配到了等待自己的那条 shell，
-挂住两个代理半小时；和素材线共用主目录撞了 git index。
+In order: `git add -A` pulled five worktrees into the index as submodules; a
+wait command handed out as `pgrep -f "cli.ts generate"` matched the very shell
+that was waiting on it, hanging two agents for half an hour; and sharing the main
+working directory with the asset line collided on the git index.
 
-> 编排者的错会被**乘以并行度**。
-> 所以编排者的每一条指令，在发出去之前都该按"它会被执行十次"来检查。
+> The orchestrator's mistakes get **multiplied by the parallelism**.
+> So every instruction the orchestrator sends out should be checked as though it
+> were going to be executed ten times.
 
-（具体的编排纪律见 `docs/15-ORCHESTRATION.md` §6。）
+(The concrete orchestration discipline is `docs/15-ORCHESTRATION.md` §6.)

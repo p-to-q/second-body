@@ -34,27 +34,66 @@ import { showBootError } from './shell/boot-error.ts';
 import { createSlowLoop } from './slow/slow.ts';
 import { enterKiosk, readFlags } from './shell/kiosk.ts';
 import { mountCameraButton, mountEntry } from './shell/entry.ts';
+import { mountLoading } from './shell/loading.ts';
+import { showNotice } from './shell/notice.ts';
+import { mountNav } from './ui/nav.ts';
 import { createHud } from './shell/hud.ts';
 import { createSound } from './sound/sound.ts';
-import { ACTS, createDirector, type World } from './acts/index.ts';
+import { COPY } from './ui/i18n.ts';import { ACTS, createDirector, type World } from './acts/index.ts';
 
 const flags = readFlags();
 
+/**
+ * 「正在准备零件」这一档里，`parts.json` 自己占多少。
+ * 剩下的留给选择页那 23 张 anchor 图 —— 它们才是这一档真正要等的东西。
+ */
+const PARTS_INDEX_SHARE = 0.15;
+
 async function boot(): Promise<void> {
-  // ── 0. 网页版入口层（docs/PRD §8 / docs/23 §S0 网页分支） ─────────────────
+  // ── 0. 加载态（docs/23 §S0）─────────────────────────────────────────────
+  // 在这之前，从打开 URL 到身体出现之间观众看到的是一块黑屏。它挂在最前面，
+  // 但 600ms 宽限期内一帧都不画 —— 快的时候观众仍然不该看见这个场景。
+  // `?loading=0` 返回空实现，所以下面的调用点不需要写 if。
+  const loading = mountLoading(flags);
+
+  // 目录（docs/23 §S4）。现场（`?kiosk=1`）下 `flags.nav` 为 false，等于不存在。
+  // 挂在这里而不是等选择页结束：慢网上它正好是那几秒里唯一"还有别的可看"的出口。
+  mountNav({ enabled: flags.nav, overlay: true });
+
+  // ── 0b. 网页版入口层（docs/PRD §8 / docs/23 §S0 网页分支） ─────────────────
   // 唯一的作用是把「请求摄像头」推迟到观众自己按那一下为止：在此之前用回放驱动，
   // 一次权限都不问。现场（?kiosk=1）和深链拿到 null，这一层等于不存在。
   // 它不阻塞下面的加载 —— 只有进 S2 之前会 await 一次 entry.started。
   const entry = mountEntry(flags);
 
-  // ── 1. 渲染器与舞台 ──────────────────────────────────────────────────────
+  // ── 1. 资产先开跑。它不依赖渲染器 ────────────────────────────────────────
+  // 原来它排在 `renderer.init()` **后面**。可 parts.json 和 anchor 图跟渲染器
+  // 一点关系都没有，而 init() 是首次 pipeline 编译，慢机器上要好几秒 ——
+  // 那几秒里管子完全是空的。改成并行，首屏少等的正是这一整段。
+  // 失败也 resolve：没有 parts.json 时用占位几何照跑（ADR-4）。
+  loading.begin('parts');
+  const library = createPartLibrary();
+  const libraryReady = library.load().then(() => loading.progress('parts', PARTS_INDEX_SHARE));
+
+  // ── 2. 渲染器与舞台 ──────────────────────────────────────────────────────
+  loading.begin('render');
   const renderer = new THREE.WebGPURenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.setSize(innerWidth, innerHeight);
+  // 渲染器造出来了 —— 这是这一档里唯一一个 init() 之前就成立的真事实。
+  // 报它是因为 init() 是一个不可分割的长 await：没有这一格，慢机器上
+  // 「正在点亮画面」会在 0% 上停好几秒，而停住的数字读起来就是"坏了"。
+  loading.progress('render', 0.4);
   // WebGPU 必须先 init() 才能同步 render()。renderAsync() 已废弃，
   // 而且每帧 await 会把渲染塞进微任务队列，帧时间读数会骗人。
   await renderer.init();
+  loading.done('render');
   document.body.appendChild(renderer.domElement);
+
+  // 回落到 WebGL2 了没有。**在这里读，不在这里说** —— 说要等加载态收掉之后（见下面），
+  // 否则这句话会被那一层盖住，等它露出来的时候 4 秒早就走完了（实测踩过）。
+  const renderFellBack =
+    (renderer.backend as { isWebGPUBackend?: boolean } | undefined)?.isWebGPUBackend !== true;
 
   const stage = createStage();
   stage.resize(innerWidth, innerHeight);
@@ -66,20 +105,24 @@ async function boot(): Promise<void> {
   enterKiosk(renderer.domElement, flags);
   const hud = flags.debug ? createHud() : null;
 
-  // ── 2. 资产。失败也 resolve —— 没有 parts.json 时用占位几何照跑（ADR-4） ──
-  const library = createPartLibrary();
-  await library.load();
+  // ── 3. 等资产（上面早就在跑了）──────────────────────────────────────────
+  await libraryReady;
   if (library.usingFallback) console.warn('[main] 没有部件库，用程序化占位几何运行');
 
-  // ── 3. 采集与选主题**并行** ──────────────────────────────────────────────
+  // ── 4. 采集与选主题**并行** ──────────────────────────────────────────────
   // 为什么并行：MediaPipe 的 wasm + 两个模型要好几秒。串行的话观众选完主题
   // 会盯着一块黑屏等它加载 —— 而那正是整个体验里最需要连贯的一刻
   //（卡片冲向镜头、溶解、然后身体应该**已经在那里了**）。
+  loading.begin('body');
   const capturePromise = (async () => {
     // 入口层在场 = 还没人授权过 → 先用回放起步（见 shell/entry.ts 的文件头）
-    const c = await createCapture(entry ? 'replay' : undefined);
+    // onStep 是采集端自己报的真实里程碑，不是定时器（见 capture.ts 的 CaptureStep）
+    const c = await createCapture(entry ? 'replay' : undefined, {
+      onStep: (done, total) => loading.progress('body', done / total),
+    });
     await c.start();
     if (c.lastError) console.warn('[main] capture:', c.lastError);
+    loading.done('body');
     return c;
   })();
 
@@ -92,8 +135,19 @@ async function boot(): Promise<void> {
       void chooseTheme({
         onChoose: (id) => { theme = id; done(); },
         seed: flags.seed ?? undefined,
-      }).then((handle) => { if (!handle) done(); });   // handle 为 null = URL 里已经有主题
+        // 这一页真正的等待在它返回之前（23 张 anchor 图）。只上报，不改这一页的任何表现。
+        onProgress: (n, total) => loading.progress(
+          'parts', PARTS_INDEX_SHARE + (1 - PARTS_INDEX_SHARE) * (total ? n / total : 1),
+        ),
+      }).then((handle) => {
+        // 选择页已经在屏幕上了 —— 观众有事可做，加载态立刻让位。
+        // 剩下的预取在后面继续跑，但它不该再挡着任何人。
+        loading.finish();
+        if (!handle) done();   // handle 为 null = URL 里已经有主题
+      });
     });
+  } else {
+    loading.done('parts');
   }
 
   // 血统：前人留在这台机器上的件，有机会进下一个人的候选池（docs/17 §5）。
@@ -118,6 +172,8 @@ async function boot(): Promise<void> {
     library.preload(wanted),
     new Promise((r) => setTimeout(r, 2500)),   // 预取失败/慢也不许卡住进场
   ]);
+  // 深链（`?theme=`）没经过选择页，加载态要在这里收 —— 它是幂等的，重复调用无害
+  loading.finish();
 
   // `let` 而不是 `const`：观众按下「用我的摄像头」之后，这一个引用会被换掉
   // （回放 → 摄像头）。两个实现可互换是 Capture 的硬契约，帧循环不需要知道换过。
@@ -127,6 +183,16 @@ async function boot(): Promise<void> {
   // 这是「物种真的不一样」与「同一具人体换皮」之间的那一行。
   const themeDef = library.index.themes?.find((t) => t.id === theme);
   stage.setTheme(themeDef ?? theme ?? null, library.index);
+
+  // 进场这一刻，`docs/23` 允许说两句话，都只说一次、都自己淡掉：
+  //
+  //   §S4  左下角物种名 —— 「观众需要知道自己选的是什么，但只需要知道一次」。
+  //        此前这一行不存在：选择页一退场，观众就再也没机会知道自己选了什么。
+  //   §S0  右下角「降级渲染」—— 只给网页版。现场静默：站在装置前面的人
+  //        对这条信息无能为力，说了只是打扰。此前只有一行 console.warn，
+  //        而那是给我们看的，不是给观众看的。
+  if (themeDef) showNotice({ zh: themeDef.name, en: themeDef.nameEn });
+  if (renderFellBack && !flags.kiosk) showNotice(COPY.boot.fallbackRender, { corner: 'bottom-right' });
   const bodyPlan = flags.plan ?? themeDef?.bodyPlan ?? 'rig';
 
   // ── 5. 状态机 ───────────────────────────────────────────────────────────

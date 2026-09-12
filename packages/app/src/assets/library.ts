@@ -45,6 +45,11 @@ export interface PartLibrary {
   readonly index: PartLibraryIndex;
   /** 永不返回 undefined：缺失 / 还没加载完 / 加载失败 → 占位几何 */
   geometry(partId: string): THREE.BufferGeometry;
+  /**
+   * 左侧肢体用的**预镜像**几何：X 取反 + 三角形绕序翻回来（见 `mirrorGeometry`）。
+   * 与 `geometry()` 同样永不返回 undefined。挂载矩阵用它时**不要**再加负 X 缩放。
+   */
+  mirrored(partId: string): THREE.BufferGeometry;
   readonly usingFallback: boolean;
 
   // ── 以下是 docs/06 §3 之外的附加能力（只增不改，见 P0） ──
@@ -272,6 +277,46 @@ function toFloatAttribute(a: THREE.BufferAttribute | THREE.InterleavedBufferAttr
   return new THREE.BufferAttribute(out, n);
 }
 
+/**
+ * 左右镜像的几何副本：X 取反，然后把每个三角形的绕序翻回来。
+ *
+ * 为什么不能只在矩阵里给一个负 X 缩放（原来就是这么做的）：
+ * 负行列式会把**所有**三角形变成背面。`side: DoubleSide` 让它们还看得见，
+ * 但 three 对背面片元会把法线取反 —— 于是整个左半身是"从内部被照亮"的，
+ * 比右半身暗一大截。实拍图里"左右手像两种完全不同的材质"就是这么来的，
+ * 它根本不是材质问题。
+ *
+ * 翻绕序等于把行列式再翻回正的，法线和正反面判定就都对了；
+ * 代价是每个镜像件多一份几何（~3k 面，可以接受）。
+ */
+export function mirrorGeometry(src: THREE.BufferGeometry): THREE.BufferGeometry {
+  const g = src.clone();
+  g.scale(-1, 1, 1);
+  const idx = g.getIndex();
+  if (idx) {
+    const a = idx.array as Uint16Array | Uint32Array;
+    for (let i = 0; i + 2 < a.length; i += 3) { const t = a[i]; a[i] = a[i + 2]; a[i + 2] = t; }
+    idx.needsUpdate = true;
+  } else {
+    // 非索引几何：直接换每个三角形里第 0 与第 2 个顶点的所有属性
+    for (const name of Object.keys(g.attributes)) {
+      const attr = g.getAttribute(name) as THREE.BufferAttribute;
+      const n = attr.itemSize;
+      const arr = attr.array as Float32Array;
+      for (let t = 0; t + 2 < attr.count; t += 3) {
+        for (let k = 0; k < n; k++) {
+          const i0 = t * n + k, i2 = (t + 2) * n + k;
+          const tmp = arr[i0]; arr[i0] = arr[i2]; arr[i2] = tmp;
+        }
+      }
+      attr.needsUpdate = true;
+    }
+  }
+  g.computeBoundingBox();
+  g.computeBoundingSphere();
+  return g;
+}
+
 /** 导出只为了测试：压缩件的解码 + 烘变换这条路坏掉时不会抛异常，只能用真文件对边界 */
 export function geometryFromScene(scene: THREE.Object3D): THREE.BufferGeometry | null {
   scene.updateMatrixWorld(true);
@@ -315,6 +360,7 @@ export function createPartLibrary(opt: PartLibraryOptions = {}): PartLibrary {
   const placeholders = new Map<Slot, THREE.BufferGeometry>();
   const placeholderMetas = new Map<Slot, PartMeta>();
   const geometries = new Map<string, THREE.BufferGeometry>();   // partId → 真几何
+  const mirrors = new Map<string, THREE.BufferGeometry>();      // partId → 预镜像副本（懒建）
   const inFlight = new Map<string, Promise<void>>();
   const failed = new Set<string>();
   const listeners = new Set<(partId: string) => void>();
@@ -348,7 +394,14 @@ export function createPartLibrary(opt: PartLibraryOptions = {}): PartLibrary {
     return m;
   }
 
+  /** 几何变了（真几何到货 / 慢回路热插拔）→ 镜像副本作废，下次用时重建 */
+  function dropMirror(partId: string) {
+    mirrors.get(partId)?.dispose();
+    mirrors.delete(partId);
+  }
+
   function emit(partId: string) {
+    dropMirror(partId);
     for (const cb of listeners) {
       try { cb(partId); } catch (e) { console.error('[library] onGeometry 回调抛异常', e); }
     }
@@ -482,6 +535,15 @@ export function createPartLibrary(opt: PartLibraryOptions = {}): PartLibrary {
       return placeholderGeometry(slotFromId(partId, index));
     },
 
+    mirrored(partId) {
+      const hit = mirrors.get(partId);
+      if (hit) return hit;
+      // 用 geometry() 而不是 geometries.get()：它顺带触发加载、并保证有占位可用
+      const g = mirrorGeometry(lib.geometry(partId));
+      mirrors.set(partId, g);       // 真几何到货时由 dropMirror() 作废，见 fetchPart
+      return g;
+    },
+
     metaOf(partId) {
       return index.parts.find((p) => p.id === partId) ?? placeholderMeta(slotFromId(partId, index));
     },
@@ -540,7 +602,9 @@ export function createPartLibrary(opt: PartLibraryOptions = {}): PartLibrary {
       bgQueue.length = 0;
       bgQueued.clear();
       for (const g of geometries.values()) g.dispose();
+      for (const g of mirrors.values()) g.dispose();
       for (const g of placeholders.values()) g.dispose();
+      mirrors.clear();
       geometries.clear();
       placeholders.clear();
       placeholderMetas.clear();

@@ -1,0 +1,101 @@
+/**
+ * 加载态的皮肤。
+ *
+ * 它长得像**档案的一页**，不像一个加载中的应用：三行、两条细横线、
+ * 右栏等宽数字。`docs/23 §0` 禁止的是「转圈」和「圆角进度条」——
+ * 那些是应用的语言；一条正在走完的 1px 横线加一个对齐的数字是档案的语言，
+ * 和选择页那条 30 秒倒计时线、和 `/making` 的坐标栏是同一套东西。
+ *
+ * 度量与颜色一律来自 type.css。这里只摆位置。
+ */
+
+.sb-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 8;   /* 在入口展签（10）之下、摄像头按钮（5）之上 */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: var(--sb-safe);
+  background: var(--sb-paper);
+  /* 默认不可见：600ms 宽限期内什么都别画（见 loading.ts 的 GRACE_MS） */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 240ms cubic-bezier(.16, 1, .3, 1);
+}
+
+.sb-loading.is-on { opacity: 1; }
+
+/* 出比进快（§0） */
+.sb-loading.is-leaving {
+  opacity: 0;
+  transition: opacity 180ms cubic-bezier(.4, 0, 1, 1);
+}
+
+.sb-loading-inner { max-width: var(--sb-measure); }
+
+/* ── 阶段表：左边在等什么，右边等到哪了 ─────────────────────────────────── */
+.sb-load-stage {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sb-gutter);
+  padding: 0.85rem 0;
+  border-top: 1px solid var(--sb-rule);
+}
+.sb-load-stage:first-child { border-top: 0; }
+
+/* 还没轮到的阶段压暗 —— 观众一眼能看出"现在在等的是哪一行" */
+.sb-load-stage.is-waiting .sb-zh { color: var(--sb-ink-dim); }
+.sb-load-stage.is-waiting { opacity: 0.55; }
+.sb-load-stage.is-done { opacity: 0.55; }
+
+/* 右栏是**数据**，所以等宽 + tabular-nums：三行的数字必须能对齐，
+   对不齐的数字会跳，跳动的数字比没有数字更让人觉得"卡住了" */
+.sb-load-state {
+  font-family: var(--sb-mono);
+  font-size: var(--sb-size-small);
+  font-variant-numeric: tabular-nums;
+  color: var(--sb-ink-dim);
+  white-space: nowrap;
+}
+.sb-load-stage.is-active .sb-load-state { color: var(--sb-ink); }
+
+/* ── 总进度：一条 1px 的线，和选择页倒计时那条是同一个构件 ─────────────── */
+.sb-load-bar {
+  margin-top: calc(var(--sb-gutter) * 0.75);
+  height: 1px;
+  background: var(--sb-rule);
+}
+.sb-load-bar i {
+  display: block;
+  height: 1px;
+  width: 0;
+  background: var(--sb-ink);
+  transition: width 240ms cubic-bezier(.16, 1, .3, 1);
+}
+
+/* 总百分比：和作品名同一行，一左一右 —— 页头的构型，不是仪表盘的构型 */
+.sb-load-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sb-gutter);
+  margin-bottom: calc(var(--sb-gutter) * 0.75);
+}
+.sb-load-pct {
+  font-family: var(--sb-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--sb-size-h2);
+  line-height: 1;
+  color: var(--sb-ink);
+  letter-spacing: var(--sb-tracking-h2);
+}
+
+/* 慢网/降级时那一句人话。默认不占位，出现时淡入 */
+.sb-load-note {
+  margin: calc(var(--sb-gutter) * 0.75) 0 0;
+  min-height: 2.6em;
+}
+.sb-load-note:empty { min-height: 2.6em; }
+.sb-load-note .sb-zh { color: var(--sb-ink); }

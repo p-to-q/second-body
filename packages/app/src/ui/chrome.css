@@ -23,8 +23,16 @@
   margin-bottom: 0.75em;
 }
 
+/**
+ * 页头的题**不跟全局 h1 的级差走**。全局 h1 为了展陈页放大了，但页头是工具的
+ * 标识条不是版面的主角 —— 一个 dev 页的题占掉三分之一屏，会把要看的那帧画面挤没。
+ * 所以这里把它钉在 h2 那一级：这是一次刻意的解耦，不是漏改。
+ */
 .sb-head__title {
   margin: 0;
+  font-size: var(--sb-size-h2);
+  line-height: var(--sb-lh-h2);
+  letter-spacing: var(--sb-tracking-h2);
 }
 
 /* 英文副名跟在中文名后面，小一号、放开字距 —— 和选择页的 .sb-en 是同一套约定 */

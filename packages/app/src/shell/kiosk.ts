@@ -26,7 +26,17 @@ export interface Flags {
   vitality: boolean;
   /** ?mute=1 彻底关声音（连 AudioContext 都不建）。运行中按 `m` 也能关（docs/29） */
   mute: boolean;
-}
+  /**
+   * ?loading=0 关掉加载态那一层（`shell/loading.ts`）。
+   * 它叠在选择页既有画面之上，而那个镜头是不许动的 —— 万一现场看着不对，
+   * 要能在 3 秒内把它摘掉，而不是回滚一次构建。
+   */
+  loading: boolean;
+  /**
+   * ?nav=0 关掉右上角目录（`ui/nav.ts`）。现场（`?kiosk=1`）本来就不挂它 ——
+   * 装置画面上不该有网站导航。这个开关是给"投影但不是 kiosk"那种场合的。
+   */
+  nav: boolean;}
 
 /** MediaPipe 的三个 PoseLandmarker 档位。精度/延迟的实测差异见 docs/24 §3 */
 export type PoseModel = 'lite' | 'full' | 'heavy';
@@ -67,7 +77,10 @@ export function readFlags(search = location.search): Flags {
     // 默认开声音。`?mute=1` 是现场"三秒内让它闭嘴"的第一条路 ——
     // 第二条是运行中按 `m`，不用重载（docs/29 §现场怎么调）。
     mute: q.get('mute') === '1',
-  };
+    loading: q.get('loading') !== '0',
+    // 现场默认不挂目录：装置前面的画面上不该有网站导航（docs/23 §S4「默认零 UI」）。
+    // 判断放在这里而不是各挂载点，是为了只有一处决定"现场看得见什么"。
+    nav: q.get('nav') !== '0' && q.get('kiosk') !== '1',  };
 }
 
 /** 防止 macOS 在无人交互时息屏 —— 装置会在这上面吃大亏 */
