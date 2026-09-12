@@ -12,7 +12,7 @@ theme  ← 观众选的        （决定它是什么）
 tier   ← 观众的动作挣来的  （决定它有多复杂）
 ```
 
-权威定义在 `packages/factory/recipes/themes.ts`，运行时从 `parts.json` 的 `themes[]` 读。
+权威定义在 `packages/factory/recipes/roster.ts`，运行时从 `parts.json` 的 `themes[]` 读。
 `PartMeta.family` 就是 theme id（历史字段名，语义相同）。
 
 ## 2. 有哪些条目 → 见 `docs/14-SPEC-roster.md`

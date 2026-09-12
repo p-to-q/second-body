@@ -1333,7 +1333,139 @@
       ],
       "completedAt": "2026-09-12T06:35:48.072Z",
       "error": null
+    },
+    "spine.wheelleg.a": {
+      "recipeHash": "sha256:a4caaa811b640e58",
+      "taskUuid": "c8efbb54-1789-4804-b08f-a8db6f26fa40",
+      "status": "done",
+      "consumed": 0.5,
+      "files": [
+        "spine.wheelleg.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T06:36:19.480Z",
+      "error": null
+    },
+    "spine.droid.a": {
+      "recipeHash": "sha256:2505a47f65fc3fd8",
+      "taskUuid": "943e5915-7935-4e4c-bb03-12ef76e468a2",
+      "status": "done",
+      "consumed": 0.5,
+      "files": [
+        "spine.droid.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T06:37:05.532Z",
+      "error": null
+    },
+    "spine.petbot.a": {
+      "recipeHash": "sha256:ddbd929cc0b09d12",
+      "taskUuid": "62295ed3-18bb-4297-ad1b-793b1469bd4b",
+      "status": "done",
+      "consumed": 0.5,
+      "files": [
+        "spine.petbot.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T06:37:46.445Z",
+      "error": null
+    },
+    "spine.furball.a": {
+      "recipeHash": "sha256:f77f4ee8b16df6e4",
+      "taskUuid": "d3d78546-3d27-4054-bd13-cc8cee9aca8f",
+      "status": "done",
+      "consumed": 0.5,
+      "files": [
+        "spine.furball.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T06:38:23.220Z",
+      "error": null
+    },
+    "spine.screenface.a": {
+      "recipeHash": "sha256:8b9fa3372a11895b",
+      "taskUuid": "ab6d47f8-90af-4d49-abcf-119b443047e4",
+      "status": "done",
+      "consumed": 0.5,
+      "files": [
+        "spine.screenface.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T06:38:54.474Z",
+      "error": null
+    },
+    "spine.orb.a": {
+      "recipeHash": "sha256:8077763237c16ac5",
+      "taskUuid": "c7ecea0e-d38c-4973-b2fa-7888249be6c1",
+      "status": "done",
+      "consumed": 0.5,
+      "files": [
+        "spine.orb.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T06:39:24.999Z",
+      "error": null
+    },
+    "spine.manipulator.a": {
+      "recipeHash": "sha256:c644433d2535795f",
+      "taskUuid": "670728d1-cec3-40b8-b4b9-a5d8fc016468",
+      "status": "done",
+      "consumed": 0.5,
+      "files": [
+        "spine.manipulator.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T06:39:59.738Z",
+      "error": null
+    },
+    "spine.autonomous.a": {
+      "recipeHash": "sha256:541eff38d5b1f8e7",
+      "taskUuid": "80e65bfd-4151-4047-bbf8-476483adc0fb",
+      "status": "done",
+      "consumed": 0.5,
+      "files": [
+        "spine.autonomous.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T06:40:42.405Z",
+      "error": null
+    },
+    "spine.char.dumpling.a": {
+      "recipeHash": "sha256:81e9fa4ab85016dd",
+      "taskUuid": "6cff7803-9d9c-46d3-a5ef-629567f711a3",
+      "status": "done",
+      "consumed": 0.5,
+      "files": [
+        "spine.char.dumpling.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T06:41:11.124Z",
+      "error": null
+    },
+    "spine.char.ghost.a": {
+      "recipeHash": "sha256:ea78d5484cb465a2",
+      "taskUuid": "a97a4e5f-d144-4a1c-baf0-417694fbd0d4",
+      "status": "done",
+      "consumed": 0.5,
+      "files": [
+        "spine.char.ghost.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T06:41:44.109Z",
+      "error": null
+    },
+    "spine.char.paper.a": {
+      "recipeHash": "sha256:a4325c173e4f53d3",
+      "taskUuid": "afa7dd23-d827-4db6-a949-afba216c7a08",
+      "status": "done",
+      "consumed": 0.5,
+      "files": [
+        "spine.char.paper.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T06:42:19.655Z",
+      "error": null
+    },
+    "spine.char.idol.a": {
+      "recipeHash": "sha256:763c303db470954d",
+      "taskUuid": "39c184f8-516a-485d-87ca-cabb6e0da4bd",
+      "status": "done",
+      "consumed": 0.5,
+      "files": [
+        "spine.char.idol.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T06:42:55.923Z",
+      "error": null
     }
   },
-  "totalConsumed": 52
+  "totalConsumed": 58
 }
