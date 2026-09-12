@@ -9,6 +9,8 @@
   "scripts": {
     "dev": "npm run dev -w @sb/app",
     "build": "npm run build -w @sb/app",
+    "kiosk": "npm run build && npm run preview -w @sb/app -- --open \"/?kiosk=1\"",
+    "selftest": "npm run build && npm run preview -w @sb/app -- --open \"/?selftest=1\"",
     "test": "npm run test -w @sb/core && npm run test -w @sb/app",
     "factory:balance": "node --env-file=.env packages/factory/src/cli.ts balance",
     "factory:plan": "node --env-file=.env packages/factory/src/cli.ts plan",

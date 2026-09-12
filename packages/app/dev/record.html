@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pose 录制</title>
+<style>
+ html,body{margin:0;height:100%;background:#0b0b0c;overflow:hidden;
+           font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;color:#9aa}
+ #stage{position:fixed;left:0;top:0;right:340px;bottom:0;background:#000}
+ video,#ov{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:contain}
+ #side{position:fixed;right:0;top:0;bottom:0;width:340px;background:#111316;
+       border-left:1px solid #222;padding:16px;overflow:auto;box-sizing:border-box}
+ h1{font-size:14px;color:#eef2f6;margin:0 0 2px;letter-spacing:.05em;font-weight:600}
+ .sub{color:#5c626b;font-size:11.5px;margin-bottom:14px}
+ .card{border:1px solid #24272c;border-radius:6px;padding:10px 12px;margin-bottom:12px;background:#141619}
+ .k{color:#5c626b}
+ #stat{white-space:pre;line-height:1.7}
+ #err{display:none;border-color:#5a2731;background:#1d1215;color:#e0455a;white-space:pre-wrap}
+ button{font:13px ui-monospace,monospace;color:#cdd3da;background:#1b1e23;border:1px solid #2f333a;
+        border-radius:5px;padding:9px 14px;cursor:pointer;margin:0 6px 6px 0}
+ button:disabled{opacity:.4;cursor:default}
+ button.rec{color:#fff;background:#8d2230;border-color:#a8323f}
+ input{font:13px ui-monospace,monospace;color:#cdd3da;background:#0e0f12;border:1px solid #2f333a;
+       border-radius:5px;padding:7px 9px;width:100%;box-sizing:border-box}
+ ol{margin:6px 0 0;padding-left:20px;line-height:1.75}
+ ol li.now{color:#eef2f6}
+ ol li.done{color:#4a5058;text-decoration:line-through}
+ #beat{position:fixed;left:24px;bottom:24px;right:364px;font-size:26px;color:#eef2f6;
+       text-shadow:0 2px 8px #000;pointer-events:none}
+ #beat small{display:block;font-size:13px;color:#9aa;margin-top:4px}
+ #dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#3a3f46;margin-right:7px;
+      vertical-align:middle}
+ #dot.on{background:#e0455a}
+ a{color:#7fb3d5}
+</style></head>
+<body>
+<div id="stage"><video id="cam" playsinline muted></video><canvas id="ov"></canvas></div>
+<div id="beat"></div>
+<div id="side">
+  <h1>Pose 录制 · T-16</h1>
+  <div class="sub">录一段真人 pose 存成 <code>assets/demo/pose-*.json</code>，
+    给 <code>?demo=1</code> 当现场兜底。<b>不要用合成数据代替。</b></div>
+
+  <div class="card" id="err"></div>
+
+  <div class="card"><div id="stat">启动中…</div></div>
+
+  <div class="card">
+    <div class="k">片段名</div>
+    <input id="name" value="walkwave" spellcheck="false">
+    <div class="k" style="margin-top:6px;font-size:11.5px">会存成 /demo/pose-&lt;名字&gt;.json，
+      回放用 <code>?demo=1&amp;clip=&lt;名字&gt;</code></div>
+  </div>
+
+  <div>
+    <button id="go" class="rec"><span id="dot"></span>开始录制</button>
+    <button id="stop" disabled>停止</button>
+  </div>
+  <div>
+    <button id="save" disabled>写回 assets/demo/</button>
+    <button id="dl" disabled>下载 .json</button>
+  </div>
+
+  <div class="card" style="margin-top:12px">
+    <div class="k">要录到的六件事（现场真会发生的）</div>
+    <ol id="beats"></ol>
+  </div>
+
+  <div class="card">
+    <div class="k">录完之后</div>
+    <div style="margin-top:4px">1. <a href="/?demo=1&amp;debug=1" target="_blank">/?demo=1&amp;debug=1</a> 看一遍<br>
+      2. <a href="/?selftest=1" target="_blank">/?selftest=1</a> 确认片段被认到<br>
+      3. 更新 docs/10-SURFACES.md 里 <code>?demo=1 回放</code> 那一行</div>
+  </div>
+</div>
+<script type="module" src="./record.ts"></script>
+</body>
+</html>
