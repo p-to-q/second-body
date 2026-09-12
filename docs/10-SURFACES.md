@@ -48,7 +48,9 @@
 | Creature / Stage / 后期 | `spec-only` | T-07 / T-09 |
 | `?demo=1` 回放 | `spec-only` | T-16。**现场兜底依赖它，不能一直是 spec-only** |
 | 慢回路（代理 + 热插拔） | `spec-only` | T-17 |
-| 开场选择页（dither 轮播） | `spec-only` | T-18。上游代码 MIT 可用，其 `public/` 素材不可用 |
+| 开场选择页（dither 轮播） | `experimental` | `/dev/choose.html`：6 张卡滚/选/进，`?theme=xeno` 跳过，数字键直选，空闲自动选（`?idle=6000` 验过）；截图 `scratch/evidence/choose-0*.png`。上游 `gl/` 已移植进 `src/vendor/dither-carousel/`（MIT + LICENSE 在位，`public/` 素材一张没拿）。未验：真实现场投影分辨率与触摸屏 |
+| 选择页无 WebGL 降级（DOM 列表） | `experimental` | `/dev/choose.html?gl=off`：6 张卡列出、点选写 `?theme=`、键盘与自动选择照常；控制台 `mode=fallback`。真实的 context lost 分支 `Not run` |
+| 形态空间排布（按 `axes` 绕质心成环） | `experimental` | `?roster=1` 下 23 个条目排成一圈（autonomous→wheelleg→patrol→field→…→orb）；旧版 parts.json 无 `axes` 时退回数组顺序，也验过 |
 | Web 部署（Vercel + serverless 慢回路） | `spec-only` | T-19，检查单在 `docs/13` §6 |
 
 ## 明确还没验证的（见 `docs/09`）
