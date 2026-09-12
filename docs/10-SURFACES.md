@@ -6,6 +6,7 @@
 >
 > 规则：**动完代码就更新这张表。** 证据一栏必须是"跑过的命令"或"截图路径"，不能是"应该可以"。
 
+最后更新：2026-09-13（身体好看那条线：脚的挂载 + 镜像法线 + 材质统一）
 最后更新：2026-09-13（T-17 慢回路服务端落地后）
 最后更新：2026-09-12（B 档身体方案 `mass` 落地后）
 最后更新：2026-09-12（T-16 kiosk 加固 + 录制页落地后）
@@ -19,7 +20,7 @@
 | 幂等台账 `ledger.json` | `stable` | 第二次 `--dry-run` 报 "需要生成 0 个" |
 | 预算闸门（单次 ≤40 credits、余额检查） | `stable` | 代码路径已走通；超额分支 `Not run` |
 | 规范化（主轴 +Y / socketA 原点 / 长度 1 / 去贴图 / 单 mesh） | `stable` | `npm run factory:normalize`：6/6 无 warning；2.3MB → ~110KB |
-| 长轴朝向自动判定（粗端朝下） | `experimental` | 186 件复检：9 个槽位方向一致（少数反例都是 lo≈hi 的 near-symmetric 件，无所谓）。**`foot` 是 12:12 对半分**，槽位级 `flip` 布尔值无论取 true/false 都只能对一半 —— 需要逐件 flip 或给 foot 反转启发式，**不花 credits**（T-13） |
+| 长轴朝向自动判定（粗端朝下） | `experimental` | 186 件复检：9 个槽位方向一致（少数反例都是 lo≈hi 的 near-symmetric 件，无所谓）。**`foot` 是 12:12 对半分** —— 现在知道为什么了：`endRadii` 问的是「哪一端更粗」，而脚的两端是脚跟和脚尖，谁粗谁细本来就没有定论，所以它必然是硬币。这条对**摆放**已经不再要紧（脚不再按端点挂，见下面「脚长在腿上」那行）；剩下的只是脚**前后可能朝反**这一件事，仍然要逐件 flip，**不花 credits**（T-13） |
 | 容差焊接 + 逐级减面兜底 | `stable` | 对 Rodin 返回的 1.5M 面未焊接网格：1,515,338 → 4,884 tris，文件 66 MB → 148 KB |
 | 部件契约检查 `npm run check:parts` | `stable` | 186 件 0 错 1 警告；唯一的警告是「10 件已 reject 但仍在 parts.json」—— 按 docs/14 §5 是故意的（genome 排除、文件保留）。捕获过一次"prune 没跑导致 66 MB"的真实回归 |
 | **部件档案 `/dev/parts.html`**（目录 kind→条目→槽位 · 每条目一栏 · 按槽位分组列件） | `stable` | 接触表升级成可以直接给人看的档案。23 条目 / 191 件全部列出，anchor 图缺失时整列不占位（不出破图），缩略图 IntersectionObserver 懒渲（一个共享 renderer，渲完拷进 2D canvas）、无 WebGL 或单件加载失败退到**比例剪影**。策展绿框红框与"点一下循环 未评→keep→reject"原样保留；`POST /__curate` 探针（无 id 的 POST，中间件在时回 400）决定可评级还是**只读**——生产构建下页头如实写「只读」，格子不可点、不发失败请求。截图 `scratch/evidence/ui-parts-archive.png`（dev，可评级）、`ui-parts-archive-readonly.png`（`vite preview` 打的 dist，只读）、改前改后对照 `ui-before-after-parts.png` |
@@ -36,10 +37,11 @@
 | 表面 | 状态 | 证据 |
 |---|---|---|
 | `types.ts` 冻结契约 | `stable` | 被 core / factory / app 三处共同引用 |
-| `attach.ts` 挂载数学（stretch / uniform 双模式） | `stable` | 9 个测试，含 1000 次随机不变式 + 4 种退化输入 + 两种模式 |
+| `attach.ts` 挂载数学（stretch / uniform 双模式 + `axisLength` / `anchor`） | `stable` | 13 个测试，含 1000 次随机不变式 + 4 种退化输入 + 两种模式 + 新增的长轴覆盖与锚点（`anchor` 缺省 / NaN / 越界都退回老行为；老的 9 条一条没改） |
 | `filter.ts`（OneEuro / emaAlpha / rollingMedian） | `stable` | 4 个测试，含帧率无关性与抗离群值 |
 | `presence.ts` 生命周期状态机 | `stable` | 3 个测试，含"离开途中回来不清零" |
 | `evolution.ts` 演化 | `stable` | 3 个测试，含阈值抖动与首次升档时机 |
+| **`palette.ts` 材质统一（次要/点缀色向物种主色收敛）** | `stable` | 6 个测试。护栏那条最重要：同一个 `matte.ash` 挂在瓷身上和挂在异形身上，明度仍然差 0.1 以上 —— 统一材质**不许**把物种统一掉（docs/PRD §5 第 3 条）。自发光材质（`glow.signal`）原样放行，它是信号不是配色 |
 | `rng.ts` / `vec.ts` | `stable` | 被上述测试间接覆盖 |
 | `slots.ts`（BoneId→Slot、SLOT_WIDTH） | `stable` | 纯表；已被 `app/src/creature/assemble.ts` 实际消费 |
 | `genome.ts` 抽取 | `stable` | 同 seed 两次刷新 genome 深度相等（`/dev/figure.html?seed=1234` 实测）|
@@ -60,12 +62,16 @@
 | 升档视觉事件 `stage.pulse(tier)`（600ms / 全身 +8% / 0.15s 内 dt×0.4） | `experimental` | `stage-pulse-before.png` vs `stage-pulse-peak.png`：HUD 现场读数 **全身 +7.1%**（截图那一刻的包络值，峰值 +7.6%），被照亮像素的线性亮度实测 +6.4%；`timeScale` 轨迹 0.40 → 0.47 → 0.67 → 0.87 → 1（0.15s 恢复）。**没接进 main.ts**：停滞要生效，收口时要把 `stage.timeScale` 乘进 creature/act 的 dt |
 | `src/assets/library.ts` PartLibrary（parts.json + glb + 程序化占位） | `stable` | 把 `parts.json` 改名 → 页面照跑，30 个占位实例（`creature-fallback-no-partsjson.png`）；单个 glb 改名 → 只有那一个槽位退回占位，16/17 正常（`creature-one-glb-missing-head-fallback.png`）|
 | `src/creature/assemble.ts` 纯装配（挂载 + 关节盖片） | `stable` | 30 个实例的 `M·(0,0,0)` 与 `bone.p0` 误差 0；stretch 槽位 `M·(0,1,0)` 与 `p1` 误差 0 |
+| **脚长在腿上（`foot` 的挂载 + `FOOT` 三个旋钮）** | `stable` | **改之前脚是躺在地上的**：`foot` 按 uniform 挂，长轴尺寸 = `SLOT_WIDTH.foot / localGirth` = **0.39m**，和 0.17m 的脚骨毫无关系；而部件契约把 socketA 放在长轴端点，于是整只脚从脚踝**往前平铺**出去、戳穿地板，脚踝以下是空的。现在脚长由脚骨算（`FOOT.lengthOfBone` 补上踝后面那截脚跟，带钳位），踝钉在脚长三成处（`FOOT.anchor`），`SLOT_WIDTH.foot` 改读「脚宽」0.115。取证 `scratch/evidence/body-feet-before-after.png`（同机位同 seed 的脚部特写）与 `body-{porcelain,xeno,manipulator}-{before,after}.png` |
+| 关节盖片盖住接缝 | `experimental` | `MORPH.jointCapScale` 0.75 → 0.95。0.75 时盖片比它要盖的那根骨头还细，肩/胯/膝的穿插照样露在外面 —— 盖了等于没盖。取证同上那六张图。**审美判断，没有量化判据** |
 | `src/creature/body.ts` `BodyInstance` 接口（身体方案的插拔点，docs/18 §3） | `stable` | 纯提取，`creature.ts` 一行没动。编译期断言 `Creature extends BodyInstance` 在 `npm run typecheck` 里（把 `pose` 签名改坏会立刻红）；`mass.ts` 是第二个实现 |
 | **`src/creature/mass.ts` 团块身体（B 档 · MarchingCubes metaball）** | `experimental` | `/dev/mass.html` 实测（M4 / Chrome WebGPU，合成 A-pose 17 骨 = **87 球**，`pose()` 连续 200 次）：**res40 = 1.85ms avg / 3.4ms p95 · 2,484 三角 · 1 draw call**。res 阶梯 16/24/32/40/48/64 → 0.27 / 0.61 / 0.89 / 1.85 / 3.97 / 9.64ms，三角 594 / 1152 / 1740 / 2484 / 3340 / 5928，**全部 1 draw**。大动作姿势（92 球）res40 = 2.98ms avg / 6.6ms p95。降级旋钮（`setRes`）实测有效。**CPU 比刚体贵、GPU 比刚体便宜**：同一副骨架下刚体版 `pose()` 0.17ms / 87,844 三角 / 17 draw，团块 1.85ms / 2,484 三角 / 1 draw。截图 `scratch/evidence/mass-still-res40.png`、`mass-big-res40.png`、`mass-lowres-res16.png`、`mass-highres-res64.png`。**只在合成骨架上跑过，没接过真骨架，也还没有任何条目真的用它**（见下） |
 | 团块 vs 刚体并排对照 | `stable` | `scratch/evidence/mass-vs-rig-compare.png`（`/dev/mass.html?mode=compare&pose=big`）：团块是一具连续的身体，刚体版在同一姿势下读作一堆悬空零件。这张图是「像不像原作那种流过身体的物质」的判断依据 |
 | `/dev/mass.html` 团块调试页（合成 A-pose ↔ 大动作 · HUD · 方向键调 res · 三模式） | `stable` | 上述全部数字与截图都出自它。`?mode=mass\|rig\|compare&pose=a\|big\|anim&res=&angle=&still=`；`?still=N` 是 headless 取证用（永不停的 rAF 会把 `--virtual-time-budget` 吊住） |
 | 团块的降级路径（`presence` 进出场 / 退化骨架 / 出界） | `experimental` | 浏览器控制台逐条跑过，**全部不 throw**：IDLE 与 LEAVING t=1 → 0 三角 0 draw 且隐藏；ENTERING 0→0.5→1 → 0 / 964 / 2,274 三角（物质向质心收回去）；`null` 骨架、空 bones、全 NaN 关节、confidence=0、height=0、length=0、身体被挪到盒外 50m、`dt=NaN`、`dt=10s` 逐个跑过均正常返回，且 15 帧内恢复正常出图 |
-| `src/creature/creature.ts` 实例化渲染 / remorph / graft | `experimental` | 30 实例 · 87k 三角 · 17 draw · `pose()` 0.06–0.21ms；换装最多 3 活并排队（18 槽位 438 帧 = 7.3s 排空）；`graft()` 热插拔 73 帧完成。**只在合成 A-pose 上跑过，没接过真骨架** |
+| `src/creature/creature.ts` 实例化渲染 / remorph / graft | `experimental` | 30 实例 · 85–88k 三角 · **18 draw**（左右分桶后比原来多一点，仍远在 `BUDGET.maxDrawCalls` 40 内）· `pose()` 0.06–0.21ms；换装最多 3 活并排队（18 槽位 438 帧 = 7.3s 排空）；`graft()` 热插拔 73 帧完成。**只在合成 A-pose 上跑过，没接过真骨架** |
+| **左右不再像两种材质（镜像改走预镜像几何）** | `stable` | 左侧肢体原来靠矩阵里的负 X 缩放做。负行列式把左半身的三角形**全部变成背面**，而 `DoubleSide` 会把背面片元的法线取反 —— 左半身于是「从内部被照亮」，比右半身暗一大截。实拍图里「一只手白、一只手深色带斑」根本不是材质问题，是这个。现在由 `library.mirrored()` 给一块 X 取反**且绕序也翻回来**的几何，行列式保持为正。3 条测试守住它（闭合网格的有向体积镜像后仍为正，索引 / 非索引两种几何都测）。取证 `scratch/evidence/body-feet-before-after.png` 的左右对照 |
+| **一具身体读起来是一个物种（材质统一）** | `experimental` | 三个材质角色原来各取一个全局材质、彼此没有关系（白瓷躯干 + 深蓝灰四肢 + 白手白脚 = 装错了零件）。现在次要 / 点缀色向**这个物种自己的主色**收敛（`core/palette.ts` + `PALETTE` 旋钮），明度差按 `valueKeep` 留一部分（全抹平身体就没有体积了），表面响应按 `surfaceMix` 靠拢。物种之间的差别由并排图自证：`scratch/evidence/body-three-species-after.png`（瓷 / 异形 / 机械臂，形体与色调都分得开）。**审美判断，没有量化判据** |
 | 摄像头采集 / MediaPipe（`src/capture/webcam.ts`） | `experimental` | 整条路跑通但**没见过真人**：headless Chrome + `--use-fake-device-for-media-stream` 下 GPU delegate 起来、wasm 与两个模型加载、mask 产出、`latest()` 不抛也不阻塞（`scratch/evidence/capture-webcam-fakecam.png`）；权限被拒时不白屏且 `lastError=NotAllowedError`（`capture-permission-denied.png`）。**fps ≥ 30 未验证**（headless 软件渲染只有个位数），U1/U2 未实测 |
 | **`/dev/accuracy.html` 精度基准台** | `experimental` | 三路并排跑同一份输入（A 原始 / B 现有=`main.ts` 今天的 / C 新=分组 One-Euro+遮挡补全+质量兜底+最小折叠角），逐关节 visibility/世界坐标/1 秒抖动 σ、逐骨长变异 σ/μ、相对 A 的跟随偏差，外加常驻的**"无法测量"清单**。「⇪ 载入片段」直接读 `/demo/` 离线重跑（不走 rAF —— 页面不可见时 rAF 被掐到 1Hz，实时数字会全是 0，那不是"很稳"是没有数据）。合成片段上的实测数字与读法见 `docs/24 §5`。**它证明的第一件事是"现有输入测不了精度"**：合成片段 z 恒为 0、无噪声、左前臂长度变异 65.7%（人体做不到）|
 | **`packages/core/src/refine.ts` 姿态精修** | `experimental` | 分组 One-Euro（基线 = MediaPipe 自己的 world 档 `0.1/40/1.0`）+ visibility 低通 + 遮挡时序补全（20 帧缺口上限，超时放手把 visibility 归零）+ 质量兜底（score 低时压低截止频率）+ `clampFold()` 最小折叠角。9 条单测随 `npm run check` 跑（降噪、遮挡保持、超时放手、兜底斜坡、抗 NaN、不改写输入、骨长守恒）。**没接进 `main.ts`**（那个文件这次不许碰），所以现场行为一点没变；要接需要先把参数提进 `tuning.ts` —— 那是冻结契约，见 `docs/24 §0` |
