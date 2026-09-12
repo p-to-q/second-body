@@ -15,7 +15,7 @@ import type { RawPose } from '../../../core/src/types.ts';
 import { CAPTURE } from '../../../core/src/tuning.ts';
 import { readFlags } from '../shell/kiosk.ts';
 import { notePresence } from '../shell/idle.ts';
-import type { Capture } from './capture.ts';
+import type { Capture, CaptureStep } from './capture.ts';
 
 /** 找不到别的就用它。T-16 录到真数据后把真文件名写进 /demo/index.json */
 const DEFAULT_CLIP = '/demo/pose-synthetic.json';
@@ -39,7 +39,18 @@ export class ReplayCapture implements Capture {
 
   readonly clipUrl: string | undefined;
 
-  constructor(clipUrl?: string) { this.clipUrl = clipUrl; }
+  /** 启动里程碑（见 capture.ts 的 CaptureStep）。回放只有两件：挑到片段 / 片段到手 */
+  #onStep: CaptureStep | null;
+  static readonly START_STEPS = 2;
+
+  constructor(clipUrl?: string, onStep?: CaptureStep) {
+    this.clipUrl = clipUrl;
+    this.#onStep = onStep ?? null;
+  }
+
+  #step(n: number): void {
+    try { this.#onStep?.(n, ReplayCapture.START_STEPS); } catch { /* 显示用的旁路 */ }
+  }
 
   get fps(): number { return this.#fps; }
   get lastError(): string | null { return this.#error; }
@@ -56,7 +67,9 @@ export class ReplayCapture implements Capture {
     try {
       const url = this.clipUrl ?? (await pickClip());
       this.source = url;
+      this.#step(1);
       this.#clip = await loadClip(url);
+      this.#step(2);
       this.#t0 = performance.now();
       this.#loop();
     } catch (e) {

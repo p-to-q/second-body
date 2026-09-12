@@ -22,6 +22,17 @@ export interface Flags {
   model: PoseModel | null;
   /** ?refine=0 关掉时域精化（One-Euro + 遮挡保持 + 质量兜底）。留着是为了能现场做 A/B */
   refine: boolean;
+  /**
+   * ?loading=0 关掉加载态那一层（`shell/loading.ts`）。
+   * 它叠在选择页既有画面之上，而那个镜头是不许动的 —— 万一现场看着不对，
+   * 要能在 3 秒内把它摘掉，而不是回滚一次构建。
+   */
+  loading: boolean;
+  /**
+   * ?nav=0 关掉右上角目录（`ui/nav.ts`）。现场（`?kiosk=1`）本来就不挂它 ——
+   * 装置画面上不该有网站导航。这个开关是给"投影但不是 kiosk"那种场合的。
+   */
+  nav: boolean;
 }
 
 /** MediaPipe 的三个 PoseLandmarker 档位。精度/延迟的实测差异见 docs/24 §3 */
@@ -59,6 +70,10 @@ export function readFlags(search = location.search): Flags {
     // 默认开。之所以给一个关的开关：精化是**唯一**会在观众和数据之间加延迟的东西，
     // 现场如果有人说"反应慢了"，要能在 3 秒内证明是不是它。
     refine: q.get('refine') !== '0',
+    loading: q.get('loading') !== '0',
+    // 现场默认不挂目录：装置前面的画面上不该有网站导航（docs/23 §S4「默认零 UI」）。
+    // 判断放在这里而不是各挂载点，是为了只有一处决定"现场看得见什么"。
+    nav: q.get('nav') !== '0' && q.get('kiosk') !== '1',
   };
 }
 
