@@ -28,6 +28,12 @@ packages/app/dist/          静态站点（vite build）
 
 `publicDir` 指向仓库的 `assets/`，所以部件和参考图会被原样拷进 `dist`。
 
+> **2026-09-12 实测**：第一次真跑 `npm run build`，产物是 **975 MB** ——
+> `publicDir` 指向 `assets/`，把 `assets/raw/`（929 MB）整个打进去了。
+> 本文档 §2 早就写了"raw 绝不进 dist"，但没人验证过。
+> 现在由 `vite.config.ts` 的 `shipAssets()` 只复制 `parts / refs / demo`。
+> **规格写了不等于做到了。** 产物现在 45 MB，首屏 1.9 MB。
+
 ### 体积预算
 - 首屏只需要：`parts.json` + 被选主题的 tier≤1 部件 + 6 张卡片图 → **目标 < 3 MB**。
 - 其余部件**懒加载**：选完主题再拉该主题的，tier 升级时再拉更复杂的。
@@ -36,11 +42,14 @@ packages/app/dist/          静态站点（vite build）
 ## 3. Vercel
 
 ```
-Framework preset : Other
-Build command    : npm run build
-Output directory : packages/app/dist
-Install command  : npm install
-Node             : 22.x            ← 必须，我们靠 type stripping 跑 .ts
+配置已经落在仓库根的 `vercel.json` 里（buildCommand / outputDirectory / 缓存头），
+不需要在面板上手填。Node 版本必须是 **22.x** —— 我们靠 type stripping 直接跑 `.ts`。
+
+缓存策略（依据见 `docs/20` 调研）：
+- `/assets/*`（vite 产出、文件名带 hash）→ `max-age=31536000, immutable`
+- `/parts/*.glb`、`/refs/*`（**文件名不带 hash**，重生成后同名）→ `max-age=86400`，
+  **不能用 `immutable`** —— 那会让重生成的部件在旧访客那里永远不更新
+- `/parts/parts.json`（索引，必须新）→ `max-age=0, must-revalidate`
 ```
 
 ### 慢回路的 serverless 版本

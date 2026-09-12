@@ -1,5 +1,5 @@
 import { defineConfig, type Plugin } from 'vite';
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const ROOT = resolve(__dirname, '../..');
@@ -131,10 +131,41 @@ function anchorWriter(): Plugin {
   };
 }
 
+/**
+ * 只把**运行时真正要的**资产复制进 dist。
+ *
+ * 为什么不用 publicDir 指向 assets/：那样会把 `assets/raw/`（Rodin 原始件，带贴图，
+ * 929 MB）一起打进产物。`docs/13 §2` 早就写了"raw 绝不进 dist"，
+ * 但没人验证过 —— 直到真跑了一次 build，产物是 975 MB。
+ * 规格写了不等于做到了（§craft）。
+ */
+const SHIPPED = ['parts', 'refs', 'demo'];
+
+function shipAssets(): Plugin {
+  return {
+    name: 'sb-ship-assets',
+    apply: 'build',
+    closeBundle() {
+      const out = resolve(__dirname, 'dist');
+      for (const dir of SHIPPED) {
+        const from = resolve(ROOT, 'assets', dir);
+        if (!existsSync(from)) continue;
+        cpSync(from, resolve(out, dir), {
+          recursive: true,
+          // _metas.json 是流水线的中间产物，运行时只读 parts.json
+          filter: (src) => !src.endsWith('_metas.json'),
+        });
+      }
+    },
+  };
+}
+
 export default defineConfig({
   root: __dirname,
-  publicDir: resolve(__dirname, '../../assets'),   // assets/ 直接作为静态根：/parts/x.glb, /raw/…, /refs/…
-  plugins: [demoIndex(), anchorWriter()],
+  // dev 下 assets/ 整个作为静态根（/raw/ 在 anchor 渲染时要用）；
+  // build 时改由 shipAssets() 只复制 SHIPPED 里那几个目录。
+  publicDir: process.env.NODE_ENV === 'production' ? false : resolve(__dirname, '../../assets'),
+  plugins: [demoIndex(), anchorWriter(), shipAssets()],
   server: { port: 5173, host: true, fs: { allow: [ROOT] } },
   build: { target: 'esnext', outDir: 'dist' },
 });

@@ -1,0 +1,4 @@
+# Rodin 原始件（带贴图，929 MB）。运行时只读 assets/parts/ 里规范化过的版本。
+assets/raw/
+scratch/
+.claude/worktrees/
