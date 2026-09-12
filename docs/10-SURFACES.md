@@ -86,6 +86,17 @@
 | 形态空间排布（按 `axes` 绕质心成环） | `experimental` | `?roster=1` 下 23 个条目排成一圈（autonomous→wheelleg→patrol→field→…→orb）；旧版 parts.json 无 `axes` 时退回数组顺序，也验过 |
 | Web 部署（Vercel + serverless 慢回路） | `spec-only` | T-19，检查单在 `docs/13` §6 |
 
+## 展陈层（作品自己讲自己的那几页）
+
+| 表面 | 状态 | 证据 |
+|---|---|---|
+| **《共生护照》`/passport.html`** | `experimental` | 做成一本**签证页**而不是记录表：两枚章，I 拒入（人类否掉 100 件批次的前提，逐字引用）、II 准入（Rodin 两个没焊的网格）。II 保留的理由写明是**能力不是产物** —— 容差焊接这条路是它逼出来的。进构建产物（`dist/passport.html`）。**未在浏览器里看过**（本机 WebGPU device 卡死），正确性目前只有 typecheck 背书 |
+| **共创过程档案 `/making.html`** | `stable` | 28 个 commit hash 逐个 `git log -1` 核过全部解得开、印在页上的时间与 `%ad` 一致。六件互相纠正、编排者自己的四个错、有代价的三次判断，全部指到提交。专列一节写**想写但没挖到证据所以没写的四件事**（九条线的名单、每条线的时长与 token、被驳回的提议、作品成立与否）。截图 `scratch/evidence/making-0{0..5}.png`（整页 1440×12136） |
+| **构建入口自动发现（根 `*.html` + `dev/*.html`）** | `stable` | 展陈层的页面分几条线并行加，写死 input 表既是冲突点也会漏页。现在 `pages()` 扫两处目录，放一个 html 进来就是一页，没有第二处登记。`npm run build` 后 `dist/` 有 `index/passport/making` + `dist/dev/` 10 个 |
+| **启动失败屏（docs/23 §S0）** | `stable` | 原来贴红色 `<pre>` + `err.message`。这是观众唯一会撞上的错误界面 —— 现在是满屏底色 + 居中并置的「稍等一下 / One moment」，详情全部进控制台。样式内联、不用 `innerHTML`：走到这里说明启动链断了，样式表本身可能就是断掉的那一环 |
+| `/about` 艺术家自述 | — | 仍在推进中 |
+| 品牌字体规范 + 海报 | — | 仍在推进中 |
+
 ## 明确还没接上的
 
 - **`mass` 还没有被任何条目选中。** docs/18 §3 要求 `RosterEntry` 增加 `bodyPlan: string`，
