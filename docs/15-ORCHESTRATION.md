@@ -102,6 +102,23 @@ T-16 在整理提交时用了 `git reset --soft main`。而在它工作期间，
   尤其是 `packages/core/src/types.ts` / `tuning.ts` 这两个冻结契约。
 - 编排者在有代理在跑时往 main 落提交，要意识到这会让所有分支的"相对 main"含义发生变化。
 
+### 6.5 任务卡里引用的文件，必须是**已提交**的文件
+
+给 mass 那条线写的任务卡里有两处假前提：
+- "读 `docs/22-RESEARCH-procedural-bodies.md`，里面有可照抄的骨架和实测数字" ——
+  那份文档当时还是 untracked，worktree 是从提交分出去的，里面根本没有。
+- "读 `AGENTS.md`（尤其新加的 §craft 和 §plan）" —— 那两节在 `docs/02`，不在 `AGENTS.md`。
+
+代理如实报了上来（"这两个前提是假的，所有数字是我自己测的"），没有假装读过。
+但它因此白花了一轮去重新调研。
+
+**规则**：发任务卡之前跑一次
+```bash
+git status --porcelain docs/ packages/    # 有 ?? 就是还没提交
+```
+凡是卡里点名要读的路径，都要确认它在 **worktree 能看到的那个提交**里。
+worktree 看不见你工作区里没提交的东西 —— 这一点很容易忘。
+
 ## 7. 编排者自己的清单
 
 - [ ] 每条线回来先看 Validation 那一栏，再看 diff
