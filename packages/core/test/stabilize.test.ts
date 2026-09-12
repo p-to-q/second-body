@@ -152,16 +152,22 @@ test('T-04 主验收（更凶的读法）: 200 帧白噪声 ±15% → 整体抖�
 
 // ── 热身 / 透传 ─────────────────────────────────────────────────────────────
 
-test('前 30 帧热身：warmingUp = true 且原样透传测量长度', () => {
+test('前 30 帧热身：warmingUp = true，长度原样透传，位置只差一次落地平移', () => {
   const st = createStabilizer();
   const jitter = whiteNoise(11);
   for (let f = 0; f < SKELETON.warmupFrames; f++) {
     const sk = synth(f, jitter);
     const out = st.apply(sk, 1 / 30);
     assert.equal(out.warmingUp, true, `第 ${f} 帧应该还在热身`);
+    // §3.5 的重新落地在热身期也生效（输出契约是"永远贴地"，不分两种情况），
+    // 所以端点允许整体差一个 Y 平移 —— 但**长度**必须逐位相同，这才是"透传"的含义。
+    const shift = out.bones[0].p1[1] - sk.bones[0].p1[1];
     for (let i = 0; i < out.bones.length; i++) {
-      assert.ok(Math.abs(out.bones[i].length - sk.bones[i].length) < 1e-12, '热身期必须原样透传');
-      assert.ok(dist(out.bones[i].p1, sk.bones[i].p1) < 1e-12, '热身期端点也不动');
+      assert.ok(Math.abs(out.bones[i].length - sk.bones[i].length) < 1e-12, '热身期必须原样透传长度');
+      assert.ok(Math.abs(out.bones[i].p1[0] - sk.bones[i].p1[0]) < 1e-12, '热身期 X 不动');
+      assert.ok(Math.abs(out.bones[i].p1[2] - sk.bones[i].p1[2]) < 1e-12, '热身期 Z 不动');
+      assert.ok(Math.abs((out.bones[i].p1[1] - sk.bones[i].p1[1]) - shift) < 1e-12,
+        '热身期 Y 只允许差同一个全局平移量');
     }
   }
   assert.equal(st.apply(synth(99, jitter), 1 / 30).warmingUp, false, '第 31 帧起退出热身');
@@ -208,14 +214,22 @@ test('前向运动学链完整：子骨的 p0 等于父骨的 p1，根关节保�
   const parentOf: Record<string, BoneId> = {};
   for (const [id, , child] of BONES) parentOf[child] = id;
 
+  // §3.5 的重新落地是一次全局 Y 平移，用 pelvis 把它量出来
+  const rootShift = out.joints.pelvis[1] - sk.joints.pelvis[1];
+
   for (const [id, a] of BONES) {
     const b = byId.get(id)!;
     const parent = parentOf[a];
     if (parent) {
       assert.ok(dist(b.p0, byId.get(parent)!.p1) < 1e-12, `${id}.p0 应等于父骨 ${parent}.p1`);
     } else {
-      // pelvis / hipL / hipR：没有任何骨头指向它们，必须保持测量位置
-      assert.ok(dist(b.p0, sk.joints[a]) < 1e-12, `根关节 ${a} 不应被移动`);
+      // pelvis / hipL / hipR：没有任何骨头指向它们，FK 不移动它们。
+      // 但 §3.5 的重新落地会把整具骨架沿 Y 平移一次，所以这里只能断言
+      // "除了那一次全局 Y 平移之外没被动过" —— X/Z 必须逐位相同。
+      assert.ok(Math.abs(b.p0[0] - sk.joints[a][0]) < 1e-12, `根关节 ${a} 的 X 不应被动`);
+      assert.ok(Math.abs(b.p0[2] - sk.joints[a][2]) < 1e-12, `根关节 ${a} 的 Z 不应被动`);
+      const shift = b.p0[1] - sk.joints[a][1];
+      assert.ok(Math.abs(shift - rootShift) < 1e-12, `根关节 ${a} 的 Y 位移必须与其它根关节一致（同一次落地平移）`);
     }
   }
   for (const [id, , child] of BONES) {
@@ -276,4 +290,23 @@ test('输入骨架不被就地修改（apply 返回新对象）', () => {
       assert.ok(dist(b.p1, snapshot[i]) < 1e-15, '输入的端点被改了');
     });
   }
+});
+
+test('重建之后重新落地：每一帧最低的脚都在 y=0（docs/04 §3.5）', () => {
+  // 骨长换成中位数后，腿链累积的长度差会让脚离地或陷地几厘米 —— 现场表现为影子不贴地。
+  // 没有 §3.5 这一步，下面的 worst 会是厘米级而不是 1e-9。
+  const st = createStabilizer();
+  const jitter = breathing(0.15);
+  let worst = 0;
+  for (let f = 0; f < 240; f++) {
+    const out = st.apply(synth(f, jitter), 1 / 60);
+    const y = Math.min(
+      out.joints.footIdxL?.[1] ?? Infinity, out.joints.footIdxR?.[1] ?? Infinity,
+      out.joints.ankleL?.[1] ?? Infinity, out.joints.ankleR?.[1] ?? Infinity,
+    );
+    worst = Math.max(worst, Math.abs(y));
+    // 骨头端点必须跟着一起平移，否则骨头和关节会对不上
+    for (const b of out.bones) assert.ok(Number.isFinite(b.p0[1]) && Number.isFinite(b.p1[1]));
+  }
+  assert.ok(worst < 1e-9, `最低脚最大偏离 y=0 达 ${worst}`);
 });

@@ -65,7 +65,10 @@ export function createStabilizer(
           ? { ...b, p0: clone(mm.p0), p1: clone(mm.p1), length: mm.len }
           : { ...b };
       });
-      return { ...sk, bones, joints: { ...(sk.joints ?? {}) }, warmingUp: true };
+      const warmJoints: Record<string, Vec3> = {};
+      for (const k in sk.joints ?? {}) warmJoints[k] = clone(sane(sk.joints[k]));
+      ground(warmJoints, bones);
+      return { ...sk, bones, joints: warmJoints, warmingUp: true };
     }
 
     // 3) 从 pelvis 出发做前向运动学重建：方向取当帧测得的，长度取中位数。
@@ -91,7 +94,35 @@ export function createStabilizer(
       bones.push({ ...b, p0, p1, length: dist(p0, p1) });
     }
 
+    ground(joints, bones);
     return { ...sk, bones, joints, warmingUp: false };
+  }
+
+  /**
+   * 重新落地（docs/04 §3.5）：整具骨架沿 Y 平移，使最低的脚 y = 0。
+   *
+   * 为什么必须有：骨长换成中位数后，腿链从胯往下累积的长度差会让脚离地或陷地几厘米，
+   * 现场表现就是"影子不贴地"。
+   * 为什么不违反 P4：P4 管的是坐标系转换；这是对 FK 输出的修正，规格明确只允许发生在本文件。
+   *
+   * **热身期也要走这一步** —— 稳定器的输出契约是"永远贴地"，不该分成两种情况，
+   * 否则下游得判断"现在是不是热身期"，那就是把复杂度推给了别人。
+   */
+  function ground(joints: Record<string, Vec3>, bones: Bone[]): void {
+    let lo = Infinity;
+    for (const name of ['footIdxL', 'footIdxR']) {
+      const y = joints[name]?.[1];
+      if (Number.isFinite(y) && y < lo) lo = y;
+    }
+    if (lo === Infinity) {                       // 没有脚尖就退回踝
+      for (const name of ['ankleL', 'ankleR']) {
+        const y = joints[name]?.[1];
+        if (Number.isFinite(y) && y < lo) lo = y;
+      }
+    }
+    if (lo === Infinity || Math.abs(lo) < 1e-12) return;   // 没有脚可参考：不平移，别乱动
+    for (const k in joints) joints[k][1] -= lo;
+    for (const b of bones) { b.p0 = [b.p0[0], b.p0[1] - lo, b.p0[2]]; b.p1 = [b.p1[0], b.p1[1] - lo, b.p1[2]]; }
   }
 
   return {

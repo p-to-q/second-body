@@ -222,9 +222,9 @@ export function buildSkeleton(joints: Record<string, Vec3>, lm: Landmark[], t: n
 }
 
 /**
- * 观测身高 = 头顶到最低脚的 y 差（docs/04 §2）。
- * ⚠️ headCenter 是两耳中点（≈ 耳/眼高度），不是颅顶：真身高会被低估 ~0.1m。
- *    要补这一段需要在 tuning.ts 加一个"颅顶偏移"旋钮 —— 见收尾报告，不在本卡里自作主张。
+ * 观测身高 = 颅顶到最低脚的 y 差（docs/04 §2）。
+ * headCenter 是两耳中点（≈耳/眼高度）而不是颅顶，所以要补 SKELETON.craniumOffset。
+ * 不补的话身高系统性低估 ~6%，bodyScale 跟着偏小，整具身体会比人矮一圈。
  * 无法观测时退回 SKELETON.referenceHeight，保证下游除法不会炸（P2）。
  */
 function observedHeight(J: Record<string, Vec3>): number {
@@ -232,6 +232,6 @@ function observedHeight(J: Record<string, Vec3>): number {
     J.footIdxL?.[1] ?? Infinity, J.footIdxR?.[1] ?? Infinity,
     J.ankleL?.[1] ?? Infinity, J.ankleR?.[1] ?? Infinity,
   );
-  const h = (J.headCenter?.[1] ?? 0) - footY;
+  const h = (J.headCenter?.[1] ?? 0) + SKELETON.craniumOffset - footY;
   return Number.isFinite(h) && h > 1e-3 ? h : SKELETON.referenceHeight;
 }

@@ -45,6 +45,12 @@ export const SKELETON = {
   warmupFrames: 30,
   /** 标准身材身高（米）。bodyScale = 观测身高 / 这个数 */
   referenceHeight: 1.7,
+  /**
+   * 两耳中点到颅顶的距离（米）。
+   * MediaPipe 给不出颅顶，headCenter 是两耳中点（≈耳/眼高度），
+   * 不补这一段会把身高系统性低估 ~6%，下游整具身体跟着偏小。
+   */
+  craniumOffset: 0.11,
 };
 
 // ── 4. 运动特征（EMA 时间常数，秒） ────────────────────────────────────────

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BONES, LM, MIRROR_X, buildSkeleton, mediapipeToWorld } from '../src/skeleton.ts';
 import { dist } from '../src/vec.ts';
+import { SKELETON } from '../src/tuning.ts';
 import type { Landmark, RawPose, Skeleton, Vec3 } from '../src/types.ts';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -123,9 +124,12 @@ test('(a) 派生关节按 docs/04 §2 的表：pelvis / chest / neck / headCente
   near(Math.abs(j.handTipL[0]), (0.86 + 0.84) / 2, 'handTipL = mid(index, pinky)');
 });
 
-test('(a) height = 头（两耳中点）到最低脚的 y 差', () => {
+test('(a) height = 颅顶到最低脚的 y 差（两耳中点 + craniumOffset）', () => {
+  // MediaPipe 给不出颅顶，headCenter 是两耳中点，所以要补 SKELETON.craniumOffset，
+  // 否则身高系统性低估 ~6%，整具身体比人矮一圈。见 docs/04 §2。
   const sk = build(toRaw(tPose()));
-  assert.ok(Math.abs(sk.height - 1.62) < 1e-9, `height=${sk.height}`);
+  const expected = 1.62 + SKELETON.craniumOffset;
+  assert.ok(Math.abs(sk.height - expected) < 1e-9, `height=${sk.height}, 期望 ${expected}`);
 });
 
 // ── (b) 镜像 ────────────────────────────────────────────────────────────────
@@ -272,7 +276,7 @@ test('(d) 下蹲 / 跳起都贴地：整体上下平移不改变最低脚的 y',
     const sk = build(toRaw(nodes));
     const y = Math.min(boneOf(sk, 'footL').p1[1], boneOf(sk, 'footR').p1[1]);
     assert.ok(Math.abs(y) < 1e-9, `offset=${offset} → min foot y=${y}`);
-    assert.ok(Math.abs(sk.height - 1.62) < 1e-9, 'height 不受整体平移影响');
+    assert.ok(Math.abs(sk.height - (1.62 + SKELETON.craniumOffset)) < 1e-9, 'height 不受整体平移影响');
   }
 });
 
