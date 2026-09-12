@@ -95,7 +95,7 @@ const STAMPS: Stamp[] = [
       '被留下的不是那两件东西 —— 它们后来随一次重构被归档了。留下的是那个能力：它现在是流水线的必需品，不是优化项。意外没有留下产物，留下了器官。',
       'What was kept is not those two objects — they were archived in a later restructure. What was kept is the capability: it is now a requirement of the pipeline, not an optimisation. The accident left no artefact. It left an organ.',
     ),
-    evidence: ['docs/07-HYPER3D-API.md §3', 'packages/factory/src/normalize.ts weldTolerant()', 'docs/09 U11'],
+    evidence: ['docs/07-HYPER3D-API.md §3.3', 'packages/factory/src/normalize.ts weldTolerant()', 'docs/09 U11'],
   },
 ];
 
