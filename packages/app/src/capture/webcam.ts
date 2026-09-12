@@ -22,7 +22,7 @@ import type { Landmark, RawPose } from '../../../core/src/types.ts';
 import { CAPTURE } from '../../../core/src/tuning.ts';
 import { notePresence } from '../shell/idle.ts';
 import { readFlags, type PoseModel } from '../shell/kiosk.ts';
-import type { Capture } from './capture.ts';
+import type { Capture, CaptureStep } from './capture.ts';
 
 // 本地 wasm：打包进产物，现场断网也能起（Vite 把它们当静态资源发出去）
 // 注意子路径没有 /wasm/：包的 exports 就是这么导出的
@@ -95,7 +95,16 @@ export class WebcamCapture implements Capture {
   /** 实际加载的姿态模型档位（`?model=`；没指定就是默认档） */
   readonly model: PoseModel;
 
-  constructor(video?: HTMLVideoElement, model?: PoseModel) {
+  /**
+   * 启动里程碑。三件：摄像头开了 / 姿态模型到了 / 抠图模型问过了。
+   * 三件都是**真的发生了才报**，加载态因此不用猜（见 capture.ts 的 CaptureStep）。
+   */
+  #onStep: CaptureStep | null;
+  #steps = 0;
+  static readonly START_STEPS = 3;
+
+  constructor(video?: HTMLVideoElement, model?: PoseModel, onStep?: CaptureStep) {
+    this.#onStep = onStep ?? null;
     this.model = model ?? readFlags().model ?? 'lite';
     this.video = video ?? document.createElement('video');
     this.video.playsInline = true;
@@ -115,6 +124,7 @@ export class WebcamCapture implements Capture {
     this.#running = true;
     try {
       await this.#openCamera();
+      this.#step();
       await this.#openModels();
       this.#loop();
     } catch (e) {
@@ -137,6 +147,12 @@ export class WebcamCapture implements Capture {
     this.#mask = null;
     this.#latest = null;
     this.#fps = 0;
+  }
+
+  /** 报一件。回调自己炸了不许拖垮启动 —— 它只是个显示用的旁路 */
+  #step(): void {
+    this.#steps = Math.min(WebcamCapture.START_STEPS, this.#steps + 1);
+    try { this.#onStep?.(this.#steps, WebcamCapture.START_STEPS); } catch { /* 显示用的旁路，别管 */ }
   }
 
   // ── 启动 ────────────────────────────────────────────────────────────────
@@ -169,6 +185,7 @@ export class WebcamCapture implements Capture {
       fileset = await FilesetResolver.forVisionTasks(CDN_WASM);
       this.#landmarker = await this.#makeLandmarker(fileset, poseModel);
     }
+    this.#step();
 
     // 抠图是慢回路的输入，起不来不该拖垮姿态
     try {
@@ -182,6 +199,7 @@ export class WebcamCapture implements Capture {
       this.#segmenter = null;
       this.#error = `ImageSegmenter 未启用（慢回路会静默关掉）：${describe(e)}`;
     }
+    this.#step();
   }
 
   async #makeLandmarker(

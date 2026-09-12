@@ -22,6 +22,7 @@ import '../ui/pages.css';
 import '../ui/editorial.css';
 import './passport.css';
 import { COPY, bi, type BiText } from '../ui/i18n.ts';
+import { mountNav } from '../ui/nav.ts';
 
 interface Stamp {
   /** 准入 / 拒入 */
@@ -226,3 +227,6 @@ foot.append(biBlock(bi(
   'Every record on this page can be checked against the repository. Events without evidence were left out.',
 ), 'p'));
 root.append(el('hr', 'sb-rule'), foot);
+
+// 这一页原本是条死路：读完之后走不回作品，也走不到别的房间
+mountNav();

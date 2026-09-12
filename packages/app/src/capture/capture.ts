@@ -38,12 +38,23 @@ export function captureKindFromUrl(search?: string): CaptureKind {
 export async function createCapture(
   kind: CaptureKind = captureKindFromUrl(),
   /** 调试页可以把自己的 <video> 传进来，好把画面显示出来；运行时不需要 */
-  opts: { video?: HTMLVideoElement } = {},
+  opts: { video?: HTMLVideoElement; onStep?: CaptureStep } = {},
 ): Promise<Capture> {
   if (kind === 'replay') {
     const { ReplayCapture } = await import('./replay.ts');
-    return new ReplayCapture();
+    return new ReplayCapture(undefined, opts.onStep);
   }
   const { WebcamCapture } = await import('./webcam.ts');
-  return new WebcamCapture(opts.video);
+  return new WebcamCapture(opts.video, undefined, opts.onStep);
 }
+
+/**
+ * 启动里程碑回调 —— 加载态（`shell/loading.ts`）的「正在认识你的身体」那一档
+ * 靠它显示真实进度。
+ *
+ * 为什么非要让采集端自己报：这一档最久的部分是 MediaPipe 的 wasm 与模型下载，
+ * 而那几个 fetch 发生在库内部，外面**观察不到**。没有这个回调，那一行就只能
+ * 在 0% 上停几秒再直接跳到完成 —— 也就是又变回一块什么都不说的黑屏。
+ * 报的是"第几件到齐了"这种真事件，不是定时器往上爬的假数（见 loading.ts §2）。
+ */
+export type CaptureStep = (done: number, total: number) => void;

@@ -24,6 +24,7 @@
  * 窄屏下左栏塌到内容上方（见 making.html 的 media query），顺序不变。
  */
 import { COPY, setBi, type BiText } from '../ui/i18n.ts';
+import { mountNav } from '../ui/nav.ts';
 
 const M = COPY.making;
 
@@ -193,3 +194,4 @@ export function renderMaking(root: Element): void {
 
 const mount = document.querySelector('#mk');
 if (mount) renderMaking(mount);
+mountNav();

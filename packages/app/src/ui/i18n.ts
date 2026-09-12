@@ -59,6 +59,33 @@ export const COPY = {
     demoRunning: bi('正在播放录制片段', 'Playing a recording'),
   },
 
+  /**
+   * S0 加载态 —— 观众在等的时候读到的那几行。
+   *
+   * 为什么要**分阶段**而不是一个笼统的百分比：一个数字只能说"还要多久"，
+   * 说不出"在等什么"。而现场流失人的那一刻恰恰是「我不知道它是在加载还是坏了」——
+   * 一行"正在认识你的身体"回答的是后面那半句。三个阶段就是三件真的在发生的事，
+   * 不是把一条进度条切成三段。
+   *
+   * 慢的时候说人话：不写"超时""失败""重试"。那是运维的词，
+   * 观众听到它只会走开；「网有点慢」他会再站一会儿。
+   */
+  loading: {
+    render: bi('正在点亮画面', 'Waking the screen'),
+    parts: bi('正在准备零件', 'Laying out the parts'),
+    body: bi('正在认识你的身体', 'Learning to see your body'),
+    /** 阶段状态。等宽小字，和右边的百分比同一栏 */
+    waiting: bi('等一下', 'Waiting'),
+    ready: bi('好了', 'Ready'),
+    slow: bi('再等一下，网有点慢', 'Hang on — the network is slow'),
+    slower: bi(
+      '还在等。第一次打开要下最多东西，之后会快很多',
+      'Still going. The first visit downloads the most; later ones are far quicker',
+    ),
+    /** 降级发生在加载途中：说清楚"它还是会活过来"，不说"降级" */
+    degraded: bi('画面会简单一点，它照样会动起来', 'The picture will be simpler. It still comes alive'),
+  },
+
   /** S1 空场 */
   attract: {
     invite: bi('站到画面里', 'Step into the frame'),
@@ -264,6 +291,44 @@ export const COPY = {
       'The work itself is an installation. Open source code is not permission to re-stage it.',
     ),
     repo: bi('仓库', 'Repository'),
+  },
+
+  /**
+   * 目录 —— 这个站的房间之间唯一的通路。
+   *
+   * 为什么必须有：`/about` 和 `/making.html` 承载了这件作品一半的表达，
+   * 而首页上一个入口都没有 —— 一个评委打开首页，除非有人告诉他，
+   * 否则永远不会知道它们存在。
+   *
+   * 为什么每条都写"它能回答什么问题"而不是功能名：`/dev/index.html` 已经
+   * 这么做了，而它有效的原因是——人不是在找功能，是带着疑问来的。
+   * 「共生护照」四个字说不出你为什么要点它，「谁被拒绝入境，谁被放行」说得出。
+   */
+  nav: {
+    title: bi('目录', 'Contents'),
+    here: bi('在这里', 'You are here'),
+    items: {
+      work: {
+        name: bi('作品', 'The work'),
+        answers: bi('它跑起来是什么样？站到画面里就知道。', 'What is it like when it runs? Step into the frame.'),
+      },
+      about: {
+        name: bi('作品陈述', 'About'),
+        answers: bi('它是什么？和 2019 年那件的区别在哪？', 'What is it — and how does it differ from the 2019 work?'),
+      },
+      making: {
+        name: bi('做的过程', 'The Making'),
+        answers: bi('人和机器是怎么互相纠正着把它做出来的？', 'How did people and machines correct each other into making it?'),
+      },
+      passport: {
+        name: bi('共生护照', 'Passport'),
+        answers: bi('哪一件产物被拒绝入境，哪一件被放行？', 'Which output was refused entry, and which was let in?'),
+      },
+      dev: {
+        name: bi('工作台', 'Workbench'),
+        answers: bi('每条降级路径长什么样？我们自己怎么验收？', 'What does each fallback look like? How do we check our own work?'),
+      },
+    },
   },
 
   /** 隐私 —— 网页版必须在页面上（docs/13 §5） */
