@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-09-12T07:54:52.531Z",
+  "generatedAt": "2026-09-12T10:08:35.013Z",
   "units": "meters",
   "convention": {
     "axis": "+Y",
@@ -69,7 +69,8 @@
         "humanLike": 0.45,
         "lifeLike": 0.45
       },
-      "coverage": "full"
+      "coverage": "full",
+      "bodyPlan": "quadruped"
     },
     {
       "id": "xeno",
@@ -162,7 +163,8 @@
         "lifeLike": 0.45
       },
       "coverage": "light",
-      "base": "porcelain"
+      "base": "porcelain",
+      "bodyPlan": "stub"
     },
     {
       "id": "digitigrade",
@@ -181,7 +183,8 @@
         "lifeLike": 0.6
       },
       "coverage": "light",
-      "base": "porcelain"
+      "base": "porcelain",
+      "bodyPlan": "quadruped"
     },
     {
       "id": "wheelleg",
@@ -200,7 +203,8 @@
         "lifeLike": 0.35
       },
       "coverage": "light",
-      "base": "porcelain"
+      "base": "porcelain",
+      "bodyPlan": "quadruped"
     },
     {
       "id": "droid",
@@ -219,7 +223,8 @@
         "lifeLike": 0.85
       },
       "coverage": "light",
-      "base": "porcelain"
+      "base": "porcelain",
+      "bodyPlan": "stub"
     },
     {
       "id": "petbot",
@@ -238,7 +243,8 @@
         "lifeLike": 0.9
       },
       "coverage": "light",
-      "base": "porcelain"
+      "base": "porcelain",
+      "bodyPlan": "quadruped"
     },
     {
       "id": "furball",

@@ -18,6 +18,7 @@ export async function buildIndex(): Promise<PartLibraryIndex> {
     themes: ROSTER.map((t) => ({
       id: t.id, kind: t.kind, name: t.name, nameEn: t.nameEn, tagline: t.tagline,
       palette: t.palette, source: t.source, axes: t.axes, coverage: t.coverage, base: t.base,
+      bodyPlan: t.bodyPlan,
     })),
     materials: MATERIALS,
     parts: parts.slice().sort((a, b) => a.id.localeCompare(b.id)),

@@ -153,6 +153,11 @@ export interface ThemeDef {
   /** light = 只自己生成 6 个标志性槽位，其余向 base 借 */
   coverage: 'full' | 'light';
   base?: string;
+  /**
+   * 身体方案（docs/18-BODY-PLANS.md）。缺省 'rig' = 人形刚体挂载。
+   * 这是"物种真的不一样"与"同一具人体换皮"之间的那个字段。
+   */
+  bodyPlan?: string;
 }
 
 export interface PartLibraryIndex {

@@ -15,6 +15,7 @@ import { createMotion } from '../../core/src/motion.ts';
 import { createEvolution } from '../../core/src/evolution.ts';
 import { createPresence } from '../../core/src/presence.ts';
 import { makeGenome } from '../../core/src/genome.ts';
+import { remapSkeleton } from '../../core/src/bodyplan.ts';
 import { mulberry32 } from '../../core/src/rng.ts';
 import { CAPTURE } from '../../core/src/tuning.ts';
 import type { MotionFeatures, Skeleton, Tier } from '../../core/src/types.ts';
@@ -86,6 +87,11 @@ async function boot(): Promise<void> {
 
   const capture = await capturePromise;
 
+  // 身体方案：物种自己声明，?plan= 可覆盖（docs/18-BODY-PLANS.md）。
+  // 这是「物种真的不一样」与「同一具人体换皮」之间的那一行。
+  const themeDef = library.index.themes?.find((t) => t.id === theme);
+  const bodyPlan = flags.plan ?? themeDef?.bodyPlan ?? 'rig';
+
   // ── 5. 状态机 ───────────────────────────────────────────────────────────
   const presence = createPresence();
   const stabilizer = createStabilizer();
@@ -130,8 +136,11 @@ async function boot(): Promise<void> {
     const p = presence.update(detected, dt);
 
     if (raw) {
-      lastSkeleton = stabilizer.apply(buildSkeleton(mediapipeToWorld(raw), raw.world, raw.t), dt);
-      lastFeatures = motion.update(lastSkeleton, dt);
+      // 运动特征算在**人的**骨架上：驱动演化的是观众实际动了多少，
+      // 而不是重映射之后那具身体动了多少。顺序不能反。
+      const humanSk = stabilizer.apply(buildSkeleton(mediapipeToWorld(raw), raw.world, raw.t), dt);
+      lastFeatures = motion.update(humanSk, dt);
+      lastSkeleton = remapSkeleton(humanSk, bodyPlan);
       const evo = evolution.update(lastFeatures, dt);
       // ?tier= 锁定时不让演化改形态 —— look dev 要的是一个不动的靶子
       if (evo.tierChanged && flags.tier === null) morph(evo.tier);
@@ -170,7 +179,7 @@ async function boot(): Promise<void> {
   loop.start();
   console.info(
     `[main] running · theme=${theme} · seed=${seed} · ` +
-    `capture=${flags.demo ? 'replay' : 'webcam'} · acts=${ACTS.map((a) => a.id).join(',')}`,
+    `plan=${bodyPlan} · capture=${flags.demo ? 'replay' : 'webcam'} · acts=${ACTS.map((a) => a.id).join(',')}`,
   );
 }
 

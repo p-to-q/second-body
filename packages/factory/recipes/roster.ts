@@ -51,6 +51,8 @@ export interface RosterEntry {
   coverage: 'full' | 'light';
   /** light 条目缺件时从哪个条目借 */
   base?: string;
+  /** 身体方案，见 docs/18。缺省 'rig' */
+  bodyPlan?: string;
   tierOfVariant: Record<string, Tier>;
   /** 取材说明。取材 ≠ 复制，写清楚出处是为了让自己保持诚实 */
   reference?: string;
@@ -88,6 +90,21 @@ const A = (
  * 记在这里而不是偷偷改 id：下一个人要知道"这个条目试过一次，不行"。
  */
 const RE_ANCHOR: Record<string, number> = { digitigrade: 1, wheelleg: 1, autonomous: 1 };
+
+/**
+ * 哪些条目不是人形（docs/18-BODY-PLANS.md）。
+ * 这一张表是 PRD §3 第三条主张（物种真的不同）成立与否的分界线 ——
+ * 没有它，patrol / orb / furball 就只是穿着相应涂装的人。
+ */
+const BODY_PLAN: Record<string, string> = {
+  patrol: 'quadruped',       // 四足机的语言长在人身上 —— 现在它真的是四足了
+  digitigrade: 'quadruped',  // 鸟腿：反关节 + 四点着地
+  wheelleg: 'quadruped',
+  petbot: 'quadruped',       // 机器宠物本来就该是四条腿
+  towering: 'towering',
+  compact: 'stub',           // "人形，但只有一米三"
+  droid: 'stub',             // 小怪物：大头短身
+};
 
 export const ARCHETYPES: RosterEntry[] = [
   // 已生成的五个（full coverage，各 20 件）
@@ -248,6 +265,7 @@ export const CHARACTERS: RosterEntry[] = [
 ];
 
 for (const e of ARCHETYPES) if (RE_ANCHOR[e.id]) e.seedSalt = RE_ANCHOR[e.id];
+for (const e of ARCHETYPES) if (BODY_PLAN[e.id]) e.bodyPlan = BODY_PLAN[e.id];
 
 export const ROSTER: RosterEntry[] = [...ARCHETYPES, ...GUESTS, ...CHARACTERS];
 

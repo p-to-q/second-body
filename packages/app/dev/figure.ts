@@ -19,6 +19,7 @@ import type { Bone, BoneId, Genome, Presence, Skeleton, Tier, Vec3 } from '../..
 import { createPartLibrary } from '../src/assets/library.ts';
 import { partIdsOf } from '../src/creature/assemble.ts';
 import { createCreature } from '../src/creature/creature.ts';
+import { remapSkeleton } from '../../core/src/bodyplan.ts';
 
 const hud = document.getElementById('hud')!;
 const qs = new URLSearchParams(location.search);
@@ -43,11 +44,21 @@ const BONE_JOINTS: Record<BoneId, [string, string]> = {
   shinL: ['kneeL', 'ankleL'], shinR: ['kneeR', 'ankleR'],
   footL: ['ankleL', 'footIdxL'], footR: ['ankleR', 'footIdxR'],
 };
-const bones: Bone[] = ALL_BONE_IDS.map((id) => {
+const PLAN = new URLSearchParams(location.search).get('plan') ?? 'rig';
+
+const bonesRaw: Bone[] = ALL_BONE_IDS.map((id) => {
   const [a, b] = BONE_JOINTS[id];
   const p0 = J[a], p1 = J[b];
   return { id, p0, p1, length: Math.hypot(p1[0]-p0[0], p1[1]-p0[1], p1[2]-p0[2]), roll: 0, confidence: 1 };
 });
+
+// 身体方案（docs/18）：?plan=quadruped 看重映射后的形体
+const remapped = remapSkeleton(
+  { bones: bonesRaw, joints: J, height: 1.7, warmingUp: false, t: 0 },
+  PLAN,
+);
+const bones: Bone[] = remapped.bones;
+Object.assign(J, remapped.joints);
 const skeleton: Skeleton = { bones, joints: J, height: BODY_HEIGHT, warmingUp: false, t: 0 };
 // dev 页面永远"在场"：不做进出场动画，免得截图时抓到半透明的中间态
 const presence: Presence = { state: 'ALIVE', elapsed: 999, transition: 1 };
@@ -112,8 +123,24 @@ function syncUrl() {
 }
 
 await rebuild();
-camera.position.set(1.7, 1.25, 2.7);
-camera.lookAt(0, 0.95, 0);
+/**
+ * 按**身体的实际包围盒**取景，而不是假设"一个站着的 1.7m 人"。
+ * 四足方案的身体是横的、矮的 —— 用人形的相机参数会直接出画。
+ * 这条对正式舞台同样成立（docs/18 落地后 stage 必须跟着改）。
+ */
+const bb = { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] };
+for (const b of bones) for (const p of [b.p0, b.p1]) for (let i = 0; i < 3; i++) {
+  if (p[i] < bb.min[i]) bb.min[i] = p[i];
+  if (p[i] > bb.max[i]) bb.max[i] = p[i];
+}
+const center: [number, number, number] = [
+  (bb.min[0] + bb.max[0]) / 2, (bb.min[1] + bb.max[1]) / 2, (bb.min[2] + bb.max[2]) / 2,
+];
+const span = Math.max(bb.max[0] - bb.min[0], bb.max[1] - bb.min[1], bb.max[2] - bb.min[2], 0.5);
+const camDist = (span / (2 * Math.tan((camera.fov * Math.PI) / 360))) * 1.9;
+
+camera.position.set(camDist * 0.55, center[1] + span * 0.35, camDist * 0.85);
+camera.lookAt(center[0], center[1], center[2]);
 
 // ?debug=1 时把内部状态挂出来，方便在控制台量 pose() 的 CPU 开销、比对 genome 的确定性、截图取证
 if (DEBUG) {
@@ -189,8 +216,8 @@ renderer.setAnimationLoop((now: number) => {
   const t0 = performance.now();
   if (!paused) spin += dt * 0.3;
   const a = Math.sin(spin) * 0.9;
-  camera.position.set(Math.sin(a) * 3.1, 1.25, Math.cos(a) * 3.1);
-  camera.lookAt(0, 0.95, 0);
+  camera.position.set(Math.sin(a) * camDist, center[1] + span * 0.35, Math.cos(a) * camDist);
+  camera.lookAt(center[0], center[1], center[2]);
   creature.pose(skeleton, presence, dt);
   const t1 = performance.now();
   renderer.render(scene, camera);
