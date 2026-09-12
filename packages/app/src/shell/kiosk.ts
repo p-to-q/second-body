@@ -20,6 +20,8 @@ export interface Flags {
   clip: string | null;  // ?clip=walkwave  指定回放片段（配合 ?demo=1）
   /** ?model=lite|full|heavy  换 PoseLandmarker 档位（docs/24 §3）。null = 默认档 lite */
   model: PoseModel | null;
+  /** ?refine=0 关掉时域精化（One-Euro + 遮挡保持 + 质量兜底）。留着是为了能现场做 A/B */
+  refine: boolean;
 }
 
 /** MediaPipe 的三个 PoseLandmarker 档位。精度/延迟的实测差异见 docs/24 §3 */
@@ -54,6 +56,9 @@ export function readFlags(search = location.search): Flags {
     // 手滑写 ?model=fulll 不该静默退回 lite —— 认不出来就是 null，
     // 采集端会把"实际用的是哪个档"显示出来，现场不用猜。
     model: POSE_MODELS.includes(q.get('model') ?? '') ? (q.get('model') as PoseModel) : null,
+    // 默认开。之所以给一个关的开关：精化是**唯一**会在观众和数据之间加延迟的东西，
+    // 现场如果有人说"反应慢了"，要能在 3 秒内证明是不是它。
+    refine: q.get('refine') !== '0',
   };
 }
 

@@ -11,13 +11,14 @@ import * as THREE from 'three/webgpu';
 
 import { buildSkeleton, mediapipeToWorld } from '../../core/src/skeleton.ts';
 import { createStabilizer } from '../../core/src/stabilize.ts';
+import { clampFold, createRefiner } from '../../core/src/refine.ts';
 import { createMotion } from '../../core/src/motion.ts';
 import { createEvolution } from '../../core/src/evolution.ts';
 import { createPresence } from '../../core/src/presence.ts';
 import { makeGenome } from '../../core/src/genome.ts';
 import { remapSkeleton } from '../../core/src/bodyplan.ts';
 import { mulberry32 } from '../../core/src/rng.ts';
-import { CAPTURE } from '../../core/src/tuning.ts';
+import { CAPTURE, REFINE } from '../../core/src/tuning.ts';
 import type { MotionFeatures, Skeleton, Tier } from '../../core/src/types.ts';
 
 import { createCapture } from './capture/capture.ts';
@@ -98,6 +99,10 @@ async function boot(): Promise<void> {
   // ── 5. 状态机 ───────────────────────────────────────────────────────────
   const presence = createPresence();
   const stabilizer = createStabilizer();
+  // 时域精化在**原始 landmark 上**做，在 buildSkeleton 之前 ——
+  // 骨架是从 landmark 推出来的，先抖后建等于把抖动烘进骨长和朝向里，
+  // 后面再滤就只能滤掉症状。顺序不能反（docs/24 §2）。
+  const refiner = REFINE.enabled && flags.refine ? createRefiner() : null;
   const motion = createMotion();
   const evolution = createEvolution();
   // 身体方案决定用哪种**表达**：刚体挂载（手办式）还是团块（物质式）。
@@ -148,7 +153,11 @@ async function boot(): Promise<void> {
     if (raw) {
       // 运动特征算在**人的**骨架上：驱动演化的是观众实际动了多少，
       // 而不是重映射之后那具身体动了多少。顺序不能反。
-      const humanSk = stabilizer.apply(buildSkeleton(mediapipeToWorld(raw), raw.world, raw.t), dt);
+      const cooked = refiner ? refiner.apply(raw, dt) : raw;
+      const humanSk = stabilizer.apply(buildSkeleton(mediapipeToWorld(cooked), cooked.world, cooked.t), dt);
+      // 反折约束放在稳定化**之后**：它靠骨长把远端点转回去，
+      // 而骨长要等滚动中位数定下来才可信（放前面就是拿噪声当尺子）。
+      if (refiner) clampFold(humanSk);
       lastFeatures = motion.update(humanSk, dt);
       lastSkeleton = remapSkeleton(humanSk, bodyPlan);
       stage.frame(lastSkeleton);   // 取景按**重映射之后**的身体算：四足是横的矮的
@@ -173,6 +182,7 @@ async function boot(): Promise<void> {
       motion.reset();
       evolution.reset();
       stabilizer.reset();
+      refiner?.reset();
       lastSkeleton = null;
       morph((flags.tier ?? 0) as Tier);
     }
@@ -185,7 +195,12 @@ async function boot(): Promise<void> {
       hud.update(loop.stats, {
         instances: (s as { instances?: number }).instances ?? 0, triangles: s.triangles,
         drawCalls: s.drawCalls, inferenceHz: capture.fps,
-        act: director.currentId ?? '—', note,
+        act: director.currentId ?? '—',
+        // 精化的三个数挂在 note 上而不是扩 HudCounts：它们只在调参时看，
+        // 不值得为此动一个被所有页面共用的契约。
+        note: refiner
+          ? `${note ? `${note} · ` : ''}hold=${refiner.stats.held} drop=${refiner.stats.dropped} q=${refiner.stats.cutoffScale.toFixed(2)}`
+          : note,
       });
     }
   });
