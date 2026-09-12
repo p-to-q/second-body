@@ -13,6 +13,10 @@
  *   ?theme=xeno     条目（缺省取 roster 第一个可用的）
  *   ?plan=quadruped 强行换身体方案（缺省用条目自己声明的）
  *   ?scene=void     舞台场景（gallery / void / tide / backlit）。不带 = 按物种自动挑
+ *   ?sceneFrom=gallery&sceneAt=0.8
+ *                   取证专用：先在 sceneFrom 里站稳，再切到 ?scene=，
+ *                   **在过渡走到 sceneAt 秒时冻住**。没有它，"切换是渐变不是硬切"
+ *                   这句话只能靠肉眼说，截不出证据。
  *   ?state=idle     空场：没有身体，只有呼吸粒子（S1）
  *   ?nopost=1       关整条后期（对照用）
  *   ?debug=1        HUD：fps / 三角 / draw / 取景 / look，超 BUDGET 标红
@@ -25,7 +29,7 @@
 import * as THREE from 'three/webgpu';
 import { makeGenome, themeIsUsable } from '../../core/src/genome.ts';
 import { remapSkeleton } from '../../core/src/bodyplan.ts';
-import { BUDGET, TIME } from '../../core/src/tuning.ts';
+import { BUDGET, STAGE, TIME } from '../../core/src/tuning.ts';
 import type { Genome, Presence, Skeleton, Tier } from '../../core/src/types.ts';
 import { createPartLibrary } from '../src/assets/library.ts';
 import { partIdsOf } from '../src/creature/assemble.ts';
@@ -71,7 +75,11 @@ const tier = Math.min(3, Math.max(0, asInt(qs.get('tier'), 2))) as Tier;
 let themeIdx = Math.max(0, themes.findIndex((t) => t.id === qs.get('theme')));
 
 // stage 自己会读 URL flags（?nopost=1 / ?debug=1 / ?plan=）
-const stage = createStage({ theme: themes[themeIdx], index: library.index });
+// `?sceneFrom=` 在时，开局先进那一套；真正要去的 `?scene=` 由下面的过渡段接手
+const stage = createStage({
+  theme: themes[themeIdx], index: library.index,
+  scene: qs.get('sceneFrom') ?? qs.get('scene'),
+});
 stage.resize(innerWidth, innerHeight);
 
 const creature = createCreature({ library });
@@ -135,6 +143,17 @@ await rebuild();
 // `?pulse=` 是给取证截图用的：预热里打完脉冲之后**冻住**，
 // 否则截图前那十来帧真实时间会把 600ms 的脉冲跑完，拍到的是脉冲之后。
 if (qs.has('pulse')) paused = true;
+
+// `?sceneFrom=` 同理，只是冻的是**场景过渡的中途**。
+// 先让上一套场景完全站稳（rebuild 已经预热过），再切，再空转到指定时刻。
+if (qs.has('sceneFrom')) {
+  stage.setScene(qs.get('scene'));
+  const p = presence();
+  const n = Math.round(Math.max(0, Number(qs.get('sceneAt') ?? 0.8)) * 60);
+  for (let i = 0; i < n; i++) stage.update(p, null, 1 / 60);
+  paused = true;
+  console.info(`[stage] 场景过渡冻在 ${(n / 60).toFixed(2)}s（总时长 ${STAGE.sceneFade}s）`);
+}
 
 // ── 交互 ────────────────────────────────────────────────────────────────────
 addEventListener('resize', () => {
@@ -207,7 +226,12 @@ renderer.setAnimationLoop((now: number) => {
     // **收口的人在 main.ts 里也要这么做**（stage.pulse 只管舞台那一半）。
     if (!idle) creature.pose(body, p, dt * stage.timeScale);
     creature.object.visible = !idle;
-    stage.update(p, null, paused ? 0 : dt);
+    // ⚠️ 暂停要**整个跳过** `stage.update`，不能传 dt=0：
+    // `update()` 会把 dt 钳到 `[1/240, 1/15]`（切标签页回来的保护），
+    // 于是"传 0"每帧照样推进 1/240 秒 —— 截图前那上千帧虚拟时间足够把
+    // 一段 1.6s 的场景过渡整个跑完。`?sceneAt=0.15` 曾经拍出来和终态一模一样，
+    // 就是这个泄漏。
+    if (!paused) stage.update(p, null, dt);
     stage.render(renderer);
     rendered++;
   } catch (e) {

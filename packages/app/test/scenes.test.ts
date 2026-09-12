@@ -146,7 +146,30 @@ test('framing: 落地点一只脚一个；抬起的脚和手尖都不该占名�
   assert.equal(feet.length, 2, `站姿应该只有两个落点，实际 ${feet.length} 个（每只脚两个圆斑就是这么来的）`);
   // 两个点左右分开，不是挤在一边
   assert.ok(feet[0][0] * feet[1][0] < 0, '两个落点应该一左一右');
-  for (const [, , lift] of feet) assert.ok(lift < 0.01, '站姿两只脚都该贴地');
+  // 参照系是**地面 y=0**，不是身体自己的最低点。参考站姿的脚尖在 0.03m
+  for (const [, , lift] of feet) assert.ok(lift < 0.05, '站姿两只脚都该贴地');
+
+  // 整具身体跳到空中 → 接触阴影必须**消失**，而不是跟着身体飞
+  const airborne = {
+    ...REFERENCE_POSE,
+    bones: REFERENCE_POSE.bones.map((b) => ({
+      ...b,
+      p0: [b.p0[0], b.p0[1] + 0.6, b.p0[2]] as [number, number, number],
+      p1: [b.p1[0], b.p1[1] + 0.6, b.p1[2]] as [number, number, number],
+    })),
+  };
+  assert.deepEqual(contactPoints(airborne, 4, 0.22), [], '跳起来的身体不该还有接触阴影');
+
+  // 反过来：脚陷进地面（装配层实测脚的网格最低点在 -0.025m）也照常有接触阴影
+  const sunk = {
+    ...REFERENCE_POSE,
+    bones: REFERENCE_POSE.bones.map((b) => ({
+      ...b,
+      p0: [b.p0[0], b.p0[1] - 0.05, b.p0[2]] as [number, number, number],
+      p1: [b.p1[0], b.p1[1] - 0.05, b.p1[2]] as [number, number, number],
+    })),
+  };
+  assert.equal(contactPoints(sunk, 4, 0.22).length, 2, '陷进地里的脚仍然该有接触阴影');
 
   // 抬起一只脚：它就该退出落点名单，否则接触阴影会粘在抬起的脚下面
   const lifted = {

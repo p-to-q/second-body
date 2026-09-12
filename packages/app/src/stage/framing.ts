@@ -209,7 +209,20 @@ export function contactPoints(
   if (pts.length < 4) return [];
   pts.sort((a, b) => a[1] - b[1]);
   const out: Array<[number, number, number]> = [];
-  const floor = pts[0][1];          // 最低点就是"地面"：inverted 方案的重心在地面以下
+  /**
+   * "地面"取 **y = 0**，不取这具身体自己的最低点。
+   *
+   * 第一版取自身最低点，等于**强迫每具身体都有接触阴影** —— 哪怕它整个跳在空中。
+   * 而"浮"和"陷"是同一个问题的两面：装配那条线实测出脚的网格最低点在
+   * `y = -0.025`（真实运行时 `ground()` 把 `footIdx` 归零之后还要再沉 ~3cm），
+   * 也就是说身体相对地面既可能高也可能低，参照系必须是**地面本身**。
+   *
+   * 以 y=0 为准之后两边都对：陷进去的脚 `lift ≤ 0` → 照常有接触阴影；
+   * 真的跳起来 → 所有落点超过 `maxLift`，接触阴影**正确地消失**。
+   * 身体沉进地里那一段该由装配层补（它才拿得到每件的 `aabb`），舞台这边
+   * 不去猜一个偏移量 —— 猜错就是把影子画在没有脚的地方。
+   */
+  const floor = 0;
   for (const p of pts) {
     if (out.length >= n) break;
     if (p[1] - floor > maxLift) break;      // 已按 y 排序，后面只会更高
