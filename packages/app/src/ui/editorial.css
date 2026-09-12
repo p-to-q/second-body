@@ -1,0 +1,192 @@
+/**
+ * 展陈版面层 —— 把三个"给人看"的页面（/about /making /passport）从档案的排版
+ * 换成作品集的排版。
+ *
+ * ## 为什么需要另起一层，而不是把 pages.css 调大
+ *
+ * `pages.css` 解决的是**读**：一条条读下去，每一行都要清楚。它的默认答案是
+ * "把信息排整齐"。这一层解决的是**扫**：一个评委在这一页上停留五秒，他会
+ * 带走什么。这两件事要的版面是相反的 —— 读要求密度均匀，扫要求密度极不均匀。
+ * 所以不是把 pages.css 的数调大，是在它旁边放一套不同意图的原语，
+ * 谁需要谁引用；`pages.css` 保持原样给那些真的是档案的地方用。
+ *
+ * ## 三条规矩
+ *
+ * 1. **一屏一个断言。** 首屏只有巨题和一条线，别的全部推到折线以下。
+ *    留白不是"没内容"，是把那唯一一件事孤立出来的手段。
+ *    下面的具体数值全部来自 `docs/32-RESEARCH-editorial.md` 的实测表，
+ *    每一处都注了出处。**没有一个数是"看着差不多"定的。**
+ * 2. **线承担分区，不承担装饰。** 贯穿到安全区之外的满幅线是这一层唯一的"图形"。
+ *    没有卡片、阴影、圆角、图标 —— 和 docs/23 §0 的禁止清单一致。
+ * 3. **动效必须能整体关掉。** 所有位移与揭示都包在
+ *    `@media (prefers-reduced-motion: no-preference)` 里，而不是写好之后再去
+ *    `reduce` 里覆盖。默认态（不动）是写在常规规则里的那一份，
+ *    所以"关掉动效"不是另一条代码路径，是**少执行**一段。
+ */
+
+/* ── 外壳 ──────────────────────────────────────────────────────────────────
+ * 作品集站的版心比档案宽：档案要行长上限（读），版面要幅面（扫）。
+ * 行长上限退到正文自己身上（--sb-measure），不再由外壳承担。
+ */
+.ed {
+  /* serpentine 的四档左右边距实测是 20 / 40 / 50 / 60px，这里用一条 clamp 走完 */
+  --ed-edge: clamp(20px, 4.2vw, 60px);
+  /* 实测容器宽：ZKM 1200 / RCA 1440 / serpentine 1530 / field 1800。
+     取 serpentine 的 95.625rem —— 它的流体区间也锚在 1530，两者是一套 */
+  --ed-max: 1530px;
+  /**
+   * 一条招牌缓动，全站复用。dumbar 的样式表里 `cubic-bezier(0,0,0,1)` 出现了
+   * 285 次 —— 极陡的 ease-out：起步就到大半，末尾慢慢贴住。
+   * 一个站只有一条缓动曲线，动效才像同一只手做的。
+   */
+  --ed-ease: cubic-bezier(0, 0, 0, 1);
+  max-width: var(--ed-max);
+  margin: 0 auto;
+  padding: 0 var(--ed-edge) calc(var(--sb-safe) * 2);
+}
+
+/* 满幅线：突破版心 padding 一直贴到视口边。把"页面被切开"这件事做实 */
+.ed-rule {
+  border: 0;
+  border-top: 1px solid var(--sb-rule);
+  margin: 0 calc(var(--ed-edge) * -1);
+}
+/* 重线：只给首屏那条。它是页面的主要分割，不该和分节线一样轻 */
+.ed-rule--heavy { border-top-color: var(--sb-ink-dim); }
+
+/* ── 首屏 ────────────────────────────────────────────────────────────────
+ * [元数据行] ─── 线 ─── [巨题，大片留白] ─── 线 ─── [右栏的引言]
+ * 巨题左满，引言右靠：左右排的最简形式，而且它让视线有一次真正的横向移动。
+ */
+.ed-hero { padding-top: clamp(1.25rem, 2vw, 2.5rem); }
+
+.ed-hero__meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--sb-gutter);
+  flex-wrap: wrap;
+  padding-bottom: 1rem;
+}
+
+/**
+ * 巨题上下的留白 —— 这一层最贵的资源。
+ * RCA 的首屏标题区实测是 `padding-top: 110 / 180 / 240px` 三档、
+ * `padding-bottom: 60 / 80px`。这里用 clamp 走同一段区间。
+ *
+ * 注意**不用 vh**：抓的 11 个站里没有一个用视口高做首屏留白。
+ * 理由很实在 —— 移动端地址栏收放会改 vh，于是巨题会在滚动中自己跳一下。
+ */
+.ed-hero__title { padding: clamp(6.875rem, 9.5vw, 15rem) 0 clamp(3.75rem, 5vw, 7.5rem); }
+.ed-hero__title .sb-bi { display: block; }
+.ed-hero__title .sb-zh { display: block; }
+/* 英文在巨题里退成一条标签而不是第二行巨字 —— 两行巨字会互相抵消 */
+.ed-hero__title .sb-en {
+  display: block;
+  margin-top: clamp(0.75rem, 1.5vw, 1.5rem);
+  font-size: var(--sb-size-h2);
+  font-weight: var(--sb-weight-body);
+  letter-spacing: var(--sb-tracking-label);
+  text-transform: uppercase;
+  color: var(--sb-ink-dim);
+}
+
+/* 引言靠右：左边那一栏整个是空的，空得很明显 —— 这就是"故意的留白" */
+.ed-hero__lede {
+  display: grid;
+  /* 2:3 是 RCA 和 Design Academy Eindhoven 两家实测都在用的分栏比 */
+  grid-template-columns: 2fr 3fr;
+  gap: var(--sb-gutter);
+  padding: clamp(1.5rem, 3vw, 3rem) 0 clamp(2.5rem, 5.5vw, 5rem);
+}
+.ed-hero__lede > :first-child { grid-column: 2; }
+.ed-hero__lede .sb-zh { font-size: var(--sb-size-h2); line-height: 1.45; color: var(--sb-ink); }
+.ed-hero__lede .sb-en { font-size: var(--sb-size-body); }
+
+@media (max-width: 860px) {
+  .ed-hero__lede { grid-template-columns: minmax(0, 1fr); }
+  .ed-hero__lede > :first-child { grid-column: 1; }
+}
+
+/* ── 分节：左标签吸顶 / 右内容 ────────────────────────────────────────────
+ * 吸顶的那一栏是这一层唯一的滚动交互。它做的事情很小 —— 你往下读一节的时候，
+ * 这一节叫什么一直在左边跟着。作品集站几乎都有这个动作，因为它让长页面
+ * 不再需要导航条：位置感由版面自己给出。纯 CSS，不需要监听滚动。
+ */
+.ed-section {
+  display: grid;
+  grid-template-columns: 2fr 3fr;
+  gap: var(--sb-gutter);
+  /* serpentine 的分节实测是 clamp(20px → 70px)。我们的节更长，取它的上半段 */
+  padding: clamp(2.5rem, 4.5vw, 4.375rem) 0;
+  border-top: 1px solid var(--sb-rule);
+}
+.ed-section__tag {
+  position: sticky;
+  top: clamp(1rem, 2.5vw, 2.5rem);
+  align-self: start;
+  margin: 0;
+}
+.ed-section__tag .sb-en {
+  font-size: var(--sb-size-small);
+  font-weight: var(--sb-weight-body);
+  letter-spacing: var(--sb-tracking-label);
+  text-transform: uppercase;
+  color: var(--sb-ink-dim);
+  margin-top: 0.35em;
+}
+.ed-section__body { min-width: 0; }
+
+@media (max-width: 860px) {
+  .ed-section { grid-template-columns: minmax(0, 1fr); }
+  /* 塌成一栏之后吸顶就变成"挡住内容"，所以窄屏下它只是一个普通小标题 */
+  .ed-section__tag { position: static; }
+}
+
+/* ── 链接：下划线从左长出来 ───────────────────────────────────────────────
+ * 用 background-size 而不是 border-bottom，因为只有前者能做出"生长"这个动作；
+ * border 只能整条换颜色。悬停要有反馈，但不该有位移 —— 位移会让一页链接变成抖动。
+ */
+.ed a,
+a.ed-link {
+  border-bottom: 0;
+  transition: background-size 200ms var(--ed-ease);
+  background-image: linear-gradient(var(--sb-accent), var(--sb-accent));
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  background-size: 0 1px;
+  box-shadow: inset 0 -1px 0 var(--sb-rule);
+}
+.ed a:hover,
+a.ed-link:hover { background-size: 100% 1px; }
+
+/* ── 动效 ────────────────────────────────────────────────────────────────
+ * 默认态就是终态：下面这一段整个被 reduced-motion 关掉之后，页面是**已经揭示好**
+ * 的样子，而不是停在起始帧。这条比动效本身重要 —— 停在起始帧的"降级"
+ * 会让内容彻底看不见。
+ */
+@media (prefers-reduced-motion: no-preference) {
+  /* 进场一：那条线从左展开。一条线画开一页，比任何淡入都更像"开幕" */
+  .ed-rule--heavy {
+    transform-origin: 0 50%;
+    animation: ed-draw 400ms var(--ed-ease) both;
+  }
+
+  /**
+   * 进场二：巨题分段揭示。每一段各自从下方升上来，先后由 `--ed-i` 排。
+   * 不做 `overflow: clip` 的硬裁切 —— 巨题的行距已经收到 0.95，再加一个裁切框
+   * 会把降部切掉，那是排版事故不是动效。
+   */
+  .ed-rise > * {
+    /* 实测的进场时长区间是 200–500ms，stagger 步长 50ms（dumbar 一路排到 2700ms）。
+       我们只有两段，所以队列很短 —— 但步长用同一个数 */
+    animation: ed-rise 400ms var(--ed-ease) both;
+    animation-delay: calc(var(--ed-i, 0) * 50ms + 150ms);
+  }
+
+  @keyframes ed-draw { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+  @keyframes ed-rise {
+    from { transform: translateY(0.55em); opacity: 0; }
+    to   { transform: none; opacity: 1; }
+  }
+}

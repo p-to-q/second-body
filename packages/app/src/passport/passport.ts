@@ -19,6 +19,8 @@
  */
 import '../ui/type.css';
 import '../ui/pages.css';
+import '../ui/editorial.css';
+import './passport.css';
 import { COPY, bi, type BiText } from '../ui/i18n.ts';
 
 interface Stamp {
@@ -114,25 +116,50 @@ function biBlock(t: BiText, tag = 'div', cls = ''): HTMLElement {
   return wrap;
 }
 
-function stampBlock(s: Stamp): HTMLElement {
-  const sec = el('section', `sb-stamp sb-${s.verdict}`);
-
-  // 页眉：编号 · 裁定 · 日期 —— 像护照上那一行
-  const head = el('div', 'sb-stamp-head');
-  head.append(
-    el('span', 'sb-stamp-no', s.no),
-    biBlock(s.verdict === 'refused' ? bi('拒入', 'REFUSED') : bi('准入', 'ADMITTED'), 'span', 'sb-verdict'),
-    el('span', 'sb-stamp-date sb-data sb-num', s.date),
+/**
+ * 一枚章。
+ *
+ * 这一页叫护照，可它之前长得像一张表格 —— "章"只是一个小号罗马数字。
+ * 现在它真的是一枚章：一个粗框的方块、一串全大写的裁定、一个编号和日期，
+ * 整个略微歪着。歪是关键 —— 印章是**手按上去的**，正得分毫不差的框读作 UI 控件，
+ * 歪三度才读作一次盖章动作。
+ *
+ * 这是全站唯一一处出现"图形"而不是纯排版的地方（docs/23 §0 的禁止清单
+ * 禁的是卡片、阴影、圆角、图标）。这枚章没有阴影、没有圆角、不是卡片：
+ * 它是这一页的内容本身 —— 形式和内容是同一件事，不是给内容套壳。
+ */
+function stampMark(s: Stamp): HTMLElement {
+  const mark = el('div', `pp-mark pp-mark--${s.verdict}`);
+  mark.append(
+    el('span', 'pp-mark__no', s.no),
+    biBlock(s.verdict === 'refused' ? bi('拒入', 'REFUSED') : bi('准入', 'ADMITTED'), 'div', 'pp-mark__verdict'),
+    el('span', 'pp-mark__date sb-num', s.date),
   );
-  sec.append(head, el('hr', 'sb-rule'));
+  return mark;
+}
+
+function stampBlock(s: Stamp): HTMLElement {
+  const sec = el('section', `sb-stamp pp-stamp sb-${s.verdict}`);
+
+  // 章头：左边是那枚章，右边是申请人。两栏，和 .ed-section 同一套比例
+  const head = el('div', 'pp-stamp__head');
+  const left = el('div', 'pp-stamp__mark');
+  left.append(stampMark(s));
+  const right = el('div', 'pp-stamp__subject');
+  right.append(
+    biBlock(bi('申请人', 'Applicant'), 'div', 'sb-label'),
+    biBlock(s.subject, 'div', 'pp-subject-text'),
+    biBlock(s.officer, 'div', 'pp-officer sb-label'),
+  );
+  head.append(left, right);
+  sec.append(head);
 
   const row = (label: BiText, body: HTMLElement): HTMLElement => {
-    const r = el('div', 'sb-row');
-    r.append(biBlock(label, 'div', 'sb-label'), body);
+    const r = el('div', 'pp-row');
+    r.append(biBlock(label, 'div', 'sb-label'), el('div', 'pp-row__body'));
+    r.lastElementChild!.append(body);
     return r;
   };
-
-  sec.append(row(bi('申请人', 'Applicant'), biBlock(s.subject)));
 
   const facts = el('dl', 'sb-facts sb-data');
   for (const f of s.facts) {
@@ -159,20 +186,37 @@ function stampBlock(s: Stamp): HTMLElement {
 
 const root = document.getElementById('passport')!;
 
-const header = el('header', 'sb-room-head');
-header.append(el('span', 'sb-room-no', 'VII / 共生护照 · SYMBIOSIS PASSPORT'));
-const h1 = el('h1');
-h1.append(biBlock(bi('共生护照', 'Symbiosis Passport')));
-header.append(h1);
-header.append(biBlock(bi(
-  '两条过程性证明。一次拒入，一次准入。',
-  'Two records of process. One entry refused, one entry admitted.',
-), 'p', 'sb-lede'));
-header.append(biBlock(bi(
-  `作品：${COPY.title.zh}`,
-  `Work: ${COPY.title.en}`,
-), 'p', 'sb-data'));
-root.append(header, el('hr', 'sb-rule'));
+const header = el('header', 'ed-hero');
+
+const meta = el('div', 'ed-hero__meta');
+const back = el('a', 'sb-label');
+back.setAttribute('href', '/about');
+back.append(el('span', 'sb-zh', '回到作品'), el('span', 'sb-en', 'BACK TO THE WORK'));
+back.classList.add('sb-bi', 'sb-bi-inline');
+meta.append(back, el('span', 'sb-label sb-num', 'VII'));
+header.append(meta, el('hr', 'ed-rule ed-rule--heavy'));
+
+const titleBox = el('div', 'ed-hero__title');
+const h1 = el('h1', 'sb-display ed-rise');
+h1.append(el('span', 'sb-zh', '共生护照'), el('span', 'sb-en', 'Symbiosis Passport'));
+h1.classList.add('sb-bi');
+h1.querySelector('.sb-zh')!.setAttribute('style', '--ed-i:0');
+h1.querySelector('.sb-en')!.setAttribute('style', '--ed-i:1');
+titleBox.append(h1);
+header.append(titleBox, el('hr', 'ed-rule'));
+
+const lede = el('div', 'ed-hero__lede');
+const ledeCol = el('div');
+ledeCol.append(
+  biBlock(bi(
+    '两条过程性证明。一次拒入，一次准入。',
+    'Two records of process. One entry refused, one entry admitted.',
+  ), 'p', 'sb-lede'),
+  biBlock(bi(`作品：${COPY.title.zh}`, `Work: ${COPY.title.en}`), 'p', 'pp-work sb-data'),
+);
+lede.append(ledeCol);
+header.append(lede);
+root.append(header);
 
 for (const s of STAMPS) root.append(stampBlock(s));
 
