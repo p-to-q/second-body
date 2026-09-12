@@ -54,6 +54,11 @@ export interface RosterEntry {
   tierOfVariant: Record<string, Tier>;
   /** 取材说明。取材 ≠ 复制，写清楚出处是为了让自己保持诚实 */
   reference?: string;
+  /**
+   * 换一批随机。seed 由 id 决定，原样重跑必然复现同一个坏结果；
+   * 加 salt 是"我看过了，这个不行，换一个"的显式记录，比偷偷改 id 好。
+   */
+  seedSalt?: number;
   note?: string;
 }
 
@@ -78,6 +83,12 @@ const A = (
 });
 
 // ── 机器人物种谱系 ──────────────────────────────────────────────────────────
+/**
+ * 第一遍 anchor 就是坏的（多物体 / 碎片 / 薄壳），换一批随机重来。
+ * 记在这里而不是偷偷改 id：下一个人要知道"这个条目试过一次，不行"。
+ */
+const RE_ANCHOR: Record<string, number> = { digitigrade: 1, wheelleg: 1, autonomous: 1 };
+
 export const ARCHETYPES: RosterEntry[] = [
   // 已生成的五个（full coverage，各 20 件）
   A('porcelain', '瓷', 'Porcelain', '一个被理想化过的你',
@@ -124,12 +135,12 @@ export const ARCHETYPES: RosterEntry[] = [
     '小型人形：紧凑比例 + 黑色 sensor pod 头部'),
   A('digitigrade', '鸟腿', 'Digitigrade', '人的手，鸟的腿',
     'human manipulation envelope + animal locomotion morphology —— 最有辨识度的工业机器人形态。',
-    'a reverse-jointed digitigrade leg segment: a long slender bird-like shank with a backward-bending knee housing, carbon-dark strut with a pale grey actuator pod, avian and mechanical at once',
+    'ONE single connected solid part, not a scene and not several separate objects: a reverse-jointed digitigrade leg segment with a long slender bird-like shank, a backward-bending knee housing fused to it, carbon-dark strut with a pale grey actuator pod, all volumes merged into one continuous body',
     ['metal.graphite', 'matte.bone', 'paint.hazard'], 0.6, 0.6,
     '鸟腿/兽脚类步态形态'),
   A('wheelleg', '轮足', 'Wheelleg', '它既走也滑',
     '腿末端长轮子。轮 × 腿的混种是这几年最被低估的一支。',
-    'a wheel-leg hybrid limb segment: a rigid strut terminating in a fat rubber-tyred wheel hub with a visible drive motor, suspension linkage, industrial grey and black with a hazard-orange accent ring',
+    'ONE single connected solid part with thick closed volumes, no thin shells and no loose fragments: a wheel-leg hybrid limb segment, a rigid strut terminating in a fat rubber-tyred wheel hub with a drive motor fused to it, suspension linkage merged into the same body, industrial grey and black with a hazard-orange accent ring',
     ['metal.graphite', 'paint.hazard', 'matte.ash'], 0.35, 0.35,
     '轮足四足：腿末端驱动轮 + 悬挂连杆'),
   A('droid', '小怪物', 'Droid', '它不执行任务，它有性格',
@@ -164,7 +175,7 @@ export const ARCHETYPES: RosterEntry[] = [
     '轮式底盘 + 躯干 + 双臂的移动操作平台'),
   A('autonomous', '无人车', 'Autonomous', '它也是机器人，只是大了很多',
     '一旦不再把具身智能等于人形，这个领域突然变得特别丰富。',
-    'an autonomous-vehicle derived body panel: a smooth white automotive clamshell surface with a black sensor dome housing and a ring of lidar apertures, automotive paint finish, large-radius curves',
+    'ONE single connected solid part, thick and closed, no thin shells, no holes and no separate pieces: an autonomous-vehicle derived body volume, a smooth white automotive clamshell form with a black sensor dome fused on top and a ring of lidar apertures, automotive paint finish, large-radius curves',
     ['ceramic.pearl', 'metal.graphite', 'glow.signal'], 0.2, 0.25,
     '自动驾驶车辆：传感器穹顶 + 汽车级曲面'),
 
@@ -235,6 +246,8 @@ export const CHARACTERS: RosterEntry[] = [
     'a glossy vinyl figure body part: highly saturated candy-coloured plastic with a thick clear-coat sheen, chunky toy proportions, visible mould parting line, collectible figure finish',
     ['ceramic.pearl', 'paint.hazard', 'glow.signal'], 0.85, 0.6, 'compact'),
 ];
+
+for (const e of ARCHETYPES) if (RE_ANCHOR[e.id]) e.seedSalt = RE_ANCHOR[e.id];
 
 export const ROSTER: RosterEntry[] = [...ARCHETYPES, ...GUESTS, ...CHARACTERS];
 

@@ -53,17 +53,17 @@
       "durationSec": 31
     },
     "joint.patrol.a": {
-      "recipeHash": "sha256:25db0e6266c3c1db",
+      "recipeHash": "sha256:b486b4d994124915",
       "status": "normalized",
-      "submittedAt": "2026-09-12T05:52:17.543Z",
+      "submittedAt": "2026-09-12T07:31:02.723Z",
       "error": null,
-      "taskUuid": "b183e26c-b0d2-4c09-a24b-de1cf523c90a",
+      "taskUuid": "49a2e6f1-7eb5-47d3-bb23-304981236cf6",
       "consumed": 0.5,
       "files": [
         "joint.patrol.a/base_basic_pbr.glb"
       ],
-      "completedAt": "2026-09-12T05:52:51.511Z",
-      "durationSec": 34
+      "completedAt": "2026-09-12T07:31:31.975Z",
+      "durationSec": 29
     },
     "spine.patrol.a": {
       "recipeHash": "sha256:7c9f974830680d5d",
@@ -316,17 +316,17 @@
       "durationSec": 23
     },
     "foot.porcelain.a": {
-      "recipeHash": "sha256:ee2f2c7cf3dd11b1",
+      "recipeHash": "sha256:e30c21075fce1e8c",
       "status": "normalized",
-      "submittedAt": "2026-09-12T06:08:48.363Z",
+      "submittedAt": "2026-09-12T07:31:02.718Z",
       "error": null,
-      "taskUuid": "aa5d219c-f64a-4ad7-8218-62aaeaafb832",
+      "taskUuid": "bee50d92-407b-4a7c-a628-db0837075c97",
       "consumed": 0.5,
       "files": [
         "foot.porcelain.a/base_basic_pbr.glb"
       ],
-      "completedAt": "2026-09-12T06:09:10.291Z",
-      "durationSec": 22
+      "completedAt": "2026-09-12T07:31:28.292Z",
+      "durationSec": 26
     },
     "foot.porcelain.b": {
       "recipeHash": "sha256:5a61ac3826fbbbf4",
@@ -1323,28 +1323,6 @@
       "completedAt": "2026-09-12T06:35:14.300Z",
       "error": null
     },
-    "spine.digitigrade.a": {
-      "recipeHash": "sha256:159af314f38500b0",
-      "taskUuid": "e5c9de8f-90e0-4985-9ae7-ca271c155bdf",
-      "status": "normalized",
-      "consumed": 0.5,
-      "files": [
-        "spine.digitigrade.a/base_basic_pbr.glb"
-      ],
-      "completedAt": "2026-09-12T06:35:48.072Z",
-      "error": null
-    },
-    "spine.wheelleg.a": {
-      "recipeHash": "sha256:a4caaa811b640e58",
-      "taskUuid": "c8efbb54-1789-4804-b08f-a8db6f26fa40",
-      "status": "normalized",
-      "consumed": 0.5,
-      "files": [
-        "spine.wheelleg.a/base_basic_pbr.glb"
-      ],
-      "completedAt": "2026-09-12T06:36:19.480Z",
-      "error": null
-    },
     "spine.droid.a": {
       "recipeHash": "sha256:2505a47f65fc3fd8",
       "taskUuid": "943e5915-7935-4e4c-bb03-12ef76e468a2",
@@ -1409,17 +1387,6 @@
         "spine.manipulator.a/base_basic_pbr.glb"
       ],
       "completedAt": "2026-09-12T06:39:59.738Z",
-      "error": null
-    },
-    "spine.autonomous.a": {
-      "recipeHash": "sha256:541eff38d5b1f8e7",
-      "taskUuid": "80e65bfd-4151-4047-bbf8-476483adc0fb",
-      "status": "normalized",
-      "consumed": 0.5,
-      "files": [
-        "spine.autonomous.a/base_basic_pbr.glb"
-      ],
-      "completedAt": "2026-09-12T06:40:42.405Z",
       "error": null
     },
     "spine.char.dumpling.a": {
@@ -2377,5 +2344,5 @@
       "durationSec": 36
     }
   },
-  "totalConsumed": 93
+  "totalConsumed": 91.5
 }

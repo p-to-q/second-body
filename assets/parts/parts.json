@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-09-12T07:24:23.420Z",
+  "generatedAt": "2026-09-12T07:33:39.989Z",
   "units": "meters",
   "convention": {
     "axis": "+Y",
@@ -1086,7 +1086,7 @@
       "source": {
         "provider": "hyper3d",
         "model": "Gen-2.5-Low",
-        "seed": 54613,
+        "seed": 5769,
         "recipeId": "foot.digitigrade.a"
       }
     },
@@ -1348,18 +1348,18 @@
       "tier": 1,
       "file": "foot.porcelain.a.glb",
       "family": "porcelain",
-      "localGirth": 0.5088,
-      "triCount": 2878,
+      "localGirth": 0.5407,
+      "triCount": 2916,
       "aabb": {
         "min": [
-          -0.2382957935333252,
+          -0.23908929526805878,
           0,
-          -0.254410058259964
+          -0.2703717350959778
         ],
         "max": [
-          0.2382957935333252,
+          0.23908929526805878,
           1,
-          0.254410058259964
+          0.2703717350959778
         ]
       },
       "symmetry": "mirror",
@@ -2318,7 +2318,7 @@
       "source": {
         "provider": "hyper3d",
         "model": "Gen-2.5-Low",
-        "seed": 60619,
+        "seed": 28971,
         "recipeId": "head.digitigrade.a"
       }
     },
@@ -2990,7 +2990,7 @@
       "source": {
         "provider": "hyper3d",
         "model": "Gen-2.5-Low",
-        "seed": 33935,
+        "seed": 44975,
         "recipeId": "joint.digitigrade.a"
       }
     },
@@ -3168,18 +3168,18 @@
       "tier": 1,
       "file": "joint.patrol.a.glb",
       "family": "patrol",
-      "localGirth": 0.4315,
-      "triCount": 2806,
+      "localGirth": 0.9882,
+      "triCount": 2912,
       "aabb": {
         "min": [
-          -0.20063480734825134,
+          -0.49407923221588135,
           0,
-          -0.21577244997024536
+          -0.34389305114746094
         ],
         "max": [
-          0.20063480734825134,
+          0.49407923221588135,
           1,
-          0.21577244997024536
+          0.34389305114746094
         ]
       },
       "symmetry": "none",
@@ -3662,7 +3662,7 @@
       "source": {
         "provider": "hyper3d",
         "model": "Gen-2.5-Low",
-        "seed": 60429,
+        "seed": 45889,
         "recipeId": "shin.digitigrade.a"
       }
     },
@@ -4138,7 +4138,7 @@
       "source": {
         "provider": "hyper3d",
         "model": "Gen-2.5-Low",
-        "seed": 57015,
+        "seed": 34999,
         "recipeId": "spine.autonomous.a"
       }
     },
@@ -4362,7 +4362,7 @@
       "source": {
         "provider": "hyper3d",
         "model": "Gen-2.5-Low",
-        "seed": 17276,
+        "seed": 12788,
         "recipeId": "spine.digitigrade.a"
       }
     },
@@ -4754,7 +4754,7 @@
       "source": {
         "provider": "hyper3d",
         "model": "Gen-2.5-Low",
-        "seed": 61670,
+        "seed": 47722,
         "recipeId": "spine.wheelleg.a"
       }
     },
@@ -5342,7 +5342,7 @@
       "source": {
         "provider": "hyper3d",
         "model": "Gen-2.5-Low",
-        "seed": 46895,
+        "seed": 46159,
         "recipeId": "upperArm.digitigrade.a"
       }
     },

@@ -59,7 +59,33 @@ Next:       一个具体的下一步
 
 **跑过才能说通过。** 没跑的检查写 `Not run` 加理由是完整的答案；说"应该能跑"不是。
 
-## 6. 编排者自己的清单
+## 6. 踩过的坑（编排者的错，记下来别再犯）
+
+### 6.1 `pgrep -f "<字符串>"` 会匹配到等待自己的那条 shell
+```bash
+until ! pgrep -f "cli.ts generate" >/dev/null; do sleep 10; done   # ❌ 永远不退出
+```
+等待用的 shell 自己的命令行里就含 `cli.ts generate` 这个字符串，`pgrep -f` 匹配到自己。
+实际后果：两个代理各挂了 32 分钟和 26 分钟。正确写法：
+```bash
+until ! pgrep -f "[c]li.ts generate" >/dev/null; do sleep 10; done  # ✅ 方括号骗过自身匹配
+# 或者按可执行文件过滤：ps -eo comm=,args= | awk '$1=="node" && /cli\.ts generate/'
+```
+
+### 6.2 两个代理共用一个工作目录 → git index 竞争
+素材线在主目录工作（二进制不适合分支合并），我又在同一个目录提交，
+结果它 `git add` 之后、`git commit` 之前被我的提交把 106 个文件一并带走了。
+文件没丢，但挂在了别人的信息下。
+**规则**：同一目录里同时只能有一个写者。不得已时用
+`git commit -o <pathspec>`（只提交指定路径，绕开共享 index）。
+
+### 6.3 多个 worktree 各自起 dev server，端口会串
+文档里写死 `5173`，但那个端口可能被另一个 worktree 占着；
+落到 5174 的服务读的是**那个 worktree 的 `assets/`**，而 worktree 里
+`assets/raw/` 是空的（被 gitignore）。写回类的中间件会把文件写进错误的目录。
+**规则**：任务卡里凡是要开 dev server 的，都必须先确认端口对应的是哪个目录。
+
+## 7. 编排者自己的清单
 
 - [ ] 每条线回来先看 Validation 那一栏，再看 diff
 - [ ] 合完补 `core/index.ts` 导出，整体 `npm run check`

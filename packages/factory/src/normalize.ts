@@ -6,7 +6,7 @@
 import { NodeIO, Document } from '@gltf-transform/core';
 import { dedup, flatten, join, prune, weld, clearNodeTransform, transformMesh, simplify } from '@gltf-transform/functions';
 import { MeshoptSimplifier } from 'meshoptimizer';
-import { mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { RECIPES, recipeById } from '../recipes/catalog.ts';
 import { load, save, RAW_DIR, PARTS_DIR } from './ledger.ts';
@@ -250,7 +250,23 @@ export async function normalizeAll(opt: { only?: string[] } = {}): Promise<PartM
     }
   }
   save(ledger);
-  writeFileSync(resolve(PARTS_DIR, '_metas.json'), JSON.stringify(metas, null, 2));
-  console.log(`\n规范化 ${metas.length} 件 → assets/parts/`);
-  return metas;
+
+  // ⚠️ 定向规范化（--ids=）必须**合并**进已有索引，不能整个重写。
+  //    曾经在这里把 186 件的 _metas.json 覆盖成 2 件，运行时直接变成空场 ——
+  //    而且现象是"应用好像坏了"，根本看不出是索引被删了。
+  const metaPath = resolve(PARTS_DIR, '_metas.json');
+  let merged = metas;
+  if (opt.only && existsSync(metaPath)) {
+    try {
+      const prev: PartMeta[] = JSON.parse(readFileSync(metaPath, 'utf8'));
+      const byId = new Map(prev.map((m) => [m.id, m]));
+      for (const m of metas) byId.set(m.id, m);
+      merged = [...byId.values()].sort((a, b) => a.id.localeCompare(b.id));
+    } catch {
+      console.warn('  ⚠ 旧 _metas.json 读不出来，只能整个重写');
+    }
+  }
+  writeFileSync(metaPath, JSON.stringify(merged, null, 2));
+  console.log(`\n规范化 ${metas.length} 件；索引共 ${merged.length} 件 → assets/parts/`);
+  return merged;
 }

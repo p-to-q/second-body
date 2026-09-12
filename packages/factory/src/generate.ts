@@ -28,6 +28,7 @@ function genHash(r: Recipe, refKey: string): string {
   return hashRecipe({
     prompt: r.prompt, seed: r.seed, bbox: r.bbox, isSymmetric: r.isSymmetric,
     qualityOverride: r.qualityOverride, material: r.material, tier: 'Gen-2.5-Low', ref: refKey,
+    mode: r.geometryInstructMode,
   });
 }
 
@@ -60,7 +61,7 @@ function paramsFor(r: Recipe, refs: ThemeRefs, previewRender: boolean) {
     seed: r.seed,
     bbox_condition: r.bbox,
     is_symmetric: r.isSymmetric,
-    geometry_instruct_mode: 'faithful' as const,
+    geometry_instruct_mode: r.geometryInstructMode,
     preview_render: previewRender || undefined,
   };
 }

@@ -21,6 +21,13 @@ export interface Recipe {
   qualityOverride: number;
   material: 'PBR' | 'None' | 'Shaded' | 'Hybrid' | 'All';
   /**
+   * faithful = 贴着参考图；creative = 允许偏离。
+   * 近立方 bbox 的槽位（joint/foot/head）用 faithful 会把躯干 anchor 的**轮廓**
+   * 整个照抄成一个"小躯干"—— 细长槽位不会，因为 bbox 约束压过了图像。
+   * 这是 186 件复检出来的结论，不是猜的。
+   */
+  geometryInstructMode: 'faithful' | 'creative';
+  /**
    * 规范化时是否把长轴上下翻转（让 socketA = 靠近躯干的一端）。
    * undefined = 用"粗端朝下"的自动启发式；true/false = 人工覆盖（看过 /dev/parts.html 之后填）。
    * 改这个字段不花 credits：只需重跑 factory:normalize。
@@ -48,11 +55,24 @@ const VARIANT_MOD: Record<string, string> = {
 };
 
 /** 稳定 hash → seed，保证同一个 id 永远拿到同一个 seed（P9） */
-function seedOf(id: string): number {
+function seedOf(id: string, salt = 0): number {
   let h = 2166136261 >>> 0;
-  for (let i = 0; i < id.length; i++) { h ^= id.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  const key = salt ? `${id}#${salt}` : id;
+  for (let i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
   return h % 65536;
 }
+
+/**
+ * 哪些槽位要用 creative。
+ *
+ * **这张表是目检 186 件得到的结论，不是一个公式。** 曾经想用"长宽比 < 1.6 算近立方"
+ * 去推它，结果 foot（比值 2.1）被漏掉 —— 而 foot 恰恰是问题最重的一个。
+ * 数据说了算，不要为了优雅再把它变回公式。
+ *
+ * 症状：用 faithful + 躯干 anchor 时，这些槽位会把躯干的**轮廓**整个照抄成一个"小躯干"；
+ * 细长槽位（upperArm/foreArm/shin/thigh）不会，因为 bbox 约束压过了图像。
+ */
+const CREATIVE_SLOTS = new Set(['head', 'joint', 'foot', 'hand']);
 
 function make(slotKey: string, themeId: string, variant: string): Recipe {
   const s = SLOTS[slotKey];
@@ -65,12 +85,13 @@ function make(slotKey: string, themeId: string, variant: string): Recipe {
     theme: themeId,
     tier: t.tierOfVariant[variant] ?? 1,
     prompt: `${s.desc}, ${t.look}${mod}. ${STYLE_BASE}`,
-    seed: seedOf(id),
+    seed: seedOf(id, t.seedSalt ?? 0),
     bbox: s.bbox,
     isSymmetric: s.sym,
     partSymmetry: s.partSym,
     qualityOverride: 3000,
     material: 'PBR',
+    geometryInstructMode: CREATIVE_SLOTS.has(slotKey) ? 'creative' : 'faithful',
     flip: s.flip,
   };
 }
