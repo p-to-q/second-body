@@ -44,10 +44,12 @@ interface Capture {
 ## 3. PartLibrary 接口
 
 ```ts
+// 注意返回的是 three 的 BufferGeometry，不是 types.ts 里的什么类型 ——
+// core 不许 import three，所以这个类型只存在于 app 侧。
 interface PartLibrary {
   load(): Promise<void>;                      // 失败也要 resolve，内部切到占位模式
   readonly index: PartLibraryIndex;            // 缺资产时返回内置的占位 index
-  geometry(partId: string): Geometry;          // 永不返回 undefined：缺失 → 占位几何
+  geometry(partId: string): THREE.BufferGeometry;  // 永不返回 undefined：缺失 → 占位几何
   readonly usingFallback: boolean;
 }
 ```

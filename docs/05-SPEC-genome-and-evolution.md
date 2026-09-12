@@ -85,7 +85,8 @@ TIER_COOLDOWN = 2.0     // 秒；两次换装之间的最小间隔
 ## 4. 关节盖片（joint caps）
 
 刚体挂载必然在关节处穿插。解法：在每个关节点放一个 `slot: "joint"` 的球/多面体，
-半径 = `max(相邻两骨 girth) × 0.6`。tier 0 用素球，tier ≥ 2 换成机械关节件。
+半径由 `tuning.ts` 的 `MORPH.jointCapScale` 决定（当前 0.75），乘以相邻骨的 girth。
+**这里不写死数字** —— 旋钮住在 `tuning.ts`（P0），文档里再抄一份就一定会对不上（已经对不上过一次）。tier 0 用素球，tier ≥ 2 换成机械关节件。
 父部件若 `capJoint: true` 则跳过该关节的盖片。
 
 ## 5. Presence 生命周期（`core/presence.ts`）
