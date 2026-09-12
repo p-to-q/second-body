@@ -136,7 +136,9 @@ for (const b of bones) {
 skelGroup.visible = false;
 
 // ── 运行时模块 ──────────────────────────────────────────────────────────────
-const library = createPartLibrary();
+// `?parts=/parts/harvest/` 指向另一份索引 —— 取件池（真实机器人 CAD，docs/33）就是靠它
+// 和 Rodin 生成件拼进同一具身体的。不给就是默认的 /parts/，行为不变。
+const library = createPartLibrary(qs.has('parts') ? { baseUrl: qs.get('parts')! } : {});
 await library.load();                          // parts.json 缺失也 resolve → 占位模式
 const creature = createCreature({ library });
 scene.add(creature.object);

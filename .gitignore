@@ -25,3 +25,8 @@ assets/parts/lineage/
 assets/intake/**/*.jpg
 assets/intake/**/*.jpeg
 assets/intake/**/*.png
+
+# 开源真实 3D 资产的取件区（docs/33）。下载的原始网格不进版本库：
+# 体积大，而且各来源授权不同 —— 仓库里只留 scripts/harvest.mjs 和 docs/33，照着能重新取一遍。
+assets/harvest/
+assets/parts/harvest/
