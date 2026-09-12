@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-09-12T10:27:48.792Z",
+  "generatedAt": "2026-09-12T11:00:02.116Z",
   "units": "meters",
   "convention": {
     "axis": "+Y",
@@ -117,8 +117,9 @@
       },
       "coverage": "full",
       "bodyPlan": {
-        "limb": 0.9,
-        "torso": 1.15
+        "kind": "mass",
+        "torso": 1.15,
+        "limb": 0.9
       }
     },
     {
@@ -460,6 +461,7 @@
       "coverage": "light",
       "base": "furball",
       "bodyPlan": {
+        "kind": "mass",
         "limb": 0.35,
         "torso": 1.7,
         "head": 0.8
@@ -484,6 +486,7 @@
       "coverage": "light",
       "base": "coral",
       "bodyPlan": {
+        "kind": "mass",
         "limb": 1.15,
         "torso": 1.05
       }

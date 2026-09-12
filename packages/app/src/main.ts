@@ -23,6 +23,8 @@ import type { MotionFeatures, Skeleton, Tier } from '../../core/src/types.ts';
 import { createCapture } from './capture/capture.ts';
 import { createPartLibrary } from './assets/library.ts';
 import { createCreature } from './creature/creature.ts';
+import { createMassBody } from './creature/mass.ts';
+import type { BodyInstance } from './creature/body.ts';
 import { createStage } from './stage/stage.ts';
 import { chooseTheme, themeFromUrl } from './choose/choose.ts';
 import { createFrameLoop } from './shell/safe-frame.ts';
@@ -97,8 +99,14 @@ async function boot(): Promise<void> {
   const stabilizer = createStabilizer();
   const motion = createMotion();
   const evolution = createEvolution();
+  // 身体方案决定用哪种**表达**：刚体挂载（手办式）还是团块（物质式）。
+  // 两者都满足 BodyInstance，帧循环不关心是哪一种（docs/18 §2）。
+  const planKind = typeof bodyPlan === 'string' ? bodyPlan : (bodyPlan.kind ?? 'rig');
+  const isMass = planKind === 'mass';
   const creature = createCreature({ library });
-  stage.scene.add(creature.object);
+  const massBody = isMass ? createMassBody({ library, theme: theme ?? undefined }) : null;
+  const body: BodyInstance = massBody ?? creature;
+  stage.scene.add(body.object);
 
   let seed = flags.seed ?? (Math.random() * 0xffffffff) >>> 0;   // 会话级种子，仅此一处
   let lastFeatures: MotionFeatures | null = null;
@@ -109,7 +117,8 @@ async function boot(): Promise<void> {
 
   const morph = (t?: Tier) => {
     if (t !== undefined) tier = t;
-    creature.remorph(makeGenome(seed, tier, library.index, { theme: theme ?? undefined }));
+    // 团块没有槽位件可换 —— 它的"演化"由 tier 驱动的表面参数表达，不是换装。
+    if (!isMass) creature.remorph(makeGenome(seed, tier, library.index, { theme: theme ?? undefined }));
   };
   morph(tier);
 
@@ -121,8 +130,8 @@ async function boot(): Promise<void> {
     get skeleton() { return lastSkeleton; },
     get features() { return lastFeatures; },
     get evolution() { return evolution.state; },
-    get genome() { return creature.genome; },
-    creature, stage, library, capture, flags,
+    get genome() { return isMass ? null : creature.genome; },
+    creature: body, stage, library, capture, flags,
     rng: mulberry32(seed),
     morph,
     note: (s) => { note = s; },
@@ -163,9 +172,9 @@ async function boot(): Promise<void> {
     renderer.render(stage.scene, stage.camera);
 
     if (hud) {
-      const s = creature.stats;
+      const s = body.stats;
       hud.update(loop.stats, {
-        instances: s.instances, triangles: s.triangles,
+        instances: (s as { instances?: number }).instances ?? 0, triangles: s.triangles,
         drawCalls: s.drawCalls, inferenceHz: capture.fps,
         act: director.currentId ?? '—', note,
       });
@@ -179,7 +188,7 @@ async function boot(): Promise<void> {
   loop.start();
   console.info(
     `[main] running · theme=${theme} · seed=${seed} · ` +
-    `plan=${bodyPlan} · capture=${flags.demo ? 'replay' : 'webcam'} · acts=${ACTS.map((a) => a.id).join(',')}`,
+    `plan=${planKind} · capture=${flags.demo ? 'replay' : 'webcam'} · acts=${ACTS.map((a) => a.id).join(',')}`,
   );
 }
 

@@ -9,7 +9,7 @@ import type {
 } from '../../../core/src/types.ts';
 import type { Capture } from '../capture/capture.ts';
 import type { PartLibrary } from '../assets/library.ts';
-import type { Creature } from '../creature/creature.ts';
+import type { BodyInstance } from '../creature/body.ts';
 import type { Stage } from '../stage/stage.ts';
 import type { Flags } from '../shell/kiosk.ts';
 
@@ -20,7 +20,12 @@ export interface World {
   readonly features: MotionFeatures | null;
   readonly evolution: EvolutionState;
   readonly genome: Genome | null;
-  readonly creature: Creature;
+  /**
+   * 当前的身体。**是 BodyInstance 不是 Creature** —— 玩法只该知道"这里有个身体、
+   * 可以把骨架喂给它"，不该知道它是刚体挂载还是团块（docs/18）。
+   * 哪天加了 swarm / ribbon，所有 Act 一行都不用改。
+   */
+  readonly creature: BodyInstance;
   readonly stage: Stage;
   readonly library: PartLibrary;
   readonly capture: Capture;

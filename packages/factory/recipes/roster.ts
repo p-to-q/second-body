@@ -105,6 +105,14 @@ const BODY_PLAN: Record<string, RosterEntry['bodyPlan']> = {
   compact: 'stub',                                      // "人形，但只有一米三"
   droid: { kind: 'stub', head: 1.5 },                   // 小怪物：大头短身
 
+  // ── 换表达：团块（docs/18 B 档）。不实例化任何槽位件，只有一个连续的体 ────
+  // 实测 res40：1.85ms / 2,484 三角 / 1 draw；同骨架刚体版 87,844 三角 / 17 draw。
+  // 选这四个是因为它们的 tension 本来就不是"机器"：珊瑚不可归类、异形是生物机械、
+  // 团子是软的、幽灵是半透明的 —— 手办式的刚体件恰恰是它们最不该有的读法。
+  coral: { kind: 'mass', torso: 1.15, limb: 0.9 },
+  'char.dumpling': { kind: 'mass', limb: 0.35, torso: 1.7, head: 0.8 },
+  'char.ghost': { kind: 'mass', limb: 1.15, torso: 1.05 },
+
   // ── 只换比例（零素材成本，但物种一眼不同） ──────────────────────────────
   orb: { limb: 0.2, torso: 2.2, head: 0.4 },            // 球：躯干吞掉一切，四肢退化成痕迹
   furball: { limb: 0.25, torso: 2.0, head: 0.6 },       // 毛球：同上，但更圆
@@ -112,12 +120,9 @@ const BODY_PLAN: Record<string, RosterEntry['bodyPlan']> = {
   manipulator: { arm: 1.5, leg: 0.82, torso: 0.95 },    // 移动机械臂：长臂短腿
   autonomous: { limb: 0.5, torso: 1.6, head: 0.7 },     // 无人车：一个会走的车身
   xeno: { limb: 1.18, torso: 0.92, head: 1.15 },        // 异形：拉长 + 大颅
-  coral: { limb: 0.9, torso: 1.15 },                    // 珊瑚：团块感
   athlete: { limb: 1.1, torso: 1.05, arm: 1.05 },       // 运动员：四肢有力
   softwear: { limb: 0.95, torso: 1.12, head: 1.05 },    // 穿衣的：柔软的体量
   industrial: { torso: 1.08, limb: 0.98 },              // 工业：宽一点的躯干
-  'char.dumpling': { limb: 0.35, torso: 1.7, head: 0.8 },
-  'char.ghost': { limb: 1.15, torso: 1.05 },
   'char.idol': { head: 1.35, limb: 0.9 },               // 偶像：手办比例
   // porcelain / char.paper 保持标准比例 —— 需要有一个基准，否则"不同"就没有参照
 };

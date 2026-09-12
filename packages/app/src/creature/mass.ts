@@ -36,54 +36,10 @@ import { SKELETON, SLOT_WIDTH } from '../../../core/src/tuning.ts';
 import type { MaterialDef, Presence, Skeleton, Vec3 } from '../../../core/src/types.ts';
 import type { PartLibrary } from '../assets/library.ts';
 import type { BodyInstance, BodyStats } from './body.ts';
+// 旋钮住在 tuning.ts（P0），不在本文件。改之前先开 /dev/mass.html
+import { MASS } from '../../../core/src/tuning.ts';
 
-// ─────────────────────────── 旋钮 ───────────────────────────
 
-/**
- * 见文件头的契约缺口说明。**改这些数之前先开 `/dev/mass.html`，改完再开一次。**
- */
-const MASS = {
-  /** 体素分辨率。降它就是这个方案的降级路径 */
-  res: 40,
-  resMin: 16,
-  resMax: 64,
-  /** 沿骨轴每隔多少米撒一个球（米，标准身材）。全身骨长合计 ≈4.45m → ~85 个球 */
-  ballSpacing: 0.055,
-  /** 单根骨头最多几个球（免得某帧骨长被追踪冲飞时爆掉预算） */
-  maxBallsPerBone: 10,
-  /** 全身球数硬顶。超了丢弃，不是"以后再优化"（docs/02 P5） */
-  maxBalls: 128,
-  /**
-   * 球半径 = SLOT_WIDTH[slot]/2 × bodyScale × 这个系数。
-   * SLOT_WIDTH 是**宽度**（直径），所以先除以 2 —— 忘了这个 2 会得到一个土豆。
-   * 系数比 1 小是因为相邻球的场会叠加，融出来的表面比单球半径胖一圈。
-   */
-  radiusScale: 0.85,
-  /** 半径的体素下限：细过这个数的骨头会在体素网格里整根消失 */
-  minRadiusVoxels: 1.15,
-  /**
-   * 少数槽位对 SLOT_WIDTH 的修正。**只有两条，而且都有理由：**
-   * - `spine`：SLOT_WIDTH 0.44 说的是胸廓的**宽**，但球是球，直接拿它当直径会得到一个
-   *   前后 44cm 的蛋，把头和肩全吞进去。契约里没有"厚度"这一项，只能在这里补。
-   * - `head`：躯干收窄之后头要能从肩上探出来，否则整个人读作"戴了个兜帽"。
-   * 其余槽位一律 1（不列在这里）。
-   */
-  slotScale: { spine: 0.72, head: 1.15 } as Partial<Record<string, number>>,
-  /** 场盒半边长 = 身高 × 这个系数。盒子越小体素越细，但抬手会被切掉 */
-  boxHalfOfHeight: 0.62,
-  /** 等值面阈值。调高 = 团块变瘦、更容易断开 */
-  isolation: 80,
-  /**
-   * addBall 的衰减项。它同时决定每个球要遍历多少体素：
-   * 截断半径 / 表面半径 = sqrt((isolation+subtract)/subtract)。
-   * 调小 → 融得更柔但更慢；调大 → 更快但球与球之间的过渡更硬。
-   */
-  subtract: 30,
-  /** position/normal 缓冲区按这个开。res=64 的实测三角数远在它之下 */
-  maxPolyCount: 60_000,
-  /** 场盒中心跟随身体质心的 EMA 时间常数（秒）。0 = 硬跟随，会让整个团块抖 */
-  centerTau: 0.10,
-};
 
 // ─────────────────────────── 接口 ───────────────────────────
 
