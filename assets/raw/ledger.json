@@ -2518,7 +2518,85 @@
       ],
       "completedAt": "2026-09-12T19:52:56.081Z",
       "durationSec": 25
+    },
+    "spine.char.painting.a": {
+      "recipeHash": "sha256:c39abec39e9e3bb6",
+      "status": "normalized",
+      "submittedAt": "2026-09-12T20:23:14.607Z",
+      "error": null,
+      "taskUuid": "4d7810bf-271b-4ee9-a287-6891da122cc5",
+      "consumed": 0.5,
+      "files": [
+        "spine.char.painting.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T20:24:03.690Z",
+      "durationSec": 49
+    },
+    "head.char.painting.a": {
+      "recipeHash": "sha256:f3ed459b48fce52a",
+      "status": "normalized",
+      "submittedAt": "2026-09-12T20:23:14.654Z",
+      "error": null,
+      "taskUuid": "34d71e67-d640-48c3-94ff-af079b1b3c47",
+      "consumed": 0.5,
+      "files": [
+        "head.char.painting.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T20:24:22.829Z",
+      "durationSec": 68
+    },
+    "upperArm.char.painting.a": {
+      "recipeHash": "sha256:4b5bec9a6d7cc183",
+      "status": "normalized",
+      "submittedAt": "2026-09-12T20:23:14.681Z",
+      "error": null,
+      "taskUuid": "0cc76b51-0244-49b5-8151-2ab03dd7461c",
+      "consumed": 0.5,
+      "files": [
+        "upperArm.char.painting.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T20:23:59.419Z",
+      "durationSec": 45
+    },
+    "shin.char.painting.a": {
+      "recipeHash": "sha256:c15d3e04d54b52b2",
+      "status": "normalized",
+      "submittedAt": "2026-09-12T20:23:59.465Z",
+      "error": null,
+      "taskUuid": "7a320548-38ea-478d-a10c-7758a8d48288",
+      "consumed": 0.5,
+      "files": [
+        "shin.char.painting.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T20:24:30.211Z",
+      "durationSec": 31
+    },
+    "foot.char.painting.a": {
+      "recipeHash": "sha256:b9102a9b9a44961f",
+      "status": "normalized",
+      "submittedAt": "2026-09-12T20:24:03.695Z",
+      "error": null,
+      "taskUuid": "1fce5de4-4b29-47ad-971a-cf46ee16cd8e",
+      "consumed": 0.5,
+      "files": [
+        "foot.char.painting.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T20:25:08.741Z",
+      "durationSec": 65
+    },
+    "joint.char.painting.a": {
+      "recipeHash": "sha256:5db8daac806981ef",
+      "status": "normalized",
+      "submittedAt": "2026-09-12T20:24:22.832Z",
+      "error": null,
+      "taskUuid": "6b737816-b62f-41f2-9253-ff2533660e67",
+      "consumed": 0.5,
+      "files": [
+        "joint.char.painting.a/base_basic_pbr.glb"
+      ],
+      "completedAt": "2026-09-12T20:25:21.767Z",
+      "durationSec": 59
     }
   },
-  "totalConsumed": 98.5
+  "totalConsumed": 101.5
 }
