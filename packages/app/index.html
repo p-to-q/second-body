@@ -7,10 +7,19 @@
  canvas{display:block}
 </style></head>
 <body><script type="module">
- // ?selftest=1 走开场自检页，**不启动主程序**（docs/09 §C：开场前先跑一遍自检）。
- // 分叉放在这里而不是 main.ts 里：自检页要在"主程序起不来"的时候也能打开，
- // 所以它不能是主程序的一部分。两个分支都是字面量 import，打包器照样能静态分析。
- if (new URLSearchParams(location.search).get('selftest') === '1') {
+ // 三条路，全是字面量 import —— 打包器照样能静态分析，三个 chunk 互不牵连。
+ //
+ // /about        作品陈述页。给观众和评委看的那一页，**不启动主程序**：
+ //               它要在一台没有 WebGPU、没有摄像头、甚至断了网的机器上照常打开。
+ //               这个页面没有自己的 .html —— dev server 和 vercel.json 的 rewrite
+ //               都把 /about 落到这里，所以路由判断只能写在这儿。
+ // ?selftest=1   开场自检页，同样**不启动主程序**：它要在"主程序起不来"的时候
+ //               也能打开，所以它不能是主程序的一部分。
+ // 其余          正常进作品。
+ const path = location.pathname.replace(/\/+$/, '');
+ if (path === '/about') {
+   import('./src/about/page.ts');
+ } else if (new URLSearchParams(location.search).get('selftest') === '1') {
    document.documentElement.style.overflow = 'auto';
    import('./src/shell/selftest.ts');
  } else {

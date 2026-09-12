@@ -4,6 +4,9 @@
   "outputDirectory": "packages/app/dist",
   "installCommand": "npm install",
   "framework": null,
+  "rewrites": [
+    { "source": "/about", "destination": "/index.html" }
+  ],
   "headers": [
     {
       "source": "/assets/(.*)",
