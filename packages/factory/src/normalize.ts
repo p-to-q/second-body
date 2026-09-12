@@ -4,17 +4,22 @@
  * 必须幂等（再跑一次结果不变）。
  */
 import { NodeIO, Document } from '@gltf-transform/core';
-import { dedup, flatten, join, prune, weld, clearNodeTransform, transformMesh, simplify } from '@gltf-transform/functions';
-import { MeshoptSimplifier } from 'meshoptimizer';
+import { EXTMeshoptCompression, KHRMeshQuantization } from '@gltf-transform/extensions';
+import { dedup, flatten, join, prune, weld, clearNodeTransform, transformMesh, simplify, meshopt, reorder } from '@gltf-transform/functions';
+import { MeshoptSimplifier, MeshoptEncoder, MeshoptDecoder } from 'meshoptimizer';
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { RECIPES, recipeById } from '../recipes/catalog.ts';
 import { load, save, RAW_DIR, PARTS_DIR } from './ledger.ts';
+import { glbStats } from './glb-stats.ts';
 import type { PartMeta, Vec3 } from '../../core/src/types.ts';
 
 const MAX_TRIS = 5000;
 
-const io = new NodeIO();
+// 读写都要认得 meshopt / 量化扩展：写是为了压，读是为了 `compressAll()` 能重进已压过的文件。
+const io = new NodeIO()
+  .registerExtensions([EXTMeshoptCompression, KHRMeshQuantization])
+  .registerDependencies({ 'meshopt.decoder': MeshoptDecoder, 'meshopt.encoder': MeshoptEncoder });
 
 type M4 = number[]; // 列主序
 
@@ -143,6 +148,66 @@ function weldTolerant(doc: Document, relTol = 1e-4): number {
   return merged;
 }
 
+/**
+ * 流水线出口：prune → 顶点重排 → meshopt 压缩 → 写文件。
+ *
+ * 为什么值得：191 件硬表面、无贴图的部件是 meshopt 的理想输入 ——
+ * 实测 26 MB → 7.0 MB（3.7×），而且解码在 wasm 里，运行时几乎不花钱。
+ *
+ * 代价与守则：
+ *  - `meshopt()` 内含 `KHR_mesh_quantization`：位置被量化成 16 位整数，
+ *    真实尺寸挪到节点 scale/translation 上。**规范化契约仍然成立**，但它成立在
+ *    「世界空间」而不是「accessor 里的数字」上 —— `glb-stats.ts` 已经按世界空间算边界。
+ *    量化误差实测 ≤ 3e-5（契约容差 2e-3），check:parts 改前改后都是 0 错。
+ *  - 运行时 `GLTFLoader` 必须挂 `MeshoptDecoder`（见 `packages/app/src/assets/library.ts`），
+ *    否则 191 件会**全部**加载失败、全程序化占位。这是这次压缩唯一的硬耦合。
+ *  - **不要对已压过的文件再跑一遍**：那是二次量化，误差会累积。`compressAll()` 会跳过。
+ *  - `prune()` 必须在压缩前跑：焊接/减面留下的悬空 accessor 不清掉，旧 buffer 会照样写进文件
+ *    （实测 4.8k 面的件能写出 66 MB）。
+ */
+export async function writePart(doc: Document, outPath: string): Promise<void> {
+  await doc.transform(prune(), dedup());
+  await MeshoptEncoder.ready;
+  await doc.transform(
+    reorder({ encoder: MeshoptEncoder }),          // 按顶点缓存局部性重排，压缩率和 GPU 都受益
+    meshopt({ encoder: MeshoptEncoder, level: 'high' }),
+  );
+  mkdirSync(resolve(outPath, '..'), { recursive: true });
+  writeFileSync(outPath, await io.writeBinary(doc));
+}
+
+/**
+ * 把**已经规范化过**的部件重新压一遍。
+ * 为什么单独有这一步：raw 素材（929 MB）不在每台机器上，重跑 `normalize` 不总是可行；
+ * 而压缩只动编码不动几何，从 parts/ 直接进出是安全且幂等的。
+ */
+export async function compressAll(opt: { only?: string[] } = {}): Promise<void> {
+  const files = readdirSync(PARTS_DIR).filter((f) => f.endsWith('.glb'))
+    .filter((f) => !opt.only || opt.only.includes(f.replace(/\.glb$/, '')));
+  let before = 0, after = 0, done = 0, skipped = 0;
+  for (const f of files) {
+    const path = resolve(PARTS_DIR, f);
+    const s0 = glbStats(path);
+    before += s0.bytes;
+    if (s0.extensions.includes('EXT_meshopt_compression')) { after += s0.bytes; skipped++; continue; }
+    try {
+      await writePart(await io.read(path), path);
+      const s1 = glbStats(path);
+      after += s1.bytes;
+      done++;
+      // 压缩不许改变契约：这里立刻验一遍，坏了当场就看得见，而不是等到 check:parts
+      if (Math.abs(s1.size[1] - 1) > 2e-3 || Math.abs(s1.min[1]) > 2e-3)
+        console.warn(`  ⚠ ${f}: 压缩后契约漂了 len=${s1.size[1].toFixed(5)} y0=${s1.min[1].toFixed(5)}`);
+    } catch (e) {
+      after += s0.bytes;
+      console.error(`  ✗ ${f}: ${(e as Error).message}`);
+    }
+  }
+  const pct = before ? (1 - after / before) * 100 : 0;
+  console.log(`压缩 ${done} 件（跳过 ${skipped} 件已压过的）：`
+    + `${(before / 1e6).toFixed(1)} MB → ${(after / 1e6).toFixed(1)} MB，省 ${pct.toFixed(0)}%`);
+}
+
 export interface NormalizeResult { meta: PartMeta; warnings: string[]; orient: string; }
 
 export async function normalizeOne(id: string, rawFile: string): Promise<NormalizeResult> {
@@ -200,15 +265,16 @@ export async function normalizeOne(id: string, rawFile: string): Promise<Normali
   const cx = (b.min[0] + b.max[0]) / 2, cz = (b.min[2] + b.max[2]) / 2;
   applyMatrix(doc, mul(trs([0,0,0], [1/h, 1/h, 1/h]), trs([-cx, -b.min[1], -cz], [1,1,1])));
 
-  // 7) 写出（先 prune：焊接/减面会留下被解引用但仍在图里的 accessor，
-  //    不 prune 的话旧 buffer 数据会照样被写进文件 —— 实测 4.8k 面的件能写出 66 MB）
-  await doc.transform(prune(), dedup());
+  // 7) 写出（prune + meshopt 压缩，见 writePart 的注释）
   mkdirSync(PARTS_DIR, { recursive: true });
   const outPath = resolve(PARTS_DIR, `${id}.glb`);
-  writeFileSync(outPath, await io.writeBinary(doc));
+  await writePart(doc, outPath);
 
-  const fb = bounds(positionsOf(doc));
-  const tris = triCountOf();
+  // 自检与 meta 都读**写出来的那个文件**，而不是内存里的 doc：
+  // 压缩会量化顶点，只有文件里的数字才是 check:parts 和运行时真正看见的东西。
+  const s = glbStats(outPath);
+  const fb = { size: s.size, min: s.min, max: s.max };
+  const tris = s.triangles;
   if (Math.abs(fb.size[1] - 1) > 1e-3) warnings.push(`长度不是 1.0: ${fb.size[1].toFixed(4)}`);
   if (Math.abs(fb.min[1]) > 1e-3) warnings.push(`socketA 不在原点: y=${fb.min[1].toFixed(4)}`);
   if (tris > MAX_TRIS) warnings.push(`面数超预算: ${tris}`);

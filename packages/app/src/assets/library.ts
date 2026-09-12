@@ -14,9 +14,22 @@
  *
  * 几何加载是**异步且非阻塞**的：`geometry()` 同步返回（先给占位），真几何到货后
  * 通过 `onGeometry()` 通知上层换掉。想要"先加载完再显示"就 `await preload(ids)`。
+ *
+ * ── §预取策略 ───────────────────────────────────────────────────────────────
+ * 「到第一具身体出现」这条关键路径上只允许有三样东西：`parts.json`、选择页的卡片图、
+ * **被选中那个条目的 tier ≤ 1 部件**。其余一律往后排。具体三条：
+ *
+ *   1. `preload()` 只 await tier ≤ 1 的件；tier ≥ 2 的插到后台队列前排（要用，但不挡进场）。
+ *   2. `load()` 成功后，在浏览器空闲时预取**轮播最先转到的那几个主题**的 tier ≤ 1 件 ——
+ *      选择页展示的那几秒管子是空的，不用白不用。
+ *   3. 某个家族 tier T 的件被预取时，顺手把同家族 T+1 排进后台队列（见 `warmNextTier`）。
+ *
+ * 后台队列有并发上限，且**永远让位给前台**：投机预取如果拖慢了它想加速的那一刻，
+ * 它就是负收益。这一条比多预取几件重要。
  */
 import * as THREE from 'three/webgpu';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { PLACEHOLDER_PREFIX } from '../../../core/src/genome.ts';
 import type {
@@ -39,13 +52,18 @@ export interface PartLibrary {
   metaOf(partId: string): PartMeta;
   /** 真几何是否已经在缓存里（false = 现在 geometry() 会给占位） */
   isLoaded(partId: string): boolean;
-  /** 预取一批部件的 glb。永不 reject */
+  /**
+   * 预取一批部件的 glb。永不 reject。
+   * **只等 tier ≤ 1 的那些**：更高 tier 的件会进后台低优先级队列（见 §预取策略）。
+   */
   preload(partIds: Iterable<string>): Promise<void>;
+  /** 后台低优先级预取，立即返回。用于"还没被选中、但很可能会被选中"的件 */
+  prefetch(partIds: Iterable<string>): void;
   /** 某个部件的真几何到货（或确定失败）时回调。返回取消订阅函数 */
   onGeometry(cb: (partId: string) => void): () => void;
   /** 慢回路产物：把运行时生成的部件塞进库里，之后 geometry()/metaOf() 就认识它 */
   register(meta: PartMeta, geometry: THREE.BufferGeometry): void;
-  readonly stats: { loaded: number; failed: number; pending: number };
+  readonly stats: { loaded: number; failed: number; pending: number; queued: number };
   dispose(): void;
 }
 
@@ -53,6 +71,12 @@ export interface PartLibraryOptions {
   /** glb / parts.json 的基址。vite 把 assets/ 当静态根，所以默认是 /parts/ */
   baseUrl?: string;
 }
+
+/**
+ * 首屏那一档。tier 0/1 是「一具身体最少需要的那套件」（docs/05），
+ * 更高 tier 是演化后才会换上去的 —— 它们不该出现在进场之前。
+ */
+const FIRST_PAINT_TIER = 1;
 
 // ─────────────────────────── 占位几何 ───────────────────────────
 
@@ -222,7 +246,27 @@ function sanitizeIndex(raw: unknown): PartLibraryIndex {
  * InstancedMesh 要一块几何，glb 可能有多个 mesh / 嵌套变换 → 烘到世界系再合并。
  * 只保留 position + normal：我们的部件没有贴图（docs/03），多余属性会让 merge 失败。
  */
-function geometryFromScene(scene: THREE.Object3D): THREE.BufferGeometry | null {
+/**
+ * 量化 / 交错属性 → 普通 Float32 属性。
+ *
+ * 为什么非做不可：压缩后的部件是 `KHR_mesh_quantization`，position 是**归一化的
+ * Int16**，而且可能是交错缓冲。直接 `applyMatrix4` 会把反量化后的值（节点 scale 0.5、
+ * translate +0.5）再写回 Int16 并重新归一化到 [-1,1] —— 几何会被夹烂，
+ * 而且是"部件看起来歪了一点点"这种最难查的坏法。`getX/getY/getZ` 会替我们反归一化。
+ */
+function toFloatAttribute(a: THREE.BufferAttribute | THREE.InterleavedBufferAttribute): THREE.BufferAttribute {
+  const n = a.itemSize;
+  const out = new Float32Array(a.count * n);
+  for (let i = 0; i < a.count; i++) {
+    out[i * n] = a.getX(i);
+    if (n > 1) out[i * n + 1] = a.getY(i);
+    if (n > 2) out[i * n + 2] = a.getZ(i);
+  }
+  return new THREE.BufferAttribute(out, n);
+}
+
+/** 导出只为了测试：压缩件的解码 + 烘变换这条路坏掉时不会抛异常，只能用真文件对边界 */
+export function geometryFromScene(scene: THREE.Object3D): THREE.BufferGeometry | null {
   scene.updateMatrixWorld(true);
   const parts: THREE.BufferGeometry[] = [];
   scene.traverse((o) => {
@@ -231,6 +275,7 @@ function geometryFromScene(scene: THREE.Object3D): THREE.BufferGeometry | null {
     let g = m.geometry.clone();
     for (const name of Object.keys(g.attributes)) {
       if (name !== 'position' && name !== 'normal') g.deleteAttribute(name);
+      else g.setAttribute(name, toFloatAttribute(g.getAttribute(name)));
     }
     g.applyMatrix4(m.matrixWorld);
     if (!g.getAttribute('normal')) g.computeVertexNormals();
@@ -251,6 +296,11 @@ function geometryFromScene(scene: THREE.Object3D): THREE.BufferGeometry | null {
 export function createPartLibrary(opt: PartLibraryOptions = {}): PartLibrary {
   const baseUrl = (opt.baseUrl ?? '/parts/').replace(/\/?$/, '/');
   const loader = new GLTFLoader();
+  // 部件用 EXT_meshopt_compression + KHR_mesh_quantization 写出（26 MB → 7 MB，
+  // 见 packages/factory/src/normalize.ts 的 writePart）。**没有这个 decoder，
+  // 191 件会全部加载失败**，应用不会崩（P3 兜底），但全程都是占位几何 ——
+  // 一个只在"部件看起来都像胶囊"时才显形的 bug。解码器是 three 自带的，不是新依赖。
+  loader.setMeshoptDecoder(MeshoptDecoder);
 
   let index: PartLibraryIndex = fallbackIndex();
   let usingFallback = true;
@@ -325,6 +375,76 @@ export function createPartLibrary(opt: PartLibraryOptions = {}): PartLibrary {
     return task;
   }
 
+  // ── 预取策略（见文件头 §预取策略）─────────────────────────────────────────
+  const bgQueue: string[] = [];
+  const bgQueued = new Set<string>();
+  let bgActive = 0;
+
+  function wantsFetch(id: string): boolean {
+    return !!id && !id.startsWith(PLACEHOLDER_PREFIX)
+      && !geometries.has(id) && !failed.has(id) && !inFlight.has(id) && !bgQueued.has(id);
+  }
+
+  /** 进后台队列。`urgent` 的插队到前面 —— 真要用的件永远排在投机预取之前 */
+  function enqueue(ids: Iterable<string>, urgent: boolean) {
+    for (const id of ids) {
+      if (!wantsFetch(id)) continue;
+      bgQueued.add(id);
+      if (urgent) bgQueue.unshift(id); else bgQueue.push(id);
+    }
+    pump();
+  }
+
+  /**
+   * 后台并发上限。为什么是 3：预取是**投机**的，它和首屏真正需要的东西
+   * （anchor 图、当前主题的 tier≤1 件）抢同一条管子。占满连接池会让预取
+   * 反过来拖慢它本该加速的那一刻。
+   */
+  const BG_CONCURRENCY = 3;
+
+  function pump() {
+    while (bgActive < BG_CONCURRENCY && bgQueue.length) {
+      const id = bgQueue.shift()!;
+      bgQueued.delete(id);
+      if (geometries.has(id)) continue;
+      bgActive++;
+      void fetchPart(id).finally(() => { bgActive--; pump(); });
+    }
+  }
+
+  /** 浏览器空闲时再动手；没有 requestIdleCallback 就退到定时器。两条路都跑得通 */
+  function whenIdle(fn: () => void) {
+    const ric = (globalThis as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => void }).requestIdleCallback;
+    if (ric) ric(fn, { timeout: 3000 }); else setTimeout(fn, 1500);
+  }
+
+  const tierOf = (id: string) => index.parts.find((p) => p.id === id)?.tier ?? 1;
+
+  /**
+   * tier 升档前**提前**把下一档的件拉下来。
+   *
+   * 想要的信号是 `evolution.progress`（升档前几秒就知道要升了），但它在 `main.ts` 的
+   * 帧循环里，这轮不归我改。退而求其次用一个同样早、且完全在库内部可见的信号：
+   * **有人预取了某个家族 tier T 的件** —— 在这件作品里那就等于「这具身体正在 T 上跑」。
+   * 于是这里顺手把同家族 T+1 的件排进后台队列。代价是最多多拉一档（几百 KB），
+   * 收益是升档那一帧不会突然掉回占位几何。
+   */
+  function warmNextTier(families: Set<string>, tier: number) {
+    if (tier >= 3) return;
+    enqueue(index.parts.filter((p) => families.has(p.family) && p.tier === tier + 1).map((p) => p.id), false);
+  }
+
+  /**
+   * 选择页展示期间预取「最可能被选中的那几个条目」。
+   * 最可能 = 轮播最先转到的那几张卡 —— 也就是 `index.themes` 的前几项（roster 顺序）。
+   * 只拉 tier ≤ 1：那是进场第一秒真正要用的那一档，更高 tier 等选完再说。
+   */
+  function prefetchLikelyThemes(n = 3) {
+    const themes = index.themes.filter((t) => index.parts.some((p) => p.family === t.id)).slice(0, n);
+    for (const t of themes)
+      enqueue(index.parts.filter((p) => p.family === t.id && p.tier <= FIRST_PAINT_TIER).map((p) => p.id), false);
+  }
+
   const lib: PartLibrary = {
     async load() {
       try {
@@ -333,6 +453,9 @@ export function createPartLibrary(opt: PartLibraryOptions = {}): PartLibrary {
         index = sanitizeIndex(await res.json());
         usingFallback = false;
         console.info(`[library] parts.json: ${index.parts.length} 件 / ${index.themes.length} 主题`);
+        // load() 一 resolve，选择页就开始转了 —— 那段时间管子是空的，拿来预取最划算。
+        // 但要等空闲：选择页自己要先把 anchor 图拉齐才出得了卡片，别跟它抢。
+        whenIdle(() => prefetchLikelyThemes());
       } catch (e) {
         index = fallbackIndex();
         usingFallback = true;
@@ -360,12 +483,24 @@ export function createPartLibrary(opt: PartLibraryOptions = {}): PartLibrary {
 
     async preload(partIds) {
       const jobs: Promise<void>[] = [];
+      const later: string[] = [];
+      const families = new Set<string>();
+      let topTier = 0;
       for (const id of partIds) {
         if (!id || id.startsWith(PLACEHOLDER_PREFIX) || geometries.has(id)) continue;
-        jobs.push(fetchPart(id));
+        const meta = index.parts.find((p) => p.id === id);
+        if (meta) { families.add(meta.family); topTier = Math.max(topTier, meta.tier); }
+        // 只有 tier ≤ 1 会被等：那是「第一具身体出现」真正需要的那一档。
+        // 高 tier 的件仍然会拉，只是不挡在进场前面（调用方 await 的是首屏，不是全部）。
+        if (tierOf(id) <= FIRST_PAINT_TIER) jobs.push(fetchPart(id));
+        else later.push(id);
       }
+      enqueue(later, true);
+      warmNextTier(families, topTier);
       await Promise.all(jobs);       // fetchPart 自己吞掉异常，这里不会 reject
     },
+
+    prefetch(partIds) { enqueue(partIds, false); },
 
     onGeometry(cb) {
       listeners.add(cb);
@@ -382,10 +517,12 @@ export function createPartLibrary(opt: PartLibraryOptions = {}): PartLibrary {
     },
 
     get stats() {
-      return { loaded: geometries.size, failed: failed.size, pending: inFlight.size };
+      return { loaded: geometries.size, failed: failed.size, pending: inFlight.size, queued: bgQueue.length };
     },
 
     dispose() {
+      bgQueue.length = 0;
+      bgQueued.clear();
       for (const g of geometries.values()) g.dispose();
       for (const g of placeholders.values()) g.dispose();
       geometries.clear();

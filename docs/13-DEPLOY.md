@@ -22,8 +22,8 @@
 packages/app/dist/          静态站点（vite build）
   index.html
   assets/…                  js/css
-  parts/*.glb  parts.json   ~5.5 MB（50→100 件后约 11 MB）
-  refs/*/_anchor.png        轮播卡片图，~1.5 MB
+  parts/*.glb  parts.json   191 件，5.7 MB（meshopt 压缩后，平均 28 KB/件）
+  refs/*/_anchor.png        轮播卡片图，21 张 1.3 MB（768² / 256 色）
 ```
 
 `publicDir` 指向仓库的 `assets/`，所以部件和参考图会被原样拷进 `dist`。
@@ -32,12 +32,57 @@ packages/app/dist/          静态站点（vite build）
 > `publicDir` 指向 `assets/`，把 `assets/raw/`（929 MB）整个打进去了。
 > 本文档 §2 早就写了"raw 绝不进 dist"，但没人验证过。
 > 现在由 `vite.config.ts` 的 `shipAssets()` 只复制 `parts / refs / demo`。
-> **规格写了不等于做到了。** 产物现在 45 MB，首屏 1.9 MB。
+> **规格写了不等于做到了。** 产物当时降到 45 MB（后来压到 20 MB，见下面的体积预算）。
 
 ### 体积预算
-- 首屏只需要：`parts.json` + 被选主题的 tier≤1 部件 + 6 张卡片图 → **目标 < 3 MB**。
+
+| | 目标 | 2026-09-12 实测 |
+|---|---|---|
+| 产物总量 | — | **38 MB → 20 MB** |
+| 到「第一具身体出现」的字节 | < 3 MB | **8.58 MB → 3.14 MB** |
+| 同上的请求数 | — | 36 → 36 |
+| 单个部件 glb | ≤ 1.5 MB | 平均 130 KB → **28 KB** |
+| 21 张 anchor 图合计 | < 1.5 MB | 6.12 MB → **1.27 MB** |
+
+- 首屏只需要：`parts.json` + 被选主题的 tier≤1 部件 + 卡片图 → **目标 < 3 MB**。
 - 其余部件**懒加载**：选完主题再拉该主题的，tier 升级时再拉更复杂的。
 - `assets/raw/` 绝不进 dist（.gitignore 已排除）。
+
+> **2026-09-12 实测二**：「首屏 1.9 MB」这个数字只数了 `index + JS + parts.json`。
+> 真按「观众打开页面到第一具身体出现」量，是 **9.4 MB / 46 个请求** ——
+> 因为 `src/choose/choose.ts` 在出卡片**之前**要把**所有** 21 张 anchor 图拉齐（6.1 MB），
+> 那比部件本身还重，而且以前没人把它算进首屏。
+> **没有基线就没有优化，而基线要按观众的那条路径量，不是按目录量。**
+
+三件事把它压下来（每件都能单独重跑，都是幂等的）：
+
+1. **部件 meshopt 压缩** —— `npm run factory:compress`（出口逻辑在
+   `packages/factory/src/normalize.ts` 的 `writePart()`，`normalize` 也走它）。
+   191 件 **19.4 MB → 5.4 MB（3.6×）**，顶点最大偏移 5.8e-5 m，`check:parts` 仍然 0 错。
+   **代价**：运行时 `GLTFLoader` 必须挂 `MeshoptDecoder`（`src/assets/library.ts` 已挂）。
+   忘了挂不会报错，只会 191 件全部回退占位几何 —— 由
+   `packages/app/test/library-meshopt.test.ts` 守着。
+2. **anchor 图瘦身** —— `npm run factory:refs`：1024² 真彩 → 768² / 256 色调色板，
+   **6.12 MB → 1.27 MB（−79%）**。URL 仍是 `_anchor.png`（`choose.ts` 里写死的），
+   容器不变，只降分辨率和色深；卡片是 1024×512 的 cover 裁切，而轮播本身就在抖动，
+   看不出差别（对比图见提交说明）。
+3. **tier 分档预取** —— `library.preload()` 只 await tier ≤ 1 的件，tier ≥ 2 进后台队列；
+   选择页展示期间预取轮播最前面几个主题的 tier ≤ 1 件；某家族 tier T 被预取时顺手
+   预热 T+1。策略全在 `src/assets/library.ts` 里，见该文件的 §预取策略。
+
+### 持久缓存：**暂时不做**
+
+评估过 Cache Storage + 版本键（`parts.json` 里有现成的 `generatedAt`，
+`version` 是写死的 1，真要用得改成每次生成递增）。结论是**现在不值得**：
+
+- 压缩之后**整个部件库只有 5.4 MB**，单个主题的 tier≤1 那一档是 0.23 MB。
+  省下来的那点字节买不回一层缓存的复杂度。
+- `max-age=86400` 已经覆盖了真正的重复访问场景：现场装置是同一台机器跑一整天，
+  24 小时内二次加载根本不发请求；公开网页的访客绝大多数是一次性的。
+- 代价是新增一个**独立于 HTTP 缓存的真相来源**，而它失效时的症状正是
+  `immutable` 被禁掉的那个症状：部件重生成后旧访客永远看见旧几何。
+- 什么时候回头做：部件总量超过 ~30 MB，或者现场需要**离线**跑。
+  那时再做，并且用 `generatedAt` 当 cache name，不要用 `version`。
 
 ## 3. Vercel
 
@@ -83,6 +128,8 @@ packages/app/dist/          静态站点（vite build）
 
 - [ ] `npm run check` 通过
 - [ ] `dist` 首屏 < 3 MB（`du -sh` + network 面板确认）
+- [ ] 部件真的解出来了（不是 191 件全回退占位几何）—— `npm run test -w @sb/app` 里那条
+      meshopt 测试是门；现场再用 `?debug=1` 看一眼 HUD 的 loaded 数
 - [ ] 无摄像头权限时自动进 demo 回放，不白屏
 - [ ] WebGL2 回退路径实测过（Chrome 关掉 WebGPU flag）
 - [ ] 慢回路默认关闭，或限流上限已硬编码

@@ -74,6 +74,18 @@ switch (cmd) {
     break;
   }
 
+  case 'refs': {
+    const { optimizeRefs } = await import('./optimize-refs.ts');
+    optimizeRefs({ dryRun: flag('dry-run') });
+    break;
+  }
+
+  case 'compress': {
+    const { compressAll } = await import('./normalize.ts');
+    await compressAll({ only: val('ids')?.split(',') });
+    break;
+  }
+
   case 'index': {
     const { buildIndex } = await import('./index-parts.ts');
     await buildIndex();
@@ -91,6 +103,8 @@ switch (cmd) {
   npm run factory:generate -- --ids=a,b --no-images     # 只用文字，不拿主题图做 image-to-3D
   npm run factory:generate -- --dry-run
   npm run factory:normalize
+  npm run factory:compress                              # 已规范化的部件重新用 meshopt 压一遍（幂等）
+  npm run factory:refs                                  # anchor 图瘦身：768px + 128 色（幂等）
   npm run factory:index
   npm run factory:curate                                    # 看评级
   npm run factory:curate -- --id=<partId> --verdict=keep    # keep 的永不重生成`);
