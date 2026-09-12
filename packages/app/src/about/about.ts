@@ -23,6 +23,7 @@ import type { PartLibraryIndex } from '../../../core/src/types.ts';
 import { COPY, setBi, type BiText } from '../ui/i18n.ts';
 import { PLAN_LABEL, orderThemes, planKind, speciesNumber } from '../ui/species.ts';
 import '../ui/type.css';
+import '../ui/editorial.css';
 import './about.css';
 
 const REPO = 'https://github.com/p-to-q/second-body';
@@ -67,9 +68,15 @@ function onsiteTag(): HTMLSpanElement {
   return biInline(COPY.about.onsite, 'about-tag');
 }
 
-/** 左标签 / 右正文：这一页唯一的分节构型 */
+/**
+ * 左标签 / 右正文：这一页唯一的分节构型。
+ * 左栏吸顶（`.ed-section__tag`）—— 长页面里"我在读哪一节"由版面自己回答，
+ * 所以这一页不需要导航条。
+ */
 function section(title: BiText, ...body: Node[]): HTMLElement {
-  return el('section', 'about-section', biEl('h2', title), el('div', undefined, ...body));
+  return el('section', 'ed-section',
+    biEl('h2', title, 'ed-section__tag'),
+    el('div', 'ed-section__body', ...body));
 }
 
 /** 序号。两位，等宽对齐 —— 这一页的"档案感"一半来自数字能对齐（docs/23 §0） */
@@ -87,16 +94,29 @@ function num(n: number): HTMLSpanElement {
 
 // ─────────────────────────── 各节 ───────────────────────────
 
+/**
+ * 首屏。整页只做**一个**断言：这件作品叫什么。
+ * 别的全部推到折线以下 —— 一个只停留五秒的人带走的就是这一屏，
+ * 所以这一屏上多一样东西，就少记住一样东西。
+ */
 function head(): HTMLElement {
   const back = el('a', 'sb-label');
   back.setAttribute('href', '/');
   setBi(back, COPY.about.back);
   back.classList.add('sb-bi-inline');
 
-  return el('header', 'about-head',
-    el('div', 'about-top', back, biInline(COPY.about.credit, 'sb-label')),
-    biEl('h1', COPY.title),
-    biEl('p', COPY.subtitle, 'about-lede'),
+  const title = biEl('h1', COPY.title, 'sb-display ed-rise');
+  // 中文和英文各自是一段揭示（--ed-i 是它们的先后）。分段而不是整块，
+  // 是因为整块淡入读作"网页加载完了"，分段才读作"有人在把它揭开"
+  title.querySelector('.sb-zh')?.setAttribute('style', '--ed-i:0');
+  title.querySelector('.sb-en')?.setAttribute('style', '--ed-i:1');
+
+  return el('header', 'ed-hero',
+    el('div', 'ed-hero__meta', back, biInline(COPY.about.credit, 'sb-label')),
+    el('hr', 'ed-rule ed-rule--heavy'),
+    el('div', 'ed-hero__title', title),
+    el('hr', 'ed-rule'),
+    el('div', 'ed-hero__lede', biEl('p', COPY.subtitle, 'about-lede')),
   );
 }
 
@@ -218,7 +238,9 @@ function planMark(kind: string, x: number, y: number): SVGElement {
 function speciesSection(index: PartLibraryIndex): HTMLElement {
   const themes = orderThemes(index.themes);
 
-  const W = 900, H = 520, PAD = 56;
+  // 视窗比原来扁得多（1600×620）：这张图要横着占满一整幅，
+  // 扁的画幅才读作"一条谱系"，方的画幅读作"一张插图"
+  const W = 1600, H = 620, PAD = 72;
   const px = (v: number) => PAD + v * (W - PAD * 2);
   const py = (v: number) => H - PAD - v * (H - PAD * 2);
 
@@ -272,8 +294,13 @@ function speciesSection(index: PartLibraryIndex): HTMLElement {
     list.append(el('li', undefined, n, name));
   });
 
-  return section(COPY.about.speciesTitle,
-    biEl('p', COPY.about.speciesLead), plot, legend, list);
+  // 这一节**不走两栏**：散点图是这一页的关键视觉，它要横着占满一整幅。
+  // 塞进右栏（7/12 幅）就退回成插图了，而插图是没人记得住的。
+  const sec = section(COPY.about.speciesTitle, biEl('p', COPY.about.speciesLead));
+  sec.classList.add('about-species-sec');
+  const band = el('div', 'about-band', plot, legend, list);
+  sec.append(band);
+  return sec;
 }
 
 function privacySection(): HTMLElement {
@@ -320,7 +347,7 @@ export async function renderAbout(root: HTMLElement = document.body): Promise<vo
   // index.html 为了体验页把 html/body 钉成了不滚动的一屏。陈述页是要读的，放开。
   document.documentElement.style.cssText = 'overflow:auto;height:auto';
   document.body.style.cssText = 'overflow:auto;height:auto';
-  root.classList.add('sb-page');
+  root.classList.add('ed');
   const page = el('main', 'about');
   page.append(head(), whatSection(), whySection());
   root.append(page);

@@ -3,47 +3,21 @@
  * 颜色、字号、字距、安全区全部来自 `src/ui/type.css`（docs/23 §0），
  * 这里一个新的颜色值都不许出现，否则陈述页会变成另一件作品。
  *
- * 结构上就两样东西：**一条细线分区**，和**左标签 / 右正文的两栏**。
- * 这是 International Typographic Style 里最老实的那个构型，也是展签的构型：
- * 左边告诉你"这一段是什么"，右边是内容。不用卡片、不用阴影、不用圆角（§0 禁止清单）。
+ * 骨架已经搬到 `ui/editorial.css`：巨题首屏（`.ed-hero`）和吸顶标签的两栏
+ * （`.ed-section`）都在那里，因为 /making 和 /passport 要用同一套。
+ * 这个文件只剩**这一页独有**的东西：90 秒的五步、两条回路的对照、
+ * 以及物种谱系那张散点 —— 那是 /about 的关键视觉，别的页面没有。
+ *
+ * 不用卡片、不用阴影、不用圆角（docs/23 §0 禁止清单）。分区只用细横线。
  */
 
-.about {
-  max-width: 1100px;
-  margin: 0 auto;
-}
+.about { max-width: none; margin: 0; }
 
-/* ── 顶栏：返回作品。唯一一个导航元素 ─────────────────────────────────── */
-.about-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: var(--sb-gutter);
-  margin-bottom: calc(var(--sb-safe) * 1.5);
-}
-
-/* ── 展签头 ───────────────────────────────────────────────────────────── */
-.about-head h1 { margin-bottom: 0.75rem; }
-.about-head h1 .sb-en { font-size: 0.5em; }
+/* ── 展签头 ───────────────────────────────────────────────────────────────
+ * 巨题的排版全部来自 `ui/editorial.css` 的 `.ed-hero`。这里只剩引言的色值。
+ */
 .about-lede { color: var(--sb-ink); max-width: var(--sb-measure); }
 .about-lede .sb-en { color: var(--sb-ink-dim); }
-
-/**
- * 分节。`grid-template-columns: 12rem 1fr` 是这一页的骨架 ——
- * 窄屏塌成一栏，标签变成正文上面的一行小标题，读起来还是同一个逻辑。
- */
-.about-section {
-  display: grid;
-  grid-template-columns: 12rem minmax(0, 1fr);
-  gap: var(--sb-gutter);
-  padding: calc(var(--sb-safe) * 0.75) 0;
-  border-top: 1px solid var(--sb-rule);
-}
-.about-section > h2 { margin: 0; }
-.about-section > h2 .sb-en { font-size: 0.62em; }
-@media (max-width: 720px) {
-  .about-section { grid-template-columns: minmax(0, 1fr); }
-}
 
 .about-note { font-size: var(--sb-size-small); }
 .about-note .sb-zh { color: var(--sb-ink-dim); }
@@ -55,9 +29,9 @@
  */
 .about-tag {
   display: inline-block;
-  padding: 0.1em 0.5em;
+  padding: 0.15em 0.55em;
   border: 1px solid var(--sb-rule);
-  font-size: var(--sb-size-small);
+  font-size: var(--sb-size-micro);
   letter-spacing: var(--sb-tracking-label);
   text-transform: uppercase;
   color: var(--sb-ink-dim);
@@ -135,17 +109,37 @@
   color: var(--sb-ink);
 }
 
-/* ── 物种谱系散点 ─────────────────────────────────────────────────────── */
-.about-plot { width: 100%; height: auto; margin: 1.25rem 0 0; display: block; }
+/* ── 物种谱系散点：这一页的关键视觉 ───────────────────────────────────────
+ * 它横跨两栏、突破版心 padding 一直贴到视口边。23 个物种在形态空间里的位置
+ * 是这件作品**唯一一张只有它自己能画出来的图** —— 别的都可以用文字说，
+ * 这张不行。所以它拿走一整幅，其余内容给它让路。
+ */
+.about-species-sec { padding-bottom: clamp(2rem, 3.5vw, 3.5rem); }
+.about-band {
+  grid-column: 1 / -1;
+  margin: clamp(2rem, 3.5vw, 3.5rem) calc(var(--ed-edge) * -1) 0;
+  padding: 0 var(--ed-edge);
+}
+/**
+ * 窄屏下**必须撤掉满幅**，不只是撤掉跨栏。
+ * 负外边距在 420px 上会把文档撑到 460px：页面于是横向能滚，而正文的右边距
+ * 被顶出视口 —— 看起来像"右边没留白"，实际是整页被推宽了。
+ * 满幅是宽屏上的一个姿态；在一条 20px 边距的手机上它什么也换不来。
+ */
+@media (max-width: 860px) {
+  .about-band { grid-column: auto; margin-left: 0; margin-right: 0; padding: 0; }
+}
+
+.about-plot { width: 100%; height: auto; margin: 0; display: block; }
 .about-plot text { font-family: var(--sb-mono); fill: var(--sb-ink-dim); }
 .about-plot .plot-axis { stroke: var(--sb-rule); }
-.about-plot .plot-mark { fill: none; stroke: var(--sb-ink); stroke-width: 1.5; }
+.about-plot .plot-mark { fill: none; stroke: var(--sb-ink); stroke-width: 1.75; }
 .about-plot .plot-mark-fill { fill: var(--sb-ink); stroke: none; }
-.about-plot .plot-n { fill: var(--sb-ink-dim); font-size: 9px; }
+.about-plot .plot-n { fill: var(--sb-ink-dim); font-size: 11px; letter-spacing: 0.06em; }
 
 .about-legend {
-  display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem;
-  margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--sb-rule);
+  display: flex; flex-wrap: wrap; gap: 0.5rem 2rem;
+  margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--sb-rule);
 }
 .about-legend-item { display: inline-flex; align-items: center; gap: 0.5rem; }
 /* 「人形 | HUMANOID」不许在中文两个字之间断行 —— 断了就读成两个词 */
@@ -154,7 +148,7 @@
 .about-legend-item .about-plot { flex: none; width: 24px; height: 16px; margin: 0; }
 
 .about-species {
-  list-style: none; margin: 1.25rem 0 0; padding: 0;
+  list-style: none; margin: 1.5rem 0 0; padding: 0;
   display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 0.6rem var(--sb-gutter);
 }
