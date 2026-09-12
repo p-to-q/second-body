@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>做的过程 · The Making — SEE-ME SEE-YOU</title>
+<link rel="stylesheet" href="./src/ui/type.css">
+<style>
+/**
+ * 只有版面，没有装饰。分区一律靠 type.css 的 .sb-rule 细横线 ——
+ * 卡片、阴影、圆角、图标、进度条一个都没有：那是仪表盘的语言，
+ * 会把「这里发生过一次判断」读成「这里有个指标」。
+ */
+html, body { height: auto; overflow: visible; }
+
+/** 档案的基本构型：坐标在左（等宽），事情在右 */
+#mk { max-width: 1080px; }
+.mk-row { display: grid; grid-template-columns: 168px 1fr; gap: var(--sb-gutter); }
+.mk-meta { color: var(--sb-ink-dim); padding-top: 0.15em; }
+.mk-meta-line + .mk-meta-line { color: var(--sb-ink-dim); opacity: 0.7; }
+.mk-body { max-width: var(--sb-measure); }
+.mk-body .sb-bi { max-width: var(--sb-measure); }
+
+/* ── 题头 ────────────────────────────────────────────────────────────────── */
+.mk-header { padding-bottom: calc(var(--sb-safe) * 0.75); }
+.mk-header h1 { max-width: 22ch; }
+.mk-thesis { margin-top: 1.5rem; max-width: var(--sb-measure); }
+.mk-thesis .sb-zh { font-size: var(--sb-size-h2); line-height: var(--sb-lh-h2); letter-spacing: var(--sb-tracking-h2); }
+.mk-thesis .sb-en { font-size: 1rem; }
+.mk-lede { margin-top: 1.25rem; }
+.mk-lede .sb-zh, .mk-lede .sb-en { font-size: var(--sb-size-small); color: var(--sb-ink-dim); }
+
+/* ── 区 ──────────────────────────────────────────────────────────────────── */
+.mk-section { padding-top: 0; }
+.mk-section .sb-rule { margin-top: calc(var(--sb-safe) * 0.75); }
+.mk-head { padding: 1.25rem 0 2rem; }
+.mk-head h2 { margin: 0; }
+/* 区名不折行：「这一页没有写的」刚好卡在 168px 上，断成两行会把一个「的」孤零零留在第二行 */
+.mk-head h2 .sb-zh { display: block; white-space: nowrap; }
+.mk-note .sb-zh, .mk-note .sb-en { font-size: var(--sb-size-small); color: var(--sb-ink-dim); }
+
+/** 行与行之间也是细横线 —— 不是间距，是线 */
+.mk-list > * + * { border-top: 1px solid var(--sb-rule); }
+.mk-list > * { padding: 1.125rem 0; }
+
+/* ── 数字：等宽 + tabular-nums，左栏右对齐所以位数能对上 ─────────────────── */
+.mk-number .mk-meta {
+  font-family: var(--sb-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.75rem;
+  line-height: 1.1;
+  color: var(--sb-ink);
+  text-align: right;
+  padding-top: 0;
+}
+.mk-number-label .sb-zh { font-weight: var(--sb-weight-head); color: var(--sb-ink); }
+.mk-number-label + .mk-note { margin-top: 0.4rem; }
+
+/* ── 互相纠正：四段式，标签在左栏，全大写小标签承担分类 ───────────────────── */
+.mk-case { padding: 2rem 0 1.25rem; }
+.mk-case-head { align-items: baseline; }
+.mk-case-head .mk-meta {
+  font-family: var(--sb-mono); font-variant-numeric: tabular-nums;
+  font-size: 1.25rem; color: var(--sb-ink); text-align: right; padding-top: 0;
+}
+.mk-case h3 { margin: 0 0 0.35rem; }
+.mk-case h3 .sb-zh { font-size: var(--sb-size-h2); line-height: var(--sb-lh-h2); letter-spacing: var(--sb-tracking-h2); }
+.mk-refs { color: var(--sb-ink-dim); margin-bottom: 0.75rem; }
+.mk-turn { padding-top: 1rem; }
+.mk-turn .mk-meta { text-align: right; }
+.mk-turn-label .sb-zh, .mk-turn-label .sb-en {
+  font-size: var(--sb-size-small);
+  letter-spacing: var(--sb-tracking-label);
+  text-transform: uppercase;
+  color: var(--sb-ink-dim);
+}
+.mk-turn-label .sb-zh { text-transform: none; letter-spacing: 0.04em; color: var(--sb-ink); }
+/* 结果那一段亮一格 —— 判断的落点，不用颜色，用灰度 */
+.mk-turn:last-child .mk-body .sb-zh { color: var(--sb-ink); }
+
+/* ── 原则 ───────────────────────────────────────────────────────────────── */
+.mk-principle .mk-meta {
+  font-family: var(--sb-mono); font-size: var(--sb-size-body);
+  letter-spacing: var(--sb-tracking-label); color: var(--sb-ink);
+  text-align: right; padding-top: 0.1em;
+}
+.mk-principle h3 { margin: 0 0 0.65rem; }
+.mk-story { margin-bottom: 0.75rem; }
+.mk-story .sb-zh, .mk-story .sb-en { font-size: var(--sb-size-small); color: var(--sb-ink-dim); }
+/* 规则那一句：左边一条细竖线，和故事分开 */
+.mk-rule { border-left: 1px solid var(--sb-rule); padding-left: var(--sb-gutter); }
+.mk-rule .sb-zh { color: var(--sb-ink); }
+
+/* ── 收口 ───────────────────────────────────────────────────────────────── */
+.mk-footer { padding-top: 1.5rem; }
+
+/** 窄屏：左栏塌到内容上方，顺序不变 —— 档案仍然是「坐标在前」 */
+@media (max-width: 760px) {
+  .mk-row { grid-template-columns: 1fr; gap: 0.5rem; }
+  .mk-meta, .mk-number .mk-meta, .mk-case-head .mk-meta,
+  .mk-principle .mk-meta, .mk-turn .mk-meta { text-align: left; }
+  .mk-meta { display: flex; gap: 0.75em; }
+  .mk-number .mk-meta { font-size: 1.5rem; }
+  .sb-page { padding: 24px 24px 48px; }
+}
+</style>
+</head>
+<body>
+<main id="mk" class="sb-page"></main>
+<script type="module" src="./src/making/making.ts"></script>
+</body>
+</html>
