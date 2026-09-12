@@ -9,10 +9,13 @@
  *  - 实例总数硬顶 `BUDGET.maxInstances`，超了丢弃而不是"以后再优化"。
  *  - 换装只动**变化的槽位**，同时最多 `MORPH.maxConcurrentSwaps` 个，其余排队（docs/05 §3）。
  *
- * 镜像（docs/04 §4 的陷阱）：mirror 用负 X 缩放实现，实例矩阵行列式为负 →
- * 正反面剔除会反过来。这里所有材质一律 `side: DoubleSide` 绕开它。
+ * 镜像（docs/04 §4 的陷阱）：**不用负 X 缩放**。负行列式会把左半身的三角形全变成背面，
+ * 而背面片元的法线会被取反 —— 左半身于是比右半身暗一大截，读起来像"左右手材质不一样"。
+ * 改成向库要一块预镜像的几何（`library.mirrored()`），行列式保持为正。
+ * 材质仍然 `side: DoubleSide`，那是为了兜住部件本身没封闭的情况，不再是为了兜镜像。
  */
 import * as THREE from 'three/webgpu';
+import { harmonize } from '../../../core/src/palette.ts';
 import { ALL_SLOT_KEYS } from '../../../core/src/slots.ts';
 import { BUDGET, MORPH, TIME } from '../../../core/src/tuning.ts';
 import type {
@@ -80,6 +83,13 @@ const smoothstep = (x: number) => {
 
 const DEFAULT_COLOR: [number, number, number] = [0.78, 0.77, 0.75];
 
+/**
+ * 一个 InstancedMesh 桶 = 部件 × 左右 × 材质。
+ * 左右要分桶是因为左侧用的是**另一块几何**（预镜像副本），不是同一块几何的负缩放。
+ */
+const bucketKey = (partId: string, mirrored: boolean, materialId: string) =>
+  `${partId}${mirrored ? '~m' : ''}#${materialId}`;
+
 export function createCreature(opt: CreatureOptions): Creature {
   const library = opt.library;
   const maxInstances = opt.maxInstances ?? BUDGET.maxInstances;
@@ -87,8 +97,8 @@ export function createCreature(opt: CreatureOptions): Creature {
   const object = new THREE.Group();
   object.name = 'creature';
 
-  const meshes = new Map<string, MeshEntry>();          // `${partId}#${materialId}` → mesh
-  const materials = new Map<string, THREE.Material>();  // materialId → material
+  const meshes = new Map<string, MeshEntry>();          // bucketKey() → mesh
+  const materials = new Map<string, THREE.Material>();  // materialIdFor() 的键 → material
   const dirtyParts = new Set<string>();                 // 真几何到货 → 重建这些 mesh
 
   let genome: Genome | null = null;
@@ -101,27 +111,42 @@ export function createCreature(opt: CreatureOptions): Creature {
 
   const tmp = new THREE.Matrix4();
   const counts = new Map<string, number>();
+  /** 每个桶的代表实例 —— 桶键是拼出来的字符串，别再从字符串里把字段解析回来 */
+  const specs = new Map<string, PartInstance>();
   const cursor = new Map<string, number>();
   const render: Partial<Record<SlotKey, SlotRender[]>> = {};
 
   const unsubscribe = library.onGeometry((partId) => { dirtyParts.add(partId); });
 
   // ── 材质 ────────────────────────────────────────────────────────────────
+  /**
+   * 桶键里用的材质标识 = `<材质 id>@<物种主色 id>`。
+   *
+   * 为什么要把主色编进键里：材质现在不是"查一张全局表"，而是**被这个物种的主色调和过**
+   * 的结果（`core/palette.ts`）。同一个 `matte.ash` 挂在瓷身上和挂在异形身上不是同一块材质，
+   * 键不带主色就会拿错缓存 —— 换个物种，旧材质还挂在那儿。
+   */
   function materialIdFor(role: MaterialRole): string {
-    return genome?.materials?.[role] ?? 'proto.clay';
+    const id = genome?.materials?.[role] ?? 'proto.clay';
+    return `${id}@${genome?.materials?.primary ?? id}@${role}`;
   }
 
-  function materialFor(materialId: string): THREE.Material {
-    let m = materials.get(materialId);
+  function materialFor(materialKey: string): THREE.Material {
+    let m = materials.get(materialKey);
     if (m) return m;
-    const def: MaterialDef | undefined = library.index.materials?.find((x) => x.id === materialId);
+    const [materialId, toneId, role] = materialKey.split('@');
+    const find = (id: string) => library.index.materials?.find((x) => x.id === id);
+    const raw = find(materialId);
+    const def: MaterialDef | undefined = raw && find(toneId)
+      ? harmonize(raw, find(toneId)!, role as MaterialRole)
+      : raw;
     const c = def?.baseColor ?? DEFAULT_COLOR;
     const color = new THREE.Color().setRGB(c[0], c[1], c[2], THREE.SRGBColorSpace);
     const phys = new THREE.MeshPhysicalMaterial({
       color,
       roughness: Number.isFinite(def?.roughness) ? def!.roughness : 0.7,
       metalness: Number.isFinite(def?.metalness) ? def!.metalness : 0.05,
-      // 负 X 缩放的镜像实例必须双面渲染，否则左半边会被剔成空壳（docs/04 §4）
+      // 生成的部件不保证是封闭实体，单面渲染会露出破洞
       side: THREE.DoubleSide,
     });
     if (def?.clearcoat) phys.clearcoat = def.clearcoat;
@@ -129,8 +154,8 @@ export function createCreature(opt: CreatureOptions): Creature {
       phys.emissive = new THREE.Color().setRGB(def.emissive[0], def.emissive[1], def.emissive[2], THREE.SRGBColorSpace);
       phys.emissiveIntensity = 1;
     }
-    phys.name = materialId;
-    materials.set(materialId, phys);
+    phys.name = materialKey;
+    materials.set(materialKey, phys);
     return phys;
   }
 
@@ -143,14 +168,14 @@ export function createCreature(opt: CreatureOptions): Creature {
     meshes.delete(key);
   }
 
-  function entryFor(key: string, partId: string, materialId: string, need: number): MeshEntry {
+  function entryFor(key: string, partId: string, materialId: string, mirrored: boolean, need: number): MeshEntry {
     let e = meshes.get(key);
     if (e && e.capacity < need) {
       disposeEntry(key);
       e = undefined;
     }
     if (!e) {
-      const geo = library.geometry(partId);
+      const geo = mirrored ? library.mirrored(partId) : library.geometry(partId);
       const capacity = Math.max(4, 1 << Math.ceil(Math.log2(Math.max(1, need))));
       const mesh = new THREE.InstancedMesh(geo, materialFor(materialId), capacity);
       mesh.name = key;
@@ -264,9 +289,11 @@ export function createCreature(opt: CreatureOptions): Creature {
 
       // 5. 分桶 → 写 InstancedMesh
       counts.clear();
+      specs.clear();
       for (const inst of instances) {
-        const key = `${inst.partId}#${materialIdFor(inst.materialRole)}`;
+        const key = bucketKey(inst.partId, inst.mirrored, materialIdFor(inst.materialRole));
         counts.set(key, (counts.get(key) ?? 0) + 1);
+        if (!specs.has(key)) specs.set(key, inst);
       }
 
       let triangles = 0;
@@ -274,8 +301,8 @@ export function createCreature(opt: CreatureOptions): Creature {
       let placeholders = 0;
       cursor.clear();
       for (const [key, n] of counts) {
-        const hash = key.indexOf('#');
-        const e = entryFor(key, key.slice(0, hash), key.slice(hash + 1), n);
+        const spec = specs.get(key)!;
+        const e = entryFor(key, spec.partId, materialIdFor(spec.materialRole), spec.mirrored, n);
         e.mesh.count = n;
         e.mesh.visible = true;
         e.idleFrames = 0;
@@ -292,7 +319,7 @@ export function createCreature(opt: CreatureOptions): Creature {
       }
 
       for (const inst of instances) {
-        const key = `${inst.partId}#${materialIdFor(inst.materialRole)}`;
+        const key = bucketKey(inst.partId, inst.mirrored, materialIdFor(inst.materialRole));
         const e = meshes.get(key);
         if (!e) continue;
         const i = cursor.get(key) ?? 0;
