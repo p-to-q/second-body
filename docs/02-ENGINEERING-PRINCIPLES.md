@@ -330,3 +330,38 @@ working directory with the asset line collided on the git index.
 > were going to be executed ten times.
 
 (The concrete orchestration discipline is `docs/15-ORCHESTRATION.md` §6.)
+
+## P21 · Your instruments lie in the direction that flatters you
+
+Five times, in five different disguises, the same failure:
+
+| What we trusted | What it actually said | How it was found |
+|---|---|---|
+| Poster numbers "computed, never typed" | Computed **once**, then frozen at 191 parts while the repo moved to 208 | Someone re-derived them for an unrelated task |
+| `/dev/*.html` pause button | `dt` was clamped to `[1/240, 1/15]`, so "pass 0 to freeze" still advanced 1/240s per frame; a thousand virtual frames ran before the screenshot | A transition's "mid frame" looked identical to its end state |
+| `until grep ALLDONE out.log` | All 24 screenshots were on disk; the producer just never reached the final `echo` | A wait loop hung for nine minutes with no timeout |
+| Harvest sources pinned to `main` | The upstream mesh can change under you, and `check:parts` still reports 0 errors | Read during a review, not caught by any check |
+| Frame-time HUD showing milliseconds | `frame 2.42ms` at **16 fps**. The mass renderer had never once hit frame rate — three shipped species run as slideshows | An agent measured fps with a rAF counter because a figure looked sluggish |
+
+None of these were lies anyone told. Every one was an instrument reporting a
+number that was **true about the wrong thing**, and in every case the wrong
+thing was the flattering thing: the count that was right yesterday, the frame
+that never advanced, the marker instead of the artefact, the branch instead of
+the commit, the milliseconds instead of the rate.
+
+> **Ask what your instrument would show if the thing were broken.**
+> If the answer is "the same as now", it is not an instrument.
+
+Three rules that fall out of it, in the order they cost us:
+
+1. **Measure the artefact, not the marker.** A marker means the producer *said*
+   it finished. The artefact means it *did*.
+2. **A derived number is only true at the moment it was derived.** Either
+   re-derive it at the moment of use, or stamp it with what it was derived from.
+3. **Report the units the failure would show up in.** Milliseconds hide a stall
+   that frames per second cannot; a still frame hides a frame rate that a rAF
+   counter cannot.
+
+This principle outranks the instinct to add another check. Five of these got
+past a suite that was green every single time — because each check was asking
+the flattering question.
