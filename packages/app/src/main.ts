@@ -153,6 +153,8 @@ async function boot(): Promise<void> {
       lastSkeleton = remapSkeleton(humanSk, bodyPlan);
       stage.frame(lastSkeleton);   // 取景按**重映射之后**的身体算：四足是横的矮的
       const evo = evolution.update(lastFeatures, dt);
+      // 团块的"沸腾"层由运动能量驱动 —— 动得越猛表面越沸（tuning 的 MASS.surface）
+      massBody?.setEnergy(lastFeatures.energy);
       // ?tier= 锁定时不让演化改形态 —— look dev 要的是一个不动的靶子
       if (evo.tierChanged && flags.tier === null) {
         morph(evo.tier);

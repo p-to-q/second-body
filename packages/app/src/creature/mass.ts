@@ -53,6 +53,11 @@ export interface MassStats extends BodyStats {
 }
 
 export interface MassBody extends BodyInstance {
+  /**
+   * 喂运动能量（0..~3，来自 `MotionFeatures.energy`），驱动表面的"沸腾"层。
+   * 不调也能跑：energy 停在 0，只剩呼吸与流动 —— 静止的身体仍然不死。
+   */
+  setEnergy(v: number): void;
   readonly stats: MassStats;
   /** 当前分辨率 */
   readonly res: number;
@@ -74,6 +79,7 @@ export interface MassOptions {
 // ─────────────────────────── 实现 ───────────────────────────
 
 const DEFAULT_COLOR: Vec3 = [0.78, 0.77, 0.75];
+const TAU = Math.PI * 2;
 
 /**
  * `geometry.getAttribute()` 的类型是 `BufferAttribute | InterleavedBufferAttribute`，
@@ -120,6 +126,29 @@ export function createMassBody(opt: MassOptions = {}): MassBody {
 
   const stats: MassStats = { triangles: 0, drawCalls: 0, resolution: res, balls: 0, cpuMs: 0 };
 
+  // ── 表面语言的状态（tuning.ts 的 MASS.surface）──────────────────────────
+  /** 会话时钟。用累计 dt 而不是 performance.now()：P1 —— 模块里不读时钟 */
+  let clock = 0;
+  /** 平滑后的运动能量，由 setEnergy() 喂入 */
+  let energy = 0;
+
+  /**
+   * 每根骨头一个固定相位，让三条波不要在整具身体上同相 ——
+   * 同相会读成"整个人在一起脉动"，那是心跳不是物质。
+   * 用 id 的字符哈希，确定性（P1），且换个部件库也不会变。
+   */
+  function bonePhase(id: string): number {
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < id.length; i++) { h ^= id.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+    return (h % 1000) / 1000 * Math.PI * 2;
+  }
+  const phaseCache = new Map<string, number>();
+  const phaseOf = (id: string): number => {
+    let p = phaseCache.get(id);
+    if (p === undefined) { p = bonePhase(id); phaseCache.set(id, p); }
+    return p;
+  };
+
   /** 场盒中心（世界，米）。第一帧直接吸附，之后 EMA 跟随 */
   const center: Vec3 = [0, 0.95, 0];
   let seeded = false;
@@ -158,6 +187,14 @@ export function createMassBody(opt: MassOptions = {}): MassBody {
 
   const body: MassBody = {
     get object() { return object; },
+
+    setEnergy(v) {
+      const target = Number.isFinite(v) ? clamp(v, 0, 3) : 0;
+      // 平滑一次：energy 本身已经是 EMA，但换玩法/换人时会跳，
+      // 跳变会让表面"啪"地一下 —— 物质不该有开关感
+      const a = 1 - Math.exp(-(1 / 60) / Math.max(1e-3, MASS.surface.energyTau));
+      energy += (target - energy) * a;
+    },
     get stats() { return stats; },
     get res() { return res; },
     setRes,
@@ -166,6 +203,8 @@ export function createMassBody(opt: MassOptions = {}): MassBody {
     pose(sk: Skeleton, presence: Presence, dt: number) {
       if (!sk || !sk.bones?.length) return;
       const t0 = performance.now();
+      const step = Number.isFinite(dt) && dt > 0 ? clamp(dt, 0, 1 / 15) : 1 / 60;
+      clock += step;
 
       // 1. 在场：ENTERING 长出来、LEAVING 缩回去（docs/05 §5）。
       //    团块没有"槽位"可以逐个装配，所以进出场表达成**物质向质心收回去**：
@@ -226,10 +265,8 @@ export function createMassBody(opt: MassOptions = {}): MassBody {
 
         const girth = (SLOT_WIDTH[slot] ?? 0.12) * 0.5 * bodyScale
           * MASS.radiusScale * (MASS.slotScale[slot] ?? 1);
-        const radius = Math.max(girth, minRadius) * (0.55 + 0.45 * conf) * shrink;
-        const rNorm = radius * inv;
-        const strength = k * rNorm * rNorm;
-        if (!(strength > 0)) continue;
+        const baseRadius = Math.max(girth, minRadius) * (0.55 + 0.45 * conf) * shrink;
+        const phase = phaseOf(b.id);
 
         const len = Number.isFinite(b.length) && b.length > 0
           ? b.length
@@ -247,6 +284,23 @@ export function createMassBody(opt: MassOptions = {}): MassBody {
           const fy = (wy - center[1]) * inv + 0.5;
           const fz = (wz - center[2]) * inv + 0.5;
           if (!(fx > 0 && fx < 1 && fy > 0 && fy < 1 && fz > 0 && fz < 1)) continue;  // 出盒的段落直接不喂
+
+          // ── 表面语言：三层叠加，各管一件事（docs/18 / tuning 的 MASS.surface）──
+          //  breathe 全局慢呼吸 —— 静止时身体不死
+          //  flow    沿骨链的行波 —— 物质在**流过**肢体，这是"流过身体的物质"的落点
+          //  boil    能量驱动的高频起伏 —— 动得越猛表面越沸
+          const S = MASS.surface;
+          const mul = clamp(
+            1
+            + S.breatheAmp * Math.sin(TAU * S.breatheHz * clock + phase)
+            + S.flowAmp * Math.sin(TAU * S.flowHz * clock - TAU * S.flowWaves * u + phase)
+            + S.boilAmp * energy * Math.sin(TAU * S.boilHz * clock + phase * 3.1 + i * 1.7),
+            S.mulMin, S.mulMax,
+          );
+          const rNorm = baseRadius * mul * inv;
+          const strength = k * rNorm * rNorm;
+          if (!(strength > 0)) continue;
+
           mc.addBall(fx, fy, fz, strength, MASS.subtract);
           balls++;
         }
