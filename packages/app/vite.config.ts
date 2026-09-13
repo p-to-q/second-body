@@ -180,7 +180,7 @@ function anchorWriter(): Plugin {
  * 规格写了不等于做到了（§craft）。
  */
 // 'sound' 里是四个离散接触音，共约 8KB —— 见 assets/sound/README.md。
-const SHIPPED = ['parts', 'refs', 'demo', 'fonts', 'sound', 'logo'];
+const SHIPPED = ['parts', 'refs', 'demo', 'fonts', 'sound'];
 
 function shipAssets(): Plugin {
   return {

@@ -5,18 +5,16 @@
  * 一个礼貌的小 logo 会被那片空吞掉；一个巨大的字标反而把空**变成构图**，
  * 让那片空读作留白而不是没内容。张力来自这个反差，不来自加装饰。
  *
- * 为什么用 SVG 而不是排文字：字标的字距是 −0.055em、行距 0.94em
- * （`assets/brand/logo/README.md`），这两个数只在字标上成立，
- * 不该污染 `type.css` 的级差。而且 SVG 是轮廓，任何机器上都一样。
- * `fill="currentColor"` 让它跟着 `--sb-on-stage` 走 —— 白展厅下自动变深。
+ * **直接用字体排，不用 SVG。** 字标的三个数（字距 −0.055em、行距 0.94、字重 600）
+ * 写在 `.sb-wordmark-mark` 这一个选择器里，不进 `type.css` 的级差 ——
+ * 污染的风险由作用域挡住，不需要靠换一种资产来挡。
+ * 好处是少一次网络请求、可选中可搜索、颜色直接跟着 `--sb-on-stage`。
  *
  * `?kiosk=1` 下它**留着**：装置前面该有一块说明牌，那正是它。
  * 但它会和别的浮层一样在 4 秒后淡下去（`docs/23 §S4`：观众只需要知道一次）。
  */
 import { bi, biHtml } from './i18n.ts';
 import './wordmark.css';
-
-const LOGO = '/logo/logo-currentcolor.svg';
 
 export interface WordmarkOptions {
   mount?: HTMLElement;
@@ -40,12 +38,14 @@ export function mountWordmark(opt: WordmarkOptions = {}): { dispose(): void } | 
   a.className = 'sb-wordmark-link';
   a.setAttribute('aria-label', 'SEE-ME SEE-U');
 
-  // <img> 而不是内联 SVG：它是一个**标识**不是一段内容，
-  // 内联进来只会让每一页的 DOM 里多 13 条路径数据。
-  // currentColor 在 <img> 里不生效，所以用 mask 让它取 CSS 颜色（见 wordmark.css）。
+  // 两行分开成两个 span：行距要压到 0.94，靠 <br> 做不到逐行控制
   const mark = document.createElement('span');
   mark.className = 'sb-wordmark-mark';
-  mark.style.setProperty('--mark', `url("${LOGO}")`);
+  for (const t of ['SEE-ME', 'SEE-U']) {
+    const row = document.createElement('span');
+    row.textContent = t;
+    mark.append(row);
+  }
   a.append(mark);
 
   const line = document.createElement('p');
