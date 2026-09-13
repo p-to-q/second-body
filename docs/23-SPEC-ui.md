@@ -240,5 +240,9 @@
 
 ## 附 · 调试 UI（`?debug=1`，永不出现在现场）
 
-左上角 HUD：fps / cpu / instances / tris / draws / infer / act。超 `BUDGET` 标红。
+左上角 HUD：fps / cpu / instances / tris / draws / infer / **cam** / act。超 `BUDGET` 标红。
 **红了就是 bug，不是"以后再优化"。**
+
+`cam` 那一行是唯一一行不是数字的：它写着现在实际开着的摄像头叫什么
+（`?cam=`，docs/06 §6）。`?cam=` 要的那台不在时它也标红 —— 同一条规矩：
+装置对着一面墙演一整晚，和帧率掉到 20 一样是 bug，只是更贵。

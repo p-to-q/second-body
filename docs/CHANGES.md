@@ -14,6 +14,23 @@ Forecloses: 这让什么变难或不可能
 
 ---
 
+## 2026-09-13 — 现场能选摄像头了（`?cam=`），而且选错会自己喊出来
+Changed:    `?cam=<序号>` / `?cam=<deviceId 或唯一前缀>` 进 `readFlags()`（`shell/kiosk.ts`），
+            选择逻辑是纯函数（`capture/camera-select.ts`），`WebcamCapture` 据此给
+            `getUserMedia` 加 `deviceId: {exact}`。`?debug=1` 的 HUD 多一行 `cam <名字>`，
+            开机时控制台另打一次全设备表（每行都能直接抄进 URL）。操作手册在 docs/06 §6。
+Why:        现场是一台外接对着观众、一台内置对着墙，而这之前 `getUserMedia` 不带 `deviceId` ——
+            用哪台**由浏览器决定**，操作员唯一的补救是拔线或改系统设置。
+            设备表只在 stream 开起来之后才枚举：`enumerateDevices()` 不弹权限框，
+            但权限之前它不给 label，而为了凑一张表提前要权限会正好毁掉入口层
+            （`shell/entry.ts`）存在的全部理由。
+Forecloses: 「要的那台不在」从此**不许静默**：`describeCamera()` 的判据钉死在
+            `track.getSettings().deviceId`（现实）而不是我们请求的那个 id（意图）——
+            以后谁把它改回"报请求值"，拔掉外接之后 HUD 会和一切正常时一模一样，
+            装置就能对着一面墙演一整晚（P21）。`camera-select.test.ts` 守着这一条。
+            序号写法是易变的（插拔即错位），所以它只是"找"的工具；任何开机脚本、
+            任何写进文档的现场 URL 都必须用 deviceId 那一种。
+
 ## 2026-09-13 — 三个物种整具换成真实机器的原厂几何
 Changed:    `compact` / `patrol` / `digitigrade` 各 10 个槽位改用真实 CAD（Unitree G1 / ANYbotics ANYmal C / Agility Cassie，全部取自 MuJoCo Menagerie 的钉死 commit），`node scripts/harvest.mjs --adopt` 可重放。`buildIndex()` 多一条规则：**一个 family 只要有一件 `source.provider === 'harvest'` 的件，它的生成件就整批不进 `parts.json`**（文件不删，还在 `assets/parts/` 里）。`parts.json` 198 → 196 件。再分发义务随之落地：`assets/parts/licenses/*.LICENSE.txt`、`assets/parts/ATTRIBUTION.md`（脚本生成）、`/about` 署名段多一条除外项。`digitigrade` 的 `bodyPlan` 从 `quadruped` 改回两足（docs/31 §4.1 记的那个实质性错判）；`char.idol` 的 base 从 `compact` 改成 `porcelain`。
 Why:        真实存在的机器，它的身份**就是**那台真机 —— 用真 CAD 不只是更准，是更诚实（docs/26 §H）。而且它救的正是参考图采集失败的那几个条目。规则写成"按 family 整具换"而不是一张退役名单，是因为名单会和现实分叉；`curation.json` 没有被借用来做这件事，因为那里的 `reject` 有一个已经被用掉的含义（立场海报上唯一的颜色 = 被人眼剔掉的那十件），而这 32 件不是坏件。

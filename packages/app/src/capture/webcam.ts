@@ -13,6 +13,8 @@
  *   本地模型文件不存在      → CDN 模型
  *   ImageSegmenter 起不来  → 只丢 mask，姿态照跑（慢回路自己会静默关掉）
  *   摄像头权限被拒          → lastError 有值，latest() 恒为 null，页面不白屏
+ *   `?cam=` 要的那台不在     → 照常开默认那台，但 `camera.why === 'fallback'`，
+ *                            HUD 上是红的一行（`?cam=` 见 camera-select.ts）
  *
  * 这里**不做任何姿态处理**：不滤波、不建骨架、不换坐标系。
  * 坐标转换只允许发生在 core/skeleton.ts 的 mediapipeToWorld()（docs/04 §1）。
@@ -23,6 +25,10 @@ import { CAPTURE } from '../../../core/src/tuning.ts';
 import { notePresence } from '../shell/idle.ts';
 import { readFlags, type PoseModel } from '../shell/kiosk.ts';
 import type { Capture, CaptureStep } from './capture.ts';
+import {
+  describeCamera, formatCameraList, pickCamera,
+  type CamDevice, type CamStatus,
+} from './camera-select.ts';
 
 // 本地 wasm：打包进产物，现场断网也能起（Vite 把它们当静态资源发出去）
 // 注意子路径没有 /wasm/：包的 exports 就是这么导出的
@@ -94,6 +100,14 @@ export class WebcamCapture implements Capture {
   backend: 'GPU' | 'CPU' | null = null;
   /** 实际加载的姿态模型档位（`?model=`；没指定就是默认档） */
   readonly model: PoseModel;
+  /**
+   * 实际开着的是哪一台摄像头，以及它是不是 `?cam=` 要的那一台。
+   * 摄像头还没开起来之前是 null。HUD（`shell/hud.ts`）显示它。
+   */
+  camera: CamStatus | null = null;
+
+  /** `?cam=` 原值。构造时读一次，之后不再碰 URL */
+  readonly #cam: string | null;
 
   /**
    * 启动里程碑。三件：摄像头开了 / 姿态模型到了 / 抠图模型问过了。
@@ -105,7 +119,9 @@ export class WebcamCapture implements Capture {
 
   constructor(video?: HTMLVideoElement, model?: PoseModel, onStep?: CaptureStep) {
     this.#onStep = onStep ?? null;
-    this.model = model ?? readFlags().model ?? 'lite';
+    const flags = readFlags();
+    this.model = model ?? flags.model ?? 'lite';
+    this.#cam = flags.cam;
     this.video = video ?? document.createElement('video');
     this.video.playsInline = true;
     this.video.muted = true;
@@ -160,15 +176,68 @@ export class WebcamCapture implements Capture {
     if (!navigator.mediaDevices?.getUserMedia) {
       throw new Error('浏览器没有 getUserMedia（需要 https 或 localhost）');
     }
-    this.#stream = await navigator.mediaDevices.getUserMedia({
-      video: { width: { ideal: CAPTURE.requestedVideo.width }, height: { ideal: CAPTURE.requestedVideo.height } },
-      audio: false,
+
+    // 权限之前也可以枚举：`enumerateDevices()` **不弹权限框**，只是不给 label、
+    // 多数浏览器连 deviceId 都藏起来。所以这一次枚举只在"权限早就给过"
+    // （现场那台机器的常态）时能直接命中；命中不了就先开默认那台，
+    // 等有了 stream 再枚举一次——那时 label 才是真的。
+    // 绝不为了凑一张设备表提前要权限：入口层（`shell/entry.ts` 文件头）存在的
+    // 全部理由就是"第一眼不该是权限弹窗"。
+    let first: string | null = null;
+    try { first = pickCamera(await listVideoInputs(), this.#cam)?.deviceId ?? null; }
+    catch { /* 枚举不了就当没有偏好，下面照样开 */ }
+
+    this.#stream = await this.#openStream(first).catch(async (e) => {
+      // 点名的那台在这一瞬间没了（拔线正好卡在这里）→ 退回默认那台再开一次。
+      // 这条 catch 只兜"点名"这一种；真的一台都没有时下面这次照样抛，
+      // 由 start() 写进 lastError —— 那是既有的那条降级路径，不动它。
+      if (!first) throw e;
+      return this.#openStream(null);
     });
+
+    // 到这里权限已经有了：这一次枚举才有真的 label 和 deviceId
+    try { await this.#settleCamera(); }
+    catch (e) {
+      // 选摄像头绝不能成为采集死掉的新方式（文件头第 2 条）。
+      // 这里失败就只是"不知道在用哪台"，画面照跑。
+      this.camera = null;
+      this.#error = `摄像头选择失败（画面照跑，但不知道在用哪一台）：${describe(e)}`;
+    }
+
     this.video.srcObject = this.#stream;
     await this.video.play();
     if (!this.video.videoWidth) {
       await new Promise<void>((res) => this.video.addEventListener('loadeddata', () => res(), { once: true }));
     }
+  }
+
+  #openStream(deviceId: string | null): Promise<MediaStream> {
+    const size = {
+      width: { ideal: CAPTURE.requestedVideo.width },
+      height: { ideal: CAPTURE.requestedVideo.height },
+    };
+    // `exact`：点了名就必须是那一台。给 `ideal` 的话浏览器会"尽量"——
+    // 也就是在那台不在时**安静地**换一台，而那正是要修掉的失败。
+    const video = deviceId ? { ...size, deviceId: { exact: deviceId } } : size;
+    return navigator.mediaDevices.getUserMedia({ video, audio: false });
+  }
+
+  /** 权限到手之后：该换就换，然后把"实际在用哪一台"记下来并打一次全表 */
+  async #settleCamera(): Promise<void> {
+    const devices = await listVideoInputs();
+    const want = pickCamera(devices, this.#cam);
+    if (want && want.deviceId !== currentDeviceId(this.#stream)) {
+      const next = await this.#openStream(want.deviceId).catch(() => null);
+      if (next) {
+        this.#stream?.getTracks().forEach((t) => t.stop());
+        this.#stream = next;
+      }
+    }
+    // 报的是那条 track 自己说的 deviceId，不是我们请求的那个（P21）
+    this.camera = describeCamera(devices, this.#cam, currentDeviceId(this.#stream));
+    const head = this.camera.why === 'fallback' ? '[webcam] ⚠ 摄像头回落' : '[webcam] 摄像头';
+    const log = this.camera.why === 'fallback' ? console.warn : console.info;
+    log(`${head}：${this.camera.hud}\n${formatCameraList(devices, this.camera).join('\n')}`);
   }
 
   async #openModels(): Promise<void> {
@@ -311,6 +380,17 @@ export class WebcamCapture implements Capture {
       this.#error = describe(e);
     }
   }
+}
+
+async function listVideoInputs(): Promise<CamDevice[]> {
+  if (!navigator.mediaDevices?.enumerateDevices) return [];
+  const all = await navigator.mediaDevices.enumerateDevices();
+  return all.filter((d) => d.kind === 'videoinput').map((d) => ({ deviceId: d.deviceId, label: d.label }));
+}
+
+/** 这条流现在**实际**接的是哪台。拿不到就是空串（于是一定判成 fallback，宁可吵） */
+function currentDeviceId(stream: MediaStream | null): string {
+  return stream?.getVideoTracks()[0]?.getSettings?.().deviceId ?? '';
 }
 
 function toLandmark(l: { x: number; y: number; z: number; visibility?: number }): Landmark {
