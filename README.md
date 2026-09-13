@@ -18,6 +18,17 @@ The artwork is titled **SEE-ME SEE-U**; the engineering codename stays
 `second-body` — the repository, the packages, the `@sb/*` prefix. The split is
 deliberate: what the audience reads is a wall label, not a repository name.
 
+## Statement
+
+> SEE ME. SEE U. NOT ME. BUT U. AND U SEE ME.
+
+The artist's line, and the only English inside a statement otherwise written in
+Chinese. The statement is set in full, in the original, on
+[`/about`](https://second-body.ptoq.io/about); it names the five terms the piece
+is built on — *datafication*, *Morphogenesis*, *zoe*, *simulacrum*, *distributed
+agency*. Everything below this line is the engineering account of the same
+object, written by the people who built it.
+
 ## State
 
 A reverse-engineered reconstruction of Universal Everything's *Future You*

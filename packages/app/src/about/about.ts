@@ -120,6 +120,40 @@ function head(): HTMLElement {
   );
 }
 
+/**
+ * 作品陈述 —— **这一页唯一不是我们写的那一节。**
+ *
+ * 为什么排在首屏之后、「它是什么」之前：展签的次序是"谁做的、他说了什么"，
+ * 然后才轮到我们解释它怎么运作。把陈述压到页尾等于说它是附录。
+ *
+ * 三处排版决定，理由都在 `about.css` 的 `.about-statement`：
+ * 中文立意句走楷书（叙事性中文），那一行英文原句走 grotesk 且**不配中文**，
+ * 五个概念的中文注是**术语**不是叙事，所以留在 grotesk 里（`Iansui/NOTICE.md` 的边界）。
+ */
+function statementSection(): HTMLElement {
+  const call = el('p', 'about-statement__call');
+  call.lang = 'en';
+  call.textContent = COPY.about.statementCall;
+
+  const list = el('dl', 'about-concepts');
+  for (const c of COPY.about.concepts) {
+    const term = el('dt', 'about-concept__term');
+    term.lang = 'en';
+    term.textContent = c.term;
+    list.append(el('div', 'about-concept', term, el('dd', 'about-concept__zh', c.zh)));
+  }
+
+  return section(COPY.about.statementTitle,
+    biInline(COPY.about.statementSource, 'sb-label'),
+    biEl('p', COPY.about.statementLead, 'about-lede about-statement__lead'),
+    // 陈述里唯一的问句。它的正本在 `COPY.entry`（入口层先用它），这里**取同一个常量**，
+    // 不抄第二份 —— 原文存两份，迟早有一份不再是原文
+    biEl('p', COPY.entry.question, 'about-lede about-statement__lead'),
+    call,
+    biInline(COPY.about.conceptsTitle, 'sb-label'),
+    list);
+}
+
 /** 它是什么：一句话 + 观众的 90 秒（`docs/PRD §2` 那张图，搬到 web 上） */
 function whatSection(): HTMLElement {
   const steps: [BiText, BiText, boolean][] = [
@@ -351,7 +385,7 @@ export async function renderAbout(root: HTMLElement = document.body): Promise<vo
   document.body.style.cssText = 'overflow:auto;height:auto';
   root.classList.add('ed');
   const page = el('main', 'about');
-  page.append(head(), whatSection(), whySection());
+  page.append(head(), statementSection(), whatSection(), whySection());
   root.append(page);
 
   const index = await loadIndex();

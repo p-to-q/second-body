@@ -9,6 +9,7 @@
  * 它必须能在没有 GPU 的地方被读、被 diff、被单测。
  */
 import { attachMatrix, jointMatrix } from '../../../core/src/attach.ts';
+import { groundLift, liftMatrixInPlace, type PlacedExtent } from '../../../core/src/ground.ts';
 import { IS_LEFT, SLOT_OF_BONE } from '../../../core/src/slots.ts';
 import { FOOT, MORPH, SKELETON, SLOT_FIT, SLOT_WIDTH } from '../../../core/src/tuning.ts';
 import { BONES } from '../../../core/src/skeleton.ts';
@@ -133,11 +134,56 @@ function translateInPlace(m: Mat4, dir: Vec3, dist: number): void {
   m[14] += dir[2] * dist;
 }
 
+/**
+ * 把装配结果整体抬到地面上（`core/ground.ts` 是那条几何事实的唯一定义处）。
+ *
+ * 为什么这一步必须在**这里**：落地量 = 每件部件的局部包围盒过一遍它自己的挂载矩阵。
+ * 骨架层拿不到 aabb（core 不读 parts.json），渲染层拿不到"哪一件挂在哪根骨头上"
+ * 之前的那个矩阵还没算完 —— 只有装配层两头都在手上。
+ *
+ * 为什么是**每帧**算，而不是组装时算一次存起来：抬升量不是部件的常数，
+ * 它随部件的**朝向**变。脚平放时脚底朝下，抬升 = 半个脚厚；踮起脚尖时同一只脚
+ * 转了 40°，脚底不再是最低的那一面，抬升就不是那个数了。缓存一个数的代价是
+ * "站着对、一动就穿帮"，而算它只要每件三次乘法（≤64 件，对 P5 是噪声）。
+ * 真正被缓存下来、不必每帧重算的是**局部包围盒本身** —— 它从 `PartMeta` 直接读，
+ * 不分配、不遍历顶点。
+ */
+function groundToFloor(out: PartInstance[], lib: MetaSource): void {
+  if (!out.length) return;                        // mass 那一档一个部件都不实例化
+  // 复用同一个对象喂给 groundLift：这条路在帧循环里，每帧 new 64 个临时对象
+  // 就是每分钟给 GC 送 230k 个短命对象（P5：帧里不分配）
+  const lift = groundLift((function* () {
+    for (const i of out) {
+      scratch.matrix = i.matrix;
+      scratch.aabb = lib.metaOf(i.partId)?.aabb ?? null;
+      scratch.mirrored = i.mirrored;
+      yield scratch;
+    }
+  })());
+  if (!lift) return;
+  for (const i of out) liftMatrixInPlace(i.matrix, lift);
+}
+
+/** `groundToFloor` 的复用槽。单线程、同步遍历，不会有第二个使用者同时持有它 */
+const scratch: PlacedExtent = { matrix: [], aabb: null, mirrored: false };
+
 export function assemble(
   genome: Genome,
   skeleton: Skeleton,
   lib: MetaSource,
   opt: AssembleOptions = {},
+): PartInstance[] {
+  const out = place(genome, skeleton, lib, opt);
+  groundToFloor(out, lib);
+  return out;
+}
+
+/** 纯挂载：只按骨架把每件摆到它该在的地方，**不管地面**。落地是 `assemble()` 的事 */
+function place(
+  genome: Genome,
+  skeleton: Skeleton,
+  lib: MetaSource,
+  opt: AssembleOptions,
 ): PartInstance[] {
   const out: PartInstance[] = [];
   const cap = finite(opt.maxInstances ?? Infinity, Infinity);

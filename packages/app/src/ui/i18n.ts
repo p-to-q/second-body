@@ -225,6 +225,46 @@ export const COPY = {
       'Marked “Specified” means designed, not built. Marked “On-site only” means working, but alive only on the installation’s own machine. This page does not claim what is not done.',
     ),
 
+    // ── 作品陈述 ──────────────────────────────────────────────────────
+    /**
+     * **艺术家原文。逐字，不改写、不补全、不润色。**
+     *
+     * 这一段和这个文件里其余所有条目的身份不一样：别处的中文是我们写的文案，
+     * 写坏了就重写；这几行是艺术家交下来的正文，**我们只负责排版**。
+     * 三条随之而来的规矩，改这一段之前先读：
+     *
+     * 1. `statementCall` 是艺术家**用英文写的**，它不是任何一句中文的对照。
+     *    所以它不走 `bi()`，在版面上也不许被塞进 `.sb-bi` 的"中主英辅"里 ——
+     *    那会把一句原文降级成一句译文。
+     * 2. `statementLead` 的 `en` 是**译文**（和这一页别处的英文同一个身份：对照）。
+     *    要改就往"不像翻译腔"改，不许往"更有文采"改 —— 它不是一次创作。
+     * 3. 五个概念：拉丁词与括号里的中文注都来自原文，**这一对本身就是中英并置**，
+     *    所以不再替它写第二层英文注。写了就是替艺术家说话。
+     *
+     * 排版上的两个决定写在 `about.css` 的 `.about-statement` 那一段。
+     *
+     * **第四句原文不在这里，在 `entry.question`。** 它先落在入口层（那一句是陈述里
+     * 唯一的问句，适合放在观众还没开始之前），`/about` 直接取同一个常量，
+     * 不抄第二份 —— 两个地方各存一份原文，迟早会有一份被改成不是原文。
+     */
+    statementTitle: bi('作品陈述', 'Artist statement'),
+    statementSource: bi('艺术家原文', 'The artist’s own words'),
+    statementLead: bi(
+      'SEE-ME SEE-U 是一次关于身体、观看与对抗的生成实验。',
+      'SEE-ME SEE-U is a generative experiment in body, looking and confrontation.',
+    ),
+    /** 艺术家用英文写的那一行。**不是译文，不配中文，不进 `bi()`** */
+    statementCall: 'SEE ME. SEE U. NOT ME. BUT U. AND U SEE ME.',
+    conceptsTitle: bi('核心概念', 'Key concepts'),
+    /** `term` 与 `zh` 均为原文逐字。顺序是艺术家给的顺序，不排序、不编号 */
+    concepts: [
+      { term: 'datafication', zh: '身体的数据化' },
+      { term: 'Morphogenesis', zh: '形态发生' },
+      { term: 'zoe', zh: '非人格化的、纯粹的生命' },
+      { term: 'simulacrum', zh: '拟像' },
+      { term: 'distributed agency', zh: '分布式能动性' },
+    ],
+
     // ── 它是什么 ──────────────────────────────────────────────────────
     whatTitle: bi('它是什么', 'What it is'),
     whatLead: bi(
@@ -325,9 +365,12 @@ export const COPY = {
       '源代码 MIT。五项除外，请分别对待：',
       'Source code is MIT, with five carve-outs:',
     ),
+    // 名字**改过一次**：上一版确实是 `dither-blur-carousel`，但首屏那个轮播已经重做成
+    // SDF 的环，出处随之换成同一位作者的 Viscose-carousel（`docs/35-VISCOSE.md` §0/§1）。
+    // 署名写错的成本和别处的文案不是一个量级 —— 这一条是许可声明，不是介绍。
     carve1: bi(
-      '轮播组件移植自 dither-blur-carousel（MIT © Yousuf Soomro），其 public/ 里的图片与字体未取用。',
-      'The carousel is ported from dither-blur-carousel (MIT © Yousuf Soomro); nothing from its public/ folder is used.',
+      '首屏的环移植自 Viscose-carousel（MIT © Yousuf Soomro），其 public/ 里的图片与字体未取用。',
+      'The opening ring is ported from Viscose-carousel (MIT © Yousuf Soomro); nothing from its public/ folder is used.',
     ),
     carve2: bi(
       'ZKMSerendipity 字体权利属于 ZKM，本项目非商用、不再分发；fork 请自行取得许可。',
@@ -422,6 +465,14 @@ export const COPY = {
       refine: { name: bi('时域精化', 'Smoothing'), note: bi('关掉它，抖动直接进画面', 'Off: the jitter comes straight through') },
       post: { name: bi('后期', 'Post'), note: bi('辉光、暗角、颗粒', 'Bloom, vignette, grain') },
       mute: { name: bi('声音', 'Sound'), note: bi('四层环境声', 'Four layers of ambience') },
+      /**
+       * 描边。说明写的是**开了之后会看到什么**，而不是"启用卡通着色" ——
+       * 观众不需要知道反向外壳，他需要知道这具身体会变成被画出来的。
+       */
+      outline: {
+        name: bi('描边', 'Outline'),
+        note: bi('开了它就像是被画出来的', 'On: it looks drawn, not built'),
+      },
     },
     on: bi('开', 'On'),
     off: bi('关', 'Off'),
@@ -441,6 +492,7 @@ export const COPY = {
       refine: bi('时域精化', 'Smoothing'),
       post: bi('后期', 'Post'),
       mute: bi('声音', 'Sound'),
+      outline: bi('描边', 'Outline'),
     },
   },
 
