@@ -70,7 +70,10 @@
 .sb-ctl-toggle .sb-en { color: var(--sb-on-stage-dim); margin-left: 0.6em; }
 .sb-ctl-toggle:hover,
 .sb-ctl-toggle:focus-visible,
-.sb-ctl.is-open .sb-ctl-toggle { outline: none; border-bottom-color: var(--sb-accent); }
+/* 展开态只变亮，不上色、不加线 —— 和目录同一条规矩：
+   docs/26 §F「全站只有一处用颜色承担语义（成立/不成立），其余一律灰阶」。
+   控件的开合不是那一处。 */
+.sb-ctl.is-open .sb-ctl-toggle { outline: none; border-bottom-color: transparent; }
 .sb-ctl.is-open .sb-ctl-toggle { color: var(--sb-ink); text-shadow: none; }
 .sb-ctl.is-open .sb-ctl-toggle .sb-en { color: var(--sb-ink-dim); }
 
@@ -128,9 +131,9 @@
   display: block;
 }
 .sb-ctl-opt:hover, .sb-ctl-opt:focus-visible { outline: none; border-bottom-color: var(--sb-rule); }
-.sb-ctl-opt:hover .sb-ctl-opt-name .sb-zh { color: var(--sb-accent); }
+.sb-ctl-opt:hover .sb-ctl-opt-name .sb-zh { color: var(--sb-ink); }
 /* 当前生效的那一个：底边一条强调色。全站只有一处用颜色承担语义（docs/26 §F） */
-.sb-ctl-opt.is-on { border-bottom-color: var(--sb-accent); }
+.sb-ctl-opt.is-on { border-bottom-color: #fff; }
 .sb-ctl-opt.is-on .sb-ctl-opt-name .sb-zh { color: var(--sb-ink); }
 
 .sb-ctl-opt-name { display: flex; align-items: baseline; }
@@ -151,7 +154,7 @@
   letter-spacing: var(--sb-tracking-label);
   color: var(--sb-ink-dim);
 }
-.sb-ctl-opt.is-on .sb-ctl-state { color: var(--sb-accent); }
+.sb-ctl-opt.is-on .sb-ctl-state { color: #fff; }
 
 /* ── 物种那一栏 ──────────────────────────────────────────────────────────── */
 .sb-ctl-filter {
@@ -168,7 +171,7 @@
   font-size: var(--sb-size-small);
   color: var(--sb-ink);
 }
-.sb-ctl-filter:focus { outline: none; border-bottom-color: var(--sb-accent); }
+.sb-ctl-filter:focus { outline: none; border-bottom-color: var(--sb-ink); }
 .sb-ctl-filter::placeholder { color: var(--sb-ink-dim); }
 
 /* 29 条不平铺成 29 个按钮：一列可滚的名字。高度取 6 行左右 ——
@@ -195,9 +198,9 @@
   cursor: pointer;
   display: block;
 }
-.sb-ctl-sp:hover .sb-ctl-opt-name .sb-zh { color: var(--sb-accent); }
+.sb-ctl-sp:hover .sb-ctl-opt-name .sb-zh { color: var(--sb-ink); }
 .sb-ctl-sp:focus-visible { outline: none; border-left-color: var(--sb-rule); }
-.sb-ctl-sp.is-on { border-left-color: var(--sb-accent); }
+.sb-ctl-sp.is-on { border-left-color: #fff; }
 
 /* ── Key 条 ──────────────────────────────────────────────────────────────── */
 .sb-ctl-keys {
@@ -219,3 +222,13 @@
   .sb-ctl-row, .sb-ctl-species, .sb-ctl-keys { grid-template-columns: 1fr; }
   .sb-ctl-panel { width: calc(100vw - var(--sb-safe)); }
 }
+
+
+/* ── 为什么这里一个颜色都没有 ──────────────────────────────────────────
+ * `docs/26 §F`：全站只有**一处**用颜色承担语义（作品自评里的成立／不成立），
+ * 其余一律灰阶。控件的开／关不是那一处。
+ *
+ * 三级灰就够分：**选中 = #fff（最亮）· 悬停 = --sb-ink · 未选 = --sb-ink-dim**。
+ * 用亮度而不是色相去分状态，还有一个好处：它在四套场景下都成立，
+ * 而一个固定的强调色在白展厅里会显得很脏。
+ */
