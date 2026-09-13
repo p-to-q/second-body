@@ -1,0 +1,16 @@
+# 授权存证 · reveal.webm
+
+抓取时间（UTC）：2026-09-13T09:26:22Z
+抓取方式：`curl -A "Mozilla/5.0" <条目页>`（HTTP 200，正文见下）
+条目页：https://freesound.org/people/jaeger2801/sounds/559286/
+页面 <title>：Freesound - open a wood box.wav by jaeger2801
+页面上出现的授权 URL：creativecommons.org/publicdomain/zero/1.0/
+我们取用的预览件：https://cdn.freesound.org/previews/559/559286_12494189-lq.ogg
+
+## 条目页正文里「License」附近的原文（未编辑）
+
+older, it may have been caught by a filter. If you still don't see it, you can resend the verification email . Default title Yes Cancel Sounds Tags Forum Map Sounds Packs Collections Forum Map Tags Random sound Charts Donate Help Log in Join open a wood box.wav Not enough ratings J jaeger2801 February 19th, 2021 Follow Sound effects > Objects / House appliances sound produced when opening a wooden box. Sound illegal or offensive? Flag it! box package wood work Type Wave (.wav) Duration 0:02.747 File size 710.8 KB Sample rate 44100.0 Hz Bit depth 24 bit Channels Stereo Comments This sound has not been commented on yet, be the first to comment! Please log in to comment 94 downloads 0 comments Creative Commons 0 You can copy, modify, distribute and perform the sound, even for commercial purposes, all without the need of asking permission to the author. Get attribution text... Login to download Share url: 920 x 245 481 x 86 375 x 30 About Freesound Terms of use Privacy Cookies Developers Help Donations Blog Freesound Labs Get your t-shirt! © 2026 Universitat Pompeu Fabra
+
+> 这是一份**文本**存证，不是 `.png` 截图 —— 这一轮跑在没有浏览器的 lane 上。
+> 它比截图少一件事（页面长什么样），多一件事（原文可被 grep 和 diff）。
+> 抓的是同一个 URL 的同一份 HTML，授权那一行逐字在上面。

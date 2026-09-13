@@ -1,0 +1,16 @@
+# 授权存证 · work-b.webm
+
+抓取时间（UTC）：2026-09-13T09:26:22Z
+抓取方式：`curl -A "Mozilla/5.0" <条目页>`（HTTP 200，正文见下）
+条目页：https://freesound.org/people/mrh4hn/sounds/426631/
+页面 <title>：Freesound - Picking up and Putting Down Object.wav by mrh4hn
+页面上出现的授权 URL：creativecommons.org/publicdomain/zero/1.0/
+我们取用的预览件：https://cdn.freesound.org/previews/426/426631_8238671-lq.ogg
+
+## 条目页正文里「License」附近的原文（未编辑）
+
+ation email . Default title Yes Cancel Sounds Tags Forum Map Sounds Packs Collections Forum Map Tags Random sound Charts Donate Help Log in Join Picking up and Putting Down Object.wav Overall rating (21 ratings) M mrh4hn April 26th, 2018 Follow Sound effects > Objects / House appliances This can be used for almost anything being picked up and put down on table. Sound illegal or offensive? Flag it! Down Object Picking Putting down rotate up Type Wave (.wav) Duration 0:06.833 File size 1.3 MB Sample rate 48000.0 Hz Bit depth 16 bit Channels Stereo Comments Please log in to comment F fdarrenm0312 4 years, 2 months ago Good. D dorahurley 5 years, 10 months ago perfect! 3.8K downloads 2 comments Creative Commons 0 You can copy, modify, distribute and perform the sound, even for commercial purposes, all without the need of asking permission to the author. Get attribution text... Login to download Share url: 920 x 245 481 x 86 375 x 30 About Freesound Terms of use Privacy Cookies Developers Help Donations Blog Freesound Labs Get your t-shirt! © 2026 Universitat Pompeu Fabra
+
+> 这是一份**文本**存证，不是 `.png` 截图 —— 这一轮跑在没有浏览器的 lane 上。
+> 它比截图少一件事（页面长什么样），多一件事（原文可被 grep 和 diff）。
+> 抓的是同一个 URL 的同一份 HTML，授权那一行逐字在上面。
