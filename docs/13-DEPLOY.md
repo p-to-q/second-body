@@ -137,18 +137,84 @@ packages/app/dist/          静态站点（vite build）
 - [ ] 隐私说明在页面上
 
 
+## 7. 域名
+
+作品的地址是 **`u-see.me`**。不是风格问题 —— `second-body.vercel.app`
+**已经被别人占了**（它返回一个同名的 React Native Web 应用），我们的默认地址
+是 `second-body-one.vercel.app`，那串东西印不进说明牌。
+
+### 架构：Vercel 出内容，Cloudflare 出解析
+
+两层各管一件事，分开的理由是**大陆**：Vercel 的 `cname.vercel-dns.com`
+在国内解析不稳，而 Cloudflare 的权威 DNS 在大陆有可用的 anycast 出口。
+所以**域名的 NS 指 Cloudflare，Cloudflare 的记录指 Vercel**。
+
+```
+u-see.me  ──NS──▶  Cloudflare（权威 DNS）
+                      │
+                      ├─ A    @    76.76.21.21           代理关闭（灰云）
+                      └─ CNAME www cname.vercel-dns.com  代理关闭（灰云）
+                                        │
+                                        └──▶ Vercel 项目 second-body
+```
+
+**橙云必须关掉。** Cloudflare 的代理会终止 TLS，Vercel 就拿不到
+`.well-known/acme-challenge` 的回源，证书永远签不出来 —— 站点会挂在
+"Invalid Configuration"。要 CDN 的话那是 Cloudflare 自己的事，不能同时。
+
+### Vercel 侧（已完成，2026-09-13）
+
+两个域名都已挂到项目 `second-body` 上，且 `verified: true`
+（这个域名不在别的 Vercel 账号下，所以**不需要 TXT 验证**）：
+
+```bash
+curl -X POST -H "Authorization: Bearer $VERCEL_TOKEN" \
+  -H "Content-Type: application/json" \
+  https://api.vercel.com/v10/projects/second-body/domains \
+  -d '{"name":"u-see.me"}'
+```
+
+要什么记录由 `/v6/domains/<name>/config` 说了算，别背：
+
+| 名称 | 类型 | 值 | 代理 |
+|---|---|---|---|
+| `@` | A | `76.76.21.21` | 关 |
+| `www` | CNAME | `cname.vercel-dns.com` | 关 |
+
+### 还没做的那一步：把 NS 从 Spaceship 换到 Cloudflare
+
+实测 `u-see.me` 的 NS 仍是 `launch1.spaceship.net` / `launch2.spaceship.net`，
+A 记录指着 `54.149.79.189` / `34.216.117.25`（Spaceship 的停放页）。
+这一步**必须在浏览器里做**，本机没有 Cloudflare 凭证。
+
+1. Cloudflare → Add a site → `u-see.me` → Free。它会分配一对
+   `xxx.ns.cloudflare.com`。
+2. Spaceship → 域名 → Nameservers → Custom → 填那一对，保存。
+3. 回 Cloudflare，DNS 里按上表加两条，**代理一律灰云**；
+   Spaceship 扫过来的停放 A 记录删掉。
+4. SSL/TLS 模式选 **Full (strict)**。Flexible 会和 Vercel 的强制 HTTPS
+   撞成重定向循环。
+
+NS 生效通常十几分钟到两小时。生效后 Vercel 会自己签证书，核一句：
+
+```bash
+dig +short u-see.me NS && curl -sI https://u-see.me | head -1
+```
+
+---
+
 ## 部署地址的真实状态（2026-09-13 实测）
 
 **`second-body.vercel.app` 不是我们的。** 它返回一个 React Native Web 应用，
 标题也叫 "Second Body"。所以那个默认子域**已经被别人占了** ——
 我们的部署会落在 `second-body-<hash>-<team>.vercel.app` 这种带哈希的地址上。
 
-这把域名这件事从"风格一致"变成了**必需**：
-`second-body.ptoq.io`（`scripts/set-domain.sh`，需要项目负责人的 `VERCEL_TOKEN`）。
-在那之前，线上地址是不可记、不可念、也不适合印在说明牌上的。
+这把域名这件事从"风格一致"变成了**必需**。落点见 §7：`u-see.me`。
 
-**我核不到我们自己的部署地址** —— 本机 `~/.vercel` 的两个凭据文件都是 0 字节，
-而这个会话跑不了 OAuth。所以下面这些是在**本机生产构建**（`npm run build` + `vite preview`）上验的：
+下面这张表是在**本机生产构建**（`npm run build` + `vite preview`）上验的 ——
+写它的时候还核不到线上地址。后来核到了：生产是 `second-body-one.vercel.app`，
+再后来是 `u-see.me`（见 §7）。表里的结论仍然成立，但**它验的是产物不是线上**，
+这个区别在 P21 的意义上是真的区别，所以不改成"线上实测"。
 
 | 检查 | 结果 |
 |---|---|
