@@ -151,26 +151,29 @@ export async function checkParts(): Promise<number> {
    * 两条「这个物种在画面上还在不在」的仪表。`check:parts` 一直只数件数，
    * 而件数在这两种坏法下**一个都不少**（docs/02 P21：问一个坏掉时会变样的问题）。
    *
-   * 1. **点不到的物种**：`makeGenome` 的名单是 `parts.json` 里出现过的 family。
-   *    一个条目一件自有件都没有进过索引，`themes.includes(opt.theme)` 就是 false，
-   *    于是 `{ theme: 'char.diva' }` **静默变成另一个物种** —— 没有报错、没有警告，
-   *    观众选的那一具身体和他看到的那一具不是同一个。
-   *    （`mass` / `swarm` 本来就不实例化任何件，不适用。）
+   * 1. **空壳物种**：一个条目一件自有件都没有进过索引。
+   *    这条以前是「点不到」——`makeGenome` 的名单来自 family，于是
+   *    `{ theme: 'char.diva' }` **静默变成另一个物种**。2026-09-13 修在根上：
+   *    `resolveTheme()` 现在保留物种身份、沿 base 链借件并喊一声，
+   *    `choose/wearable.ts` 把它挡在轮播之外。所以它不再是一次静默换种 ——
+   *    但它仍然是一个**只剩配色的物种**，这条警告留着，直到有人裁定生成还是撤掉
+   *    （docs/39 §4 第 1 条）。（`mass` / `swarm` 本来就不实例化任何件，不适用。）
    * 2. **借光了的物种**：自有件全被策展否掉之后，整具沿 base 链借件 ——
    *    上面那一条已经报了，这里补的是 `coverage` 说好的件数与实际的差额：
    *    `light` 声明了 6 个标志性槽位，少一个就少一分辨识度。
    */
   /**
-   * `clearance` 那道门（docs/14 §2）**没有执行者**：`index-parts.ts` 把整个 ROSTER
-   * 原样写进 parts.json，从来不问 `isPublic()`，而 parts.json 是要进 dist 的。
-   * 现在没出事只是因为唯一一个非 `own` 的条目正好没有 look、也没有件 ——
-   * 「没出事」不是「有门」。这条警告就是那道门暂时的执行者。
+   * `clearance` 那道门（docs/14 §2）。这条警告以前是它**唯一**的执行者 ——
+   * `index-parts.ts` 把整个 ROSTER 原样写进 parts.json，从来不问 `isPublic()`，
+   * 而 parts.json 是要进 dist 的。2026-09-13 起门在源头：`buildIndex()` 只写
+   * `ROSTER.filter(isPublic)`。这条留着当第二道闸 —— 它现在应当**永远不响**，
+   * 响了就说明有人绕过了 `buildIndex()`（手改 parts.json、或者另开一条写入路径）。
    */
   for (const t of index.themes ?? []) {
     const entry = entryById(t.id);
     if (entry && !isPublic(entry)) {
       warns.push(`${t.id}: clearance='${entry.clearance}'，按 docs/14 §2 不该进公开构建，`
-        + `但 index-parts.ts 不看 clearance，它已经在 parts.json 里`);
+        + `却在 parts.json 里 —— buildIndex() 已经挡这一层，说明这份索引不是它写的`);
     }
   }
 
@@ -183,7 +186,8 @@ export async function checkParts(): Promise<number> {
     if (t.source === 'procedural') continue;
     if (!familiesInIndex.has(t.id)) {
       warns.push(`${t.id}: parts.json 里一件自有件都没有 —— `
-        + `makeGenome 的物种名单来自 family，点它会静默换成别的物种（实测渲染出来的是 base）`);
+        + `makeGenome 保留物种身份、整具沿 base 链借件并 warn，选择页也把它挡在轮播外；`
+        + `但它在画面上只剩配色，生成还是撤掉需要一次策展裁定（docs/39 §4）`);
       continue;
     }
     const have = liveOwnSlots(t.id) as Set<string>;

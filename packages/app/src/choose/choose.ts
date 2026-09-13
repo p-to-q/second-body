@@ -15,6 +15,10 @@
  *   2. **`?theme=<id>` 直接跳过这一页。** 刷新可复现，也是现场的手动覆盖。
  *   3. **WebGL 起不来也要能选。** 掉到一个纯 DOM 的列表，键盘和自动选择照常工作。
  *      （AGENTS.md：每条降级路径必须存在且被跑过 —— `?gl=off` 就是用来跑它的。）
+ *      这句话在 2026-09-13 之前是**假的**：`?gl=` 只接在 `/dev/choose.html` 上，
+ *      正式程序的 `readFlags()` 里根本没有这个字段，`/?gl=off` 什么都不做
+ *      （docs/36 D2）。现在它是真的：`shell/kiosk.ts` 认这个参数，
+ *      `main.ts` 把 `forceFallback: !flags.gl` 传进来。
  *
  * 排布不是数组顺序，是**形态空间**：按 `axes.humanLike` / `axes.lifeLike` 绕
  * 质心排成一圈，滑动时观众是在穿越那张图（docs/14 §4）而不是翻列表。
@@ -30,6 +34,7 @@ import { acquireRingField, type RingField } from './ring/field.ts';
 import { holdFirstScreen } from './ring/first-screen.ts';
 import { buildCard, loadImage, type BuiltCard } from './cards.ts';
 import { startWaveInput, type WaveDriver } from './ring/wave-input.ts';
+import { isWearable } from './wearable.ts';
 
 export interface ChooseOptions {
   /** 选定了。id 已经写进 URL。 */
@@ -225,7 +230,16 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
     ),
   );
 
-  // 能选的身体 = 程序化的 ∪ 有 anchor 图的 ∪ 库里真的有部件的。
+  // 能选的身体 = **程序化的** ∪ **库里真的有自有件的**。就这两条。
+  //
+  // 这里以前还有第三条「∪ 有 anchor 图的」，而 anchor 图是一张**参考渲染**，
+  // 不是一件可以穿的零件（`/dev/anchor.html` 画出来的，docs/09 U12）。
+  // 两者同时为真是常态，所以那一条长期不改变任何结果 —— 它只在最坏的那一刻生效：
+  // 谁给一个零自有件的条目补了一张 anchor 图，它立刻进轮播，观众点得到，
+  // 而 `makeGenome` 那边一件自有件都没有（docs/39 §2.1）。
+  // 一个"看起来能选"的条目和一个"真的穿得上"的条目必须是同一批，
+  // 所以判据只留下「穿不穿得上」这一个问题（docs/02 P21）。
+  //
   // 剩下的既可能是**空位**（docs/14 §2 那种"说明这个位置想要什么"的条目），
   // 也可能只是还没生成 —— 从 parts.json 看这两者没有区别，而它们此刻同样**穿不上**，
   // 所以都不进轮播。等 factory 把部件生出来，它们自己就会出现。
@@ -235,10 +249,7 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
   const cards: BuiltCard[] = [];
   morphologyOrder(library.themes).forEach((theme) => {
     const image = images[library.themes.indexOf(theme)] ?? null;
-    const wearable = options.themes
-      ? true
-      : theme.source === 'procedural' || image !== null || (library.partCount.get(theme.id) ?? 0) > 0;
-    if (!wearable) return;
+    if (!isWearable(theme, library, options.themes !== undefined)) return;
     cards.push(buildCard(theme, image, rng));
   });
 

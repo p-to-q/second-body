@@ -13,7 +13,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { makeGenome, themeIsUsable, PLACEHOLDER_PREFIX } from '../src/genome.ts';
+import { makeGenome, themeIsUsable, toPlaceholderGenome, PLACEHOLDER_PREFIX } from '../src/genome.ts';
 import type { PartLibraryIndex, PartMeta, Slot, Tier } from '../src/types.ts';
 import { ALL_BONE_IDS } from '../src/slots.ts';
 
@@ -118,14 +118,41 @@ test('自有件只少一件的物种，那一件换成 base 的，其余自有�
   assert.equal(g.slots.spine.partId, 'spine.holey.a');     // 没被 reject 的自有件不受影响
 });
 
-// ── 4. 空位条目行为不变 ───────────────────────────────────────────────────
+// ── 4. 空位条目：借件，不换物种（docs/39 §2.1）────────────────────────────
 /**
- * 空位条目（自有件为 0）今天就是「落回按 seed 抽一个物种」，这次改动不碰这条路。
+ * 这里曾经是「空位条目落回按 seed 抽一个物种」—— 而那正是 docs/39 量到的那条：
+ * 一件自有件都没有的条目会**静默变成另一个物种**，连 HUD 上的名字都是别人的。
  *
- * 断言的是**落到哪个物种不变**，而不是整个 genome 逐字节相同：落到的那个物种
- * 如果自有件里有被 reject 的，那一件当然会换掉 —— 那正是这次要修的东西，
- * 要求它"完全一致"等于要求 bug 继续存在。
+ * 缺素材的正确表现是**借件**（base 链就是为它存在的），不是换物种。
+ * 下面三条把这件事钉死；第三条是"名单"与"身份"的分界：随机仍然只从有件的里抽。
  */
+test('声明过但零自有件的条目：显式点名时仍然是它自己', () => {
+  const index = makeIndex();
+  for (const tier of TIERS) for (let seed = 0; seed < SEEDS; seed++) {
+    const g = makeGenome(seed, tier, index, { theme: 'borrow', rejected: REJECTED });
+    assert.equal(g.theme, 'borrow', `seed=${seed} tier=${tier} 被静默换成了 ${g.theme}`);
+  }
+});
+
+test('零自有件的条目，槽位沿 base 链借件而不是退回占位几何', () => {
+  const index = makeIndex();
+  const g = makeGenome(11, 2, index, { theme: 'borrow', rejected: REJECTED });
+  for (const [key, s] of Object.entries(g.slots)) {
+    assert.ok(!s.partId.startsWith(PLACEHOLDER_PREFIX), `${key} 退回了占位几何`);
+    assert.ok(s.partId.endsWith('.donor.a'), `${key} 借的不是 base(donor) 的件：${s.partId}`);
+  }
+});
+
+test('索引里根本没有的 id 才回到随机，而且只抽有自有件的物种', () => {
+  const index = makeIndex();
+  const landed = new Set<string>();
+  for (const tier of TIERS) for (let seed = 0; seed < SEEDS; seed++) {
+    landed.add(makeGenome(seed, tier, index, { theme: 'no.such.species' }).theme);
+  }
+  assert.ok(!landed.has('no.such.species'), '不存在的 id 不该被当成一个物种留下来');
+  for (const t of landed) assert.ok(themeIsUsable(index, t, 3), `随机抽到了没有自有件的 ${t}`);
+});
+
 test('从来没有自有件的空位条目，落回的物种不受策展影响', () => {
   const index = makeIndex();
   for (const theme of ['empty', 'borrow']) for (const tier of TIERS) for (let seed = 0; seed < SEEDS; seed++) {
@@ -171,4 +198,24 @@ test('真索引：wheelleg 显式指定时仍然是 wheelleg，且不含被 reje
   }
   // 槽位齐全这条不变式顺手一起钉住
   assert.equal(Object.keys(makeGenome(1, 2, index, { theme: 'wheelleg', rejected }).slots).length, ALL_BONE_IDS.length + 1);
+});
+
+// ── 6. 降级阶梯第 2 级那一具（docs/36 D4）────────────────────────────────
+test('toPlaceholderGenome：槽位全换占位，其余一个字段都不动', () => {
+  const index = makeIndex();
+  const g = makeGenome(3, 2, index, { theme: 'donor' });
+  const p = toPlaceholderGenome(g);
+
+  assert.equal(Object.keys(p.slots).length, ALL_BONE_IDS.length + 1, '槽位不许少');
+  for (const [key, s] of Object.entries(p.slots)) {
+    assert.ok(s.partId.startsWith(PLACEHOLDER_PREFIX), `${key} 没换成占位：${s.partId}`);
+    assert.equal(s.materialRole, g.slots[key as keyof typeof g.slots].materialRole,
+      `${key} 的 materialRole 被改了 —— 降级要的是"画得出来"，不是换一具身体`);
+  }
+  assert.equal(p.theme, g.theme);
+  assert.equal(p.seed, g.seed);
+  assert.equal(p.tier, g.tier);
+  assert.deepEqual(p.materials, g.materials);
+  // 原来那一具不许被改（remorph 要拿它做 crossfade 的起点）
+  assert.ok(!g.slots.spine.partId.startsWith(PLACEHOLDER_PREFIX));
 });

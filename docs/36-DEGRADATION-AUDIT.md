@@ -48,8 +48,8 @@
 | 4 | **`parts.json` 缺失** | 把 `assets/parts/parts.json` 改名，`/?demo=1&debug=1&theme=porcelain&seed=777&tier=2&clip=jumpingjacks` | 照跑。`[library] parts.json 不可用 → 全程序化占位模式`。HUD：30 instances / **15k 面 / 11 draw**（有库时 30 / **85k** / 18）。画面是一具灰胶囊+方块拼的人 | **是** | ✅ 这条路是诚实的：一眼就知道不是成品 |
 | 5 | **单件 mesh 解不出来** | 把 `head.porcelain.{a,b}.glb` 写成 40 字节垃圾 | 只有头那一个槽位退回占位，其余 29 件照常（85k → 83k 面，draw 不变）。`[library] head.porcelain.a 加载失败 → 该槽位用占位几何` | **否** | ⚠️ 隔离正确，但**换了一颗头看起来只像换了一个设计**。单件失败大概本就该静默，只是要知道：现场没人会发现 |
 | 6 | **选择页无 GL → DOM 列表** | `/dev/choose.html?gl=off` | 26 行 DOM 列表列出、无 `.sb-ring`、点选/键盘照常 | 不适用（降级列表本身就是作品的一部分，`docs/23 §S2`） | ✅ 路径成立 |
-| 7 | **`?gl=off` 在正式程序上** | `/?gl=off&demo=1&nav=0`，读 DOM | **完全没有效果**：`.sb-ring` 照挂，`.sb-row` 为 0 | 不适用 | **❌ 见 D2** |
-| 8 | **连续出错降级阶梯** | `/dev/degrade.html` → 「注入每帧抛异常的 tick」 | 三级逐级触发：`nopost=true` → `placeholder=true` → `<html data-sb-degrade="reload">`，事件日志三条齐全 | 否 | ⚠️ **机制成立，正式程序里前两级是空转**，见 D4 |
+| 7 | **`?gl=off` 在正式程序上** | `/?gl=off&demo=1&nav=0`，读 DOM | **完全没有效果**：`.sb-ring` 照挂，`.sb-row` 为 0 | 不适用 | **❌ 见 D2 → ✅ 已修（2026-09-13）**：`.sb-ring` 0 / `.sb-row` 26 |
+| 8 | **连续出错降级阶梯** | `/dev/degrade.html` → 「注入每帧抛异常的 tick」 | 三级逐级触发：`nopost=true` → `placeholder=true` → `<html data-sb-degrade="reload">`，事件日志三条齐全 | 否 | ⚠️ **机制成立，正式程序里前两级是空转**，见 D4 → ✅ **已修（2026-09-13）**：正式程序上实测 171k 面 / 36 draw → 47k 面 / 28 draw |
 | 9 | **慢启动 / 慢网** | 第 5 行那次跑在四条并行任务的负载上，首屏等了 > 8 秒 | 加载态自己说了话：「**再等一下，网有点慢 / Hang on — the network is slow**」（`SLOW_MS = 8_000`，20 秒还有第二句） | **是** | ✅ 这是全表里做得最对的一条 |
 | 10 | **生产构建里没有慢回路** | preview 上 `/?demo=1&…`，读网络面板 | `GET /__slow/lineage?species=porcelain → 404`，快回路一帧不受影响 | 否（本来就该看不见） | ✅ 符合 `docs/10` 已有证据 |
 | 11 | **本地 MediaPipe 模型缺失 → CDN** | `/?selftest=1`（dev 与 preview 各一遍） | `assets/models/` **是空的**，两边都报 ⚠「本地没有模型 → 回落 Google CDN。断网就起不来」 | 否（自检页看得见） | ✅ 仪表诚实；**但这是一条现场真风险**，见 D5 |
@@ -128,6 +128,15 @@
 > 一个只在 dev 页上生效的开关，把"这条降级路径被跑过了"这句话
 > 说成了关于**正式程序**的结论 —— 而正式程序上那个参数什么都不做。
 
+**✅ 已闭（2026-09-13）。** 照 §5-② 原样做的：`Flags` 加 `gl`（`?gl=on|off`，
+认不出来的值按没写过处理并 warn），`main.ts` 那次 `chooseTheme({…})` 传
+`forceFallback: !flags.gl`，`choose/**` 的行为一行未动。
+正式程序上 A/B 实拍（dist + `vite preview`，headless Chrome，`navigator.gpu` 可用）：
+默认 `.sb-ring` **1** / `.sb-row` **0**；`?gl=off` 下 `.sb-ring` **0** / `.sb-row` **26**，
+控制台 `[choose] 环不可用，走 DOM 降级列表： forceFallback`。
+`choose.ts` 的文件头也改了 —— 它不再把一个 dev 页开关说成关于正式程序的证据。
+**第 14 / 15 两行（没有 WebGPU、环起不来）由此才第一次具备跑的条件，但本轮仍未跑**：
+
 ### D3 · dev server 上的 `?demo=1` 一直在放合成假数据（已修）⚠️
 
 `GET /demo/index.json` 在 dev server 上返回的是 **200 + `index.html`** ——
@@ -183,6 +192,30 @@ grep -rn "registerDegradeHandler" packages/app/dev   →  dev/degrade.ts 注册�
 `docs/10` 已经写了「舞台/creature 还没认领（要在 main.ts 收口时接）」—— 这一条没有被忘记，
 只是**从"待办"变成了"已经在现场跑着的现状"**，而现状这一侧没有人复述过。
 
+**✅ 已闭（2026-09-13）。** 照 §5-③ 做的：`src/shell/degrade-wire.ts` 把
+第 1 级接到 `stage.setPost(false)`（控件条「渲染」组按 `P` 的同一条路，**不是**翻 `flags.nopost`），
+第 2 级接到 `creature.remorph(toPlaceholderGenome(genome))`；`main.ts` 在 creature 建好之后
+调一次 `wireDegrade()`。另补一条上面没写到的：`morph()` 在已降级之后不再把真几何装回来 ——
+否则下一次升档会让**降级自己撤销自己**，而画面上看不出发生过什么。
+
+**这次不是在 dev 页上打绿的。** 正式程序（dist + `vite preview`）上注入了一次真的连续出错：
+用 CDP 把 `GPUCanvasContext.prototype.getCurrentTexture` 换成每帧抛异常，
+等前两级降完立刻还原让帧循环恢复，再读 HUD（`/?demo=1&debug=1&theme=porcelain&tier=2&seed=777&clip=jumpingjacks`）：
+
+| | 注入前 | 两级降完 |
+|---|---|---|
+| **接线之前** | 30 instances / **171k 面** / 36 draw | 30 instances / **171k 面** / 36 draw |
+| **接线之后** | 30 instances / **171k 面** / 36 draw | 33 instances / **47k 面** / 28 draw |
+
+接线之前那一列就是"空转"的读数：阶梯在控制台上说了「第 2 级：回落占位几何」，
+`<html data-sb-degrade=placeholder>` 也写上了，而画面上一个三角形都没变。
+接线之后 HUD 多出 `degraded 回落占位几何` 与 `errors 60`，控制台三级齐全
+（`连续 30/60/90 帧出错`），没有任何一条 `处理器自己炸了`。
+
+> 一句留给下一个人的边界：这条注入是从**外面**打进渲染路径的，不是自然发生的掉帧。
+> 「真机上因为发热/驱动掉到连续出错」这件事本轮仍然**没有**跑到 ——
+> 跑到的是"一次真的连续出错会不会真的有人接"，而那正是 D4 问的那个问题。
+
 ### D5 · `assets/models/` 是空的 ⚠️
 
 不是 bug，是一件开场前必须做的事，写在这里免得它继续只活在自检页的一行 ⚠ 里：
@@ -234,7 +267,7 @@ grep -rn "registerDegradeHandler" packages/app/dev   →  dev/degrade.ts 注册�
   那是对**渲染回落**说的 —— 画面照样成立，只是便宜一点。摄像头死掉不是同一件事：
   **作品这一刻没有在发生**，而观众恰好是唯一会在场的人。
 
-### ② 把 `?gl=off` 接到正式程序上 — `shell/kiosk.ts` + `main.ts`
+### ② 把 `?gl=off` 接到正式程序上 — `shell/kiosk.ts` + `main.ts` ✅ 已做（2026-09-13）
 
 针对 D2。两处，都很小：
 
@@ -247,7 +280,7 @@ grep -rn "registerDegradeHandler" packages/app/dev   →  dev/degrade.ts 注册�
 - 顺带解锁：接上之后，§3 里第 14 / 15 两行（没有 WebGPU、环起不来）
   才第一次具备在这台机器上跑的条件。
 
-### ③ 让降级阶梯的前两级真的有人接 — `main.ts` / `stage/**` / `creature/**`
+### ③ 让降级阶梯的前两级真的有人接 — `main.ts` / `stage/**` / `creature/**` ✅ 已做（2026-09-13）
 
 针对 D4。`docs/10` 里那句「要在 main.ts 收口时接」就是这件事：
 

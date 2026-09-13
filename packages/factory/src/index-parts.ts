@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { PARTS_DIR } from './ledger.ts';
 import { MATERIALS } from '../recipes/materials.ts';
-import { ROSTER } from '../recipes/roster.ts';
+import { isPublic, ROSTER } from '../recipes/roster.ts';
 import type { PartLibraryIndex, PartMeta } from '../../core/src/types.ts';
 
 export async function buildIndex(): Promise<PartLibraryIndex> {
@@ -35,12 +35,29 @@ export async function buildIndex(): Promise<PartLibraryIndex> {
   );
   const retired = parts.length - indexed.length;
 
+  /**
+   * `clearance` 门（docs/14 §2）在这里执行 —— 以前它**没有执行者**。
+   *
+   * 门的原话是「不该进公开构建」，而这一行写出来的 parts.json 就是进 dist 的
+   * 那一份：整个 ROSTER 原样抄进去，从来不问 `isPublic()`（docs/39 §3 的 clearance 一行）。
+   * 没出事只是因为唯一一个非 `own` 的条目正好没有件 —— 「没出事」不是「有门」。
+   *
+   * 对 `guest.founder` 还有第二层意思：它是一个**故意的空位**（docs/14 §2）。
+   * 空位应该**看得见地缺席**，而不是在档案页和计数里都在、点下去却是别的物种。
+   * 挡在这里，它就不在 parts.json 的条目表里，选择页与 `makeGenome` 同时看不到它。
+   */
+  const themes = ROSTER.filter((t) => {
+    const ok = isPublic(t);
+    if (!ok) console.log(`  clearance: ${t.id}（${t.clearance}）不进公开构建的条目表（docs/14 §2）`);
+    return ok;
+  });
+
   const index: PartLibraryIndex = {
     version: 1,
     generatedAt: new Date().toISOString(),
     units: 'meters',
     convention: { axis: '+Y', socketA: [0, 0, 0], socketB: [0, 1, 0], length: 1 },
-    themes: ROSTER.map((t) => ({
+    themes: themes.map((t) => ({
       id: t.id, kind: t.kind, name: t.name, nameEn: t.nameEn, tagline: t.tagline, taglineEn: t.taglineEn,
       palette: t.palette, source: t.source, axes: t.axes, coverage: t.coverage, base: t.base,
       bodyPlan: t.bodyPlan,
@@ -51,7 +68,7 @@ export async function buildIndex(): Promise<PartLibraryIndex> {
   writeFileSync(resolve(PARTS_DIR, 'parts.json'), JSON.stringify(index, null, 2));
   const bySlot = new Map<string, number>();
   for (const p of indexed) bySlot.set(p.slot, (bySlot.get(p.slot) ?? 0) + 1);
-  console.log(`parts.json: ${indexed.length} 件, ${MATERIALS.length} 材质, ${ROSTER.length} 条目`
+  console.log(`parts.json: ${indexed.length} 件, ${MATERIALS.length} 材质, ${themes.length}/${ROSTER.length} 条目（clearance 挡掉 ${ROSTER.length - themes.length}）`
     + (retired ? `（${[...realFamilies].sort().join(' / ')} 已整具换成真实网格，${retired} 件生成件留在盘上但不进索引）` : ''));
   console.log('每槽位:', [...bySlot.entries()].map(([k, v]) => `${k}=${v}`).join(' '));
   return index;

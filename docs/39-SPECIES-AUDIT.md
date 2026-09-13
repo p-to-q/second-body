@@ -53,15 +53,15 @@ headless Chrome（`--enable-unsafe-webgpu`），帧落在 `scratch/evidence/`（
 | `manipulator` | archetype · light | `column` | 6/6 | **勉强** | 桅杆 + 双臂读得出，但与 `screenface` 共用一个剪影，差别只有臂长与配色。`fig-manipulator.png` |
 | `autonomous` | archetype · light | `quadruped` | 5/6（spine 被 reject） | **名不副实** | 躯干（那块「汽车壳 + 激光雷达穹顶」）正是被 reject 的那一件，改借 `porcelain`；tagline 说「只是大了很多」，画面上它是四足里**最小最细**的一具。`fig-autonomous.png`、`lineup-quadruped.png` |
 | `field` | archetype · light | `swarm` | 0（程序化，本该如此） | **成立** | 1400 点跟着骨架走，站住聚成人形。这是上一轮修好的那一条，复核通过。`fig-field.png` |
-| `guest.founder` | guest · light | — | 0/6 | **不存在** | 索引里一件自有件都没有 → `makeGenome` 的名单里没有它 → `?theme=guest.founder` **静默渲染成 `porcelain`**（HUD 显示「瓷 · Porcelain」）。另：`clearance='public-figure'` 却已经写进 parts.json。`fig-guest.founder.png` |
+| `guest.founder` | guest · light | — | 0/6 | **不存在 → 明确缺席（2026-09-13）** | 索引里一件自有件都没有 → `makeGenome` 的名单里没有它 → `?theme=guest.founder` **静默渲染成 `porcelain`**（HUD 显示「瓷 · Porcelain」）。另：`clearance='public-figure'` 却已经写进 parts.json。`fig-guest.founder.png`。**已改**：`buildIndex()` 现在只写 `ROSTER.filter(isPublic)`，它整个不在 parts.json 的条目表里了 —— 一个故意的空位应当**看得见地缺席**（docs/14 §2） |
 | `char.dumpling` | character · light | `mass` | 6/6（不实例化） | **勉强 · 部分未核实** | 与 `coral`／`char.ghost` 同一具团块。比例未核实（§0.1）。`mass-char.dumpling.png` |
 | `char.ghost` | character · light | `mass` | 6/6（不实例化） | **勉强 · 部分未核实** | 同上。「半透明」在材质里没有落点，团块也不自发光。`mass-char.ghost.png` |
 | `char.paper` | character · light | `towering` | 6/6 | **成立** | 又高又薄，折面与硬边读得出来。`fig-char.paper.png` |
 | `char.idol` | character · light | `{head:1.35, limb:0.9}` | 6/6 | **勉强** | 手办比例的那个「大头」拿不到（§2.3），剩下的是一具配色更亮的人形。`fig-char.idol.png` |
 | `char.inflate` | character · light | 比例 | **1/6** | **名不副实** | 只生成了 `spine` 一件，其余九个槽位全借 `porcelain`：画面上是一具瓷的身体 + 一块悬空的深色头 + 被 `limb:0.55` 压成一条横杆的双臂。「被气撑起来」的封闭软体积一点没有。`fig-char.inflate.png` |
-| `char.diva` | character · light | `{kind:'towering', …}` | 0/6 | **不存在** | 同 `guest.founder`：`?theme=char.diva` 渲染出来的是 `porcelain`，连名字都是「瓷」。`fig-char.diva.png` |
+| `char.diva` | character · light | `{kind:'towering', …}` | 0/6 | **不存在 → 空壳（2026-09-13）** | 同 `guest.founder`：`?theme=char.diva` 渲染出来的是 `porcelain`，连名字都是「瓷」。`fig-char.diva.png`。**已改**：不再换物种 —— `?theme=char.diva` 现在**就是** `char.diva`，全部槽位沿 base 链（`char.ghost`）借件并 warn 一行；选择页把它挡在轮播外。**它仍然是一个只剩配色的物种**，生成与否是 §4 第 1 条那个裁定 |
 | `char.line` | character · light | `{kind:'stub', head:2.1, …}` | 5/6（head 被 reject） | **名不副实（形体）· 成立（表面）** | 描边着色是真的在工作（§I 说对了一半：它的身份确实住在表面）。但「几乎只有一个头」三重落空：spec 被 `stub` 丢掉、`head` 系数对 uniform 槽位无效、它自己的头件被 reject 后借的是**团子的头**。`fig-char.line.png` |
-| `guest.keynote` | **character** · light | — | 0/6 | **不存在** | 渲染出来是 `porcelain`。另有一处名实不符：id 前缀是 `guest.`，`kind` 却是 `character` —— 档案页按 kind 分组，它会出现在「角色」里。`fig-guest.keynote.png` |
+| `guest.keynote` | **character** · light | — | 0/6 | **不存在 → 空壳（2026-09-13）** | 渲染出来是 `porcelain`。另有一处名实不符：id 前缀是 `guest.`，`kind` 却是 `character` —— 档案页按 kind 分组，它会出现在「角色」里。`fig-guest.keynote.png`。**已改**：同 `char.diva`（base 是 `porcelain`）。id 与 kind 的那处名实不符**没动**，它是 §4 第 7 条 |
 | `char.tokusatsu` | character · light | 比例 | 6/6（借 `industrial`） | **勉强** | 「镀铬 + 三原色」是一条**材质**轴，而材质库里没有它：渲染出来是配色偏暖的人形。`lineup-humanoid.png` |
 | `char.painting` | character · light | 比例 | 6/6 | **勉强偏成立** | 躯干那件的垂坠褶读得出来，是「比例组」里唯一自己承担了辨识度的一条。`lineup-humanoid.png` |
 
@@ -85,6 +85,31 @@ const theme = opt.theme && themes.includes(opt.theme) ? opt.theme : rng.pick(the
 这不是「缺素材」那一类问题。缺素材的表现应该是**借件**（base 链本来就为此存在）；
 这里的表现是**换物种**。`figure.ts` 已经为 `field` 单独打过一个补丁并在注释里写明
 「`main.ts` 那边根本没有这条过滤」—— 那条注释说的正是这三条今天还在的处境。
+
+**✅ 已闭（2026-09-13）。修在源头，不是修这三条。**
+
+`makeGenome` 里那一行被拆成 `resolveTheme()`，三种情况各有一个不一样的读数：
+
+| 点名的是 | 以前 | 现在 |
+|---|---|---|
+| 有自有件的条目 | 就是它 | 就是它（一字未改） |
+| **声明过但零自有件** | **静默换成另一个物种** | **仍然是它**：身份留着，槽位沿 base 链借，并 `console.warn` 一行 |
+| 索引里没有的 id | 静默随机 | 随机，并 `console.warn` 一行 |
+
+随机那一支仍然只从**有自有件**的名单里抽 —— 自动挑身体不该挑到一个空条目。
+于是「缺素材」重新表现为**借件**（base 链本来就是为这件事存在的），而不是换物种；
+HUD 上的名字从此是观众点的那一个。
+
+选择页那一侧同时收紧：上场判据拆到 `choose/wearable.ts`，并拿掉了
+「∪ 有 anchor 图的」那一条 —— anchor 图是一张参考渲染，不是一件可以穿的零件。
+**今天的真索引上这一改一个条目都没多没少**（26 张卡；这三条本来就因为没有 anchor 图
+而没进轮播）。它防的是下一次：谁给一个零自有件的条目补一张 anchor 图，
+它立刻进轮播，而装配那一侧一件自有件都没有。
+`packages/app/test/choose-wearable.test.ts` 拿真的 parts.json 钉住那条一致性命题：
+**上场的每一个条目，`makeGenome` 在 tier 1/2/3 下都装配成它自己。**
+
+> 仍然**没做**的那一半：`char.diva` 与 `guest.keynote` 现在是「空壳物种」——
+> 不再骗人，但画面上仍然只剩配色。生成还是撤掉是 §4 第 1 条的裁定，不是工程决定。
 
 ### 2.2 `bodyPlan` 的比例字段被 `stub` / `towering` 丢掉
 
@@ -143,6 +168,9 @@ const theme = opt.theme && themes.includes(opt.theme) ? opt.theme : rng.pick(the
 `axisLength`（脚长由骨长算，`tuning.ts` 的 `FOOT`），横向又被 girth 归一化回
 `SLOT_WIDTH.foot` —— 两个方向都把 `localGirth` 除干净了，**它对成品没有影响**。
 所以新加的检查**不查 foot**，理由写在代码里；§H 的那句话该跟着改（§3 第 6 条）。
+**✅ 已改文档（2026-09-13，§4 第 6 条裁定为「改文档不改代码」）**：`docs/26 §H` 的
+uniform 名单从五个改成四个（`head` / `spine` / `hand` / `joint`），并在 §H 末尾留了一段
+写明这句话当年为什么是对的、`FOOT` 落地之后为什么不再对。代码一行未动 —— 它是对的，而且有测试。
 
 ## 3. P21：哪些坏法，现有的仪表一条都看不见
 
@@ -157,9 +185,9 @@ const theme = opt.theme && themes.includes(opt.theme) ? opt.theme : rng.pick(the
 |---|---|---|
 | uniform 槽位 girth 带 | 这件东西被 uniform 放大之后还是原来那个比例吗（§H） | 3（中位数**每次现算**，不写死 —— P21 第 2 条） |
 | `stub` / `towering` 丢比例 | 条目声明的身材，是不是运行时真的那一具 | 3 |
-| 零自有件 | 点这个物种，`makeGenome` 会不会静默换成别的 | 3 |
+| 零自有件 | 点这个物种，`makeGenome` 会不会静默换成别的 | 3 → **2**（2026-09-13：不再是静默换种，`guest.founder` 也不在条目表里了；剩下两条问的是「它在画面上是不是只剩配色」） |
 | `coverage` 兑现 | `light` 说好的 6 个标志性槽位，实际还剩几个 | 5 |
-| `clearance` 门 | 不该进公开构建的条目，是不是已经在 parts.json 里了 | 1 |
+| `clearance` 门 | 不该进公开构建的条目，是不是已经在 parts.json 里了 | 1 → **0**（2026-09-13：门移进 `buildIndex()`，这条降级成第二道闸，应当永远不响） |
 
 它们**全部是警告，不是错误** —— 每一条背后都是一个策展决定（§4），
 在人做出决定之前把合并门变红，只会让人去关掉这个门。
@@ -193,6 +221,17 @@ const theme = opt.theme && themes.includes(opt.theme) ? opt.theme : rng.pick(the
    现状是第三种，也是最坏的一种 —— 它们在档案页和数字上都在，在画面上是瓷。
    三条各 3 credits。`guest.founder` 是**故意的空位**（`docs/14 §2` 写明），
    那么它至少应该在选择页上明确地缺席，而不是静默变成别的物种。
+
+   **2026-09-13：最坏的那一半已经拆掉，裁定本身还在这里等。**
+   `guest.founder` 按 `clearance` 挡在 parts.json 之外（明确缺席，不再是静默替换）；
+   另外两条不再换物种、也不进轮播，但仍然是空壳。**生成它们要什么**：
+   两条都是 `coverage: 'light'` = 6 个标志性槽位 × 1 变体 = **各 3 credits，合 6**，
+   跑 `factory:generate` → `factory:normalize` → `factory:compress` → `factory:index`
+   （两条的 `look` 都已经写好了，在 `recipes/invited.ts` 里，不用再想造型）。
+   生成之后它们**自己就会出现在轮播里** —— 上场判据读的就是「库里有没有自有件」。
+   两件顺带要知道的事：`char.diva` 的 `{kind:'towering', …}` 比例仍然会被 §2.2 丢掉，
+   而 `guest.keynote` 要的「针织」在材质库里没有落点（§3 第 4 条）——
+   花了这 6 credits，它们大概率还是落在「勉强」那一档。
 2. **`char.inflate` 补齐 5 件（3 credits），还是改成 `mass`？**
    它的技术轴是「封闭的软体积」—— 那正是 `mass` 在做的事。
    改 `mass` 零成本，但会作废它已经花过的那一件 `spine`。
@@ -208,6 +247,7 @@ const theme = opt.theme && themes.includes(opt.theme) ? opt.theme : rng.pick(the
    `spine.coral.a`（0.63×）当前不实例化，可以先放着。
 6. **§H 的 uniform 名单要不要把 `foot` 去掉。** 规格与代码已经分岔（§2.5），
    两者必有一处要改。我倾向改文档，因为 `FOOT` 那组数是后加的、而且更准。
+   **✅ 已裁定并执行（2026-09-13）：改文档，不改代码。** 见 `docs/26 §H` 末尾那一段。
 7. **`guest.keynote` 的 id 与 kind。** 它是 `character`，id 却是 `guest.`。
    `invited.ts` 的理由（站上去的是那身衣服，不是某个人）我认为成立，
    那么 id 应该跟着改成 `char.keynote` —— 但改 id 会让已经发出去的 seed 码对不上。

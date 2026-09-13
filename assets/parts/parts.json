@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-09-13T09:11:19.182Z",
+  "generatedAt": "2026-09-13T12:37:46.564Z",
   "units": "meters",
   "convention": {
     "axis": "+Y",
@@ -440,26 +440,6 @@
       },
       "coverage": "light",
       "bodyPlan": "swarm"
-    },
-    {
-      "id": "guest.founder",
-      "kind": "guest",
-      "name": "创始人",
-      "nameEn": "The Founder",
-      "tagline": "（空位）把一个真实的人穿在身上",
-      "taglineEn": "(vacant) Wear a real person",
-      "palette": [
-        "matte.bone",
-        "metal.graphite",
-        "ceramic.pearl"
-      ],
-      "source": "rodin",
-      "axes": {
-        "humanLike": 1,
-        "lifeLike": 0.9
-      },
-      "coverage": "light",
-      "base": "porcelain"
     },
     {
       "id": "char.dumpling",

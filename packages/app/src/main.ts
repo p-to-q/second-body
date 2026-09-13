@@ -17,7 +17,7 @@ import { createMotion } from '../../core/src/motion.ts';
 import { createEvolution } from '../../core/src/evolution.ts';
 import { createPresence } from '../../core/src/presence.ts';
 import { arcPresent, createArc, type ArcState } from '../../core/src/arc.ts';
-import { makeGenome } from '../../core/src/genome.ts';
+import { makeGenome, toPlaceholderGenome } from '../../core/src/genome.ts';
 import { blendSkeletons, remapSkeleton, type BodyPlan } from '../../core/src/bodyplan.ts';
 import { mulberry32 } from '../../core/src/rng.ts';
 import { CAPTURE, NASCENT, REFINE, STAGE } from '../../core/src/tuning.ts';
@@ -35,6 +35,8 @@ import { createStage } from './stage/stage.ts';
 import { contactPoints } from './stage/framing.ts';
 import { chooseTheme, themeFromUrl } from './choose/choose.ts';
 import { createFrameLoop } from './shell/safe-frame.ts';
+import { wireDegrade } from './shell/degrade-wire.ts';
+import { getDegradeState } from './shell/degrade.ts';
 import { showBootError } from './shell/boot-error.ts';
 import { createSlowLoop } from './slow/slow.ts';
 import { enterKiosk, readFlags } from './shell/kiosk.ts';
@@ -204,6 +206,10 @@ async function boot(): Promise<void> {
         onProgress: (n, total) => loading.progress(
           'parts', PARTS_INDEX_SHARE + (1 - PARTS_INDEX_SHARE) * (total ? n / total : 1),
         ),
+        // `?gl=off` —— 强制走无 WebGL 的 DOM 列表。在这之前这个参数只接在
+        // `/dev/choose.html` 上，而 `choose.ts` 的文件头拿它当"这条降级路径跑过了"
+        // 的证据：那是一句关于**正式程序**的话，而正式程序上它什么都不做（docs/36 D2）。
+        forceFallback: !flags.gl,
       }).then((handle) => {
         // 选择页已经在屏幕上了 —— 观众有事可做，加载态立刻让位。
         // 剩下的预取在后面继续跑，但它不该再挡着任何人。
@@ -445,6 +451,27 @@ async function boot(): Promise<void> {
   let note = '';
   let elapsedT = 0;
 
+  /**
+   * ── 降级阶梯的前两级，在这里才第一次有人接（docs/36 D4）────────────────
+   *
+   * 机制一直在（`shell/degrade.ts`），动作一直没有：`registerDegradeHandler`
+   * 在 `packages/app/src` 里零个调用者，正式程序的阶梯实际是
+   * **空转 → 空转 → 重载**，而 `/dev/degrade.html` 把三级全打绿了 ——
+   * 因为那一页注册的是它自己的三个处理器。
+   *
+   * 第 1 级走 `stage.setPost(false)`，也就是控件条「渲染」那一组按 `P` 的同一条路；
+   * **不是**翻 `flags.nopost`（`createStage()` 开机读一次就不再读了）。
+   * 第 2 级把整具换成占位几何 —— 丑，但一定画得出来（AGENTS.md 不变量）。
+   */
+  wireDegrade({
+    setPost: (on) => stage.setPost(on),
+    toPlaceholder: () => {
+      // 团块 / 点场没有槽位件，也就没有"换回占位几何"这回事；还没成型时同理。
+      if (isMass || isSwarm || !creature.genome) return;
+      creature.remorph(toPlaceholderGenome(creature.genome));
+    },
+  });
+
   const morph = (t?: Tier) => {
     if (t !== undefined) tier = t;
     // 团块没有槽位件可换 —— 它的"演化"由 tier 驱动的表面参数表达，不是换装。
@@ -453,7 +480,10 @@ async function boot(): Promise<void> {
     // tier 0 一件部件都没有（parts.json 里 tier 0 的件数是 0），有开场形态接着的时候
     // remorph 只会白建 30 个占位实例然后被团块盖住 —— 那 30 个实例正是这次要拿掉的东西。
     if (!nascent || tier >= 1) {
-      creature.remorph(makeGenome(seed, tier, library.index, { theme: theme ?? undefined, rejected: library.rejected }));
+      const g = makeGenome(seed, tier, library.index, { theme: theme ?? undefined, rejected: library.rejected });
+      // 已经降到第 2 级之后，升档不许把真几何再装回来 —— 那会让降级**自己撤销自己**，
+      // 而画面上看不出发生过什么（docs/36 D4）。降级是单向的，只有重载能回头。
+      creature.remorph(getDegradeState().placeholder ? toPlaceholderGenome(g) : g);
     }
   };
   morph(tier);

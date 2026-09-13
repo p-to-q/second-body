@@ -9,7 +9,7 @@
  *  - `opt.rejected` 里的 id 绝不会出现在任何槽位上；但它**不改变可选物种名单** ——
  *    策展否掉的是「这一件」，不是「这个物种」。见下面两个池子 inTier / usable。
  */
-import type { Genome, MaterialRole, PartLibraryIndex, PartMeta, SlotKey, Tier } from './types.ts';
+import type { Genome, MaterialRole, PartLibraryIndex, PartMeta, Rng, SlotKey, Tier } from './types.ts';
 import { mulberry32 } from './rng.ts';
 import { ALL_BONE_IDS, SLOT_OF_BONE } from './slots.ts';
 import { MORPH } from './tuning.ts';
@@ -49,6 +49,56 @@ export interface GenomeOptions {
   rejected?: ReadonlySet<string>;
 }
 
+/** 同一个条目只喊一次 —— `makeGenome` 每次升档都会被调一遍 */
+const warnedEmptyTheme = new Set<string>();
+const warnedUnknownTheme = new Set<string>();
+
+/**
+ * 点名的那个物种，到底给谁。
+ *
+ * 以前这里只有一行 `themes.includes(opt.theme) ? opt.theme : rng.pick(themes)`，
+ * 而 `themes` 是**部件的 family** 推出来的名单。于是一个一件自有件都没有的条目
+ * （`char.diva` / `guest.keynote` / `guest.founder`）会落进 else 分支，
+ * **静默变成另一个物种**：HUD 上的名字、配色、剪影全是别人的，没有任何一处说过话
+ * （docs/39 §2.1）。缺素材本该表现为**借件** —— base 链就是为这件事存在的 ——
+ * 而不是换物种。这两件事在画面上完全不同，在代码里以前是同一条路。
+ *
+ * 现在分成三种，每一种都有一个和别的不一样的读数（docs/02 P21）：
+ *
+ *   1. 点名的条目有自有件           → 就是它（绝大多数情况，一字未改）
+ *   2. 点名的条目**声明过但没有件** → **仍然是它**：身份留着，槽位沿 base 链借，
+ *                                     并喊一声。画面读作"零件还没长齐"，不是"换了个物种"
+ *   3. 点名的是一个不存在的 id       → 只有这一种才回到随机，并且喊一声
+ *
+ * 随机那一支仍然只从**有自有件**的名单里抽 —— 自动挑身体时不该挑到一个空条目。
+ */
+function resolveTheme(
+  want: string | undefined,
+  themes: string[],
+  declared: ReadonlySet<string>,
+  rng: Rng,
+): string {
+  if (want && themes.includes(want)) return want;
+  if (want && declared.has(want)) {
+    if (!warnedEmptyTheme.has(want)) {
+      warnedEmptyTheme.add(want);
+      console.warn(`[genome] ${want}: 一件自有件都没有 —— 保留物种身份，全部槽位沿 base 链借件`);
+    }
+    return want;
+  }
+  if (want && !warnedUnknownTheme.has(want)) {
+    warnedUnknownTheme.add(want);
+    console.warn(`[genome] ${want}: 索引里没有这个条目 —— 随机挑一个有件的物种`);
+  }
+  return themes.length ? rng.pick(themes) : (want ?? 'placeholder');
+}
+
+/** 测试用：清掉"同一个条目只喊一次"的记忆 */
+export function resetGenomeWarnings(): void {
+  warnedEmptyTheme.clear();
+  warnedUnknownTheme.clear();
+}
+
 export function makeGenome(
   seed: number,
   tier: Tier,
@@ -69,9 +119,10 @@ export function makeGenome(
 
   // 1. 主题（名单 = inTier，所以加不加 rejected，可选物种集合一模一样）
   const themes = [...new Set(inTier.map((p) => p.family))].sort();
-  const theme = opt.theme && themes.includes(opt.theme)
-    ? opt.theme
-    : (themes.length ? rng.pick(themes) : (opt.theme ?? 'placeholder'));
+  // 索引里**声明过**的条目 —— 包括一件自有件都没有的那些。
+  // 名单（随机抽谁）和身份（点名要谁）是两件事，见下面 resolveTheme 的注释。
+  const declared = new Set((index.themes ?? []).map((t) => t.id));
+  const theme = resolveTheme(opt.theme, themes, declared, rng);
 
   // 2. 逐槽位抽件
   const keys: SlotKey[] = [...ALL_BONE_IDS, 'joint'];
@@ -134,4 +185,23 @@ export function makeGenome(
     slots,
     materials: { primary: picked[0], secondary: picked[1], accent: picked[2] },
   };
+}
+
+/**
+ * 把一具已经成型的 Genome 整具换成占位几何 —— 降级阶梯第 2 级的那个动作（docs/36 D4）。
+ *
+ * 只换 `partId`，材质与 seed/tier/theme 一律留着：降级要的是"一定画得出来"，
+ * 不是"变成另一具身体"。占位 id 走的是 `library.geometry()` 里已经存在的那条路
+ * （`placeholder:<slot>` → 程序化几何），所以这一侧不需要任何新能力。
+ */
+export function toPlaceholderGenome(g: Genome): Genome {
+  const slots = {} as Genome['slots'];
+  for (const key of [...ALL_BONE_IDS, 'joint'] as SlotKey[]) {
+    const prev = g.slots?.[key];
+    slots[key] = {
+      partId: PLACEHOLDER_PREFIX + slotOfKey(key),
+      materialRole: prev?.materialRole ?? roleOf(key),
+    };
+  }
+  return { ...g, slots };
 }
