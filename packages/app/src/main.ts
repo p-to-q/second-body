@@ -397,6 +397,10 @@ async function boot(): Promise<void> {
         instances: (s as { instances?: number }).instances ?? 0, triangles: s.triangles,
         drawCalls: s.drawCalls, inferenceHz: capture.fps,
         act: director.currentId ?? '—',
+        // `camera` 只有 `WebcamCapture` 有（回放没有摄像头可选），所以按可选字段读 ——
+        // 和上面 `instances` 同一个写法，不为一个显示字段去动 `Capture` 契约。
+        cam: (capture as { camera?: { hud: string } | null }).camera?.hud,
+        camFallback: (capture as { camera?: { why: string } | null }).camera?.why === 'fallback',
         // 精化的三个数挂在 note 上而不是扩 HudCounts：它们只在调参时看，
         // 不值得为此动一个被所有页面共用的契约。
         note: [

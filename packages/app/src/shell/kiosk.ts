@@ -2,6 +2,7 @@
  * 现场外壳：全屏、藏鼠标、防休眠、无人降帧、context lost 自愈、URL 开关。
  * P10 现场优先 —— 启动 = 打开一个 URL，不需要在终端敲第二条命令。
  */
+import { isCamFlag } from '../capture/camera-select.ts';
 import { isShadingId, type ShadingId } from '../creature/shading.ts';
 import { getDegradeState } from './degrade.ts';
 import { noteActivity } from './idle.ts';
@@ -46,7 +47,15 @@ export interface Flags {
    * 留这个开关的理由和 `?refine=` 一样：描边是这一批里唯一**改变物种长相**的渲染开关，
    * 「它到底该不该有这圈线」必须能当场 A/B，而不是回滚一次构建再看。
    */
-  shading: ShadingId | null;}
+  shading: ShadingId | null;
+  /**
+   * ?cam=1 或 ?cam=<deviceId 前缀>  选摄像头（`capture/camera-select.ts`）。
+   * null = 不指定，交给浏览器挑。
+   * 现场是一台外接对着观众、一台内置对着墙，而浏览器默认挑哪台跟这件事无关。
+   * 两种写法各自服务于一个人：序号给站在现场一台台试的人，deviceId 给开机脚本
+   * （唯一可复现的写法）。认不出来的值一律 null —— 规矩和 `?shading=` 一样。
+   */
+  cam: string | null;}
 
 /** MediaPipe 的三个 PoseLandmarker 档位。精度/延迟的实测差异见 docs/24 §3 */
 export type PoseModel = 'lite' | 'full' | 'heavy';
@@ -94,7 +103,11 @@ export function readFlags(search = location.search): Flags {
     nav: q.get('nav') !== '0' && q.get('kiosk') !== '1',
     // 认不出来就是 null（和 ?model= 同一条规矩）：手滑写 ?shading=cartoon
     // 不该静默退回物种默认，那样"我明明写了参数"和"参数没生效"分不开
-    shading: isShadingId(q.get('shading')) ? (q.get('shading') as ShadingId) : null,  };
+    shading: isShadingId(q.get('shading')) ? (q.get('shading') as ShadingId) : null,
+    // 认不出来（?cam=1.5 / ?cam=-1 / ?cam=前面那台）就是 null = 当没写过。
+    // "那台不在" 不在这里判 —— 这里没有设备表，而且那是另一种错：
+    // 它要的是现场看得见的大声回落，不是静默的 null（见 camera-select.ts 文件头）。
+    cam: isCamFlag(q.get('cam')) ? q.get('cam')!.trim() : null,  };
 }
 
 /** 防止 macOS 在无人交互时息屏 —— 装置会在这上面吃大亏 */

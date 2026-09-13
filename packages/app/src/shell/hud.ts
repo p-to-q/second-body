@@ -10,6 +10,17 @@ export interface HudCounts {
   instances: number; triangles: number; drawCalls: number; inferenceHz: number;
   /** 当前玩法（docs/16）与它想说的一句话 */
   act?: string; note?: string;
+  /**
+   * 现在实际开着哪一台摄像头（`capture/camera-select.ts` 的 `CamStatus.hud`）。
+   * 之所以非要占 HUD 一行：`?cam=` 没有它就是个没人敢用的参数 —— 没人知道 `1` 是谁。
+   */
+  cam?: string;
+  /**
+   * 上面那一行是不是"跑在不是你要的那台上"。红的。
+   * 这件作品最贵的一种失败是安静地对着一面墙演一整晚（P21），
+   * 所以回落必须在仪表上和一切正常时长得**不一样**。
+   */
+  camFallback?: boolean;
 }
 
 export function createHud(): { update(s: FrameStats, c: Partial<HudCounts>): void; dispose(): void } {
@@ -35,6 +46,7 @@ export function createHud(): { update(s: FrameStats, c: Partial<HudCounts>): voi
         row('tris', (c.triangles ?? 0) / 1000, BUDGET.maxTriangles / 1000, ' k'),
         row('draws', c.drawCalls ?? 0, BUDGET.maxDrawCalls),
         row('infer', c.inferenceHz ?? 0, 30, ' Hz', true),
+        c.cam ? `<span style="color:${c.camFallback ? '#e0455a' : '#9aa'}">cam        ${c.camFallback ? '⚠ ' : ''}${c.cam}</span>` : '',
         c.act ? `<span style="color:#7fb3d5">act        ${c.act}${c.note ? '  ' + c.note : ''}</span>` : '',
         s.throttled ? '<span style="color:#e8a33d">idle       无人降帧中</span>' : '',
         s.degraded ? `<span style="color:#e0455a">degraded   ${label(s.degraded)}</span>` : '',
