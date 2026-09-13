@@ -590,7 +590,11 @@ const CSS = `
 .sb-name .sb-en{font-size:var(--sb-size-small);font-weight:var(--sb-weight-body);
   letter-spacing:var(--sb-tracking-label);color:var(--sb-ink-dim);text-transform:uppercase}
 .sb-tag{color:var(--sb-ink-dim);margin-top:0.25em}
-.sb-kind{margin-top:0.4em;font-family:var(--sb-mono);font-size:var(--sb-size-small);
+/* 物种的出身（character / guest）。只有一部分条目有，所以它**必须常占位**：
+   这一块是底部锚定的（.sb-hud 贴着 bottom），多出一行会把上面整块顶上去，
+   于是名字和介绍的位置随着"这一个恰好是不是角色"上下跳。
+   上面那三行的位置是固定的 —— 那是名牌，不是列表。min-height 就是那句话的实现。 */
+.sb-kind{margin-top:0.4em;min-height:1.4em;font-family:var(--sb-mono);font-size:var(--sb-size-small);
   letter-spacing:var(--sb-tracking-label);text-transform:uppercase;color:var(--sb-ink-dim);opacity:.7}
 /* 一句话。正文字体 —— 它是说给人听的，不是标注 */
 .sb-hint{position:absolute;right:var(--sb-safe);bottom:calc(var(--sb-safe) + 2.2em);text-align:right;

@@ -274,8 +274,14 @@ html.font-system { --sb-grotesk: "Helvetica Neue", Helvetica, Arial, system-ui, 
  */
 .sb-zh { display: block; color: var(--sb-ink); }
 /* 补在**汉字**上，不是补在"中文那一行"上。`sb-cjk` 由 `setBi()` 按内容打，
-   理由写在那个函数的注释里：作品名那一对是倒置的，承重行里装的是拉丁字母。 */
-.sb-cjk { margin-left: -0.06em; }
+   理由写在那个函数的注释里：作品名那一对是倒置的，承重行里装的是拉丁字母。
+
+   **0.045 是量出来的，不是取整取上去的。** 上一版写 0.06，注释说"取大一点
+   让大字号也够" —— 那是反的：这个量用 em，本来就跟着字号缩放，取大只会在
+   大字号上过冲。实测 canvas `actualBoundingBoxLeft`：30px 的汉字是 1.35px
+   （= 0.045em），13px 的拉丁是 0.16px。补 0.06em 时同一块名牌里
+   四行墨迹散 0.73px，且最大的那一行凸得最多；补 0.045em 之后落进 0.1px。 */
+.sb-cjk { margin-left: -0.045em; }
 .sb-en {
   display: block;
   color: var(--sb-ink-dim);
