@@ -35,6 +35,7 @@
  */
 import { COPY, setBi } from '../ui/i18n.ts';
 import { acquireRingField } from '../choose/ring/field.ts';
+import { holdFirstScreen } from '../choose/ring/first-screen.ts';
 import type { Flags } from './kiosk.ts';
 import '../ui/type.css';
 import './entry.css';
@@ -81,6 +82,9 @@ export function mountEntry(flags: Flags): Entry | null {
   const layer = document.createElement('div');
   layer.className = 'sb-entry';
 
+  // 展签自己也要白底黑字 —— 哪怕场起不来（那时它就是一块纯白的展签）
+  const releaseFirstScreen = holdFirstScreen();
+
   // 场先挂上：种子在展签背后出生。这一步是同步的，WebGPU 的初始化在背后跑；
   // 起不来就把 has-field 摘掉，退回纯色底（P3：每条降级路径都必须存在）。
   const field = acquireRingField();
@@ -124,6 +128,9 @@ export function mountEntry(flags: Flags): Entry | null {
       // 在那之前观众看到的还是那一团在转，而不是一圈空白卡。
       field.play();
       dismiss(layer);
+      // 展签这一份还回去。环和选择页还各自 hold 着，所以底色不会在这里翻 ——
+      // 只有深链（`?theme=`，选择页根本不挂）那一条会一路还到 0，那是对的。
+      releaseFirstScreen();
       resolve();
     }, { once: true });
   });

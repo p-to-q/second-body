@@ -35,7 +35,10 @@ export interface Atlas {
   dispose(): void;
 }
 
-export function createAtlas(capacity: number): Atlas {
+/**
+ * @param paper 空格子填什么色。**必须是页面底色** —— 见下面那段注释
+ */
+export function createAtlas(capacity: number, paper: string): Atlas {
   const cols = Math.max(1, Math.ceil(Math.sqrt(capacity)));
   const rows = Math.max(1, Math.ceil(capacity / cols));
 
@@ -44,11 +47,18 @@ export function createAtlas(capacity: number): Atlas {
   canvas.height = rows * CELL_H;
   const ctx = canvas.getContext('2d')!;
   // 空格子不能是透明的：着色器夹紧 uv 之后仍可能取到格子最边上的那一列，
-  // 透明会读成一个黑洞。填成页面底色，读起来就只是"那里没有卡"。
-  ctx.fillStyle = '#0e0f12';
+  // 透明会读成一个洞。填成页面底色，读起来就只是"那里没有卡"。
+  ctx.fillStyle = paper;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const texture = new THREE.CanvasTexture(canvas);
+  /**
+   * **不翻。** 默认 `flipY = true` 会把整张图集上下翻过来，于是 uv 的第 0 行
+   * 取到的是画布**最后**一行格子 —— 卡片全体错位一整排，而第 0 张卡取到的是
+   * 一格从来没画过的空白：它照样被画出来、剪影和丝都在，只是颜色恰好等于底色，
+   * 于是"正面那张卡不见了"。查了两个小时，就差这一行（上游 atlas.js:42 写了）。
+   */
+  texture.flipY = false;
   texture.colorSpace = THREE.SRGBColorSpace;
   // 不生成 mipmap 是**故意的**：相邻两个像素可能落在图集的不同格子上，
   // 那一步的导数会让自动 mip 选到最粗的一层，于是格子边界上出现一圈糊。

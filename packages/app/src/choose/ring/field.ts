@@ -39,6 +39,7 @@
 import * as THREE from 'three/webgpu';
 import { RING } from '../../../../core/src/tuning.ts';
 import { CELL_ASPECT, createAtlas } from './atlas.ts';
+import { holdFirstScreen } from './first-screen.ts';
 import { MAX_LINKS, MAX_PLANES, createRingMaterial, createRingUniforms } from './sdf.ts';
 
 const TAU = Math.PI * 2;
@@ -143,7 +144,22 @@ export interface RingField {
     ring: { r: number; cx: number; cy: number };
     /** 静止间距：两张相邻卡的面之间还剩多少 px。**丝的全部量程就是它** */
     gap: number;
+    /** 正面那张卡此刻**交给着色器的那几个数** —— 排查"它明明该在屏幕中央却看不见" */
+    front: { plane: number; cell: number; x: number; y: number; sx: number; sy: number };
     state: RingState;
+  };
+  /**
+   * 里面那几个 three 对象。**只给排查用**（上游那个移植版也留了同名的口子）：
+   * 这个场没有"半对"的状态 —— 它要么画对，要么画出一片底色，
+   * 而一片底色可能是几何、uniform、着色器里的任何一处。有它才能把
+   * `renderer.debug.getShaderAsync()` 生成的 WGSL 拉出来对着读。
+   */
+  readonly internals: {
+    renderer: THREE.WebGPURenderer | null;
+    scene: THREE.Scene;
+    camera: THREE.OrthographicCamera;
+    mesh: THREE.Mesh;
+    uniforms: ReturnType<typeof createRingUniforms>['u'];
   };
   /** 这一页真正在用的 handler，choose.ts 挂上来 */
   on(options: FieldOptions): void;
@@ -168,19 +184,11 @@ export function ringFieldAlive(): boolean {
   return singleton !== null;
 }
 
-const CANVAS_CSS = `
-.sb-ring{position:fixed;inset:0;width:100%;height:100%;display:block;z-index:1;
-  background:var(--sb-paper)}
-.sb-ring.is-gone{opacity:0;transition:opacity 180ms cubic-bezier(.4,0,1,1)}
-`;
+
 
 function createRingField(initial: FieldOptions): RingField {
-  if (!document.getElementById('sb-ring-css')) {
-    const style = document.createElement('style');
-    style.id = 'sb-ring-css';
-    style.textContent = CANVAS_CSS;
-    document.head.appendChild(style);
-  }
+  // 要在读颜色之前 hold —— 下面 readVar() 读的就是它翻过来之后的值
+  const releaseFirstScreen = holdFirstScreen();
 
   const canvas = document.createElement('canvas');
   canvas.className = 'sb-ring';
@@ -215,7 +223,9 @@ function createRingField(initial: FieldOptions): RingField {
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -100, 100);
   // 图集在卡片到货之前就已经开好（空的）：贴图必须从第一帧起就绑在节点树上，
   // 否则卡片到货时材质要重建 = 重新编译管线 = 展签背后那一团当场卡一下。
-  const atlas = createAtlas(MAX_PLANES);
+  const paperCss = getComputedStyle(document.documentElement)
+    .getPropertyValue('--sb-paper').trim() || '#fafafa';
+  const atlas = createAtlas(MAX_PLANES, paperCss);
   (u.grid.value as THREE.Vector2).copy(atlas.grid);
   const cardAspect = CELL_ASPECT;
   const material = createRingMaterial(u, atlas.texture);
@@ -236,10 +246,11 @@ function createRingField(initial: FieldOptions): RingField {
     scratch.setStyle(css || fallback);
     into.set(scratch.r, scratch.g, scratch.b);
   };
-  readVar('--sb-paper', '#0e0f12', u.page.value);
-  // 无图阶段（展签背后那一团）用的颜色：底色和字色之间偏底色的一档。
-  // 它此刻要说的只是"这里有一个东西"，不是"这里有一张图"。
-  readVar('--sb-rule', '#2a3038', u.color.value);
+  readVar('--sb-paper', '#fafafa', u.page.value);
+  // 无图阶段（展签背后那一团）用的颜色 = 字色。**一团暗的东西压在浅底上** ——
+  // 这正是参考作品关掉贴图时的样子（它的 uColor 是 #0a0a0a），
+  // 也是这一段唯一要说的话：这里有一个有重量的东西。
+  readVar('--sb-ink', '#0a0a0a', u.color.value);
 
   const resize = (): void => {
     viewW = Math.max(1, innerWidth);
@@ -265,12 +276,20 @@ function createRingField(initial: FieldOptions): RingField {
   let birth = 0;
   /** 剥离的播放头，秒。< 0 = 还没按「开始」 */
   let entryT = -1;
+  /** 展签那一段里种子自己转过的角度。见 tick 里的注释 */
+  let attractTurn = 0;
   let interactive = false;
   /** 坍缩：被选中的下标，以及 0..1 的进度 */
   let exitIndex = -1;
   let exitT = 0;
 
-  let count = 0;
+  /**
+   * 上场几张卡。**初值是 1，不是 0**：卡片还没到货的时候（展签那一段）
+   * 上场的正是那一颗种子 —— 它此刻没有图，按 `u.color` 画成一团暗的东西。
+   * 给 0 的话 `layout()` 直接返回，展签背后是一片空白，
+   * 「同一个场的两个阶段」当场垮掉一半。
+   */
+  let count = 1;
 
   // ── 输入 ────────────────────────────────────────────────────────────────
   const ringCentre = { x: 0, y: 0 };
@@ -437,6 +456,8 @@ function createRingField(initial: FieldOptions): RingField {
     // 是为了让时间线来回擦洗时保持一致 —— 反正未出生的卡是叠在种子上的。
     const launch = easeInOutCubic(clamp01(state.launch));
     const Rnow = R * launch;
+    /** 1 = 还在展签那一段，0 = 已经在剥离了 */
+    const attractWeight = 1 - launch;
 
     order.length = 0;
 
@@ -527,7 +548,8 @@ function createRingField(initial: FieldOptions): RingField {
       }
 
       pos[i].set(px + leanX[i] + pushX, py + leanY[i] + pushY);
-      rot[i] = angle * launch;
+      // launch 一起来，展签那段的自转就让位给"长边朝外"
+      rot[i] = angle * launch + attractTurn * attractWeight;
 
       // 种子在整个出生过程中长大；其余的早就在母卡里成形了，
       // 所以很早就到全尺寸，剩下的行程全用来往外扯。
@@ -635,7 +657,12 @@ function createRingField(initial: FieldOptions): RingField {
     // 两个都是距离场里的 px，所以必须跟着环一起缩放，
     // 否则换个窗口大小，融合读起来就是另一种材料了
     u.k.value = RING.goo * planeK * fit * (1 + collapse * 3);
-    u.wobble.value = RING.wobble * fit * (1 - smoothstep(0.2, 0.95, state.progress));
+    // 出生时的表面张力抖动；展签那一段留一点，让那团东西自己**呼吸**
+    //（上游没有这一段 —— 它在这里等图的时候是完全静止的一颗种子）
+    u.wobble.value = RING.wobble * fit * Math.max(
+      1 - smoothstep(0.2, 0.95, state.progress),
+      attractWeight * 0.6,
+    );
     u.textured.value = atlasReady ? 1 : 0;
     u.blend.value = Math.max(0.5, RING.blend * planeK * g);
 
@@ -854,10 +881,11 @@ function createRingField(initial: FieldOptions): RingField {
         if (atlasReady || waitingForCards > 4) entryT = 0;
       }
 
-      if (entryT < 0 && birth >= 1) {
-        // 展签阶段：那一团自己慢慢转。**很慢** —— 它说的是"活的"，不是"来玩我"
-        state.spin += RING.attractSpin * dt;
-      }
+      // 展签阶段：那一团绕着自己慢慢转。**很慢** —— 它说的是"活的"，不是"来玩我"。
+      // 转的是 `attractTurn` 而不是 `state.spin`：后者归入场时间线管，
+      // 剥离一开始就会被 tween 覆盖，那一下会看成"啪"地跳回去。
+      // 这一个量只增不减，由 `launch` 把它的权重淡掉，于是交接是连续的。
+      if (entryT < 0 && birth >= 1) attractTurn += RING.attractSpin * dt;
       advanceEntry(dt);
       spinStep(dt);
       pickStep(dt);
@@ -963,6 +991,7 @@ function createRingField(initial: FieldOptions): RingField {
       interactive = false;
     },
     fps: () => fpsValue,
+    get internals() { return { renderer, scene, camera, mesh, uniforms: u }; },
     freeze(on) { frozen = on; },
     advance(seconds) {
       const step = 1 / 60;
@@ -988,6 +1017,14 @@ function createRingField(initial: FieldOptions): RingField {
       card: [info.W, info.H],
       ring: { r: info.R, cx: info.cx, cy: info.cy },
       gap: info.gap,
+      front: {
+        plane: shownPlane,
+        cell: shown,
+        x: Math.round(pos[Math.max(0, shownPlane)].x),
+        y: Math.round(pos[Math.max(0, shownPlane)].y),
+        sx: Number(scale[Math.max(0, shownPlane)].x.toFixed(3)),
+        sy: Number(scale[Math.max(0, shownPlane)].y.toFixed(3)),
+      },
       state: { ...state },
     }),
     on(options) { hooks = { ...hooks, ...options }; },
@@ -1003,6 +1040,7 @@ function createRingField(initial: FieldOptions): RingField {
       canvas.removeEventListener('pointercancel', onPointerUp);
       canvas.removeEventListener('pointerleave', onPointerLeave);
       canvas.removeEventListener('click', onClick);
+      releaseFirstScreen();
       mesh.geometry.dispose();
       material.dispose();
       atlas.dispose();

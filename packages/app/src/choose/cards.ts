@@ -42,7 +42,10 @@ function newCanvas(): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D
   canvas.width = CARD_W;
   canvas.height = CARD_H;
   const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = '#0b0b0c';
+  // 首屏是白底（见 `ring/field.ts` 的 sb-first-screen）：卡片底色必须跟着走。
+  // 深底的卡片压在浅底的场上会读成一块块黑方片 —— 那是"贴上去的图"，
+  // 不是"从同一团东西里剥出来的卡"。
+  ctx.fillStyle = '#f2f2f0';
   ctx.fillRect(0, 0, CARD_W, CARD_H);
   return { canvas, ctx };
 }
@@ -77,7 +80,7 @@ function drawField(ctx: CanvasRenderingContext2D, rng: Rng): void {
       const b = joints[j];
       const d = Math.hypot(a.x - b.x, a.y - b.y);
       if (d > 220) continue;
-      ctx.strokeStyle = `rgba(210,220,230,${(1 - d / 220) * 0.5})`;
+      ctx.strokeStyle = `rgba(26,29,33,${(1 - d / 220) * 0.5})`;
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x, b.y);
@@ -85,7 +88,7 @@ function drawField(ctx: CanvasRenderingContext2D, rng: Rng): void {
     }
   }
   for (const j of joints) {
-    ctx.fillStyle = 'rgba(240,244,248,0.92)';
+    ctx.fillStyle = 'rgba(10,10,12,0.92)';
     ctx.beginPath();
     ctx.arc(j.x, j.y, j.r, 0, Math.PI * 2);
     ctx.fill();
@@ -98,7 +101,7 @@ function drawField(ctx: CanvasRenderingContext2D, rng: Rng): void {
  */
 function drawAbsent(ctx: CanvasRenderingContext2D, rng: Rng): void {
   const inset = 48;
-  ctx.strokeStyle = 'rgba(190,200,210,0.55)';
+  ctx.strokeStyle = 'rgba(26,29,33,0.45)';
   ctx.lineWidth = 2;
   ctx.setLineDash([10, 12]);
   ctx.strokeRect(inset, inset, CARD_W - inset * 2, CARD_H - inset * 2);
@@ -108,7 +111,7 @@ function drawAbsent(ctx: CanvasRenderingContext2D, rng: Rng): void {
   for (let i = 0; i < 1100; i++) {
     const x = inset + rng.next() * (CARD_W - inset * 2);
     const y = inset + rng.next() * (CARD_H - inset * 2);
-    ctx.fillStyle = `rgba(214,222,230,${0.14 + rng.next() * 0.42})`;
+    ctx.fillStyle = `rgba(26,29,33,${0.12 + rng.next() * 0.34})`;
     ctx.fillRect(Math.floor(x / 6) * 6, Math.floor(y / 6) * 6, 5, 5);
   }
 }
@@ -127,12 +130,12 @@ function drawKindBadge(ctx: CanvasRenderingContext2D, kind: ThemeDef['kind']): v
   const h = 40;
   const x = CARD_W - w - 28;
   const y = 28;
-  ctx.fillStyle = 'rgba(10,10,12,0.55)';
+  ctx.fillStyle = 'rgba(250,250,250,0.72)';
   ctx.fillRect(x, y, w, h);
-  ctx.strokeStyle = 'rgba(235,238,242,0.55)';
+  ctx.strokeStyle = 'rgba(26,29,33,0.45)';
   ctx.lineWidth = 1;
   ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
-  ctx.fillStyle = 'rgba(235,238,242,0.85)';
+  ctx.fillStyle = 'rgba(10,10,12,0.8)';
   ctx.textBaseline = 'middle';
   // 手动字距，canvas 没有 letter-spacing
   let cx = x + 12;
@@ -141,6 +144,20 @@ function drawKindBadge(ctx: CanvasRenderingContext2D, kind: ThemeDef['kind']): v
     cx += ctx.measureText(ch).width + 2;
   }
 }
+
+/**
+ * 卡片纸色。**这一个数是首屏能不能读的关键，不是装饰。**
+ *
+ * 首屏底是 `#fafafa`（`ring/field.ts`），而 anchor 图是**不透明**的、
+ * 背景本来就接近白的棚拍渲染 —— 直接贴上去，卡片和底色差不到 2%：
+ * 卡片没有剪影，而且**丝会跟着消失**（糖浆取的是最近那张卡边缘的颜色，
+ * 白边的丝挂在白底上等于没有）。而丝正是这一页要说的那件事。
+ *
+ * 所以整张卡走一道 multiply：白被压到这个色，暗部几乎不动 ——
+ * 等于把同一张图印在一张略带调子的纸上。选 11% 是因为再浅剪影就站不住，
+ * 再深卡片就开始像深色 UI 面板，而这一页不是面板。
+ */
+const CARD_STOCK = '#e2e0dc';
 
 export type CardKind = 'anchor' | 'field' | 'absent';
 
@@ -171,6 +188,12 @@ export function buildCard(theme: ThemeDef, image: HTMLImageElement | null, rng: 
     drawAbsent(ctx, rng);
     from = 'absent';
   }
+  // 先压调子，再画角标 —— 角标是"我们加的标记"，不该跟着纸色一起被压
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.fillStyle = CARD_STOCK;
+  ctx.fillRect(0, 0, CARD_W, CARD_H);
+  ctx.globalCompositeOperation = 'source-over';
+
   drawKindBadge(ctx, theme.kind);
   return { theme, canvas, from };
 }

@@ -1,0 +1,43 @@
+/**
+ * 首屏是**白底黑字**，全站唯一的例外。
+ *
+ * 站内默认底色是近黑（`type.css` 的 `--sb-paper` #0e0f12，理由在 docs/23 §0：
+ * 纯黑在投影上和关机分不清）。但首屏复刻的是参考作品（`docs/35-VISCOSE.md`），
+ * 而那件作品的底是 `#fafafa`、字是 `#0a0a0a` —— 糖浆那点质感有一半来自
+ * **浅底上的暗形**：深底上同样的场读起来是发光的果冻，不是蜂蜜。
+ *
+ * 只改颜色令牌，**一条度量都不改**：字体、字号、字距、安全区原样走 type.css
+ * （「一比一用我们的字体」那一条）。
+ *
+ * 为什么要 `!important`：`stage.ts` 的 `publishStageInk()` 把 `--sb-on-stage`
+ * 写成**行内样式**（它按场景底色的亮度翻转字色）。行内压得过普通的作者规则，
+ * 压不过带 `!important` 的 —— 而首屏这几秒里舞台还没有话语权。
+ * 类一摘掉，一切复原。
+ */
+html.sb-first-screen {
+  --sb-paper: #fafafa !important;
+  --sb-ink: #0a0a0a !important;
+  --sb-ink-dim: #5b6168 !important;
+  --sb-rule: #d8dadd !important;
+  --sb-accent: #2a6f97 !important;
+  /* 叠在画布上的那几层（字标、控件、目录）跟着翻成深色。取值和 stage.ts
+     判到"亮场景"时发布的那一对**逐字相同**，这样首屏和白展厅是同一种深色。 */
+  --sb-on-stage: #1a1d21 !important;
+  --sb-on-stage-dim: #5b6168 !important;
+}
+
+/** 环那块画布。底色由它自己在着色器里合成，这里的 background 只是它到位之前的那一瞬 */
+.sb-ring {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  z-index: 1;
+  background: var(--sb-paper);
+}
+/* 交棒给 S3：出场 180ms（docs/23 §0） */
+.sb-ring.is-gone {
+  opacity: 0;
+  transition: opacity 180ms cubic-bezier(.4, 0, 1, 1);
+}

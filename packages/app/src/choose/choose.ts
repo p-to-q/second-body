@@ -25,6 +25,7 @@ import '../ui/type.css';
 import { mulberry32 } from '../../../core/src/rng.ts';
 import type { PartLibraryIndex, Rng, ThemeDef } from '../../../core/src/types.ts';
 import { acquireRingField, type RingField } from './ring/field.ts';
+import { holdFirstScreen } from './ring/first-screen.ts';
 import { buildCard, loadImage, type BuiltCard } from './cards.ts';
 
 export interface ChooseOptions {
@@ -226,6 +227,9 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
     cards.push(buildCard(theme, image, rng));
   });
 
+  // 首屏配色由这一页也 hold 一份：环起不来（`?gl=off` / 没有 WebGPU）时
+  // 降级列表**就是**首屏，它同样得是白底黑字，不能因为环没起来就翻回深色。
+  const releaseFirstScreen = holdFirstScreen();
   const ui = buildDom(mount);
   let disposed = false;
   let committed = false;
@@ -307,6 +311,7 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
    * 淡掉的是一张满屏的图，不是一个正在动的东西 —— 所以这一下读作交接，不读作消失。
    */
   function handOver(): void {
+    releaseFirstScreen();
     const field = carousel;
     carousel = null;
     field?.canvas.classList.add('is-gone');
@@ -456,6 +461,7 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
     get gl() { return carousel; },
     dispose() {
       disposed = true;
+      releaseFirstScreen();
       clearInterval(idleTick);
       window.removeEventListener('keydown', onKeyDown);
       for (const type of ['pointerdown', 'pointermove', 'wheel', 'touchstart'] as const) {
