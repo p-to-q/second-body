@@ -68,6 +68,7 @@
 | [`41-MATERIAL.md`](41-MATERIAL.md) | 三分钟里身体的**表面**在说什么？四个乐章 → 一条连续的表面曲线（`MATERIAL` 块）；描边翻成默认之后这条线为什么反而更准；手脚的墨为什么按槽位收窄 | 中文 |
 | [`27-BRAND.md`](27-BRAND.md) | 对外物料长什么样？品牌字体规范、海报与票根（导出在 `../assets/brand/`） | 中文 |
 | [`31-ARCHETYPES.md`](31-ARCHETYPES.md) | 每个物种的参考来自哪台真机器？16 个 archetype ↔ roster id 对表、prompt 摘要、bodyPlan 不符清单 | 中文 |
+| [`42-REAL-MACHINES.md`](42-REAL-MACHINES.md) | 那台真机的**几何**在哪、授权是什么？18 条对表与三档判定（实·有几何／实·无几何／虚）、逐台来源 URL 与授权、取件的字节与工程量、命名建议 | 中文 |
 
 ## 背景（是 context，不是 contract）
 
