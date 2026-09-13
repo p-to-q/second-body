@@ -25,6 +25,7 @@ import type { MotionFeatures, Skeleton, Tier } from '../../core/src/types.ts';
 import { createCapture } from './capture/capture.ts';
 import { createPartLibrary } from './assets/library.ts';
 import { createCreature } from './creature/creature.ts';
+import { resolveShading, type ShadingId } from './creature/shading.ts';
 import { createMassBody } from './creature/mass.ts';
 import { createNascent } from './creature/nascent.ts';
 import type { BodyInstance } from './creature/body.ts';
@@ -245,7 +246,11 @@ async function boot(): Promise<void> {
   // 两者都满足 BodyInstance，帧循环不关心是哪一种（docs/18 §2）。
   const planKind = typeof bodyPlan === 'string' ? bodyPlan : (bodyPlan.kind ?? 'rig');
   const isMass = planKind === 'mass';
-  const creature = createCreature({ library });
+  // 着色语言：物种自己声明（`creature/shading.ts` 的那张表），`?shading=` 可覆盖。
+  // 和 `bodyPlan` 同一条路数 —— 「线」这个物种的辨识度全在那一圈描边上，
+  // 而描边是着色属性不是几何属性（docs/12），所以它只能在这里被决定。
+  let shading: ShadingId = resolveShading(theme, flags.shading);
+  const creature = createCreature({ library, shading });
   const massBody = isMass ? createMassBody({ library, theme: theme ?? undefined }) : null;
   // 开场那一具：tier 0 是一个还没分化出零件的团块，tier ≥ 1 才长出刚体件。
   // 理由全写在 `creature/nascent.ts` 的文件头 —— 一句话是：兜底几何是 catch 块，
@@ -420,6 +425,11 @@ async function boot(): Promise<void> {
       setRefine: (on) => { refineOn = on; if (!on) refiner?.reset(); },
       post: () => stage.post,
       setPost: (on) => stage.setPost(on),
+      // 团块身体没有部件、也就没有可以套外壳的网格（docs/18 的两种表达）。
+      // 这时候不给这一项，而不是给一个按了没反应的按钮 ——
+      // 控件条只暴露真实存在的开关（`ui/controls.ts` 文件头的那一条纪律）。
+      shading: massBody ? null : () => shading,
+      setShading: massBody ? null : (id) => { shading = id; creature.setShading(id); },
       toggleMute: () => sound.toggleMute(),
       muted: () => sound.state === 'off' || sound.state === 'muted',
     },

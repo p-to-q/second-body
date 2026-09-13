@@ -2,6 +2,7 @@
  * 现场外壳：全屏、藏鼠标、防休眠、无人降帧、context lost 自愈、URL 开关。
  * P10 现场优先 —— 启动 = 打开一个 URL，不需要在终端敲第二条命令。
  */
+import { isShadingId, type ShadingId } from '../creature/shading.ts';
 import { getDegradeState } from './degrade.ts';
 import { noteActivity } from './idle.ts';
 
@@ -38,7 +39,14 @@ export interface Flags {
    * ?nav=0 关掉右上角目录（`ui/nav.ts`）。现场（`?kiosk=1`）本来就不挂它 ——
    * 装置画面上不该有网站导航。这个开关是给"投影但不是 kiosk"那种场合的。
    */
-  nav: boolean;}
+  nav: boolean;
+  /**
+   * ?shading=toon|physical 强制着色语言（`creature/shading.ts`）。
+   * null = 按物种自己声明的来 —— 目前只有「线」声明了 `toon`。
+   * 留这个开关的理由和 `?refine=` 一样：描边是这一批里唯一**改变物种长相**的渲染开关，
+   * 「它到底该不该有这圈线」必须能当场 A/B，而不是回滚一次构建再看。
+   */
+  shading: ShadingId | null;}
 
 /** MediaPipe 的三个 PoseLandmarker 档位。精度/延迟的实测差异见 docs/24 §3 */
 export type PoseModel = 'lite' | 'full' | 'heavy';
@@ -83,7 +91,10 @@ export function readFlags(search = location.search): Flags {
     loading: q.get('loading') !== '0',
     // 现场默认不挂目录：装置前面的画面上不该有网站导航（docs/23 §S4「默认零 UI」）。
     // 判断放在这里而不是各挂载点，是为了只有一处决定"现场看得见什么"。
-    nav: q.get('nav') !== '0' && q.get('kiosk') !== '1',  };
+    nav: q.get('nav') !== '0' && q.get('kiosk') !== '1',
+    // 认不出来就是 null（和 ?model= 同一条规矩）：手滑写 ?shading=cartoon
+    // 不该静默退回物种默认，那样"我明明写了参数"和"参数没生效"分不开
+    shading: isShadingId(q.get('shading')) ? (q.get('shading') as ShadingId) : null,  };
 }
 
 /** 防止 macOS 在无人交互时息屏 —— 装置会在这上面吃大亏 */

@@ -11,7 +11,7 @@
  *
  * 所以这个文件只有一条纪律：**只暴露真实存在的开关，一个都不编。**
  * 每一项都能在 `shell/kiosk.ts` 的 `readFlags()` 里找到对应的 URL 参数
- * （`?scene=` `?plan=` `?act=` `?vitality=` `?refine=` `?nopost=` `?mute=` `?theme=`）。
+ * （`?scene=` `?plan=` `?act=` `?vitality=` `?refine=` `?nopost=` `?mute=` `?theme=` `?shading=`）。
  * 没有"即将支持"，没有灰掉的按钮。
  *
  * ## 三条设计决定
@@ -45,6 +45,7 @@
  * 它应该读起来像一台设备的面板，不像一个网页的设置弹窗。
  */
 import { BODY_PLANS } from '../../../core/src/bodyplan.ts';
+import type { ShadingId } from '../creature/shading.ts';
 import type { ThemeDef } from '../../../core/src/types.ts';
 import { SCENE_IDS } from '../stage/scenes.ts';
 import { COPY, setBi, type BiText } from './i18n.ts';
@@ -94,6 +95,13 @@ export interface ControlsHost {
   /** 返回切换之后是不是静音（`sound.toggleMute()` 的返回值原样传过来） */
   toggleMute(): boolean;
   muted(): boolean;
+  /**
+   * 描边 / 平涂（`creature/shading.ts`）。**团块身体上这一对是 `null`** ——
+   * 它没有部件，也就没有可以套外壳的网格，那时这一项整个不出现。
+   * 不给一个按了没反应的按钮，是这个文件唯一的那条纪律。
+   */
+  shading?: (() => ShadingId) | null;
+  setShading?: ((id: ShadingId) => void) | null;
 }
 
 export interface ControlsOptions {
@@ -143,6 +151,9 @@ function reloadWith(host: ControlsHost, patch: Record<string, string | null>): v
   set('refine', host.refine() ? '1' : '0');
   set('nopost', host.post() ? null : '1');
   set('mute', host.muted() ? '1' : null);
+  // 描边**故意不带走**。它和上面几项不一样：那些是"这一屏怎么演"，
+  // 而描边是**物种自己的声明**（`creature/shading.ts` 的那张表）——
+  // 把它带过去等于把「线」的身份套到下一个物种头上。`?shading=` 照常管用，那是显式的。
   for (const [k, v] of Object.entries(patch)) set(k, v);
   location.assign(`${location.pathname}?${q.toString()}`);
 }
@@ -272,6 +283,18 @@ export function mountControls(options: ControlsOptions): Controls | null {
     { copy: C.render.post, key: 'P', get: () => host.post(), flip: () => host.setPost(!host.post()) },
     { copy: C.render.mute, key: 'M', get: () => !host.muted(), flip: () => { host.toggleMute(); } },
   ];
+  // 描边只在"这具身体有网格可套"时才出现（见 ControlsHost.shading）。
+  // 它放在最后：前四项说的都是"它为什么像活的"，这一项说的是"它是被画出来的"。
+  const readShading = host.shading;
+  const writeShading = host.setShading;
+  if (readShading && writeShading) {
+    toggles.push({
+      copy: C.render.outline,
+      key: 'O',
+      get: () => readShading() === 'toon',
+      flip: () => { writeShading(readShading() === 'toon' ? 'physical' : 'toon'); },
+    });
+  }
   for (const t of toggles) {
     const b = option(t.copy, () => { t.flip(); sync(); });
     const state = document.createElement('span');
@@ -343,6 +366,7 @@ export function mountControls(options: ControlsOptions): Controls | null {
     ['R', C.keys.refine],
     ['P', C.keys.post],
     ['M', C.keys.mute],
+    ...(readShading && writeShading ? [['O', C.keys.outline] as [string, BiText]] : []),
   ];
   for (const [k, text] of KEY_ROWS) {
     const row = document.createElement('div');
@@ -413,6 +437,11 @@ export function mountControls(options: ControlsOptions): Controls | null {
     if (k === 'd') { host.setVitality(!host.vitality()); sync(); return; }
     if (k === 'r') { host.setRefine(!host.refine()); sync(); return; }
     if (k === 'p') { host.setPost(!host.post()); sync(); return; }
+    if (k === 'o' && readShading && writeShading) {
+      writeShading(readShading() === 'toon' ? 'physical' : 'toon');
+      sync();
+      return;
+    }
     // `m` 不在这里处理：`sound/sound.ts` 自己已经绑了它（docs/29）。
     // 两处都绑的结果是按一下切两次，也就是什么都没发生 —— 这里只负责把状态刷新出来。
     if (k === 'm') { setTimeout(sync, 0); return; }
