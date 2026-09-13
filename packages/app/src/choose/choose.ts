@@ -23,6 +23,7 @@
 // 不能指望每个宿主 HTML 都记得 <link> 它（主程序的 index.html 就没有）。
 import '../ui/type.css';
 import { mulberry32 } from '../../../core/src/rng.ts';
+import { COPY, setBi } from '../ui/i18n.ts';
 import type { PartLibraryIndex, Rng, ThemeDef } from '../../../core/src/types.ts';
 import { acquireRingField, type RingField } from './ring/field.ts';
 import { holdFirstScreen } from './ring/first-screen.ts';
@@ -146,6 +147,7 @@ function normalize(raw: Partial<ThemeDef> & { id: string }): ThemeDef {
     name: raw.name ?? raw.id,
     nameEn: raw.nameEn ?? raw.id,
     tagline: raw.tagline ?? '',
+    taglineEn: raw.taglineEn ?? '',
     palette: raw.palette ?? [],
     source: raw.source ?? 'rodin',
     axes: raw.axes ?? { humanLike: 0.5, lifeLike: 0.5 },
@@ -254,7 +256,9 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
     shown = index;
     ui.name.textContent = card.theme.name;
     ui.nameEn.textContent = card.theme.nameEn;
-    ui.tag.textContent = card.theme.tagline;
+    // 中英并置，不切换（ui/i18n.ts 的设计说明）—— 名字那一行早就是并置的，
+    // tagline 原来只有中文，是漏的那一半
+    setBi(ui.tag, { zh: card.theme.tagline, en: card.theme.taglineEn ?? '' });
     ui.kind.textContent = card.theme.kind === 'archetype' ? '' : card.theme.kind;
     ui.root.querySelectorAll('.sb-row').forEach((row, i) => {
       row.classList.toggle('is-active', i === index);
@@ -390,7 +394,7 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
     ui.root.classList.add('is-fallback');
     // 提示语必须跟着降级路径一起变：没有环可以"穿越"，
     // 一条教人做不到的事的提示比没有提示更糟
-    ui.hint.textContent = '点一行即确认\n数字键直选 · ↑↓ 移动 · Enter 确认';
+    setBi(ui.hint, COPY.choose.hintList);
     // 条目太少是**设计好的**退化，不是故障 —— 别在控制台吼它，
     // 否则真正的 GL 失败会淹没在噪音里（P14：测量工具本身会骗人）
     if (reason === 'cards < 3') console.info('[choose] 条目 < 3，环退化成横向一排（docs/23 §S2）');
@@ -414,8 +418,9 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
   }
 
   if (cards.length === 0) {
-    ui.name.textContent = '没有可选的身体';
-    ui.tag.textContent = 'parts.json 里没有条目，或者它们都还没有 anchor 图与部件。';
+    // 观众看见的话里不许出现 parts.json。它说的是**会发生什么**：零件还在长。
+    setBi(ui.name, COPY.choose.emptyTitle);
+    setBi(ui.tag, COPY.choose.emptyNote);
   } else if (forceFallback) {
     toFallback('forceFallback');
   } else if (cards.length < 3) {
@@ -541,11 +546,17 @@ const CSS = `
 .sb-tag{color:var(--sb-ink-dim);margin-top:0.25em}
 .sb-kind{margin-top:0.4em;font-family:var(--sb-mono);font-size:var(--sb-size-small);
   letter-spacing:var(--sb-tracking-label);text-transform:uppercase;color:var(--sb-ink-dim);opacity:.7}
-.sb-hint{position:absolute;right:var(--sb-safe);bottom:var(--sb-safe);text-align:right;
-  font-family:var(--sb-mono);font-size:var(--sb-size-small);color:var(--sb-ink-dim);opacity:.55;
-  line-height:1.9;white-space:pre}
+/* 一句话。正文字体 —— 它是说给人听的，不是标注 */
+.sb-hint{position:absolute;right:var(--sb-safe);bottom:calc(var(--sb-safe) + 2.2em);text-align:right;
+  color:var(--sb-ink-dim);max-width:min(24rem,44vw)}
+.sb-hint .sb-en{color:var(--sb-ink-dim);opacity:.7}
+/* 按键图例。等宽、极小号、压暗 —— 档案的语言，不是说明文字 */
+.sb-keys{position:absolute;right:var(--sb-safe);bottom:var(--sb-safe);text-align:right;
+  font-family:var(--sb-mono);font-size:var(--sb-size-micro);letter-spacing:var(--sb-tracking-label);
+  color:var(--sb-ink-dim);opacity:.55}
+
 .sb-choose.is-leaving .sb-hud,.sb-choose.is-leaving .sb-hint,
-.sb-choose.is-leaving .sb-idle{opacity:0;transition:opacity .5s}
+.sb-choose.is-leaving .sb-keys,.sb-choose.is-leaving .sb-idle{opacity:0;transition:opacity .5s}
 
 /* 自动选择的倒计时（docs/23 §S2）：最后 5 秒，中心卡下方**一条极细的线**走完。
    规格明确不要百分比、不要数字 —— 一条正在走完的线已经说清楚"还有一会儿"，
@@ -558,6 +569,10 @@ const CSS = `
 
 /* 无 WebGL 的降级列表。**同样的排版语言**（等宽字、同底色、卡片图）——
    docs/23 §S2：「降级路径也是作品的一部分」，不是丑陋兜底。 */
+/* ⚠️ 下面那条 display:grid 会盖过 [hidden] 的 UA 规则（作者规则胜过 UA 规则）——
+   于是这块 inset:0 的列表在 GL 模式下**看不见却仍然盖住整屏**，
+   滚轮和指针全被它吃掉，环一动不动。滚动是这一页的主要输入，这一条必须在。 */
+.sb-list[hidden]{display:none}
 .sb-list{position:absolute;inset:0;overflow-y:auto;pointer-events:auto;padding:var(--sb-safe);display:grid;
   gap:var(--sb-gutter);grid-template-columns:repeat(auto-fill,minmax(18rem,1fr));align-content:start}
 .sb-row{background:none;border:1px solid var(--sb-rule);color:inherit;padding:0;cursor:pointer;
@@ -595,8 +610,12 @@ function buildDom(mount: HTMLElement): Ui {
       <div class="sb-kind"></div>
     </div>
     <div class="sb-idle"><i></i></div>
-    <div class="sb-hint">滚动 / 拖动 穿越形态空间\n数字键直选 · ↑↓ 移动 · Enter 确认\n点中间那张即确认</div>`;
+    <div class="sb-hint"></div>
+    <div class="sb-keys"></div>`;
   mount.appendChild(root);
+  const hint = root.querySelector<HTMLElement>('.sb-hint')!;
+  setBi(hint, COPY.choose.hint);
+  root.querySelector<HTMLElement>('.sb-keys')!.textContent = COPY.choose.keys;
   return {
     root,
     list: root.querySelector<HTMLElement>('.sb-list')!,
@@ -606,6 +625,6 @@ function buildDom(mount: HTMLElement): Ui {
     kind: root.querySelector<HTMLElement>('.sb-kind')!,
     idle: root.querySelector<HTMLElement>('.sb-idle')!,
     idleFill: root.querySelector<HTMLElement>('.sb-idle i')!,
-    hint: root.querySelector<HTMLElement>('.sb-hint')!,
+    hint,
   };
 }

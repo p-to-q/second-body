@@ -26,11 +26,17 @@ SOFTWARE.
 
 本许可覆盖**源代码**。以下不在其范围内，请分别对待：
 
-1. `packages/app/src/vendor/dither-carousel/` —— 移植自
-   https://github.com/Yousuf-developer/dither-blur-carousel
-   MIT © 2026 Yousuf Soomro，原始 LICENSE 保留在该目录下。
+1. `packages/app/src/choose/ring/` —— 首屏那个环，移植自
+   https://github.com/Yousuf-developer/Viscose-carousel
+   MIT © 2026 Yousuf Soomro。移植的是**数学与时序**（SDF 融合、拉丝、玻璃唇、
+   扇面入场、惯性吸附），从 GLSL 改写成 TSL —— 没有一行代码是逐字搬过来的，
+   所以没有 vendor 目录；出处、授权判定与逐条差异写在 `docs/35-VISCOSE.md`，
+   三个实现文件的文件头也各写了一次。
    我们**没有**取用其 `public/` 目录中的任何图片或字体（作者明确说明那些
-   不在 MIT 范围内、不得复用）。
+   不在 MIT 范围内、不得复用；其中 PP Neue Montreal 是商业字体）。
+
+   （同一位作者的 `dither-blur-carousel` 曾以 `src/vendor/dither-carousel/`
+   的形式逐文件移植过，那一版随本次重做删除。）
 
 2. `assets/fonts/ZKMSerendipity/` —— ZKMSerendipity 字体，权利属于
    ZKM | Zentrum für Kunst und Medien Karlsruhe 及其设计方。本项目非商用，

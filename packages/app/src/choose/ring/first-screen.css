@@ -41,3 +41,14 @@ html.sb-first-screen {
   opacity: 0;
   transition: opacity 180ms cubic-bezier(.4, 0, 1, 1);
 }
+
+/**
+ * 加载态（`shell/loading.css`，z-index 8）本来是一块**不透明**的底 ——
+ * 它要盖住的是"什么都还没有"的黑屏。首屏有了这个场之后，那块底不再需要：
+ * 底色由环那块画布自己画（同一个 `--sb-paper`），盖上去只会把展签背后
+ * 那颗正在转的种子挡住，而"展签在场时它已经在了"正是这一屏的立意。
+ *
+ * 所以只在首屏这几秒把它的底撤掉，**别的都不动**：进度线、字号、时序、
+ * 那条"没有真信号宁可停住"的规矩，全归加载态那条线自己管。
+ */
+html.sb-first-screen .sb-loading { background: transparent; }

@@ -112,7 +112,13 @@
 
 ## lane E · 主题与网页
 
-### 🔴 T-18 开场选择页（移植 dither-blur-carousel）
+### 🔴 T-18 开场选择页（已重做：见 docs/35-VISCOSE.md）
+
+> **2026-09-13：这张卡的实现换掉了。** 螺旋 + dither 那一版（移植自
+> `dither-blur-carousel`，`src/vendor/dither-carousel/`）已删除，改成一个 SDF 的环
+> （移植自 `Viscose-carousel`，实现在 `src/choose/ring/`）。下面这段描述留着是因为
+> 它记录了当时的判断；**现在的实现以 `docs/35-VISCOSE.md` 和 `docs/12 §5` 为准。**
+
 - 文件：`packages/app/src/choose/*` + `packages/app/src/vendor/dither-carousel/*`
 - 读：`docs/12-SPEC-themes.md` §5（**只读这一节**）
 - 做什么：
