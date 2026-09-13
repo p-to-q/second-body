@@ -1,4 +1,8 @@
+# 两行都要：`node_modules/` 只匹配目录，匹配不到一个**同名的符号链接**。
+# 这不是理论问题 —— 工作树里为了共用依赖建的那条软链，被一次 `git add -A`
+# 提交进了仓库根（120000 blob），别人 clone 下来就是一条指向仓库外的死链。
 node_modules/
+node_modules
 dist/
 .env
 .env.*
