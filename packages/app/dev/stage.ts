@@ -86,12 +86,12 @@ const creature = createCreature({ library });
 stage.scene.add(creature.object);
 
 let idle = qs.get('state') === 'idle';
-let genome: Genome = makeGenome(seed, tier, library.index, { theme: themes[themeIdx].id });
+let genome: Genome = makeGenome(seed, tier, library.index, { theme: themes[themeIdx].id, rejected: library.rejected });
 let body: Skeleton = human;
 
 async function rebuild(): Promise<void> {
   const def = themes[themeIdx];
-  genome = makeGenome(seed, tier, library.index, { theme: def.id });
+  genome = makeGenome(seed, tier, library.index, { theme: def.id, rejected: library.rejected });
   // 身体方案：条目自己声明，?plan= 覆盖（docs/18）。这一行就是"物种真的不一样"。
   body = remapSkeleton(human, qs.get('plan') ?? def.bodyPlan ?? 'rig');
   stage.setTheme(def, library.index);

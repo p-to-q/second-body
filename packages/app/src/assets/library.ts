@@ -51,6 +51,13 @@ export interface PartLibrary {
    */
   mirrored(partId: string): THREE.BufferGeometry;
   readonly usingFallback: boolean;
+  /**
+   * `parts.json` 旁边 `curation.json` 里被人判为 reject 的部件 id（docs/14）。
+   * 原样传给 `makeGenome(..., { rejected })`，这些件就不会被抽中。
+   * **取不到 = 空集合，不是错误**（ADR-4 / P3）：策展是一层品控，不是开机条件，
+   * 少了它页面照常打开，只是会看到那几件不好看的。
+   */
+  readonly rejected: ReadonlySet<string>;
 
   // ── 以下是 docs/06 §3 之外的附加能力（只增不改，见 P0） ──
   /** 永远返回一个 meta：查不到就合成一个占位 meta（localGirth 取自真实占位几何） */
@@ -356,6 +363,7 @@ export function createPartLibrary(opt: PartLibraryOptions = {}): PartLibrary {
 
   let index: PartLibraryIndex = fallbackIndex();
   let usingFallback = true;
+  let rejected: ReadonlySet<string> = new Set();
 
   const placeholders = new Map<Slot, THREE.BufferGeometry>();
   const placeholderMetas = new Map<Slot, PartMeta>();
@@ -481,6 +489,30 @@ export function createPartLibrary(opt: PartLibraryOptions = {}): PartLibrary {
   const tierOf = (id: string) => index.parts.find((p) => p.id === id)?.tier ?? 1;
 
   /**
+   * 取策展记录。**永不抛、永不 reject**：拿不到就是空集合。
+   *
+   * 和 `parts.json` 分开 fetch 而不是并到同一个 try 里，是因为两者的失败不是一回事：
+   * 没有 `parts.json` 是「没有资产」（整页退占位模式），没有 `curation.json`
+   * 只是「没有人工品控这一层」—— 后者绝不许把前者拖进 fallback。
+   * 外部输入默认不可信（P2）：只认 verdict === 'reject' 的字符串键，其余一律忽略。
+   */
+  async function loadCuration(): Promise<ReadonlySet<string>> {
+    try {
+      const res = await fetch(baseUrl + 'curation.json', { cache: 'no-cache' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const raw = await res.json() as Record<string, { verdict?: string } | null>;
+      const ids = new Set<string>();
+      for (const [id, e] of Object.entries(raw ?? {})) {
+        if (typeof id === 'string' && id && e && e.verdict === 'reject') ids.add(id);
+      }
+      return ids;
+    } catch (e) {
+      console.warn('[library] curation.json 不可用 → 不做策展过滤（ADR-4 / P3）', e);
+      return new Set();
+    }
+  }
+
+  /**
    * tier 升档前**提前**把下一档的件拉下来。
    *
    * 想要的信号是 `evolution.progress`（升档前几秒就知道要升了），但它在 `main.ts` 的
@@ -507,6 +539,10 @@ export function createPartLibrary(opt: PartLibraryOptions = {}): PartLibrary {
 
   const lib: PartLibrary = {
     async load() {
+      // 和 parts.json 并行拉，别让品控多加一个串行 RTT 到「第一具身体出现」那条路上。
+      // await 在最后：`await library.load()` 一返回，调用方立刻就会 makeGenome，
+      // 那时 rejected 必须已经是最终值，否则第一具身体仍然会抽到被否掉的件。
+      const curation = loadCuration();
       try {
         const res = await fetch(baseUrl + 'parts.json', { cache: 'no-cache' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -521,10 +557,13 @@ export function createPartLibrary(opt: PartLibraryOptions = {}): PartLibrary {
         usingFallback = true;
         console.warn('[library] parts.json 不可用 → 全程序化占位模式（ADR-4 / P3）', e);
       }
+      rejected = await curation;
+      if (rejected.size) console.info(`[library] 策展: ${rejected.size} 件 reject，不进选件池`);
     },
 
     get index() { return index; },
     get usingFallback() { return usingFallback; },
+    get rejected() { return rejected; },
 
     geometry(partId) {
       const hit = geometries.get(partId);

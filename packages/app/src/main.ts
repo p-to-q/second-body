@@ -264,7 +264,7 @@ async function boot(): Promise<void> {
     // tier 0 一件部件都没有（parts.json 里 tier 0 的件数是 0），有开场形态接着的时候
     // remorph 只会白建 30 个占位实例然后被团块盖住 —— 那 30 个实例正是这次要拿掉的东西。
     if (!nascent || tier >= 1) {
-      creature.remorph(makeGenome(seed, tier, library.index, { theme: theme ?? undefined }));
+      creature.remorph(makeGenome(seed, tier, library.index, { theme: theme ?? undefined, rejected: library.rejected }));
     }
   };
   morph(tier);
