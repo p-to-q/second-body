@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createVitality } from '../src/vitality.ts';
+import { remapSkeleton } from '../src/bodyplan.ts';
 import { buildSkeleton } from '../src/skeleton.ts';
 import { VITALITY } from '../src/tuning.ts';
 import type { Skeleton, Vec3 } from '../src/types.ts';
@@ -89,6 +90,49 @@ test('静止时也在动 —— 呼吸；能量高时呼吸让位', () => {
   const loud = { energy: VITALITY.breathFadeEnergy * 2, speed: 0, accel: 0, spread: 0, verticality: 0 } as never;
   for (let i = 0; i < 120; i++) hot.push(v2.apply(still, loud, 1 / 60).joints.chest[1]);
   assert.ok(Math.max(...hot) - Math.min(...hot) < span, '动起来时呼吸应该让位');
+});
+
+/**
+ * 没有脚的身体方案（`PLANS_WITHOUT_FEET`：`radial` / `inverted`）**不许拿脚当落地基准**。
+ *
+ * 为什么这条必须在这里、而不是在 `bodyplan.test.ts`：`bodyplan.ts` 里的 `rebuild()`
+ * 早就分了 `groundAll`，重映射交出来的那具身体是对的。而 `vitality` 在它**之后**跑，
+ * 末尾又落地了一次 —— 那一次一直写死 `footIdxL/R, ankleL/R`。
+ * 于是整具身体在这里被按着脚（`inverted` 的脚在最上面）重新平移了一遍，沉下去一米多。
+ * 网格落地（`ground.ts`）会把递给它的东西原样抬起来，所以**画面上看不见**；
+ * 但接触阴影、取景、截图读到的是**关节**，不是网格 —— 它们全都读到了这具沉下去的骨架。
+ *
+ * 判据取"整具骨架的最低关节回到 y=0"，正是 `PLANS_WITHOUT_FEET` 那条注释写下的定义。
+ */
+for (const plan of ['inverted', 'radial'] as const) {
+  test(`${plan}：没有脚的方案按整体最低关节落地，不按脚`, () => {
+    const v = createVitality();
+    const planned = remapSkeleton(sk(), plan);
+    // 重映射那一层自己已经落好地了 —— 先把这个前提钉住，否则下面量的是别人的错
+    const before = Math.min(...Object.values(planned.joints).map((p) => p[1]));
+    assert.ok(Math.abs(before) < 1e-6, `前提不成立：remapSkeleton 交出来的身体最低点已经在 ${before}`);
+
+    for (let i = 0; i < 10; i++) {
+      const out = v.apply(planned, null, 1 / 60, plan);
+      const lo = Math.min(...Object.values(out.joints).map((p) => p[1]));
+      assert.ok(
+        Math.abs(lo) < 1e-9,
+        `第 ${i} 帧整具身体的最低关节在 ${lo.toFixed(3)}m —— ` +
+        '按脚落地会把没有脚的身体整个埋进地里（网格落地会把症状盖住，但关节是错的）',
+      );
+    }
+  });
+}
+
+test('有脚的方案不受影响 —— 手甩到脚底下也不该改落地基准', () => {
+  const v = createVitality();
+  // 蹲下摸地：手尖比脚尖还低。按"整体最低关节"落地会把整个人举起来
+  const low = sk({ wristL: [0.3, 0.05, 0.2], handTipL: [0.32, -0.04, 0.24] });
+  for (let i = 0; i < 5; i++) {
+    const out = v.apply(low, null, 1 / 60, 'rig');
+    const feet = Math.min(out.joints.footIdxL[1], out.joints.footIdxR[1]);
+    assert.ok(Math.abs(feet) < 1e-9, `第 ${i} 帧脚在 ${feet} —— 人形的落地基准仍然是脚`);
+  }
 });
 
 test('关掉之后原样返回同一个对象 —— A/B 必须是真的关掉', () => {

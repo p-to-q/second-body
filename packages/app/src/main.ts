@@ -321,7 +321,9 @@ async function boot(): Promise<void> {
       const planned = remapSkeleton(humanSk, bodyPlan);
       // 刚体挂载做不出"弯"，但一串各自延迟不同的刚体看起来就是在弯 ——
       // 这是参照作品那句 "wiggles, shifts, and bends" 唯一能不做蒙皮就拿到的部分。
-      lastSkeleton = vitalityOn ? vitality.apply(planned, lastFeatures, dt) : planned;
+      // 方案要一起递进去：vitality 末尾还要落一次地，而"拿谁当基准"随方案变
+      // （没有脚的方案按整具最低关节，见 core/bodyplan.ts 的 groundsByLowestJoint）
+      lastSkeleton = vitalityOn ? vitality.apply(planned, lastFeatures, dt, bodyPlan) : planned;
       stage.frame(lastSkeleton);   // 取景按**重映射之后**的身体算：四足是横的矮的
       const evo = evolution.update(lastFeatures, dt);
       // 团块的"沸腾"层由运动能量驱动 —— 动得越猛表面越沸（tuning 的 MASS.surface）

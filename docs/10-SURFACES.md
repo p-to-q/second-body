@@ -6,6 +6,8 @@
 >
 > 规则：**动完代码就更新这张表。** 证据一栏必须是"跑过的命令"或"截图路径"，不能是"应该可以"。
 
+最后更新：2026-09-13（网格落地补完：`vitality` 认身体方案 + 团块自己落地）
+
 最后更新：2026-09-13（真人录制进库：`assets/demo/` 不再只有合成数据）
 
 最后更新：2026-09-13（声音四层落地后）
@@ -51,6 +53,8 @@
 | `rng.ts` / `vec.ts` | `stable` | 被上述测试间接覆盖 |
 | `slots.ts`（BoneId→Slot、SLOT_WIDTH） | `stable` | 纯表；已被 `app/src/creature/assemble.ts` 实际消费 |
 | `genome.ts` 抽取 | `stable` | 同 seed 两次刷新 genome 深度相等（`/dev/figure.html?seed=1234` 实测）|
+| **`ground.ts` 网格落地（`lowestPointOf` / `groundLift` / `liftMatrixInPlace` / `MAX_LIFT`）** | `stable` | 纯几何：每件部件的局部 aabb 过它自己的挂载矩阵，取全身最低角，整体抬到 y=0。骨架那一层只保证最低的**脚关节**在 y=0，而脚这个部件绕骨轴长出来 → 底面还在骨轴下方半个脚厚（29 个条目实测沉 3~6cm，最深 `digitigrade` −0.059m）。`packages/core/test/ground.test.ts` 量的是真的 `foot.porcelain.a` 包围盒 + 真的挂载参数；端到端由 `packages/app/test/ground.test.ts` 跑真的 `assemble()` × 七种方案证。消费者：`app/src/creature/assemble.ts` 的 `groundToFloor()`，以及 `mass.ts`（只借 `MAX_LIFT` 这条安全阀） |
+| **`vitality.ts` 末尾的再落地认身体方案（`apply(..., plan)`）** | `stable` | 它在 `remapSkeleton` **之后**跑，末尾会再落一次地，而那一次原来写死 `footIdxL/R, ankleL/R` —— 对 `PLANS_WITHOUT_FEET`（`radial` / `inverted`）等于拿一组长在身体**顶上**的关节往下拽。参考站姿实测：`inverted` 整具骨架被埋到 **−1.290m**、`radial` **−0.601m**。网格落地会把递给它的东西原样抬回来，所以**画面上看不见**；但读关节的那些人（接触阴影 `framing.ts`、取景、截图）读到的全是这具沉下去的骨架。谓词只有一个：`bodyplan.ts` 的 `groundsByLowestJoint()`（`PLANS_WITHOUT_FEET` 的唯一判据函数，**不许再建第二张表**）。`core/test/vitality.test.ts` 新增 3 条：两个无脚方案各钉 10 帧最低关节在 y=0，外加一条反向护栏（人形蹲下摸地、手尖低于脚尖时，基准**仍然是脚**）。注释掉修复 → 那两条立刻红成上面两个数 |
 | `skeleton.ts` / `stabilize.ts` / `motion.ts` | `spec-only` | 见 `docs/11-TASKS.md` T-02/T-04/T-06 |
 
 ## Runtime（浏览器）
@@ -79,6 +83,7 @@
 | **脚长在腿上（`foot` 的挂载 + `FOOT` 三个旋钮）** | `stable` | **改之前脚是躺在地上的**：`foot` 按 uniform 挂，长轴尺寸 = `SLOT_WIDTH.foot / localGirth` = **0.39m**，和 0.17m 的脚骨毫无关系；而部件契约把 socketA 放在长轴端点，于是整只脚从脚踝**往前平铺**出去、戳穿地板，脚踝以下是空的。现在脚长由脚骨算（`FOOT.lengthOfBone` 补上踝后面那截脚跟，带钳位），踝钉在脚长三成处（`FOOT.anchor`），`SLOT_WIDTH.foot` 改读「脚宽」0.115。取证 `scratch/evidence/body-feet-before-after.png`（同机位同 seed 的脚部特写）与 `body-{porcelain,xeno,manipulator}-{before,after}.png` |
 | 关节盖片盖住接缝 | `experimental` | `MORPH.jointCapScale` 0.75 → 0.95。0.75 时盖片比它要盖的那根骨头还细，肩/胯/膝的穿插照样露在外面 —— 盖了等于没盖。取证同上那六张图。**审美判断，没有量化判据** || `src/creature/body.ts` `BodyInstance` 接口（身体方案的插拔点，docs/18 §3） | `stable` | 纯提取，`creature.ts` 一行没动。编译期断言 `Creature extends BodyInstance` 在 `npm run typecheck` 里（把 `pose` 签名改坏会立刻红）；`mass.ts` 是第二个实现 |
 | **`src/creature/mass.ts` 团块身体（B 档 · MarchingCubes metaball）** | `experimental` | `/dev/mass.html` 实测（M4 / Chrome WebGPU，合成 A-pose 17 骨 = **87 球**，`pose()` 连续 200 次）：**res40 = 1.85ms avg / 3.4ms p95 · 2,484 三角 · 1 draw call**。res 阶梯 16/24/32/40/48/64 → 0.27 / 0.61 / 0.89 / 1.85 / 3.97 / 9.64ms，三角 594 / 1152 / 1740 / 2484 / 3340 / 5928，**全部 1 draw**。大动作姿势（92 球）res40 = 2.98ms avg / 6.6ms p95。降级旋钮（`setRes`）实测有效。**CPU 比刚体贵、GPU 比刚体便宜**：同一副骨架下刚体版 `pose()` 0.17ms / 87,844 三角 / 17 draw，团块 1.85ms / 2,484 三角 / 1 draw。截图 `scratch/evidence/mass-still-res40.png`、`mass-big-res40.png`、`mass-lowres-res16.png`、`mass-highres-res64.png`。**只在合成骨架上跑过，没接过真骨架，也还没有任何条目真的用它**（见下） |
+| **团块也落地（`mass.ts` `pose()` 第 6 步 + `stats.lift`）** | `stable` | 团块身体**不走 `assemble()`**（它一个槽位件都不实例化），所以网格落地那条路从来没管到它 —— coral / char.dumpling / char.ghost 和每个人的 tier 0 开场形态（`nascent.ts`）一直沉在地板里。量的是 `MarchingCubes.update()` 之后 geometry 里**这一帧真要画的顶点**（不是球心+半径：融合会让表面胖出球半径之外，胖多少不是一个能写下来的数 —— 那是估计不是测量，P21），世界最低点 = `center.y + lift + localY·half`，令其为 0。`packages/app/test/mass-ground.test.ts` 3 条：站姿修前 **−0.0620m**、蹲姿修前 **−0.0467m**，修后两者 \|y\| < 1e-6；第三条钉住"进出场那几帧冻结抬升"（`shrink` 把物质收向质心，那时重算会让团块一边化开一边往地上掉）。测试读 `geometry.drawRange.count` 而不是 `mc.count`，绕开文件头 §3 那个字段名坑。钳位复用 `core/ground.ts` 的 `MAX_LIFT`。**仍欠**：抬升只改渲染网格，喂给 `stage.frame()` 的骨架没同步，所以团块的接触阴影仍落在骨架的落点上（刚体那条路也一样，见「明确还没接上的」）|
 | 团块 vs 刚体并排对照 | `stable` | `scratch/evidence/mass-vs-rig-compare.png`（`/dev/mass.html?mode=compare&pose=big`）：团块是一具连续的身体，刚体版在同一姿势下读作一堆悬空零件。这张图是「像不像原作那种流过身体的物质」的判断依据 |
 | `/dev/mass.html` 团块调试页（合成 A-pose ↔ 大动作 · HUD · 方向键调 res · 三模式） | `stable` | 上述全部数字与截图都出自它。`?mode=mass\|rig\|compare&pose=a\|big\|anim&res=&angle=&still=`；`?still=N` 是 headless 取证用（永不停的 rAF 会把 `--virtual-time-budget` 吊住） |
 | 团块的降级路径（`presence` 进出场 / 退化骨架 / 出界） | `experimental` | 浏览器控制台逐条跑过，**全部不 throw**：IDLE 与 LEAVING t=1 → 0 三角 0 draw 且隐藏；ENTERING 0→0.5→1 → 0 / 964 / 2,274 三角（物质向质心收回去）；`null` 骨架、空 bones、全 NaN 关节、confidence=0、height=0、length=0、身体被挪到盒外 50m、`dt=NaN`、`dt=10s` 逐个跑过均正常返回，且 15 帧内恢复正常出图 |
