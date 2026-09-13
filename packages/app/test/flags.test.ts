@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isPreviewMode, readFlags } from '../src/shell/kiosk.ts';
+import { isPreviewMode, parseArcSeconds, readFlags } from '../src/shell/kiosk.ts';
 import { wantsPreview } from '../src/ui/preview-state.ts';
 
 test('flags: 默认值 —— 镜像开、其余关', () => {
@@ -98,4 +98,23 @@ test('flags: ?wave= 的默认不是"关" —— 现场没有输入设备，关�
   // 现场（?kiosk=1）一件输入设备都没有，默认关掉的话观众只能等 30 秒被随机塞一具身体。
   assert.notEqual(readFlags('?kiosk=1').wave, 'off');
   assert.notEqual(readFlags('').wave, 'off');
+});
+
+test('flags: ?arc=<秒> 只认大于 0 的秒数，认不出来的值 = 当没写过', () => {
+  // 和 ?scene= / ?wave= / ?exits= 同一条规矩：手滑写的参数**不许静默生效**。
+  // 这一条在 ?arc= 上格外硬：现场有人把弧线压到 90 秒讲解，参数没生效的话
+  // HUD 上那一行照常在走，他读到的是"弧线错了"而不是"参数错了"（P21）。
+  assert.equal(parseArcSeconds('90'), 90);
+  assert.equal(parseArcSeconds('45.5'), 45.5);
+  assert.equal(parseArcSeconds('abc'), null);
+  assert.equal(parseArcSeconds('0'), null, '零秒的弧线不是一条弧线');
+  assert.equal(parseArcSeconds('-30'), null);
+  assert.equal(parseArcSeconds(''), null, 'Number("") === 0 是那个经典陷阱');
+  assert.equal(parseArcSeconds(null), null);
+
+  assert.equal(readFlags('').arc, null, '没写就是 null —— 走 ARC.total');
+  assert.equal(readFlags('?arc=90').arc, 90);
+  assert.equal(readFlags('?arc=300').arc, 300);
+  assert.equal(readFlags('?arc=abc').arc, null);
+  assert.equal(readFlags('?arc=0').arc, null);
 });

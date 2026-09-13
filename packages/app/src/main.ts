@@ -16,11 +16,12 @@ import { createVitality } from '../../core/src/vitality.ts';
 import { createMotion } from '../../core/src/motion.ts';
 import { createEvolution } from '../../core/src/evolution.ts';
 import { createPresence } from '../../core/src/presence.ts';
+import { arcPresent, createArc, type ArcState } from '../../core/src/arc.ts';
 import { makeGenome } from '../../core/src/genome.ts';
-import { remapSkeleton } from '../../core/src/bodyplan.ts';
+import { blendSkeletons, remapSkeleton, type BodyPlan } from '../../core/src/bodyplan.ts';
 import { mulberry32 } from '../../core/src/rng.ts';
 import { CAPTURE, NASCENT, REFINE, STAGE } from '../../core/src/tuning.ts';
-import type { MotionFeatures, Skeleton, Tier } from '../../core/src/types.ts';
+import type { MotionFeatures, Presence, Skeleton, Tier } from '../../core/src/types.ts';
 
 import { createCapture, type Capture } from './capture/capture.ts';
 import { createPartLibrary } from './assets/library.ts';
@@ -262,9 +263,22 @@ async function boot(): Promise<void> {
   //        而那是给我们看的，不是给观众看的。
   if (themeDef) showNotice({ zh: themeDef.name, en: themeDef.nameEn });
   if (renderFellBack && !flags.kiosk) showNotice(COPY.boot.fallbackRender, { corner: 'bottom-right' });
-  // `let`：控件条会在七种骨架之间热切它。`remapSkeleton` 是纯函数、每帧调一次，
-  // 换一个值下一帧就生效 —— 会重建身体的只有"进出团块"，那一条走重载（见 controls.ts）。
-  let bodyPlan = flags.plan ?? themeDef?.bodyPlan ?? 'rig';
+  // ── 身体方案：**开场一律人形**（docs/40 §1「为什么开场必须是人形」）───────────
+  //
+  // 此前这一行是 `flags.plan ?? themeDef?.bodyPlan ?? 'rig'`，一次算定。
+  // 现在物种自己的方案**不是被取消，是被推迟**到第 III 乐章：第 I 乐章的概念是
+  // datafication，「它借你的动作站立」—— 借的是**你的**动作，那就必须先有一具
+  // 能读成"你"的身体。一面四条腿的镜子不是镜子。
+  //
+  // `?plan=` 仍然覆盖一切，而且**立刻**生效（不等第 III 乐章）：它是调试参数，
+  // look dev 要的是一个开场就站定的靶子，不是一条要等 85 秒的弧线。
+  // 控件条热切方案走的是同一个 `planOverride` —— 人手按下的一律赢过弧线。
+  const speciesPlan: BodyPlan = themeDef?.bodyPlan ?? 'rig';
+  let planOverride: BodyPlan | null = flags.plan;
+  const kindOf = (p: BodyPlan | null): string =>
+    (p === null ? 'rig' : typeof p === 'string' ? p : (p.kind ?? 'rig'));
+  /** 这一帧实际用的方案（弧线还没到第 III 乐章时是 `rig`，见 `planDrift()`） */
+  const activePlan = (): BodyPlan => planOverride ?? speciesPlan;
 
   // ── 4b. 左上角那块小屏幕（`ui/preview.ts`）────────────────────────────────
   // **挂在这里，不是更早。** 它要显示摄像头画面，而这件作品有一条硬规矩：
@@ -293,6 +307,14 @@ async function boot(): Promise<void> {
 
   // ── 5. 状态机 ───────────────────────────────────────────────────────────
   const presence = createPresence();
+  /**
+   * 会话弧线（`core/src/arc.ts` / `docs/40-SESSION-ARC.md`）——
+   * **这件作品的时间轴，此前它不存在**。四个乐章依次是
+   * 跟随 → 回声 → 抵抗 → 朝向，导演按它排座次，分档跟着它走。
+   * `?arc=<秒>` 当场改时长；认不出来的值在 `readFlags` 里已经退成 null 并喊过一声。
+   */
+  const arc = createArc({ total: flags.arc });
+  let arcState: ArcState = arc.state;
   const stabilizer = createStabilizer();
   // 时域精化在**原始 landmark 上**做，在 buildSkeleton 之前 ——
   // 骨架是从 landmark 推出来的，先抖后建等于把抖动烘进骨长和朝向里，
@@ -310,7 +332,7 @@ async function boot(): Promise<void> {
   const evolution = createEvolution();
   // 身体方案决定用哪种**表达**：刚体挂载（手办式）还是团块（物质式）。
   // 两者都满足 BodyInstance，帧循环不关心是哪一种（docs/18 §2）。
-  const planKind = typeof bodyPlan === 'string' ? bodyPlan : (bodyPlan.kind ?? 'rig');
+  const planKind = kindOf(activePlan());
   const isMass = planKind === 'mass';
   // 点场（`creature/swarm.ts`）：和团块同一条路数的第三种表达 —— 一片跟着活骨架
   // 走的点，一件槽位件都不实例化。挂在 `field`／「场」这一个条目上，理由是它的
@@ -332,11 +354,78 @@ async function boot(): Promise<void> {
   // 也就是改这版之前的行为 —— 那个开关的理由写在 tuning.ts 的 NASCENT.enabled 上。
   // 点场和团块一样，本来就全程不实例化零件 —— 开场那一层（团块 tier 0）
   // 对它没有意义：它没有"还没分化出零件"的阶段，它从来就没有零件。
-  const nascent = isMass || isSwarm || !NASCENT.enabled
+  //
+  // **B 档物种（mass / swarm）现在也要这一层**：它们的物种身体要等到第 III 乐章
+  // 才到场（见下面 `arcBody`），在那之前站在台上的必须是一具人形 ——
+  // 而"人形"对它们来说就是这一团跟着人骨架走的未分化的体。
+  // `?plan=mass` 强制时不需要它（那时物种身体开场就在）。
+  const nascent = !NASCENT.enabled || (planOverride !== null && (isMass || isSwarm))
     ? null
     : createNascent({ creature, library, theme: theme ?? undefined });
-  const body: BodyInstance = massBody ?? swarmBody ?? nascent ?? creature;
-  stage.scene.add(body.object);
+  /** 第 I / II 乐章那一具：人形。团块开场 → tier ≥ 1 长出刚体件 */
+  const humanBody: BodyInstance = nascent ?? creature;
+  /** 物种自己的那一具（B 档才有）。A 档物种换的是拓扑，不换这一层 */
+  const speciesBody: BodyInstance | null = massBody ?? swarmBody;
+
+  /**
+   * 物种的身体方案到场了没有。第 III 乐章（`NOT ME` / simulacrum）那一刻 ——
+   * **它出现的那一刻因此有了意义：那正是 simulacrum 成立的证据**（docs/40 §1）。
+   * `?plan=` / 控件条按下的一律立刻到场（调试要的是靶子不是弧线）。
+   */
+  const SPECIES_ARRIVES_AT = 2;
+  const speciesArrived = (): boolean =>
+    planOverride !== null || arcState.movement >= SPECIES_ARRIVES_AT;
+  /** 拓扑漂移的进度 0..1：到场之后头 `ARC.crossfade` 秒里从人形漂到物种身体 */
+  const planDrift = (): number =>
+    (planOverride !== null ? 1 : speciesArrived() ? arcState.blend : 0);
+
+  /**
+   * ── 第 III 乐章那一次到场（B 档物种）─────────────────────────────────────
+   *
+   * A 档物种（四足 / 环 / 柱 / 倒置 / 比例）换的是**骨架**，所以它的到场发生在
+   * 帧循环里的 `blendSkeletons` 那一行，这里什么都不用做。
+   * B 档（`mass` / `swarm`）换的是**表达**，而表达是构造期选定的 ——
+   * 于是两具都建出来，由这个外壳决定这一帧谁在演、谁在淡出。
+   *
+   * 交叉淡入复用**已经存在的**那一套：两个模块都只认 `Presence`，
+   * `ENTERING` 长出来、`LEAVING` 缩回去。所以这里不新造任何淡入淡出，
+   * 只是把「真实在场 × 自己那一份 blend」合成两个假的 `Presence` 递下去 ——
+   * 和 `creature/nascent.ts` 里那一段是同一个写法（同样的代价：smoothstep 套两层）。
+   */
+  const bodyRoot = new THREE.Group();
+  bodyRoot.name = 'arc-body';
+  bodyRoot.add(humanBody.object);
+  if (speciesBody) bodyRoot.add(speciesBody.object);
+  stage.scene.add(bodyRoot);
+
+  const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x);
+  const aliveOf = (pr: Presence | null | undefined): number =>
+    (!pr ? 1 : pr.state === 'ENTERING' ? clamp01(pr.transition)
+      : pr.state === 'LEAVING' ? 1 - clamp01(pr.transition)
+        : pr.state === 'IDLE' ? 0 : 1);
+  const fadeIn: Presence = { state: 'ENTERING', elapsed: 0, transition: 1 };
+  const fadeOut: Presence = { state: 'LEAVING', elapsed: 0, transition: 0 };
+
+  const body: BodyInstance = speciesBody === null ? humanBody : {
+    object: bodyRoot,
+    get stats() { return speciesArrived() ? speciesBody.stats : humanBody.stats; },
+    pose(sk, presence, dt) {
+      const t = planDrift();
+      const alive = aliveOf(presence);
+      humanBody.object.visible = t < 1;
+      speciesBody.object.visible = t > 0;
+      if (t < 1) {
+        fadeOut.transition = 1 - alive * (1 - t);
+        humanBody.pose(sk, t <= 0 ? presence : fadeOut, dt);
+      }
+      if (t > 0) {
+        fadeIn.transition = alive * t;
+        speciesBody.pose(sk, t >= 1 ? presence : fadeIn, dt);
+      }
+    },
+    dispose() { humanBody.dispose(); speciesBody.dispose(); },
+  };
+  if (speciesBody) speciesBody.object.visible = planOverride !== null;
 
   let seed = flags.seed ?? (Math.random() * 0xffffffff) >>> 0;   // 会话级种子，仅此一处
 
@@ -351,6 +440,8 @@ async function boot(): Promise<void> {
   let lastFeatures: MotionFeatures | null = null;
   let lastSkeleton: Skeleton | null = null;
   let tier: Tier = (flags.tier ?? 0) as Tier;
+  /** 运动量那一半给出的档位。它只能把 tier 往上推，见帧循环里的那一段 */
+  let evoTier: Tier = 0;
   let note = '';
   let elapsedT = 0;
 
@@ -372,10 +463,11 @@ async function boot(): Promise<void> {
   const world: World = {
     get t() { return elapsedT; },
     get presence() { return presence.current; },
+    get arc() { return arcState; },
     get skeleton() { return lastSkeleton; },
     get features() { return lastFeatures; },
     get evolution() { return evolution.state; },
-    get genome() { return isMass ? null : creature.genome; },
+    get genome() { return isMass || isSwarm ? null : creature.genome; },
     // getter：capture 会在运行中被换掉（回放 → 摄像头），玩法必须看到当前那一个
     get capture() { return capture; },
     creature: body, stage, library, flags,
@@ -390,6 +482,10 @@ async function boot(): Promise<void> {
     const raw = capture.latest();
     const detected = raw !== null && raw.score > CAPTURE.minScore;
     const p = presence.update(detected, dt);
+    // 弧线吃的是**未经时间停滞缩放的 dt**（和 presence / evolution 同一条理由：
+    // 升档那 0.15 秒是给身体的顿挫，不是给时间轴的）。在不在场用已有的 `Presence`
+    // 折一下，不发明第二套检测（docs/40 §3）。
+    arcState = arc.update(arcPresent(p), dt);
 
     // 那块小屏幕吃的是 **raw，不是精化之后的 cooked**。
     // 精化器会在遮挡时保持最后一次可信位置最多 0.67 秒（`core/refine.ts`）——
@@ -407,12 +503,23 @@ async function boot(): Promise<void> {
       // 而骨长要等滚动中位数定下来才可信（放前面就是拿噪声当尺子）。
       if (refiner && refineOn) clampFold(humanSk);
       lastFeatures = motion.update(humanSk, dt);
-      const planned = remapSkeleton(humanSk, bodyPlan);
+      // 拓扑漂移（docs/40 §1：**"逐渐"是这条线的全部技术要求**）。
+      // 第 I / II 乐章 drift = 0，人形；第 III 乐章开头那 `ARC.crossfade` 秒里
+      // 从人形漂到物种自己的方案；之后 drift = 1，一次 remap 就够，零额外开销。
+      const drift = planDrift();
+      const plan = activePlan();
+      const planned = drift >= 1 ? remapSkeleton(humanSk, plan)
+        : drift <= 0 ? remapSkeleton(humanSk, 'rig')
+          : blendSkeletons(remapSkeleton(humanSk, 'rig'), remapSkeleton(humanSk, plan), drift);
       // 刚体挂载做不出"弯"，但一串各自延迟不同的刚体看起来就是在弯 ——
       // 这是参照作品那句 "wiggles, shifts, and bends" 唯一能不做蒙皮就拿到的部分。
       // 方案要一起递进去：vitality 末尾还要落一次地，而"拿谁当基准"随方案变
       // （没有脚的方案按整具最低关节，见 core/bodyplan.ts 的 groundsByLowestJoint）
-      lastSkeleton = vitalityOn ? vitality.apply(planned, lastFeatures, dt, bodyPlan) : planned;
+      // 漂移一开始就按**目标方案**的基准落地：`inverted` / `radial` 的脚已经不是脚了，
+      // 漂到一半再换基准会让整具身体跳一下 —— 宁可在漂移的第一帧换，那时它还在人形上。
+      lastSkeleton = vitalityOn
+        ? vitality.apply(planned, lastFeatures, dt, drift > 0 ? plan : 'rig')
+        : planned;
       stage.frame(lastSkeleton);   // 取景按**重映射之后**的身体算：四足是横的矮的
       // 那具身体的重量真的落在地上。判据和上面那行画的接触阴影共用同一批落点，
       // 所以听到的那一下和看到的那一摊影子不可能对不上。dt 不吃 timeScale（同 sound.update）
@@ -422,11 +529,33 @@ async function boot(): Promise<void> {
       // 团块的"沸腾"层由运动能量驱动 —— 动得越猛表面越沸（tuning 的 MASS.surface）
       massBody?.setEnergy(lastFeatures.energy);
       nascent?.setEnergy(lastFeatures.energy);
-      // ?tier= 锁定时不让演化改形态 —— look dev 要的是一个不动的靶子
-      if (evo.tierChanged && flags.tier === null) {
-        morph(evo.tier);
-        stage.pulse(evo.tier);      // docs/23 §S5：升档必须可感知，否则演化等于没发生
-        sound.tierUp(evo.tier);     // 同一个事件的另一半。两半必须在同一帧，否则读成两件事
+      evoTier = evo.tier;
+    }
+
+    // ── 分档：**跟着弧线走，运动量只是加速项**（docs/40 §4 最后一段）───────────
+    //
+    // 此前这里只有 `evo.tierChanged`：分档看的是累计运动量，于是站着不动的人
+    // 永远停在 tier 0（"观众体验到的是一堆状态，不是一段经过"）。
+    // 现在时间是主轴 —— 乐章序号就是这一场的档位下限，动得多的人可以**提前**到，
+    // 但没有人会因为不动而被卡住。
+    //
+    // 取最大值而且**只涨不落**（本场之内）：charge 会随静止衰减，跟着它回落
+    // 意味着观众站定几秒就会看着零件退回去，那读作故障，不读作"它安静下来了"。
+    // 归零由弧线负责，不由衰减负责。
+    // `?tier=` 锁定时整段不参与 —— look dev 要的是一个不动的靶子。
+    if (flags.tier === null) {
+      const want = Math.max(tier, arcState.tier, evoTier) as Tier;
+      if (want !== tier) {
+        morph(want);
+        stage.pulse(want);      // docs/23 §S5：升档必须可感知，否则演化等于没发生
+        sound.tierUp(want);     // 同一个事件的另一半。两半必须在同一帧，否则读成两件事
+      } else if (arcState.movementChanged) {
+        // 乐章交接是这件作品少数几个"事件"之一（docs/40 §5 第 3 条）。
+        // 档位已经被运动量提前推上去时这里不会再升一档，但**交接本身仍然发生了**，
+        // 所以那一声照放 —— 用的是已经存在的升档音，**不新造一种提示音**：
+        // 乐章不是成就（docs/29 §S5 那条克制同样适用）。
+        stage.pulse(tier);
+        sound.tierUp(tier);
       }
     }
     // 身体怎么动交给当前的 Act。追踪短暂丢失时 lastSkeleton 还在，
@@ -439,8 +568,18 @@ async function boot(): Promise<void> {
     // 失败的正确表现是什么都没发生 —— 观众不该知道刚才有东西在跑（P3）。
     slow.update(p.state === 'ALIVE', dt);
 
-    // 人走了 → 换一个种子，下一个人是全新的身体（docs/05 §5）
-    if (presence.justReset) {
+    // ── 人走了 → 这一场结束（docs/05 §5 + docs/40 §3）─────────────────────────
+    //
+    // **判据换成了弧线的归零**，不再是 `presence.justReset`：同一件事只该有一个
+    // 时刻，而这件作品里"一场"的长度由 `ARC.resetAfter` 的宽限定义
+    //（走出画面捡个东西不算走）。`Presence` 仍然是唯一的检测器 ——
+    // 弧线吃的就是它，这里没有第二套。
+    //
+    // **任何跨观众留存的状态都是 bug**，除非它是 `/lineage` 谱系那一条
+    //（那一条留在 `library.index.parts` 里，是开场就注入的，不在这里）。
+    // 所以除了种子和各个滤波器，这里还要把两样最容易被漏掉的东西收回来：
+    // 被按住的玩法（`untether` 写进 URL 那次 bug 的同一类）和物种身体的到场。
+    if (arcState.justReset) {
       seed = (Math.random() * 0xffffffff) >>> 0;
       motion.reset();
       evolution.reset();
@@ -450,7 +589,13 @@ async function boot(): Promise<void> {
       slow.reset();
       groundSense.reset();   // 换了一个人：下一次观测重新立基准，不在进场那一帧砸一下
       lastSkeleton = null;
-      morph((flags.tier ?? 0) as Tier);
+      evoTier = 0;
+      tier = (flags.tier ?? 0) as Tier;
+      morph(tier);
+      // 上一个人可能把身体还回去了（右下角那一行）。下一个人站上去必须被跟随，
+      // 否则他看到的是一具从第一秒就不理他的身体 —— docs/40 §3 点名的那个 bug。
+      if (director.forced && flags.act === null) director.release(world);
+      if (hud) console.info('[arc] 归零 —— 下一位从第 I 乐章开始');
     }
 
     // 声音吃的是 **未经时间停滞缩放的 dt**：升档那 0.15 秒画面顿一下是设计，
@@ -475,6 +620,9 @@ async function boot(): Promise<void> {
         instances: (s as { instances?: number }).instances ?? 0, triangles: s.triangles,
         drawCalls: s.drawCalls, inferenceHz: capture.fps,
         act: director.currentId ?? '—',
+        // 现场调时长的人靠这一行，不靠掐表（docs/40 §5 第 2 条）
+        arc: arcState,
+        arcForced: director.forced,
         // `camera` 只有 `WebcamCapture` 有（回放没有摄像头可选），所以按可选字段读 ——
         // 和上面 `instances` 同一个写法，不为一个显示字段去动 `Capture` 契约。
         cam: (capture as { camera?: { hud: string } | null }).camera?.hud,
@@ -505,11 +653,13 @@ async function boot(): Promise<void> {
     host: {
       themeId: theme ?? null,
       themes: library.index.themes ?? [],
-      planId: () => (typeof bodyPlan === 'string' ? bodyPlan : (bodyPlan.kind ?? 'rig')),
+      planId: () => kindOf(activePlan()),
       // 只在"两边都不是团块"时会被调到（controls.ts 的 setForm 负责那条判断）。
       // 换方案时把比例也一起丢掉是对的：比例是**那个物种**的身材，
       // 而观众此刻要看的正是"换一具身体会怎样"。
-      setPlan: (id) => { bodyPlan = id; },
+      // 人手按下的方案是**覆盖**，不是"改物种"：它立刻生效并且一直压着弧线，
+      // 和 `?plan=` 走同一个变量。调参的人要的是一个站定的靶子。
+      setPlan: (id) => { planOverride = id; },
       sceneId: () => stage.sceneId,
       setScene: (id) => stage.setScene(id),
       actId: () => director.currentId,
@@ -561,7 +711,7 @@ async function boot(): Promise<void> {
       // 少带一条，演示到一半回大厅再选一个物种，刚调好的那一屏就没了。
       state: () => ({
         themeId: theme ?? null,
-        planId: typeof bodyPlan === 'string' ? bodyPlan : (bodyPlan.kind ?? 'rig'),
+        planId: kindOf(activePlan()),
         sceneId: stage.sceneId,
         actId: director.currentId,
         vitality: vitalityOn,
@@ -573,7 +723,10 @@ async function boot(): Promise<void> {
       // 只是这一场不用观众的那一份（`acts/untether.ts` 的文件头）。
       handedBack: () => director.currentId === HANDED_BACK_ACT,
       setHandedBack: (on) => {
-        director.force(on ? HANDED_BACK_ACT : 'follow', world);
+        // 「拿回来」不是"切到 follow"，是**交回给弧线** —— 观众拿回身体之后
+        // 应该回到这一场此刻的乐章（已经走到第 III 段就该是「抵抗」），
+        // 而不是永远停在第 I 段。这是 `director.release()` 存在的全部理由。
+        if (on) director.force(HANDED_BACK_ACT, world); else director.release(world);
         return director.currentId === HANDED_BACK_ACT;
       },
       cameraOn: () => cameraOn,
@@ -596,7 +749,8 @@ async function boot(): Promise<void> {
 
   console.info(
     `[main] running · theme=${theme} · seed=${seed} · ` +
-    `plan=${planKind} · capture=${entry || flags.demo ? 'replay' : 'webcam'} · ` +
+    `plan=${planKind}${planOverride === null && planKind !== 'rig' ? '(第 III 乐章到场)' : ''} · ` +
+    `arc=${arc.total}s · capture=${entry || flags.demo ? 'replay' : 'webcam'} · ` +
     `acts=${ACTS.map((a) => a.id).join(',')} · sound=${sound.state}`,
   );
 }

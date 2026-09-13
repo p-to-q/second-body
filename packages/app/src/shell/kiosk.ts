@@ -17,6 +17,17 @@ export interface Flags {
   tier: number | null;  // ?tier=2      锁定 tier，调 look dev 用
   kiosk: boolean;       // ?kiosk=1  进入现场模式
   act: string | null;   // ?act=echo 锁定一个玩法（docs/16）
+  /**
+   * ?arc=<秒> 覆盖整条会话弧线的时长（`ARC.total`，默认 180）。
+   * 四段按 `ARC.beats` 的比例跟着缩放，所以这**一个**数就是现场唯一要调的旋钮：
+   * 讲解时压到 90 秒，长期布展拉到 5 分钟（docs/40 §2）。
+   *
+   * 认不出来的值（`?arc=abc` / `?arc=0` / `?arc=-5` / `?arc=`）一律 null =
+   * 当没写过，并且打一条 warn —— 规矩和 `?scene=` / `?exits=` 一样。
+   * **不许静默退回 180**：现场有人压了时长却没生效，而 HUD 上那一行照常在走，
+   * 他会以为是弧线错了，而不是参数错了（P21）。
+   */
+  arc: number | null;
   plan: string | null;  // ?plan=quadruped 覆盖身体方案（docs/18）
   /** ?scene=void 覆盖舞台场景（app/src/stage/scenes.ts）。null = 按物种自动挑 */
   scene: string | null;
@@ -135,6 +146,31 @@ function resolveExits(raw: string | null, kiosk: boolean): boolean {
   return !kiosk;
 }
 
+/**
+ * `?arc=<秒>` 的解析。`null` = 没写，或者写了但认不出来。
+ *
+ * 单独拎出来（和 `parseExits` 同一条路数）是为了能被单测直接钉住：
+ * 「写了一个坏值」和「没写」必须走同一条路（都按默认），但前者要说话。
+ */
+export function parseArcSeconds(raw: string | null): number | null {
+  if (raw === null || raw.trim() === '') return null;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/** 同一个坏值只喊一次 —— `readFlags()` 一次启动会被调好几处 */
+const warnedArc = new Set<string>();
+
+function resolveArc(raw: string | null): number | null {
+  const parsed = parseArcSeconds(raw);
+  if (parsed !== null) return parsed;
+  if (raw !== null && !warnedArc.has(raw)) {
+    warnedArc.add(raw);
+    console.warn(`[kiosk] ?arc=${raw} 认不出来，只认大于 0 的秒数 —— 按没写过处理（弧线走默认 180 秒）`);
+  }
+  return null;
+}
+
 /** MediaPipe 的三个 PoseLandmarker 档位。精度/延迟的实测差异见 docs/24 §3 */
 export type PoseModel = 'lite' | 'full' | 'heavy';
 const POSE_MODELS: readonly string[] = ['lite', 'full', 'heavy'];
@@ -161,6 +197,7 @@ export function readFlags(search = location.search): Flags {
     tier: num('tier'),
     kiosk: q.get('kiosk') === '1',
     act: q.get('act'),
+    arc: resolveArc(q.get('arc')),
     plan: q.get('plan'),
     scene: q.get('scene'),
     selftest: q.get('selftest') === '1',

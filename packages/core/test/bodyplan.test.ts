@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { remapSkeleton, BODY_PLANS, PLANS_WITHOUT_FEET } from '../src/bodyplan.ts';
+import { blendSkeletons, remapSkeleton, BODY_PLANS, PLANS_WITHOUT_FEET } from '../src/bodyplan.ts';
 import { buildSkeleton } from '../src/skeleton.ts';
 import { dist } from '../src/vec.ts';
 import type { Skeleton, Vec3 } from '../src/types.ts';
@@ -325,4 +325,58 @@ test('radial / column：比例 spec 仍然生效（它们是先缩放再换拓�
   const r0 = remapSkeleton(base, 'radial');
   const r1 = remapSkeleton(base, { kind: 'radial', limb: 0.6 });
   assert.ok(spread(r1) < spread(r0) * 0.85, `radial 的 limb 比例没生效：${spread(r0).toFixed(2)} → ${spread(r1).toFixed(2)}`);
+});
+
+// ── 第 III 乐章的那一次漂移（docs/40 §1；`blendSkeletons`）───────────────────
+
+test('blend: 两端就是两个方案本身，中间不许凭空多出一具身体', () => {
+  const sk = human();
+  const rig = remapSkeleton(sk, 'rig');
+  const quad = remapSkeleton(sk, 'quadruped');
+  // 两端走捷径：弧线四段里有三段落在这里，那些帧必须零分配
+  assert.equal(blendSkeletons(rig, quad, 0), rig);
+  assert.equal(blendSkeletons(rig, quad, 1), quad);
+  assert.equal(blendSkeletons(rig, quad, -1), rig, '负数按 0 处理，不许外插');
+  assert.equal(blendSkeletons(rig, quad, Number.NaN), rig);
+
+  const mid = blendSkeletons(rig, quad, 0.5);
+  assert.equal(mid.bones.length, rig.bones.length, '17 根骨头一根不多一根不少');
+  for (const b of mid.bones) {
+    const a0 = rig.bones.find((x) => x.id === b.id)!;
+    const b0 = quad.bones.find((x) => x.id === b.id)!;
+    for (let i = 0; i < 3; i++) {
+      const lo = Math.min(a0.p0[i], b0.p0[i]);
+      const hi = Math.max(a0.p0[i], b0.p0[i]);
+      assert.ok(b.p0[i] >= lo - 1e-9 && b.p0[i] <= hi + 1e-9,
+        `${b.id} 漂到了两端之外 —— 那是一具没人设计过的身体`);
+    }
+  }
+});
+
+test('blend: 骨长是**重新量**的，不是插出来的 —— 否则部件会被拉成橡皮', () => {
+  const sk = human();
+  const mid = blendSkeletons(remapSkeleton(sk, 'rig'), remapSkeleton(sk, 'column'), 0.4);
+  for (const b of mid.bones) {
+    assert.ok(Math.abs(b.length - dist(b.p0, b.p1)) < 1e-9,
+      `${b.id} 的 length 和两端点对不上（${b.length} vs ${dist(b.p0, b.p1)}）`);
+  }
+});
+
+test('blend: 漂移的每一帧都还是一具合法骨架（拓扑换了也一样）', () => {
+  const sk = human();
+  for (const plan of ['quadruped', 'radial', 'column', 'inverted'] as const) {
+    const to = remapSkeleton(sk, plan);
+    for (let t = 0.1; t < 1; t += 0.1) {
+      const mid = blendSkeletons(sk, to, t);
+      assert.equal(mid.bones.length, 17, `${plan} @${t.toFixed(1)}：骨头数变了`);
+      for (const b of mid.bones) {
+        // 下限是 0 不是正数：这副合成姿态里 footL/footR 本来就是零长骨
+        assert.ok(Number.isFinite(b.length) && b.length >= 0, `${plan} @${t.toFixed(1)}：${b.id} 骨长坏了`);
+        assert.ok(b.p0.every(Number.isFinite) && b.p1.every(Number.isFinite));
+      }
+      for (const k in mid.joints) {
+        assert.ok(mid.joints[k].every(Number.isFinite), `${plan} @${t.toFixed(1)}：关节 ${k} 是 NaN`);
+      }
+    }
+  }
 });

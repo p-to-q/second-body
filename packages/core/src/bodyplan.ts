@@ -517,3 +517,56 @@ export function remapSkeleton(sk: Skeleton, plan: BodyPlan = 'rig'): Skeleton {
   }
   return out;
 }
+
+/**
+ * 两个身体方案之间的**渐变**。会话弧线第 III 乐章用它（`docs/40 §1`）：
+ *
+ * > 「拓扑漂走：人形让位给这个物种自己的身体方案。」
+ * > **"逐渐"是这条线的全部技术要求**（docs/40 §1 末尾）。
+ *
+ * 做法是把**两次重映射的结果**逐点插值，而不是去插值方案参数本身 ——
+ * 后者对 `radial` / `column` 这种换了拓扑的方案根本没有中间态可言，
+ * 而两端各自都是一具合法骨架，它们之间的直线就是一条合法的漂移。
+ *
+ * 骨长**重新量**（和 `acts/resist.ts` 同一条理由）：不重量的话挂载数学会照着
+ * 插值出来的端点去拉伸部件，读起来像橡皮，而这里要的是漂移不是形变。
+ *
+ * `t<=0` / `t>=1` 直接返回那一端的对象（不是拷贝）—— 弧线四段里有三段落在这里，
+ * 这条捷径让"不在漂移中"的那些帧零分配（P2）。
+ */
+export function blendSkeletons(a: Skeleton, b: Skeleton, t: number): Skeleton {
+  if (!a || !b || !Number.isFinite(t) || t <= 0) return a;
+  if (t >= 1) return b;
+  if (a === b) return a;
+
+  const lerp = (p: Vec3, q: Vec3): Vec3 => {
+    if (!sane(p)) return q;
+    if (!sane(q)) return p;
+    return [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t, p[2] + (q[2] - p[2]) * t];
+  };
+
+  const joints: Record<string, Vec3> = {};
+  for (const k in a.joints) {
+    const q = b.joints?.[k];
+    joints[k] = q ? lerp(a.joints[k], q) : a.joints[k];
+  }
+  for (const k in b.joints) if (!(k in joints)) joints[k] = b.joints[k];
+
+  const byId = new Map<BoneId, Bone>(b.bones.map((x) => [x.id, x]));
+  const bones: Bone[] = a.bones.map((bone) => {
+    const other = byId.get(bone.id);
+    if (!other) return bone;
+    const p0 = lerp(bone.p0, other.p0);
+    const p1 = lerp(bone.p1, other.p1);
+    return {
+      ...bone,
+      p0,
+      p1,
+      length: dist(p0, p1),
+      roll: bone.roll + (other.roll - bone.roll) * t,
+      confidence: Math.min(bone.confidence, other.confidence),
+    };
+  });
+
+  return { ...a, joints, bones, height: a.height + (b.height - a.height) * t };
+}

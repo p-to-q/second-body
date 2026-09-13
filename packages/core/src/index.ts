@@ -9,6 +9,7 @@ export * from './palette.ts';
 export * from './slots.ts';
 export * from './presence.ts';
 export * from './evolution.ts';
+export * from './arc.ts';
 export * from './skeleton.ts';
 export * from './stabilize.ts';
 export * from './refine.ts';
