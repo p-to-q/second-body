@@ -54,6 +54,8 @@ function biNode<K extends keyof HTMLElementTagNameMap>(
 
 function dismiss(node: HTMLElement): void {
   node.classList.add('is-leaving');
+  // 标记和展签同时退场：展签一走，加载态（如果还在）就该重新说话了
+  document.documentElement.classList.remove('sb-entry-up');
   setTimeout(() => node.remove(), LEAVE_MS);
 }
 
@@ -92,6 +94,31 @@ fetch('/parts/parts.json')
     if (dd) dd.textContent = String(n);
   })
   .catch(() => { /* 拿不到就是不显示，不是错误 */ });
+
+/**
+ * 巨题。按**空格**拆成两个 block，不靠 CSS 断行。
+ *
+ * 试过 `width: min-content` —— 它在**连字符**处也断，`SEE-ME SEE-U` 变成四行
+ * （SEE- / ME / SEE- / U）。而这个名字里的连字符是名字的一部分，不是可断点。
+ * 拆在 DOM 里是唯一确定的做法：断点由我们定，不由排版引擎猜。
+ */
+function titleNode(): HTMLElement {
+  const h1 = document.createElement('h1');
+  h1.className = 'sb-entry-title';
+  const zh = document.createElement('span');
+  zh.className = 'sb-zh';
+  for (const word of COPY.title.zh.split(' ')) {
+    const line = document.createElement('span');
+    line.textContent = word;
+    zh.append(line);
+  }
+  const en = document.createElement('span');
+  en.className = 'sb-en';
+  en.textContent = COPY.title.en;
+  h1.className = 'sb-entry-title sb-bi';
+  h1.append(zh, en);
+  return h1;
+}
 
 export function mountEntry(flags: Flags): Entry | null {
   if (!wantsEntry(flags)) return null;
@@ -160,7 +187,7 @@ export function mountEntry(flags: Flags): Entry | null {
 
   layer.append(
     biNode('p', COPY.entry.credit, 'sb-label'),
-    biNode('h1', COPY.title, 'sb-entry-title'),
+    titleNode(),
     biNode('p', COPY.entry.question, 'sb-entry-lede'),
     meta,
     actions,
@@ -168,6 +195,10 @@ export function mountEntry(flags: Flags): Entry | null {
   );
 
   document.body.append(layer);
+  // 告诉加载态"展签在场"：它就不再出文字了，只留那条进度线。
+  // 两层都贴底，实测会互相压字 —— 而展签本身就是加载屏，
+  // 观众在读那块标签的时候加载正在背后进行，他不需要第二段文字告诉他在等。
+  document.documentElement.classList.add('sb-entry-up');
   enter.focus({ preventScroll: true });
 
   const started = new Promise<void>((resolve) => {

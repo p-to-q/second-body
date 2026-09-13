@@ -87,10 +87,8 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   text-align: left;
-  /* 半透明 + 背后虚化，理由同 nav.css：作品在面板背后还在 */
+  /* 半透明，不虚化 —— 理由同 nav.css */
   background: color-mix(in srgb, var(--sb-paper) calc(var(--sb-layer-panel) * 100%), transparent);
-  backdrop-filter: blur(18px) saturate(1.1);
-  -webkit-backdrop-filter: blur(18px) saturate(1.1);
   color: var(--sb-ink-dim);
   /* 没有入场动效，理由和 nav.css / notice.css 一样：入场动效等于把静止态
      设成 opacity 0，而动画不一定跑得起来。 */

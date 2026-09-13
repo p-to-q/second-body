@@ -158,9 +158,13 @@
  * 展签的内容本来就该有行长上限（`--sb-measure`），顺着这条限就够了，
  * 而 padding 会把左下角的留白一起挤掉，那是这一屏的构图。
  */
+/* 展签的内容永远不进目录那一栏。24rem 是目录面板 22rem 加一个 gutter 的余量。 */
 html.sb-has-nav .sb-entry > * { max-width: min(34rem, calc(100vw - 24rem - var(--sb-safe) * 2)); }
-@media (max-width: 900px) {
-  /* 窄屏上目录自己会收（面板宽度跟着视口走），内容不必再让 */
+/* 900px 以下曾经不让位，理由是"窄屏上目录自己会收"。
+   **那个假设在目录改成默认展开之后就不成立了** —— 它不会收，只会一直占着右边。
+   实测 724px 视口下展签的每一行都跑到目录底下去了。
+   现在只在真正的窄屏（目录自己换到全宽之下）才取消让位。 */
+@media (max-width: 620px) {
   html.sb-has-nav .sb-entry > * { max-width: none; }
 }
 
@@ -174,11 +178,10 @@ html.sb-has-nav .sb-entry > * { max-width: min(34rem, calc(100vw - 24rem - var(-
   font-size: clamp(2.4rem, 6vw, 5.5rem);
   letter-spacing: -0.045em;
 }
-.sb-entry-title .sb-zh {
-  display: block;
-  width: min-content;
-  line-height: 0.92;
-}
+.sb-entry-title .sb-zh { display: block; line-height: 0.92; }
+/* 两个词各占一行 —— 断点在 DOM 里定死（见 entry.ts 的 titleNode），
+   不交给排版引擎：min-content 会在连字符处也断，而那个连字符是名字的一部分。 */
+.sb-entry-title .sb-zh > span { display: block; white-space: nowrap; }
 .sb-entry-title .sb-en {
   font-size: 0.22em;
   letter-spacing: 0;

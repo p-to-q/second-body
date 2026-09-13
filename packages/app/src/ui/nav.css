@@ -8,7 +8,10 @@
 
 .sb-nav {
   position: fixed;
-  top: calc(var(--sb-safe) * 0.5);
+  /* 比别的浮层低一档：展签的题头（credit + 巨题）在左上，目录从它**下面**起算，
+     两块因此错层，而不是并排挤在同一条水平带上。
+     3.4rem 约等于 credit 那一行加一个 gutter。 */
+  top: calc(var(--sb-safe) * 0.5 + 3.4rem);
   right: calc(var(--sb-safe) * 0.5);
   /* 11 = 压在入口展签（10）之上。展签刻意没有导航条，但它**就是网页版的首页**：
      评委打开这个 URL 看到的第一屏就是它，目录不在这里等于不存在。 */
@@ -66,11 +69,9 @@
      默认展开之后它长期占着画面，宽一寸就多挡一寸作品。 */
   width: min(22rem, calc(100vw - var(--sb-safe)));
   text-align: left;
-  /* 半透明 + 背后虚化：面板盖住作品的时候，作品还在背后。
-     这比一块实底更贴这件作品 —— 观众没有"离开画面去看菜单"。 */
+  /* 半透明，**不虚化**。虚化是一层效果，而这一屏要的是平 ——
+     作品从背后透出来就够了，再糊一道只会让人觉得那里有块玻璃。 */
   background: color-mix(in srgb, var(--sb-paper) calc(var(--sb-layer-panel) * 100%), transparent);
-  backdrop-filter: blur(18px) saturate(1.1);
-  -webkit-backdrop-filter: blur(18px) saturate(1.1);
   /* 没有入场动效，理由写在 shell/notice.css 里：入场动效等于把静止态设成
      opacity: 0，而动画不一定跑得起来。一个点开之后可能是空白的菜单，
      比一个"唰"地出现的菜单糟糕得多。 */
@@ -100,17 +101,11 @@
 .sb-nav-name .sb-bi { display: block; }
 .sb-nav-name .sb-en { font-size: 0.8em; }
 
-/* 当前这一页：**不写"在这里"**，靠排版说 —— 名字退到 dim，左边一条短实线。
-   状态用状态表达，不要翻译成一行文字（那读起来像网页教程）。 */
-.sb-nav-item.is-here { position: relative; cursor: default; }
+/* 当前这一页：只把名字**退到 dim**，不加任何记号。
+   试过在左边加一条短实线，实际读起来是一个"小减号" —— 一个没有含义的符号
+   比没有符号更糟。名字暗下去这件事本身就够说明"你在这儿"了。 */
+.sb-nav-item.is-here { cursor: default; }
 .sb-nav-item.is-here .sb-nav-name .sb-zh { color: var(--sb-ink-dim); }
-.sb-nav-item.is-here::before {
-  content: '';
-  position: absolute;
-  left: -0.85rem; top: 1.05em;
-  width: 0.5rem; height: 1px;
-  background: var(--sb-ink);
-}
 
 /* ── 悬停：**只提亮**，不位移、不长线 ────────────────────────────────────
  *
