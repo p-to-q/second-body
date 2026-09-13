@@ -36,18 +36,21 @@
 /* 一节和上一节之间留一节的距离。和 nav.css 里两节之间用的是同一个数。 */
 .sb-corner > * + * { margin-top: calc(var(--sb-gutter) * 1.2); }
 
-
 /* ── 节题：目录 / 控件 **共用这一份** ──────────────────────────────────────
  *
  * 它们原来各写各的，两份碰巧逐字相同 —— 那不叫统一，那叫巧合。
- * 巧合会漂：`nav.css` 后来多了一条只给目录的提亮覆盖
- * （`.sb-nav--overlay:not(.is-open)`），于是同一列上两个题的**英文一个亮一个暗**，
- * 而中文一样黑。实测就是这么来的。
+ * 巧合会漂：`nav.css` 后来多了一条只给目录的提亮覆盖，于是同一列上两个题的
+ * **英文一个亮一个暗**，而中文一样黑。
  *
- * 现在只有这一份。谁要改节题的样子，只有这一个地方可以改。
+ * **选择器里没有 `.sb-corner`，这是要紧的。** 第一版写成 `.sb-corner .sb-nav-toggle`，
+ * 结果文字页（`/about`、谱系、做的过程、护照）当场全裸 —— 那几页的目录是
+ * `mountNav()` 直接挂在 body 上的，根本不在这一列里，于是那个题退回成一个
+ * 13px 的浏览器默认按钮。实测就是这么发现的。
+ *
+ * 分工：**这一列只管位置，字的样子不该依赖它在哪。**
  */
-.sb-corner .sb-nav-toggle,
-.sb-corner .sb-ctl-toggle {
+.sb-nav-toggle,
+.sb-ctl-toggle {
   appearance: none;
   background: none;
   border: 0;
@@ -68,19 +71,19 @@
 
 /* 中文承重、英文辅助 —— 和全站的并置规矩一致（type.css 的 .sb-zh / .sb-en）。
    0.78 这个比例不许跟着字号动：改的话改的不是字号，是这两种文字的关系。 */
-.sb-corner .sb-nav-toggle .sb-zh,
-.sb-corner .sb-nav-toggle .sb-en,
-.sb-corner .sb-ctl-toggle .sb-zh,
-.sb-corner .sb-ctl-toggle .sb-en { display: inline; }
+.sb-nav-toggle .sb-zh,
+.sb-nav-toggle .sb-en,
+.sb-ctl-toggle .sb-zh,
+.sb-ctl-toggle .sb-en { display: inline; }
 
-.sb-corner .sb-nav-toggle .sb-zh,
-.sb-corner .sb-ctl-toggle .sb-zh {
+.sb-nav-toggle .sb-zh,
+.sb-ctl-toggle .sb-zh {
   color: var(--sb-on-stage);
   font-weight: var(--sb-weight-head);
 }
 
-.sb-corner .sb-nav-toggle .sb-en,
-.sb-corner .sb-ctl-toggle .sb-en {
+.sb-nav-toggle .sb-en,
+.sb-ctl-toggle .sb-en {
   font-size: 0.78em;
   margin-left: 0.45em;
   letter-spacing: var(--sb-tracking-label);
@@ -90,12 +93,12 @@
 
 /* 悬停 / 焦点 / 展开：**只变亮**，不上色、不加线、不位移。
    docs/26 §F「全站只有一处用颜色承担语义」——节的开合不是那一处。 */
-.sb-corner .sb-nav-toggle:hover,
-.sb-corner .sb-nav-toggle:focus-visible,
-.sb-corner .sb-ctl-toggle:hover,
-.sb-corner .sb-ctl-toggle:focus-visible,
-.sb-corner .sb-nav.is-open .sb-nav-toggle,
-.sb-corner .sb-ctl.is-open .sb-ctl-toggle {
+.sb-nav-toggle:hover,
+.sb-nav-toggle:focus-visible,
+.sb-ctl-toggle:hover,
+.sb-ctl-toggle:focus-visible,
+.sb-nav.is-open .sb-nav-toggle,
+.sb-ctl.is-open .sb-ctl-toggle {
   outline: none;
   color: var(--sb-on-stage);
 }
@@ -107,11 +110,10 @@
  * 而 `nav.css` 里早就写着这条：「一个会在点击时换位置的开关，观众会以为自己点错了」。
  * 是我自己违反了它。
  *
- * 右边缘是这一列唯一的结构线（它就是安全区），每一样东西都贴着它，
- * 不管开还是关。面板的左边缘是面板自己的事，题不必去够它。
+ * 右边缘是这一列唯一的结构线（它就是安全区），每一样东西都贴着它，不管开还是关。
  */
-.sb-corner .sb-nav.is-open > .sb-nav-toggle,
-.sb-corner .sb-ctl.is-open > .sb-ctl-toggle {
+.sb-nav.is-open > .sb-nav-toggle,
+.sb-ctl.is-open > .sb-ctl-toggle {
   align-self: auto;
   text-align: right;
 }
