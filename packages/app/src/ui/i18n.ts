@@ -443,8 +443,9 @@ export const COPY = {
       inverted: { name: bi('倒置', 'Inverted'), note: bi('翻过来，头着地', 'Upside down, head on the ground') },
     },
 
-    /** 四套场景（stage/scenes.ts）。说明说的是"看得见什么变化" */
+    /** 五套场景（stage/scenes.ts）。说明说的是"看得见什么变化" */
     scene: {
+      paper: { name: bi('纸', 'Paper'), note: bi('和开头同一张白纸', 'The same white paper as the opening') },
       gallery: { name: bi('白展厅', 'Gallery'), note: bi('亮底，剪影最清楚', 'Bright ground, sharpest silhouette') },
       void: { name: bi('深空', 'Void'), note: bi('一束顶光，四周全黑', 'One top light, nothing else') },
       tide: { name: bi('夜潮', 'Tide'), note: bi('地面是湿的，有倒影', 'Wet ground — it gets a reflection') },

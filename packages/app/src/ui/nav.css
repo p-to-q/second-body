@@ -33,6 +33,9 @@
  *    其余一律灰阶"。目录的 hover 不是那一处 —— 这条规矩是我们自己立的，
  *    它却第一个违反了。状态差别改用**墨色深浅**表达，这在灰阶里够用。
  */
+/* 两节的标题。**它们是这一列上的两个题**，不是两个小标签 ——
+   原来按 --sb-size-small 排，在满屏画面上小到读不出是可以点的东西。
+   现在按 h2 走：和左边展签的问句同一档，右上角因此也立得住。 */
 .sb-nav-toggle {
   appearance: none;
   background: none;
@@ -41,22 +44,33 @@
   margin: 0;
   font: inherit;
   font-family: var(--sb-grotesk);
-  letter-spacing: var(--sb-tracking-label);
-  text-transform: uppercase;
+  font-size: var(--sb-size-h2);
+  letter-spacing: -0.01em;
+  text-transform: none;
   color: var(--sb-on-stage-dim);
   cursor: pointer;
   transition: color 180ms;
 }
+/* 第二节的题和上一节的面板之间要有一节的距离，否则两节读成一节 */
+.sb-nav-toggle + .sb-nav-toggle,
+.sb-nav-panel + .sb-nav-toggle { margin-top: calc(var(--sb-gutter) * 1.2); }
 /* 中文承重、英文辅助 —— 和全站的并置规矩一致（type.css 的 .sb-zh/.sb-en）。
    0.78em + 0.45em 间距：英文比中文小一档、贴得更近，两个词因此读成
    **一个标签**而不是两个并列的词。原来是同字号 + 0.6em，读起来是两件东西。 */
 .sb-nav-toggle .sb-zh,
 .sb-nav-toggle .sb-en { display: inline; }
 .sb-nav-toggle .sb-zh { color: var(--sb-on-stage); font-weight: var(--sb-weight-head); }
-.sb-nav-toggle .sb-en { font-size: 0.78em; margin-left: 0.45em; letter-spacing: 0.06em; }
+.sb-nav-toggle .sb-en {
+  font-size: 0.5em;
+  margin-left: 0.5em;
+  letter-spacing: var(--sb-tracking-label);
+  text-transform: uppercase;
+  opacity: 0.6;
+}
 /* 焦点态不用浏览器的蓝框，也不用强调色 —— 只是变亮 */
 .sb-nav-toggle:hover,
 .sb-nav-toggle:focus-visible,
+.sb-nav-toggle.is-on,
 .sb-nav.is-open .sb-nav-toggle {
   outline: none;
   color: var(--sb-on-stage);
@@ -165,38 +179,27 @@
 .sb-nav--overlay:not(.is-open) .sb-nav-toggle { color: var(--sb-on-stage); }
 .sb-nav--overlay:not(.is-open) .sb-nav-toggle .sb-en { color: var(--sb-on-stage-dim); }
 
-/* ── 上场名单 ──────────────────────────────────────────────────────────────
+/* ── 上场名单（第二节的面板）────────────────────────────────────────────
  *
- * 目录底下的第二块。和目录之间只有**一条线加一段留白**：没有卡片、没有圆角、
- * 没有折叠箭头。它和上面六条是同一种东西的两块，不是一个抽屉里的另一个抽屉。
- *
- * 勾选框用浏览器原生的那个，只把它压小、去掉强调色。
- * 自绘一个方框要接管键盘、焦点环和 `indeterminate`，换来的只是形状上的一点点
- * 统一 —— 那笔买卖在这一块上不划算（docs/26 §F 的否定清单：不要图标按钮）。
+ * 它和上面六条链接**用同一套节奏**：一行一条，条与条之间一条细横线，
+ * 名字一档、注解一档。区别只有左边多一个方框。
+ * 上一版它自带标题和一条上边框，读起来像目录长出来的一条尾巴 —— 那是层级错了，
+ * 不是间距不够。标题现在是这一节自己的题（`.sb-nav-toggle`）。
  */
-.sb-nav-pool {
-  margin-top: calc(var(--sb-gutter) * 1.1);
-  padding-top: calc(var(--sb-gutter) * 1.1);
-  border-top: 1px solid var(--sb-rule);
-}
+.sb-nav-pool { display: block; }
 
-.sb-nav-pool-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--sb-gutter);
-}
-.sb-nav-pool-title {
-  font-family: var(--sb-grotesk);
-  font-size: var(--sb-size-label);
-  letter-spacing: var(--sb-tracking-label);
-  text-transform: uppercase;
+.sb-nav-pool-lede {
+  margin: 0 0 0.5rem;
+  font-size: 0.84em;
+  line-height: 1.35;
   color: var(--sb-ink-dim);
 }
-.sb-nav-pool-title .sb-en { margin-left: 0.45em; opacity: 0.62; }
+.sb-nav-pool-lede .sb-en { opacity: 0.62; }
 
-/* 回应，不是状态：说完 2 秒自己收。没有 toast、没有图标、不占位 */
+/* 回应，不是状态：说完 2 秒自己收。没有 toast、没有图标 */
 .sb-nav-pool-hint {
+  display: block;
+  min-height: 1.2em;
   font-size: 0.78em;
   color: var(--sb-ink-dim);
   opacity: 0;
@@ -205,29 +208,25 @@
 .sb-nav-pool-hint.is-on { opacity: 1; }
 .sb-nav-pool-hint .sb-en { display: none; }
 
-.sb-nav-pool-lede {
-  margin: 0.4rem 0 0.7rem;
-  font-size: 0.84em;
-  line-height: 1.35;
-  color: var(--sb-ink-dim);
-}
-.sb-nav-pool-lede .sb-en { opacity: 0.62; }
-
+/* 一条 = 一个 .sb-nav-item 的骨架，只是把方框放进左边一栏 */
 .sb-nav-pool-item {
-  display: flex;
-  align-items: baseline;
-  gap: 0.55rem;
-  padding: 0.3rem 0;
+  display: grid;
+  grid-template-columns: 0.72rem 1fr;
+  align-items: start;
+  gap: 0 0.6rem;
+  border-top: 1px solid var(--sb-rule);
+  padding: 0.55rem 0;
   cursor: pointer;
 }
+.sb-nav-pool-item:first-of-type { border-top: 0; }
+
 .sb-nav-pool-item input {
   appearance: none;
-  flex: 0 0 auto;
-  width: 0.62rem;
-  height: 0.62rem;
-  /* 跟着那一行的基线，不跟着整块的顶 —— 勾和名字要读成一件事 */
-  transform: translateY(-0.02em);
+  width: 0.72rem;
+  height: 0.72rem;
   margin: 0;
+  /* 和右边那一行名字的第一行对齐 —— 名字是 0.92em、行高 1.35 */
+  margin-top: 0.28em;
   border: 1px solid var(--sb-ink-dim);
   background: none;
   cursor: pointer;
@@ -242,18 +241,26 @@
 .sb-nav-pool-item input:focus-visible { outline: 1px solid var(--sb-ink); outline-offset: 2px; }
 .sb-nav-pool-item:hover input { border-color: var(--sb-ink); }
 
-.sb-nav-pool-name { display: block; font-size: 0.92em; }
+.sb-nav-pool-name { display: block; font-size: 0.92em; line-height: 1.35; }
 /* 中英同一行。`setBi` 默认把两半各摆一行（长文案该那样），
    而这里是**一个名字**，拆成两行读起来像两条 */
 .sb-nav-pool-name .sb-zh,
 .sb-nav-pool-name .sb-en { display: inline; }
-.sb-nav-pool-name .sb-en { font-size: 0.78em; margin-left: 0.45em; opacity: 0.55; }
+.sb-nav-pool-name .sb-en { font-size: 0.72em; margin-left: 0.5em; opacity: 0.5; }
+
 .sb-nav-pool-note {
   display: block;
-  margin-top: 0.1rem;
-  font-size: 0.78em;
-  line-height: 1.3;
+  margin-top: 0.2rem;
+  font-size: 0.84em;
+  line-height: 1.35;
   color: var(--sb-ink-dim);
+  opacity: 0.72;
 }
 /* 这一条注解的英文在窄面板里会把行数翻倍，而它说的事中文已经说完了 */
 .sb-nav-pool-note .sb-en { display: none; }
+
+/* 文字页上的那一份（`overlay` 为 false）**不透明**。
+ * 浮层那一份半透明是为了让作品从背后透出来 —— 背后是画面。
+ * 文字页背后是另一段文字，透出来的不是作品，是一团重影。
+ * 面板是观众自己点开的，它挡住底下那几行是应该的。 */
+.sb-nav:not(.sb-nav--overlay) .sb-nav-panel { background: var(--sb-paper); }

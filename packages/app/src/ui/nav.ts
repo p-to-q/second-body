@@ -75,6 +75,15 @@ export interface NavOptions {
   enabled?: boolean;
   /** 浮在 canvas 上（满屏画布页，4 秒后淡出）还是躺在文档流里（文字页，常驻） */
   overlay?: boolean;
+  /**
+   * 挂上来就是展开的。**只有作品那一页该传 true。**
+   *
+   * 展签的排版为它让出了右边一栏（`shell/entry.css` 的 `html.sb-has-nav` 那条），
+   * 所以在那一页上它铺开来不挡任何东西，反而第一眼就把六个面摆出来了。
+   * 文字页没有那一栏 —— 实测 `/about` 上展开的面板正压在作品陈述上，
+   * 两段文字叠在一起，谁也读不成。那几页上它是**收起来的一个词**，要看再点。
+   */
+  startOpen?: boolean;
   mount?: HTMLElement;
   /**
    * 展开状态变了就叫一声。**唯一的用处是让右上角另一条（控件条）让位**：
@@ -88,7 +97,7 @@ export interface Nav { root: HTMLElement; open(): void; close(): void; }
 
 /** 挂上目录。`enabled` 为 false 时返回 null，调用点因此只有一行 */
 export function mountNav(options: NavOptions = {}): Nav | null {
-  const { enabled = true, overlay = false, mount = document.body, onOpenChange } = options;
+  const { enabled = true, overlay = false, startOpen = false, mount = document.body, onOpenChange } = options;
   if (!enabled || typeof document === 'undefined') return null;
 
   // `cleanUrls` 会把 /making.html 变成 /making，两种写法都要认得出"就是这一页"
@@ -97,15 +106,34 @@ export function mountNav(options: NavOptions = {}): Nav | null {
   const root = document.createElement('nav');
   root.className = overlay ? 'sb-nav sb-nav--overlay' : 'sb-nav';
 
-  const toggle = document.createElement('button');
-  toggle.type = 'button';
-  toggle.className = 'sb-nav-toggle';
-  toggle.setAttribute('aria-expanded', 'false');
-  setBi(toggle, COPY.nav.title);
+  /**
+   * 右上角这一列上有**两节**：目录和设置。它们是平级的。
+   *
+   * 上一版把设置塞在目录面板的底下，于是它成了"目录的一部分"——
+   * 可是它回答的问题和那六条完全不是一类：那六条是"这个站里有什么"，
+   * 它是"这一场里有谁"。层级摆错，读起来就是目录长了一条尾巴。
+   *
+   * 现在它们是一列里的两个标题：点开哪一个，哪一个往下撑，把下面那个推下去。
+   * 用 flex 列 + 各自 hidden 的面板就够了 —— 不需要手风琴那套互斥逻辑，
+   * 两个同时开着也是合法的（屏幕高的时候本来就该让人一眼看全）。
+   */
+  const section = (
+    title: typeof COPY.nav.title,
+    cls: string,
+  ): { head: HTMLButtonElement; panel: HTMLDivElement } => {
+    const head = document.createElement('button');
+    head.type = 'button';
+    head.className = 'sb-nav-toggle';
+    head.setAttribute('aria-expanded', 'false');
+    setBi(head, title);
+    const panel = document.createElement('div');
+    panel.className = `sb-nav-panel ${cls}`;
+    panel.hidden = true;
+    return { head, panel };
+  };
 
-  const panel = document.createElement('div');
-  panel.className = 'sb-nav-panel';
-  panel.hidden = true;
+  const { head: toggle, panel } = section(COPY.nav.title, 'sb-nav-panel--menu');
+  const pool = section(COPY.nav.pool.title, 'sb-nav-panel--pool');
 
   for (const item of ITEMS) {
     const here = item.match(path);
@@ -132,9 +160,9 @@ export function mountNav(options: NavOptions = {}): Nav | null {
     panel.append(row);
   }
 
-  panel.append(poolBlock());
+  pool.panel.append(poolBlock());
 
-  root.append(toggle, panel);
+  root.append(toggle, panel, pool.head, pool.panel);
   mount.append(root);
   // 告诉页面"右上角被占了"。没有这一条，题头右侧的房间号会和目录压在一起 ——
   // 实测 724px 视口下 `VII`(r=694) 正好撞进目录(l=613)。
@@ -155,27 +183,46 @@ export function mountNav(options: NavOptions = {}): Nav | null {
 
   toggle.addEventListener('click', () => setOpen(!open));
 
-  // **默认展开。** 这件作品只有六个面，把它们一次摆出来，观众第一眼就知道这里有什么；
+  // 设置那一节自己开关。它**不**参与 `onOpenChange` ——
+  // 那个回调只为一件事存在：让右上角的控件条给目录让位（见 NavOptions 的注释）。
+  // 设置在目录**下面**，它撑开推的是自己下面的空气，不会撞到控件条。
+  let poolOpen = false;
+  const setPoolOpen = (next: boolean): void => {
+    poolOpen = next;
+    pool.panel.hidden = !next;
+    pool.head.setAttribute('aria-expanded', String(next));
+    pool.head.classList.toggle('is-on', next);
+    if (next) root.classList.remove('is-faded');
+  };
+  pool.head.addEventListener('click', () => setPoolOpen(!poolOpen));
+
+  // 作品那一页挂上来就是展开的：只有六个面，一次摆出来，观众第一眼就知道这里有什么；
   // 一个要先点开才看得见的目录，等于赌观众会去点。
   // 但**点外面仍然收得掉** —— 他要看作品的时候，目录得让开。
-  setOpen(true);
+  //
+  // 文字页不展开，理由在 `startOpen` 的注释里：那几页上没有给它留的那一栏。
+  if (startOpen) setOpen(true);
 
   // 点别处收起来。捕获阶段：展开的面板压在 canvas 上，
   // 而 canvas 自己会吞掉 pointerdown（选择页的拖动）
   const onAway = (e: Event): void => {
-    if (open && !root.contains(e.target as Node)) setOpen(false);
+    if (root.contains(e.target as Node)) return;
+    if (open) setOpen(false);
+    if (poolOpen) setPoolOpen(false);
   };
   addEventListener('pointerdown', onAway, true);
 
   const onKey = (e: KeyboardEvent): void => {
-    if (e.key === 'Escape' && open) { setOpen(false); toggle.focus(); }
+    if (e.key !== 'Escape') return;
+    if (poolOpen) { setPoolOpen(false); pool.head.focus(); return; }
+    if (open) { setOpen(false); toggle.focus(); }
   };
   addEventListener('keydown', onKey);
 
   // 展开着就不淡出（setOpen(true) 已经把 is-faded 摘掉了）。
   // 这个定时器只在观众自己收起来之后才有意义。
   if (overlay) {
-    setTimeout(() => { if (!open) root.classList.add('is-faded'); }, FADE_AFTER_MS);
+    setTimeout(() => { if (!open && !poolOpen) root.classList.add('is-faded'); }, FADE_AFTER_MS);
   }
 
   return { root, open: () => setOpen(true), close: () => setOpen(false) };
@@ -196,20 +243,13 @@ function poolBlock(): HTMLElement {
   const box = document.createElement('div');
   box.className = 'sb-nav-pool';
 
-  const head = document.createElement('div');
-  head.className = 'sb-nav-pool-head';
-  const title = document.createElement('span');
-  title.className = 'sb-nav-pool-title';
-  setBi(title, COPY.nav.pool.title);
-  const hint = document.createElement('span');
-  hint.className = 'sb-nav-pool-hint';
-  head.append(title, hint);
-  box.append(head);
-
+  // 标题已经是这一节自己的头了（`section()`），这里只剩那一句说明和一处回应位。
   const lede = document.createElement('p');
   lede.className = 'sb-nav-pool-lede';
   setBi(lede, COPY.nav.pool.lede);
-  box.append(lede);
+  const hint = document.createElement('span');
+  hint.className = 'sb-nav-pool-hint';
+  box.append(lede, hint);
 
   const live = readPool();
   const boxes = new Map<PoolKind, HTMLInputElement>();

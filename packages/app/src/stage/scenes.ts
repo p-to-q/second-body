@@ -25,7 +25,7 @@ import type { LookProfile, RGB } from './look.ts';
 import { luminance } from './look.ts';
 import type { ThemeDef } from '../../../core/src/types.ts';
 
-export type SceneId = 'gallery' | 'void' | 'tide' | 'backlit';
+export type SceneId = 'paper' | 'gallery' | 'void' | 'tide' | 'backlit';
 
 export interface SceneDef {
   id: SceneId;
@@ -125,6 +125,46 @@ function tinted(base: RGB, ref: RGB, w: number): RGB {
 // 数值的来路写在 docs/28。这里只写"它为什么长这样"。
 
 export const SCENES: Record<SceneId, SceneDef> = {
+  /**
+   * 纸。**首屏那张纸一直铺到舞台上** —— 身体出现在它刚才被印在上面的那张纸上。
+   *
+   * 它和「白展厅」的区别只有一个字，但那个字是全部：**它不被物种染色**（tint 0）。
+   * 白展厅的天幕跟着主光走，所以一具暖色的身体会把整间屋子染成米色 —— 那是
+   * 摄影棚的道理，对的。这一套要的不是屋子，是**纸**：不管站上去的是谁，
+   * 底永远是 `#fafafa`，和展签、和选择页、和 logo 用的是同一个值。
+   * 于是整件作品从头到尾只有一种白，而身体是那张纸上唯一的墨。
+   *
+   * 代价写在这里，别让下一个人重新发现：亮底上**加性混合的粒子等于不存在**，
+   * 所以这一套没有粒子；辉光也压到最低 —— 亮底上的 bloom 只会把剪影的边吃掉，
+   * 而剪影是这一套唯一的表达。
+   */
+  paper: {
+    id: 'paper', name: '纸', nameEn: 'Paper',
+    serves: '任何物种。情绪：被印在纸上的一个形 —— 没有房间、没有气氛、没有时间，'
+      + '只有一张纸和一团墨。它是这件作品的素色。',
+    // #fafafa 的线性值（0.980392 的 sRGB→linear ≈ 0.9559）。上下同色 = 无缝，
+    // 不是"天空和地面恰好接近"，是真的同一张纸
+    skyTop: [0.9559, 0.9559, 0.9559], skyGlow: [0.9559, 0.9559, 0.9559],
+    // 不染色。这一条是这套场景存在的全部理由，改它等于把它变回白展厅
+    glowLift: 0.70, glowRadius: 1.6, glowSoft: 0.9, tint: 0,
+    // 比白展厅还狠：天幕和地面同色时，地平线是唯一会露馅的地方，要雾到看不见
+    fogDensity: 0.092,
+    ground: 6.0, groundReflect: 0, groundRipple: 0, groundGlossNear: 1.0, groundGlossFar: 1.0,
+    // 顶光为主、补光很足：纸上要的是**形**，不是体积感；
+    // 侧光一强就有了房间，而这一套的立意是没有房间
+    // 曝光要抬过 1：色调映射会把 0.956 的线性值压到 0.80 上下，那是浅灰不是纸。
+    // 这是全场唯一一套曝光大于 1 的场景，因为也只有它要求底色**落在一个确定的值上**。
+    key: 0.92, fill: 1.85, rim: 0.35, hemi: 3.0, exposure: 1.14,
+    keyDir: [0.7, 4.2, 1.0], fillDir: [-2.2, 1.8, 1.6], rimDir: [-0.4, 2.0, -2.0],
+    // 接触阴影是这一套里**唯一**说明"它站在什么上面"的东西，所以它要实
+    shadow: 0.62, contact: 0.72, contactCore: 0.70, contactCoreRadius: 0.22,
+    // 暗角是 0：暗角的作用是把注意力收回画面中心，而纸是**平的**，
+    // 一圈渐渐变暗的边等于承认这是一张照片。颗粒也压到最低，同理。
+    bloom: 0.12, ao: 1.25, vignette: 0, grain: 0.3,
+    particle: 0.0, particleDrift: 1, particleSize: 1,
+    frameLift: 0.02,
+  },
+
   /**
    * 白展厅。影棚的无缝背景纸（cyclorama）搬进来：没有地平线、没有角，
    * 光从四面漫过来，**身体唯一的边界是它自己的接触阴影**。

@@ -21,6 +21,7 @@
  */
 import type { PartLibraryIndex } from '../../../core/src/types.ts';
 import { COPY, setBi, type BiText } from '../ui/i18n.ts';
+import { markNode } from '../ui/mark.ts';
 import { PLAN_LABEL, orderThemes, planKind, speciesNumber } from '../ui/species.ts';
 import '../ui/type.css';
 import '../ui/editorial.css';
@@ -112,7 +113,7 @@ function head(): HTMLElement {
   title.querySelector('.sb-en')?.setAttribute('style', '--ed-i:1');
 
   return el('header', 'ed-hero',
-    el('div', 'ed-hero__meta', back, biInline(COPY.about.credit, 'sb-label')),
+    el('div', 'ed-hero__meta', back, markNode('span')),
     el('hr', 'ed-rule ed-rule--heavy'),
     el('div', 'ed-hero__title', title),
     el('hr', 'ed-rule'),

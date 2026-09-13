@@ -186,7 +186,13 @@ export function mountEntry(flags: Flags): Entry | null {
   }
 
   layer.append(
-    biNode('p', COPY.entry.credit, 'sb-label'),
+    // 这里**什么都不放**。
+    //
+    // 原来是一行「实时交互装置 · 2026」，后来换成两行字标 —— 两个都不对：
+    // 前者说的形式和年份在下面的元数据里各有一行，是重复；
+    // 后者是 `SEE ME / SEE U` 的口语写法，而它正下方就立着同一句话的巨题，
+    // 同一个名字在一屏上说两遍，读起来是版面在结巴。
+    // 字标属于**没有巨题的那几页**（文档页的页眉），不属于这一屏。
     titleNode(),
     biNode('p', COPY.entry.question, 'sb-entry-lede'),
     meta,

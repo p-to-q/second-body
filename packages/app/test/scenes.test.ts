@@ -1,8 +1,8 @@
 /**
- * 场景是审美，但"这四套真的**不一样**"是可测的。
+ * 场景是审美，但"这五套真的**不一样**"是可测的。
  *
- * 这个文件存在的理由：`scenes.ts` 的四套值将来一定会被人调。
- * 调到什么程度算"还是四套不同的世界"、什么程度算"调成同一套了"，
+ * 这个文件存在的理由：`scenes.ts` 的五套值将来一定会被人调。
+ * 调到什么程度算"还是五套不同的世界"、什么程度算"调成同一套了"，
  * 得有个说法，不能靠"我在浏览器里看了一眼"（和 look.test.ts 同一条理由）。
  *
  * 另外钉住三件踩过的事：
@@ -20,8 +20,8 @@ import type { ThemeDef } from '../../core/src/types.ts';
 
 const base = deriveLook(null, []);
 
-test('scenes: 四套场景都完整，而且每套都写清了服务于谁', () => {
-  assert.equal(SCENE_IDS.length, 4, '场景数量变了就要同时改 docs/28 和 docs/10');
+test('scenes: 五套场景都完整，而且每套都写清了服务于谁', () => {
+  assert.equal(SCENE_IDS.length, 5, '场景数量变了就要同时改 docs/28 和 docs/10');
   for (const id of SCENE_IDS) {
     const s = SCENES[id];
     assert.equal(s.id, id, `${id} 的 id 字段和键名对不上`);
@@ -71,7 +71,7 @@ test('scenes: 地面反射只有"真做"和"彻底不做"两种，没有中间�
   }
 });
 
-test('scenes: 四套的性格真的不同（不是换了个背景色）', () => {
+test('scenes: 五套的性格真的不同（不是换了个背景色）', () => {
   // 天幕亮度：白展厅最亮，深空最暗。这条次序一旦破了，"多套场景"就名存实亡
   const glow = (id: (typeof SCENE_IDS)[number]): number => luminance(SCENES[id].skyGlow);
   assert.ok(glow('gallery') > glow('backlit'), '白展厅的天幕该比逆光整体更亮');
@@ -81,6 +81,29 @@ test('scenes: 四套的性格真的不同（不是换了个背景色）', () => 
   assert.ok(SCENES.backlit.rim / SCENES.backlit.key > 6, '逆光必须是 rim 远大于 key');
   // 白展厅反过来：漫射为主，轮廓光最弱
   assert.ok(SCENES.gallery.rim < SCENES.gallery.key, '白展厅不该靠轮廓光');
+  // 纸比白展厅还亮，而且是全场最亮 —— 它就是首屏那张 #fafafa
+  assert.ok(glow('paper') > glow('gallery'), '纸该比白展厅更亮');
+});
+
+test('scenes: 「纸」不被物种染色 —— 这是它和白展厅唯一的区别，也是它存在的理由', () => {
+  // tint 是 applyScene 里天幕跟主光走的系数。paper 一旦有 tint，
+  // 一具暖色的身体就会把纸染成米色，整件作品就有了第二种白。
+  assert.equal(SCENES.paper.tint, 0, '纸一旦被染色就变回白展厅了');
+  assert.deepEqual(SCENES.paper.skyTop, SCENES.paper.skyGlow, '纸是无缝的：天幕和地面同一个值');
+
+  // 真的换一具暖身体上去：天幕必须逐字不动
+  const warm = { ...base, key: [1, 0.72, 0.45] as [number, number, number] };
+  const out = applyScene(warm, SCENES.paper);
+  assert.deepEqual(out.skyTop, SCENES.paper.skyTop, '暖色物种把纸染色了');
+  assert.deepEqual(out.skyGlow, SCENES.paper.skyGlow, '暖色物种把纸染色了');
+  // 对照：白展厅**应该**被染色，否则这两套就没区别了
+  const g = applyScene(warm, SCENES.gallery);
+  assert.notDeepEqual(g.skyGlow, SCENES.gallery.skyGlow, '白展厅该跟着主光染色');
+});
+
+test('scenes: ?scene=paper 认得出来 —— 白底是一个可复现的选项，不是运气', () => {
+  assert.ok(isSceneId('paper'));
+  assert.ok(SCENE_IDS.includes('paper'), '纸必须在 SCENE_IDS 里，否则控件条和 S 键都轮不到它');
 });
 
 test('scenes: applyScene 只换世界，不换物种的颜色', () => {
