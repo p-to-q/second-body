@@ -121,7 +121,7 @@ function tinted(base: RGB, ref: RGB, w: number): RGB {
   return mix(base, norm, clamp01(w));
 }
 
-// ── 四套场景 ────────────────────────────────────────────────────────────────
+// ── 五套场景 ────────────────────────────────────────────────────────────────
 // 数值的来路写在 docs/28。这里只写"它为什么长这样"。
 
 export const SCENES: Record<SceneId, SceneDef> = {

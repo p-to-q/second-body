@@ -352,7 +352,7 @@ export function createStage(opt: StageOptions = {}): Stage {
    * 则会在 `?nopost=1` 时整条消失，那就不是"降级"，是**构图变了**。
    * 折中的假反射（一点点模糊的倒影）是评语里说的"最尴尬的中间态"，所以：
    * **要么映天幕（真实的、免费的），要么 `groundReflect = 0` 彻底不映。**
-   * 四套场景里只有 tide / backlit 是非零的。
+   * 五套场景里只有 tide / backlit 是非零的。
    */
   // 两列不同频率、不同方向的波。同频会变成搓衣板，差得远才像水面
   const wave = sin(positionWorld.x.mul(2.7).add(uTime.mul(0.75)))
