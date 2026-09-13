@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-09-12T22:49:28.225Z",
+  "generatedAt": "2026-09-13T09:11:19.182Z",
   "units": "meters",
   "convention": {
     "axis": "+Y",
@@ -438,7 +438,8 @@
         "humanLike": 0.5,
         "lifeLike": 0.5
       },
-      "coverage": "light"
+      "coverage": "light",
+      "bodyPlan": "swarm"
     },
     {
       "id": "guest.founder",
