@@ -28,6 +28,7 @@ import { createCreature } from './creature/creature.ts';
 import { resolveShading, type ShadingId } from './creature/shading.ts';
 import { createMassBody } from './creature/mass.ts';
 import { createNascent } from './creature/nascent.ts';
+import { createSwarmBody } from './creature/swarm.ts';
 import type { BodyInstance } from './creature/body.ts';
 import { createStage } from './stage/stage.ts';
 import { chooseTheme, themeFromUrl } from './choose/choose.ts';
@@ -262,22 +263,30 @@ async function boot(): Promise<void> {
   // 两者都满足 BodyInstance，帧循环不关心是哪一种（docs/18 §2）。
   const planKind = typeof bodyPlan === 'string' ? bodyPlan : (bodyPlan.kind ?? 'rig');
   const isMass = planKind === 'mass';
+  // 点场（`creature/swarm.ts`）：和团块同一条路数的第三种表达 —— 一片跟着活骨架
+  // 走的点，一件槽位件都不实例化。挂在 `field`／「场」这一个条目上，理由是它的
+  // tagline 就是「身体消失，只剩运动」，而在这之前它**没有 bodyPlan**，
+  // 走的是默认刚体装配、向别的物种借了一整套四肢。
+  const isSwarm = planKind === 'swarm';
   // 着色语言：物种自己声明（`creature/shading.ts` 的那张表），`?shading=` 可覆盖。
   // 和 `bodyPlan` 同一条路数 —— 「线」这个物种的辨识度全在那一圈描边上，
   // 而描边是着色属性不是几何属性（docs/12），所以它只能在这里被决定。
   let shading: ShadingId = resolveShading(theme, flags.shading);
   const creature = createCreature({ library, shading });
   const massBody = isMass ? createMassBody({ library, theme: theme ?? undefined }) : null;
+  const swarmBody = isSwarm ? createSwarmBody({ library, theme: theme ?? undefined }) : null;
   // 开场那一具：tier 0 是一个还没分化出零件的团块，tier ≥ 1 才长出刚体件。
   // 理由全写在 `creature/nascent.ts` 的文件头 —— 一句话是：兜底几何是 catch 块，
   // 不是形态，拿它当开场，观众读到的是"它坏了"。
   // `bodyPlan:'mass'` 的物种本来就全程是团块，不需要这一层。
   // `NASCENT.enabled=false` 时这里是 null，下面的 morph 就退回"每档都 remorph"，
   // 也就是改这版之前的行为 —— 那个开关的理由写在 tuning.ts 的 NASCENT.enabled 上。
-  const nascent = isMass || !NASCENT.enabled
+  // 点场和团块一样，本来就全程不实例化零件 —— 开场那一层（团块 tier 0）
+  // 对它没有意义：它没有"还没分化出零件"的阶段，它从来就没有零件。
+  const nascent = isMass || isSwarm || !NASCENT.enabled
     ? null
     : createNascent({ creature, library, theme: theme ?? undefined });
-  const body: BodyInstance = massBody ?? nascent ?? creature;
+  const body: BodyInstance = massBody ?? swarmBody ?? nascent ?? creature;
   stage.scene.add(body.object);
 
   let seed = flags.seed ?? (Math.random() * 0xffffffff) >>> 0;   // 会话级种子，仅此一处
@@ -296,7 +305,7 @@ async function boot(): Promise<void> {
   const morph = (t?: Tier) => {
     if (t !== undefined) tier = t;
     // 团块没有槽位件可换 —— 它的"演化"由 tier 驱动的表面参数表达，不是换装。
-    if (isMass) return;
+    if (isMass || isSwarm) return;
     nascent?.setTier(tier);
     // tier 0 一件部件都没有（parts.json 里 tier 0 的件数是 0），有开场形态接着的时候
     // remorph 只会白建 30 个占位实例然后被团块盖住 —— 那 30 个实例正是这次要拿掉的东西。

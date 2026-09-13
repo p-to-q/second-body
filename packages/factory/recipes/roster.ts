@@ -170,6 +170,14 @@ const BODY_PLAN: Record<string, RosterEntry['bodyPlan']> = {
   // 无人车不是"会走的车身"，是一个贴地的底盘 —— 四个短支撑比两条腿准得多。
   autonomous: { kind: 'quadruped', limb: 0.45, torso: 1.35 },
 
+  // ── 换表达：点场（docs/18 B 档的 swarm）。一件槽位件都不实例化 ──────────
+  // 「场」此前**没有** bodyPlan，于是走默认的刚体装配、沿 base 链向别的物种借满
+  // 一整套四肢 —— 一个 tagline 写着「身体消失，只剩运动」的物种，在画面上是一具
+  // 用别人零件拼出来的普通机器人。**它是全 roster 里唯一 `source:'procedural'` 的
+  // 条目**，自己一件部件都没有，所以挂 swarm 不作废任何已花过 credits 的资产
+  // （这是 docs/18 §8 第 3 条对 B 档的顾虑，这一条恰好不适用）。
+  field: 'swarm',
+
   // ── 换拓扑：倒置 ────────────────────────────────────────────────────────
   // 异形的 tension 是"它在模仿你，但模仿错了"。把人体整个翻过来正是"模仿错了"，
   // 而且它 20 件全 coverage 的部件一件都不浪费。
@@ -278,7 +286,7 @@ export const ARCHETYPES: RosterEntry[] = [
   {
     id: 'field', kind: 'archetype', name: '场', nameEn: 'Field',
     tagline: '身体消失，只剩运动', taglineEn: TAGLINE_EN['field'],
-    tension: '唯一不靠生成的条目：只有关节球和它们之间的张力线。玩过前面那些之后，它让人意识到一直在动的是自己。',
+    tension: '唯一不靠生成的条目：一片跟着骨架走的点，每一个点落后的时间都不一样 —— 站住不动它几乎重新聚成一个人，一动起来就只剩轨迹。玩过前面那些之后，它让人意识到一直在动的是自己。',
     look: '', palette: ['glow.signal', 'matte.ash', 'ceramic.pearl'],
     source: 'procedural', clearance: 'own', axes: { humanLike: 0.5, lifeLike: 0.5 },
     coverage: 'light', tierOfVariant: { a: 1 },

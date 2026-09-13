@@ -27,6 +27,8 @@ import { partIdsOf } from '../src/creature/assemble.ts';
 import { createCreature } from '../src/creature/creature.ts';
 import { isShadingId, resolveShading, type ShadingId } from '../src/creature/shading.ts';
 import { remapSkeleton } from '../../core/src/bodyplan.ts';
+import { createSwarmBody, type SwarmBody } from '../src/creature/swarm.ts';
+import type { BodyInstance } from '../src/creature/body.ts';
 import { mountPageHead } from '../src/ui/page.ts';
 
 mountPageHead({
@@ -150,8 +152,22 @@ const SHADING_OVERRIDE: ShadingId | null =
 const creature = createCreature({ library, shading: resolveShading(qs.get('theme'), SHADING_OVERRIDE) });
 scene.add(creature.object);
 
-const themes = library.index.themes.map((t) => t.id)
-  .filter((id) => library.usingFallback || themeIsUsable(library.index, id, 3));
+/**
+ * `themeIsUsable` 问的是"这个条目凑得齐一套槽位件吗"。
+ * **对不实例化任何部件的身体方案，这个问题没有意义** —— `field`／「场」自己一件
+ * 部件都没有（`source:'procedural'`），于是它一直被这条过滤挡在这一页外面：
+ * 打开 `?theme=field` 会静默退回列表里的第一个条目（瓷），而 `main.ts` 那边
+ * 根本没有这条过滤。**这一页看不到的那个物种，恰恰是问题最大的那个。**
+ */
+const PLANS_WITHOUT_PARTS = new Set(['mass', 'swarm']);
+const needsParts = (t: { bodyPlan?: unknown }): boolean => {
+  const bp = t.bodyPlan as string | { kind?: string } | undefined;
+  const kind = typeof bp === 'string' ? bp : (bp?.kind ?? 'rig');
+  return !PLANS_WITHOUT_PARTS.has(kind);
+};
+const themes = library.index.themes
+  .filter((t) => library.usingFallback || !needsParts(t) || themeIsUsable(library.index, t.id, 3))
+  .map((t) => t.id);
 if (!themes.length) themes.push('placeholder');
 
 // 注意 Number(null) === 0 —— 不显式挡掉 null，?tier 缺省就会悄悄变成 tier 0
@@ -171,9 +187,27 @@ let genome: Genome = makeGenome(seed, tier, library.index, { theme: themes[theme
  * 否则在这里调好的东西到现场就不是那样。
  */
 let planLabel = 'rig';
+/**
+ * B 档「点场」：`bodyPlan:'swarm'` 的条目一件槽位件都不实例化，
+ * 所以这一页必须知道它 —— 否则打开 `?theme=field` 看到的是**刚体装配**，
+ * 而现场跑的是一片点。取证图和现场不是同一具身体，那它就不是证据。
+ *
+ * （团块 `mass` 仍然不在这一页上路由：它有自己的调试页 `/dev/mass.html`，
+ * 那一页带着团块专用的 HUD（提交面数 / res 阶梯）。这里只补上没有专属页的那一种。）
+ */
+let swarm: SwarmBody | null = null;
+let isSwarm = false;
+const activeBody = (): BodyInstance => (isSwarm && swarm ? swarm : creature);
+
 function applyPlan(themeId: string) {
   const def = library.index.themes?.find((t) => t.id === themeId);
   const plan = PLAN_OVERRIDE ?? def?.bodyPlan ?? 'rig';
+  const kind = typeof plan === 'string' ? plan : (plan.kind ?? 'rig');
+  isSwarm = kind === 'swarm';
+  if (isSwarm && !swarm) { swarm = createSwarmBody({ library, theme: themeId }); scene.add(swarm.object); }
+  swarm?.setTheme(themeId);
+  if (swarm) swarm.object.visible = isSwarm;
+  creature.object.visible = !isSwarm;
   const r = remapSkeleton(
     { bones: bonesRaw, joints: { ...J0 }, height: BODY_HEIGHT, warmingUp: false, t: 0 },
     plan,
@@ -198,7 +232,7 @@ async function rebuild() {
     new Promise((r) => setTimeout(r, 3000)),
   ]);
   creature.remorph(genome);                    // 第一次调用直接成型，之后是 crossfade
-  creature.pose(skeleton, presence, 1 / 60);
+  activeBody().pose(skeleton, presence, 1 / 60);
     fitCamera();
   syncUrl();
 }
@@ -243,6 +277,7 @@ if (DEBUG) {
   Object.assign(globalThis as Record<string, unknown>, {
     __figure: {
       library, creature, skeleton, presence, themes, camera, renderer,
+      get body() { return activeBody(); },
       /**
        * 无头取证：固定机位渲染一帧，返回 PNG data URL。
        *
@@ -257,12 +292,15 @@ if (DEBUG) {
         const a = Math.sin(spin) * 0.9;
         camera.position.set(Math.sin(a) * camDist, center[1] + span * 0.35, Math.cos(a) * camDist);
         camera.lookAt(center[0], center[1], center[2]);
-        creature.pose(skeleton, presence, 1 / 60);
+        // 点场要"站住"才看得出形：它的拖影长 ~0.5 秒，只 pose 一帧的话
+        // 整个历史环里只有这一个姿势，截出来的是一具没有时间厚度的点描的人。
+        // 多喂几帧同一个姿势 = 让环收敛到"这个人站住不动"，那才是静帧该有的样子。
+        for (let i = 0; i < 40; i++) activeBody().pose(skeleton, presence, 1 / 60);
         await renderer.renderAsync(scene, camera);
         return renderer.domElement.toDataURL('image/png');
       },
       get genome() { return genome; },
-      get stats() { return creature.stats; },
+      get stats() { return activeBody().stats; },
       async set(next: { theme?: string; seed?: number; tier?: number }) {
         if (next.theme && themes.includes(next.theme)) themeIdx = themes.indexOf(next.theme);
         if (Number.isFinite(next.seed)) seed = (next.seed as number) >>> 0;
@@ -280,7 +318,7 @@ let poseMs = 0;
 let fps = 60;
 function drawHud() {
   const def = library.index.themes.find((t) => t.id === themes[themeIdx]);
-  const s = creature.stats;
+  const s = activeBody().stats as { triangles: number; drawCalls: number; instances?: number; placeholders?: number; swapsActive?: number; swapsQueued?: number };
   const missing = Object.entries(genome.slots)
     .filter(([, pick]) => pick.partId.startsWith('placeholder:'))
     .map(([k]) => k);
@@ -290,10 +328,15 @@ function drawHud() {
     `seed ${seed} · tier ${tier} · 身高 ${BODY_HEIGHT}m\n` +
     `←/→ 主题 · ↑/↓ tier · N 换 seed · 空格 暂停 · S 骨架线\n` +
     (library.usingFallback ? '⚠ parts.json 不可用 → 程序化占位几何（P3）\n' : '') +
-    (missing.length ? `⚠ 占位槽位: ${missing.join(', ')}\n` : '✓ 槽位齐全\n') +
+    // 点场一个槽位件都不实例化，"槽位齐全"对它是一句没有意义的话 ——
+    // 报"没有槽位"才是这个物种的实情（`docs/26 §G`：状态标记本身就是诚实）。
+    (isSwarm ? '— 无槽位：整具身体是一片点\n'
+      : missing.length ? `⚠ 占位槽位: ${missing.join(', ')}\n` : '✓ 槽位齐全\n') +
     (DEBUG
-      ? `\n实例 ${s.instances}/${BUDGET.maxInstances} · 三角 ${s.triangles.toLocaleString()} · draw ${s.drawCalls}\n` +
-        `${fps.toFixed(0)} fps · pose ${poseMs.toFixed(2)}ms · frame ${jsMs.toFixed(2)}ms · 占位实例 ${s.placeholders} · 换装 ${s.swapsActive}活/${s.swapsQueued}排\n` +
+      ? (isSwarm
+          ? `\n点 ${(s as { points?: number }).points ?? 0} · 三角 ${s.triangles.toLocaleString()} · draw ${s.drawCalls}/${BUDGET.maxDrawCalls} · 抬升 ${((s as { lift?: number }).lift ?? 0).toFixed(3)}m\n`
+          : `\n实例 ${s.instances ?? 0}/${BUDGET.maxInstances} · 三角 ${s.triangles.toLocaleString()} · draw ${s.drawCalls}\n`) +
+        `${fps.toFixed(0)} fps · pose ${poseMs.toFixed(2)}ms · frame ${jsMs.toFixed(2)}ms · 占位实例 ${s.placeholders ?? 0} · 换装 ${s.swapsActive ?? 0}活/${s.swapsQueued ?? 0}排\n` +
         `资产 ${library.stats.loaded} 已加载 / ${library.stats.failed} 失败 / ${library.stats.pending} 在途`
       : '');
 }
@@ -341,7 +384,7 @@ renderer.setAnimationLoop((now: number) => {
   const a = fixedAngle !== null && Number.isFinite(fixedAngle) ? fixedAngle : Math.sin(spin) * 0.9;
   camera.position.set(Math.sin(a) * camDist, center[1] + span * 0.35, Math.cos(a) * camDist);
   camera.lookAt(center[0], center[1], center[2]);
-  creature.pose(skeleton, presence, dt);
+  activeBody().pose(skeleton, presence, dt);
   const t1 = performance.now();
   renderer.render(scene, camera);
   // poseMs = Creature 自己的 CPU 预算（docs/02 P5 的"CPU 每帧 JS"）；
