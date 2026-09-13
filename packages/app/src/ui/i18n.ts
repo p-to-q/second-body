@@ -647,9 +647,20 @@ export const COPY = {
       '它只认得你的骨头',
       'It only ever sees your bones',
     ),
+    // 这句话原来写的是「你**主动触发**的那一张剪影」。那是假的：
+    // 慢回路在人待满 `SLOW_LOOP.armAfter`（20 秒）之后**自己**就武装了，
+    // 观众一个键都没按（`docs/38 §8`）。
+    //
+    // 一句写在隐私说明里的假话，比没有隐私说明更糟 —— 它是这件作品
+    // 唯一一处必须逐字为真的文案。改成实际发生的事：**站着不走就是那个触发**。
+    // 而这句话因此也更准：它说的正是这件作品的题目 —— 你什么都没做，
+    // 只是待在那儿，而那已经足够让一具身体从你身上长出来。
     long: bi(
-      '姿态识别全部在本地运行。唯一会上传的是你主动触发的那一张剪影，不保存、不关联身份。',
-      'Pose estimation runs entirely on your device. The only thing ever uploaded is a single silhouette you trigger yourself — not stored, not linked to you.',
+      '姿态识别全部在本地运行。站够二十秒，它会拿这一刻的剪影去长出一件新的部件 —— '
+      + '上传的只有那一张剪影，不保存、不关联身份。',
+      'Pose estimation runs entirely on your device. Stay about twenty seconds and it takes a single '
+      + 'silhouette of that moment to grow a new part — only that silhouette is ever uploaded, '
+      + 'not stored, not linked to you.',
     ),
     optOut: bi('不参与', 'Opt out'),
   },
