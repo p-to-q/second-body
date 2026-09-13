@@ -105,6 +105,37 @@ export interface Flags {
    * "参数没生效"必须分得开）。
    */
   wave: WaveFlag | null;
+  /**
+   * ?gl=off 强制走**无 WebGL 的那条路**：选择页掉到纯 DOM 列表
+   * （`choose/choose.ts` 的 `toFallback()`）。默认 on。
+   *
+   * 为什么它必须存在于正式程序而不只是 dev 页：`navigator.gpu` 没法在页面加载
+   * 之前从外面拿掉，所以"没有 WebGPU 的机器上这一页还选不选得了"这条路，
+   * 除了这个开关没有别的办法跑（AGENTS.md：每条降级路径必须存在**且被跑过**）。
+   * 在这之前 `?gl=` 只接在 `/dev/choose.html` 上，而 `choose.ts` 的文件头
+   * 拿它当"这条路跑过了"的证据 —— 那句话说的是意图，不是现实（docs/36 D2）。
+   *
+   * 认不出来的值（`?gl=0` / `?gl=false` / `?gl=no`）按没写过处理并喊一声 ——
+   * 规矩和 `?scene=` / `?shading=` / `?cam=` / `?exits=` 一样。
+   */
+  gl: boolean;
+}
+
+/** `?gl=` 认的两个值。别的一律当没写过 */
+export type GlFlag = 'on' | 'off';
+const GL_FLAGS: readonly string[] = ['on', 'off'];
+export const isGlFlag = (v: string | null): v is GlFlag => v !== null && GL_FLAGS.includes(v);
+
+/** 同一个坏值只喊一次 —— `readFlags()` 一次启动会被调好几处 */
+const warnedGl = new Set<string>();
+
+function resolveGl(raw: string | null): boolean {
+  if (isGlFlag(raw)) return raw === 'on';
+  if (raw !== null && !warnedGl.has(raw)) {
+    warnedGl.add(raw);
+    console.warn(`[kiosk] ?gl=${raw} 认不出来，只认 on / off —— 按没写过处理（GL 照常用）`);
+  }
+  return true;
 }
 
 /** `?preview=` 的两个合法值。和 `?shading=` 同一个位置、同一条规矩 */
@@ -232,6 +263,10 @@ export function readFlags(search = location.search): Flags {
     // "默认是哪一条"由消费者决定并打印出来，不在这里替它决定。
     wave: isWaveFlag(q.get('wave')) ? (q.get('wave') as WaveFlag) : null,
     exits: resolveExits(q.get('exits'), q.get('kiosk') === '1'),
+    // 默认 on。`?gl=off` 是唯一一条能在有 WebGPU 的机器上跑到
+    // "环起不来"那条降级路径的办法 —— 消费者是 `main.ts` 的
+    // `chooseTheme({ forceFallback: !flags.gl })`。
+    gl: resolveGl(q.get('gl')),
   };
 }
 

@@ -233,12 +233,13 @@ LICENSE，全是 MIT/BSD/Apache，逐份扫 `non-commercial` 零命中；10 件�
 
 两条实施时才学到的东西，写在这里免得下次重新踩：
 
-1. **挑件之前必须量 girth。** `head` / `spine` / `hand` / `foot` / `joint` 五个槽位在运行时是
+1. **挑件之前必须量 girth。** `head` / `spine` / `hand` / `joint` **四个**槽位在运行时是
    **uniform 缩放**（三轴同比例 = `SLOT_WIDTH/localGirth`，忽略骨长）。ANYmal 的 `foot.obj`
-   把足和护套捆在一个文件里，归一化后长宽比 6:1，放进 `foot` 会被整件放大 3 倍 ——
-   截出来不是一只脚，是一根一米长的杆子。规矩：uniform 的五个槽位，girth 要落在
+   把足和护套捆在一个文件里，归一化后长宽比 6:1 —— 当年它正是在 `foot` 上被整件放大 3 倍，
+   截出来不是一只脚，是一根一米长的杆子。规矩：uniform 的那几个槽位，girth 要落在
    槽位中位数的 0.7×–1.3× 之间。这和 `curation.json` 里那几条「girth 是中位数的 0.43×」
    的剔件理由是同一件事 —— **真实几何不能免检**。
+   （`foot` 已经不在这张名单上了，理由见下面 §H 末尾那一段。）
 2. **「真实存在的机器」不等于「每个槽位都有对应零件」。** Cassie 没有头，四足机没有手。
    这时候要在同一台机器上挑一件尺度对得上的，并在 `ATTRIBUTION.md` 里写明它是代的 ——
    而不是去别的物种借件（那就是按槽位穿插），也不是去别的机器借件。
@@ -294,10 +295,17 @@ LICENSE，全是 MIT/BSD/Apache，逐份扫 `non-commercial` 零命中；10 件�
 
 ### 连带规矩：真实几何不能免检
 
-`head` / `spine` / `hand` / `foot` / `joint` 五个槽位运行时是 **uniform 缩放**
+`head` / `spine` / `hand` / `joint` **四个**槽位运行时是 **uniform 缩放**
 （`SLOT_WIDTH / localGirth`，**忽略骨长**）。ANYmal 的 `foot.obj` 把足和护套捆在一个文件里，
 归一化之后长宽比 6:1，整件被放大 3.2 倍 —— 脚变成一米长的杆子。
 
-**规矩**：uniform 那五个槽位，取来的件 `localGirth` 必须落在该槽位中位数的 **0.7×–1.3×**。
+**规矩**：uniform 那几个槽位，取来的件 `localGirth` 必须落在该槽位中位数的 **0.7×–1.3×**。
 这和 `curation.json` 里那几条"girth 是中位数的 0.43×"是同一件事 ——
 **真实几何不比生成件更可信，它只是来源不同。**
+
+> **`foot` 从这张名单上撤掉（2026-09-13，`docs/39 §2.5`）。** 这句话写下来的时候脚确实
+> 在 uniform 那一档，后来 `FOOT` 那组数落地，`assemble.ts` 改成给脚传 `axisLength`：
+> 脚长由骨长算，横向又被 girth 归一化回 `SLOT_WIDTH.foot` —— 两个方向都把 `localGirth`
+> 除干净了，它对成品**没有影响**。规格和代码从那天起就分岔了，而分岔的是这份文档。
+> 这里改的是文档不是代码：`FOOT` 那条路是后加的、更准，而且有测试。
+> `check:parts` 的 girth 带检查同样不查 `foot`，理由写在代码里。
