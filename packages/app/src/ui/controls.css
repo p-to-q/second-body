@@ -25,22 +25,21 @@
   transition: opacity 180ms cubic-bezier(.4, 0, 1, 1);
 }
 
-/* 目录挂上来了（`sb-has-nav`）：整条下移到目录**收起态**那一行之下。
-   3.2rem 覆盖了收起态的一行字（≈1.5em）+ 下边框 + 一个 gutter 的余量；
-   目录一展开这一条就整条藏起来，所以不必为它的展开态留位。 */
-.sb-ctl--below-nav { top: calc(var(--sb-safe) * 0.5 + 3.2rem); }
+/* `--below-nav` 和 `is-hidden` 都**删掉了**。
+   它们原来在为同一件事打补丁：控件条和目录是两个各自 fixed 的东西，
+   抢同一个角，所以一个要往下偏一个固定的量、另一个展开时还要把它整条藏起来。
+   现在两者同在 `ui/corner.ts` 那一列里，上面一节展开、下面那节自己被推下去 ——
+   这是浏览器免费给的，不需要任何人去算 3.2rem 是不是够。
+   `.sb-ctl` 自己的 fixed 仍然留着：没有那一列的页面上它照旧自己定位。 */
 
-/* 目录展开时整条让位。用 visibility 而不是 display：位置不变，回来的时候不会跳；
-   而且 visibility:hidden 顺带把它从 tab 序列里摘出去，藏起来的东西不该还能被聚焦。
- *
- * **这里刻意不写 opacity: 0。** 第一版写了，结果是：目录展开再收起之后，
- * 控件条整条再也不出现 —— `.sb-ctl` 上有一条 180ms 的 opacity 过渡，
- * 而在一台被占满的机器上（实测 1.7 fps）那条过渡停在
- * `playState: running`，永远回不到 1。这正是 `shell/notice.css` 早就写过的那一条：
- * **一旦元素的静止态依赖某个动画跑完，动画不跑它就永远不在。**
- * 隐藏必须是一个不需要时间的状态。
- */
-.sb-ctl.is-hidden { visibility: hidden; }
+/* 曾经这里有一条 `.sb-ctl.is-hidden { visibility: hidden }`，用来在目录展开时
+   把整条藏起来。连同它一起删掉的还有一条用血换来的注释，这里留个摘要，
+   因为那条教训和这个类无关、和**所有**靠动画回到静止态的东西都有关：
+   第一版用的是 `opacity: 0`，结果目录展开再收起之后控件条再也不出现 ——
+   `.sb-ctl` 上有 180ms 的 opacity 过渡，在一台被占满的机器上（实测 1.7 fps）
+   那条过渡停在 `playState: running`，永远回不到 1。
+   **一旦元素的静止态依赖某个动画跑完，动画不跑它就永远不在。**
+   `shell/notice.css` 里写着同一条。 */
 
 /* 进场 4 秒后淡下去 —— 和目录、和 ui/page.ts 的浮层页头同一个数。
    鼠标碰上去、tab 到它、或者它展开着，它自己回来。 */
@@ -48,51 +47,67 @@
 .sb-ctl:hover, .sb-ctl:focus-within, .sb-ctl.is-open { opacity: 1; }
 
 /* ── 收起态：一个词 + 一条线（和 .sb-nav-toggle 是同一个构件）────────────── */
+/* **和 `.sb-nav-toggle` 逐字一致。** 这一列上现在有三节 —— 目录、设置、控件 ——
+   它们是同一种东西的三块，不是两种东西挤在一个角。
+   原来这一条是 label 档、全大写、带一条下划线，和上面两节一比就是另一套系统。
+   凡是这里和 nav.css 不同的地方，都要么是 bug 要么需要一个写下来的理由。 */
 .sb-ctl-toggle {
   appearance: none;
   background: none;
   border: 0;
-  border-bottom: 1px solid var(--sb-rule);
-  padding: 0 0 0.3rem;
+  padding: 0;
   margin: 0;
   font: inherit;
   font-family: var(--sb-grotesk);
-  letter-spacing: var(--sb-tracking-label);
-  text-transform: uppercase;
+  font-size: var(--sb-size-h2);
+  letter-spacing: -0.01em;
+  text-transform: none;
   /* 直接贴在舞台画布上，所以用 --sb-on-stage：白展厅底下浅灰字看不见，
-     这个变量由 stage.ts 的 publishStageInk 按当前场景底色发布。 */
-  color: var(--sb-on-stage);
-  text-shadow: 0 0 6px var(--sb-halo), 0 0 2px var(--sb-halo);
+     这个变量由 stage.ts 的 publishStageInk 按当前场景底色发布。
+     目录那一节在展签上（纸底），这一节在舞台上（底色会变），
+     这是两节之间**唯一**合理的差别。 */
+  color: var(--sb-on-stage-dim);
   cursor: pointer;
-  transition: border-color 180ms;
+  transition: color 180ms;
 }
 .sb-ctl-toggle .sb-zh, .sb-ctl-toggle .sb-en { display: inline; }
-.sb-ctl-toggle .sb-en { color: var(--sb-on-stage-dim); margin-left: 0.6em; }
-.sb-ctl-toggle:hover,
-.sb-ctl-toggle:focus-visible,
+.sb-ctl-toggle .sb-zh { color: var(--sb-on-stage); font-weight: var(--sb-weight-head); }
+.sb-ctl-toggle .sb-en {
+  font-size: 0.78em;
+  margin-left: 0.45em;
+  letter-spacing: var(--sb-tracking-label);
+  text-transform: uppercase;
+  opacity: 0.6;
+}
 /* 展开态只变亮，不上色、不加线 —— 和目录同一条规矩：
    docs/26 §F「全站只有一处用颜色承担语义（成立/不成立），其余一律灰阶」。
    控件的开合不是那一处。 */
-.sb-ctl.is-open .sb-ctl-toggle { outline: none; border-bottom-color: transparent; }
-.sb-ctl.is-open .sb-ctl-toggle { color: var(--sb-ink); text-shadow: none; }
-.sb-ctl.is-open .sb-ctl-toggle .sb-en { color: var(--sb-ink-dim); }
+.sb-ctl-toggle:hover,
+.sb-ctl-toggle:focus-visible,
+.sb-ctl.is-open .sb-ctl-toggle { outline: none; color: var(--sb-on-stage); }
 
 /* ── 展开的面板 ──────────────────────────────────────────────────────────── */
 .sb-ctl-panel {
   margin-top: calc(var(--sb-gutter) * 0.6);
-  width: min(30rem, calc(100vw - var(--sb-safe)));
+  /* 22rem，和目录那两节逐字相同。原来是 30rem —— 同一列上三节三种宽度，
+     右边缘对齐了但左边缘各是各的，读起来就是三个不相干的东西。 */
+  width: min(22rem, calc(100vw - var(--sb-safe)));
   /* 五组 + Key 条在 900 高的屏上放不下。面板自己滚，页面不滚 ——
      一个会把整页顶走的控制面板，在装置现场是灾难。 */
-  max-height: calc(100vh - var(--sb-safe) * 2 - 3.2rem);
+  max-height: calc(100vh - var(--sb-safe) * 1.5 - 3.4rem - var(--sb-gutter));
   overflow-y: auto;
   overscroll-behavior: contain;
+  /* 滚动条不画 —— 这一层的语言里没有"控件"这种东西（docs/26 §F 的否定清单） */
+  scrollbar-width: none;
   text-align: left;
   /* 半透明，不虚化 —— 理由同 nav.css */
-  background: color-mix(in srgb, var(--sb-paper) calc(var(--sb-layer-panel) * 100%), transparent);
+  background: color-mix(in srgb, var(--sb-stage-ground) calc(var(--sb-layer-panel) * 100%), transparent);
   color: var(--sb-ink-dim);
   /* 没有入场动效，理由和 nav.css / notice.css 一样：入场动效等于把静止态
      设成 opacity 0，而动画不一定跑得起来。 */
 }
+
+.sb-ctl-panel::-webkit-scrollbar { display: none; }
 
 .sb-ctl-group { border-top: 1px solid var(--sb-rule); padding: 0.7rem 0; }
 .sb-ctl-group:first-child { border-top: 0; }

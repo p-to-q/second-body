@@ -1,0 +1,37 @@
+/**
+ * 右上角那一列的皮肤。它只管**摆位置**，里面几节的样子各自归各自。
+ *
+ * 这一列是 fixed 的；进到列里的那几节因此必须变回 static ——
+ * 它们各自原来都是 fixed（在没有这一列的页面上仍然是）。
+ */
+.sb-corner {
+  position: fixed;
+  top: calc(var(--sb-safe) * 0.5);
+  right: calc(var(--sb-safe) * 0.5);
+  /* 11 = 压在入口展签（10）之上。理由见 nav.css：展签就是网页版的首页，
+     目录不在那一屏上等于不存在。 */
+  z-index: 11;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  /* 列本身不接事件 —— 它是个空框，只有里面那几节接。
+     不写这一条的话，右上角一大片透明区域会吃掉选择页的拖动。 */
+  pointer-events: none;
+  /* 整列不超过一屏。里面每一节各自还有自己的上限（面板会滚），
+     这一条管的是"三节同时展开时不要顶出屏幕"。 */
+  max-height: calc(100vh - var(--sb-safe));
+}
+.sb-corner > * { pointer-events: auto; }
+
+/* 进到列里之后，各节交出定位权。**不改它们的其它任何度量** ——
+   在只挂目录的文字页上它们仍然走自己那份 fixed。 */
+.sb-corner > .sb-nav,
+.sb-corner > .sb-ctl {
+  position: static;
+  top: auto;
+  right: auto;
+  max-height: none;
+}
+
+/* 一节和上一节之间留一节的距离。和 nav.css 里两节之间用的是同一个数。 */
+.sb-corner > * + * { margin-top: calc(var(--sb-gutter) * 1.2); }

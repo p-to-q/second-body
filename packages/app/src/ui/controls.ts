@@ -21,9 +21,10 @@
  *    右下是「用我的摄像头」和 §S0 的降级提示。而右上角已经被目录立了规矩
  *    （`ui/nav.ts`，`pages.css` 也已经按 `sb-has-nav` 为它留位）——
  *    再开第二个控制角，等于告诉观众这块画面上有两个地方可以按。
- *    不重叠靠的不是眼睛：控件条的 `top` 从目录**收起态**那一行之下起算
- *    （`.sb-ctl--below-nav`），而目录一展开就把控件条整条收掉
- *    （`mountNav` 的 `onOpenChange`），反过来也一样。
+ *    不重叠靠的不是眼睛，也不再靠互相躲：目录、设置、控件是**同一列里的三节**
+ *    （`ui/corner.ts`）。上面一节展开，下面那节自己被推下去 —— 浏览器免费给的。
+ *    原来那套（控件条按 3.2rem 下偏、目录一展开就把它整条藏掉）已经删掉：
+ *    它每一条都对，但它们全是在为"两个 fixed 抢同一个角"打补丁。
  *
  * 2. **能热切的一律热切，必须重建的老实重载。**
  *    场景（`stage.setScene`）、玩法（`director.force`）、跟随延迟、时域精化、
@@ -124,7 +125,6 @@ export interface Controls {
    * 由 `main.ts` 把 `mountNav({ onOpenChange })` 接到这里：目录先挂、控件条后挂，
    * 所以这条线只能是"后者提供一个方法，前者回头调它"。
    */
-  setNavOpen(open: boolean): void;
   dispose(): void;
 }
 
@@ -203,9 +203,6 @@ export function mountControls(options: ControlsOptions): Controls | null {
   const C = COPY.controls;
   const root = document.createElement('aside');
   root.className = 'sb-ctl';
-  if (document.documentElement.classList.contains('sb-has-nav')) {
-    root.classList.add('sb-ctl--below-nav');
-  }
 
   const toggle = document.createElement('button');
   toggle.type = 'button';
@@ -469,12 +466,6 @@ export function mountControls(options: ControlsOptions): Controls | null {
 
   return {
     root,
-    // 目录展开时把整条藏掉，而不只是收起面板：目录的面板有自己的底色，
-    // 它会正好盖在控件条那一行字上，露出半个词比什么都不露更糟。
-    setNavOpen(navOpen) {
-      if (navOpen) setOpen(false);
-      root.classList.toggle('is-hidden', navOpen);
-    },
     dispose() {
       clearInterval(poll);
       removeEventListener('keydown', onKey);

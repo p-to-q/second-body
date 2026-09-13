@@ -40,6 +40,7 @@ import { mountLoading } from './shell/loading.ts';
 import { showNotice } from './shell/notice.ts';
 import { mountNav } from './ui/nav.ts';
 import { mountControls, type Controls } from './ui/controls.ts';
+import { cornerColumn } from './ui/corner.ts';
 import { createHud } from './shell/hud.ts';
 import { createSound } from './sound/sound.ts';
 import { createCues } from './sound/cues.ts';
@@ -76,13 +77,17 @@ async function boot(): Promise<void> {
   // 而那个答案只有它知道。用它的返回值，不要在这里把它的条件重写一遍。
   const entry = mountEntry(flags);
 
+  // 右上角那一列：目录 → 设置 → 控件，三节同流（`ui/corner.ts`）。
+  // 只在真要挂东西的时候才建，否则空的 fixed 元素会吃掉指针事件。
+  const corner = flags.nav ? cornerColumn() : undefined;
+
   let controls: Controls | null = null;
   const nav = mountNav({
+    mount: corner,
     // 铺开是**展签版式的一部分** —— `shell/entry.css` 为它让出了右边一栏。
     // 深链和现场没有展签，也就没有那一栏：那时候铺开的目录是整片压在作品上的。
     startOpen: entry !== null,
     enabled: flags.nav, overlay: true,
-    onOpenChange: (open) => controls?.setNavOpen(open),
   });
 
   // 离散接触音（docs/29 §第五层）。**必须在这里建**，不能跟着 createSound 走：
@@ -422,6 +427,7 @@ async function boot(): Promise<void> {
   // 现场（`?kiosk=1`）下 `flags.nav` 为 false，这一整条不挂 —— 和目录同一个判断。
   controls = mountControls({
     enabled: flags.nav,
+    mount: corner,
     nav,
     host: {
       themeId: theme ?? null,

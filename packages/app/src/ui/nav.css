@@ -88,7 +88,7 @@
   text-align: left;
   /* 半透明，**不虚化**。虚化是一层效果，而这一屏要的是平 ——
      作品从背后透出来就够了，再糊一道只会让人觉得那里有块玻璃。 */
-  background: color-mix(in srgb, var(--sb-paper) calc(var(--sb-layer-panel) * 100%), transparent);
+  background: color-mix(in srgb, var(--sb-stage-ground) calc(var(--sb-layer-panel) * 100%), transparent);
   /* 没有入场动效，理由写在 shell/notice.css 里：入场动效等于把静止态设成
      opacity: 0，而动画不一定跑得起来。一个点开之后可能是空白的菜单，
      比一个"唰"地出现的菜单糟糕得多。 */
