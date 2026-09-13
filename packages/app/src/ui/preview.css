@@ -1,0 +1,86 @@
+/**
+ * 左上角那块小屏幕的皮肤。度量与颜色全部来自 type.css。
+ *
+ * ⚠️ **这个文件里有全站唯一一处 `border-radius`，是被批准的例外。**
+ * `docs/26 §F` 的反面清单禁圆角，理由是圆角属于产品界面的语汇。
+ * 这一块不是界面：它是画面里**引用的一件硬件**——一台监视器。
+ * 圆角在这里承担的是"这是一块屏幕"这个事实，不是装饰。
+ * 完整的说明和裁定记录在 `ui/preview.ts` 的文件头与 `docs/26 §F`。
+ * **例外只到 `.sb-see-screen` 这一个选择器为止。**
+ */
+
+.sb-see {
+  position: fixed;
+  left: calc(var(--sb-safe) * 0.5);
+  top: calc(var(--sb-safe) * 0.5);
+  /* 4 = 和浮层页头同一层，压在画布之上、目录（11）之下。
+     它不该盖住目录 —— 目录是可以点的，这一块不是。 */
+  z-index: 4;
+  width: 168px;
+  display: flex;
+  flex-direction: column;
+  /* 它是一个指示灯，不是一个控件：一点指针事件都不该吃，
+     否则左上角这一块会把选择页的拖动咬掉一口。 */
+  pointer-events: none;
+}
+
+/* ── 那块屏幕本身 ────────────────────────────────────────────────────────── */
+.sb-see-screen {
+  position: relative;
+  width: 168px;
+  height: 126px;
+  overflow: hidden;
+  background: #000;
+  /* ↓↓ 全站唯一一处圆角。动它之前先读这个文件的文件头。 */
+  border-radius: 10px;
+  /* 一圈极细的边，让黑底的屏幕在黑底的舞台上仍然是"一块东西"。
+     用 --sb-rule 而不是发光/阴影：阴影同样在 §F 的反面清单上，
+     而且这里根本不需要——一条线就够把它和背景分开。 */
+  box-shadow: inset 0 0 0 1px var(--sb-rule);
+}
+
+.sb-see-screen.is-mirrored { transform: scaleX(-1); }
+
+.sb-see-video,
+.sb-see-bones {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* 摄像头画面是**底**，不是主角：压暗，好让白色骨架跳出来。
+   object-fit: cover —— 摄像头是 16:9，这块屏幕也是 4:3 附近，
+   宁可切掉一点边也不要黑边（黑边会读成"信号没了"）。 */
+.sb-see-video {
+  object-fit: cover;
+  opacity: 0.55;
+}
+
+/* ── 那一句话 ──────────────────────────────────────────────────────────────
+ * 正常的时候它是空的（`preview.ts` 直接清空 textContent），所以这里
+ * 不需要任何显示/隐藏的开关 —— 没有字就没有高度。
+ */
+.sb-see-word {
+  margin: calc(var(--sb-gutter) * 0.4) 0 0;
+  font-size: var(--sb-size-small);
+  line-height: var(--sb-lh-body);
+  color: var(--sb-on-stage);
+  text-shadow: 0 0 6px var(--sb-halo), 0 0 2px var(--sb-halo);
+}
+
+/* 中英并置：中文承重、英文辅助（type.css 的 .sb-zh / .sb-en）。
+   这里把英文压到另起一行 —— 这一块只有 168px 宽，两种文字挤一行会折得很难看。 */
+.sb-see-word .sb-zh,
+.sb-see-word .sb-en { display: block; }
+.sb-see-word .sb-en {
+  font-size: 0.78em;
+  letter-spacing: var(--sb-tracking-label);
+  color: var(--sb-on-stage-dim);
+}
+
+/* 状态不好的时候，屏幕自己也要有一点差别 —— 但**只用墨色深浅，不用警示色**。
+   §F：全站只有一处用颜色承担语义，而这里不是那一处。
+   一块沉下去的屏幕加一句话，已经把"现在不太对"说完了。 */
+.sb-see.is-bad .sb-see-screen { box-shadow: inset 0 0 0 1px var(--sb-ink-dim); }

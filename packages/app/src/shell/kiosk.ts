@@ -55,7 +55,26 @@ export interface Flags {
    * 两种写法各自服务于一个人：序号给站在现场一台台试的人，deviceId 给开机脚本
    * （唯一可复现的写法）。认不出来的值一律 null —— 规矩和 `?shading=` 一样。
    */
-  cam: string | null;}
+  cam: string | null;
+  /**
+   * ?preview=on|off  左上角那块小屏幕（`ui/preview.ts`）——「它有没有看见我」。
+   * null = 不指定，按场合自己决定（网页版挂、现场不挂、回放永远不挂）。
+   *
+   * 为什么需要一个强制开：现场唯一真正的问题就是"观众不知道自己被没被看见"，
+   * 而现场默认是不挂的（docs/23 §S4「默认零 UI」）。有些场地会要那块小屏幕 ——
+   * 那是策展决定，不是代码决定，所以它必须是一个 URL 参数而不是一次重新构建。
+   *
+   * 认不出来（?preview=1 / ?preview=yes）就是 null = 当没写过，规矩同 `?scene=`。
+   */
+  preview: PreviewMode | null;}
+
+/** `?preview=` 的两个合法值。和 `?shading=` 同一个位置、同一条规矩 */
+export type PreviewMode = 'on' | 'off';
+const PREVIEW_MODES: readonly string[] = ['on', 'off'];
+
+export function isPreviewMode(v: unknown): v is PreviewMode {
+  return typeof v === 'string' && PREVIEW_MODES.includes(v);
+}
 
 /** MediaPipe 的三个 PoseLandmarker 档位。精度/延迟的实测差异见 docs/24 §3 */
 export type PoseModel = 'lite' | 'full' | 'heavy';
@@ -107,7 +126,12 @@ export function readFlags(search = location.search): Flags {
     // 认不出来（?cam=1.5 / ?cam=-1 / ?cam=前面那台）就是 null = 当没写过。
     // "那台不在" 不在这里判 —— 这里没有设备表，而且那是另一种错：
     // 它要的是现场看得见的大声回落，不是静默的 null（见 camera-select.ts 文件头）。
-    cam: isCamFlag(q.get('cam')) ? q.get('cam')!.trim() : null,  };
+    cam: isCamFlag(q.get('cam')) ? q.get('cam')!.trim() : null,
+    // 认不出来就是 null（同 `?scene=` / `?shading=` / `?cam=`）：
+    // `?preview=1` 手滑写成数字**不该**被猜成 'on'，那样"我写了参数"和
+    // "参数没生效"就分不开了。挂不挂的默认判断在 `ui/preview.ts` 的 `wantsPreview()`，
+    // 不在这里 —— 这里只负责认字。
+    preview: isPreviewMode(q.get('preview')) ? (q.get('preview') as PreviewMode) : null,  };
 }
 
 /** 防止 macOS 在无人交互时息屏 —— 装置会在这上面吃大亏 */
