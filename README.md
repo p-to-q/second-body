@@ -14,27 +14,21 @@ is the fast loop alone.
 [how it was made](https://useeme.ptoq.io/making) ·
 [take your body home](https://useeme.ptoq.io/passport)
 
-`u-see.me` is the address the work is meant to end up on. It is bought and
-registered against the project, but its nameservers still point at the
-registrar's parking page — it does not serve the piece yet
-([`docs/13-DEPLOY.md`](docs/13-DEPLOY.md) §7).
+`u-see.me` is the address the work is meant to end up on: bought, registered
+against the project, and not serving it yet — its nameservers still point at
+the registrar's parking page ([`docs/13-DEPLOY.md`](docs/13-DEPLOY.md) §7).
 
 ![Position poster](assets/brand/poster-03-position-a1.png)
-
-The artwork is titled **SEE-ME SEE-U**; the engineering codename stays
-`second-body` — the repository, the packages, the `@smu/*` prefix. The split is
-deliberate: what the audience reads is a wall label, not a repository name.
 
 ## Statement
 
 > SEE ME. SEE U. NOT ME. BUT U. AND U SEE ME.
 
 The artist's line, and the only English inside a statement otherwise written in
-Chinese. The statement is set in full, in the original, on
-[`/about`](https://useeme.ptoq.io/about); it names the five terms the piece
-is built on — *datafication*, *Morphogenesis*, *zoe*, *simulacrum*, *distributed
-agency*. Everything below this line is the engineering account of the same
-object, written by the people who built it.
+Chinese. The statement is set in full on
+[`/about`](https://useeme.ptoq.io/about), with the five terms it is built on —
+*datafication*, *Morphogenesis*, *zoe*, *simulacrum*, *distributed agency*.
+Everything below this line is the engineering account of the same object.
 
 ## State
 
@@ -44,14 +38,15 @@ generation — put back inside the interaction loop.
 
 Re-derived from `assets/parts/parts.json` by running
 `node packages/app/poster/build-data.mjs` on 2026-09-13: **29 roster entries**,
-25 of which currently carry parts; **208 normalised parts** across 10 slots;
-**8 body plans** — seven skeleton remappings in
+25 of which have parts of their own; **208 normalised parts** across 10 slots;
+**9 body plans** in use — the seven skeleton remappings in
 [`packages/core/src/bodyplan.ts`](packages/core/src/bodyplan.ts) (`rig`,
-`quadruped`, `towering`, `stub`, `inverted`, `radial`, `column`) plus `mass`,
-which replaces the rigid body entirely. At tier 2 that is a combinatorial
-capacity of **1,446,403 distinct bodies** — vacant entries that have never
-produced a part of their own are excluded from the count on purpose. Re-run that
-command rather than trusting the numbers in this paragraph.
+`quadruped`, `towering`, `stub`, `inverted`, `radial`, `column`), plus `mass`
+and `swarm`, which replace the rigid body with a fused blob and a point field.
+At tier 2 that is a combinatorial capacity of **1,446,403 distinct bodies** —
+vacant entries that have never produced a part of their own are excluded from
+the count on purpose. Re-run that command rather than trusting the numbers in
+this paragraph.
 
 **What actually runs is decided by [`docs/10-SURFACES.md`](docs/10-SURFACES.md),
 not by this file.** The slow loop, the stage and the main chain are still marked
@@ -100,24 +95,17 @@ Three files, in this order, and you can start changing things:
 3. [`docs/10-SURFACES.md`](docs/10-SURFACES.md) — the only trustworthy statement
    of what works, with an evidence column.
 
-Then [`docs/index.md`](docs/index.md) routes you to the rest by need. Do not read
-`docs/` end to end. If you are setting the piece up in a room rather than
-changing it, the one you want is
-[`docs/38-RUNNING-THE-PIECE.md`](docs/38-RUNNING-THE-PIECE.md) — hardware, the
-URL flags, permission, and what to do when it goes wrong.
+Then [`docs/index.md`](docs/index.md) routes you to the rest by need and marks
+which documents are English and which are Chinese; do not read `docs/` end to
+end. If you are setting the piece up in a room rather than changing it, the one
+you want is [`docs/38-RUNNING-THE-PIECE.md`](docs/38-RUNNING-THE-PIECE.md) —
+hardware, URL flags, permission, and what to do when it goes wrong.
 
-**Every tunable number in the project lives in one file**,
-[`packages/core/src/tuning.ts`](packages/core/src/tuning.ts) — capture, filtering,
-rig, motion, evolution, morphology, render budget, slow loop. If you find
-yourself tuning a constant anywhere else, it is in the wrong place.
-
-**Three things are frozen contracts:**
-[`packages/core/src/types.ts`](packages/core/src/types.ts),
-[`docs/03-SPEC-part-library.md`](docs/03-SPEC-part-library.md) and
-[`docs/04-SPEC-rig-and-attach.md`](docs/04-SPEC-rig-and-attach.md). You do not
-edit them, even when your change appears to require it. Stop and report
-`contract change needed: <reason>`; the contract owner makes the edit and
-broadcasts it. The reasoning is P0 and P11.
+Two rules from `AGENTS.md` decide where an edit belongs. Every tunable number
+lives in [`packages/core/src/tuning.ts`](packages/core/src/tuning.ts) and
+nowhere else; `packages/core/src/types.ts`, `docs/03` and `docs/04` are frozen
+contracts you do not edit — you stop and report
+`contract change needed: <reason>`.
 
 ## Structure
 
@@ -126,17 +114,23 @@ packages/core      pure logic (filtering, rig, attachment, evolution, genome) �
 packages/app       browser runtime (vite + three.js WebGPU + MediaPipe)
 packages/factory   node (Hyper3D client, asset pipeline, slow-loop proxy)
 assets/parts       normalised parts + parts.json    ← the only interface between runtime and factory
-assets/raw         raw Rodin output + ledger.json   (gitignored)
+assets/raw         raw Rodin output (gitignored) + ledger.json (committed — it is what makes generation idempotent)
 ```
 
-The asset factory needs a Hyper3D key and spends credits; its commands and
-budget gates are documented in [`docs/index.md`](docs/index.md), not here.
+The repository, the root package and the workspace scope are all the work's own
+name: `see-me-see-u` and `@smu/*`. One thing still reads `second-body`, and on
+purpose: the **Vercel project**, whose name is what the live URL hangs off
+([`docs/13-DEPLOY.md`](docs/13-DEPLOY.md) §7).
+
+The asset factory needs a Hyper3D key and spends credits: its commands are in
+[`docs/30-ASSET-INTAKE.md`](docs/30-ASSET-INTAKE.md), its prices in
+[`docs/07-HYPER3D-API.md`](docs/07-HYPER3D-API.md).
 
 ## Licence
 
-The **source code** is MIT — see [`LICENSE`](LICENSE). Four things are carved
-out of it: the ring ported from Viscose-carousel, the ZKMSerendipity typeface, the
-generated `.glb` parts and anchor images, and the artwork itself. The carve-outs
-are written out in `LICENSE` and restated for the audience under *Credits and
-licence* on [`/about`](https://useeme.ptoq.io/about). Open source code does
-not mean the piece may be re-exhibited.
+The **source code** is MIT — see [`LICENSE`](LICENSE), which carves four things
+out of it: the ring ported from Viscose-carousel, the ZKMSerendipity typeface,
+the generated `.glb` parts and anchor images, and the artwork itself. The same
+carve-outs are restated for the audience under *Credits and licence* on
+[`/about`](https://useeme.ptoq.io/about). Open source code does not mean the
+piece may be re-exhibited.

@@ -1,6 +1,7 @@
 # SEE-ME SEE-U · PRD
 
-> 作品名 **SEE-ME SEE-U**。工程代号 `second-body`（仓库、包名、`@smu/*`）保持不变。
+> 作品名 **SEE-ME SEE-U**。仓库、根包与 workspace scope 现在同名：`see-me-see-u` / `@smu/*`。
+> 唯一仍写作 `second-body` 的是 **Vercel 项目名**，改它会断掉线上地址（`13-DEPLOY.md` §7）。
 > 名字命名的是这件作品的结构：机器看见你，你看见一个非人的自己 —— 一个互看的循环。
 
 > 产品定义。`docs/00-PROJECT-BRIEF.md` 是"我们为什么做"，这份是"做成什么样才算做完"。

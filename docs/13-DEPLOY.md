@@ -233,7 +233,7 @@ dig +short u-see.me NS && curl -sI https://u-see.me | head -1
 
 下面这张表是在**本机生产构建**（`npm run build` + `vite preview`）上验的 ——
 写它的时候还核不到线上地址。后来核到了：生产是 `second-body-one.vercel.app`，
-再后来是 `u-see.me`（见 §7）。表里的结论仍然成立，但**它验的是产物不是线上**，
+再后来是 `useeme.ptoq.io`（见 §7；`u-see.me` 还没接上）。表里的结论仍然成立，但**它验的是产物不是线上**，
 这个区别在 P21 的意义上是真的区别，所以不改成"线上实测"。
 
 | 检查 | 结果 |
