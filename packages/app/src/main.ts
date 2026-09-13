@@ -43,6 +43,7 @@ import { mountNav } from './ui/nav.ts';
 import { mountControls, type Controls } from './ui/controls.ts';
 import { cornerColumn } from './ui/corner.ts';
 import { mountPreview, wantsPreview, PREVIEW_BOTTOM } from './ui/preview.ts';
+import { HANDED_BACK_ACT, mountExits } from './ui/exits.ts';
 import { createHud } from './shell/hud.ts';
 import { createSound } from './sound/sound.ts';
 import { createCues } from './sound/cues.ts';
@@ -517,17 +518,65 @@ async function boot(): Promise<void> {
 
   loop.start();
 
+  // ── 右下角那一列（`ui/exits.ts`）────────────────────────────────────────────
+  // 选完物种之后观众此前没有任何出口：换物种只能改地址栏，而现场没有地址栏。
+  // 三件事都接在**已经存在的**机制上，一个都不新造：
+  // 回到大厅 = 重载（和控件条换物种同一条路），把身体还回去 = `director.force`，
+  // 摄像头 = 和下面那个按钮完全相同的一次 capture 替换。
+  // `?kiosk=1` 下 `flags.exits` 为 false，这一整列不挂（见 shell/kiosk.ts 的那条注释）。
+
+  /** 现在是不是摄像头在驱动。开场那一份由 `capturePromise` 决定，两处判断必须一致 */
+  let cameraOn = !entry && !flags.demo;
+
+  /** 换一个 Capture。失败时**原来那一个继续跑** —— 画面不许因为切换而停（P3） */
+  const swapCapture = async (kind: 'webcam' | 'replay'): Promise<boolean> => {
+    const next = await createCapture(kind);
+    await next.start();
+    if (next.lastError) { console.warn(`[main] capture(${kind}):`, next.lastError); next.stop(); return false; }
+    capture.stop();
+    capture = next;
+    cameraOn = kind === 'webcam';
+    return true;
+  };
+
+  const exits = mountExits({
+    enabled: flags.exits,
+    host: {
+      // 一次重载要带走的全部状态。字段和控件条的 `reloadWith` 逐条对应 ——
+      // 少带一条，演示到一半回大厅再选一个物种，刚调好的那一屏就没了。
+      state: () => ({
+        themeId: theme ?? null,
+        planId: typeof bodyPlan === 'string' ? bodyPlan : (bodyPlan.kind ?? 'rig'),
+        sceneId: stage.sceneId,
+        actId: director.currentId,
+        vitality: vitalityOn,
+        refine: refineOn && refiner !== null,
+        post: stage.post,
+        muted: sound.state === 'off' || sound.state === 'muted',
+      }),
+      // 「还回去」= 换一个玩法，仅此而已。摄像头照开、采集照跑、骨架照算，
+      // 只是这一场不用观众的那一份（`acts/untether.ts` 的文件头）。
+      handedBack: () => director.currentId === HANDED_BACK_ACT,
+      setHandedBack: (on) => {
+        director.force(on ? HANDED_BACK_ACT : 'follow', world);
+        return director.currentId === HANDED_BACK_ACT;
+      },
+      cameraOn: () => cameraOn,
+      setCamera: async (on) => {
+        await swapCapture(on ? 'webcam' : 'replay');
+        return cameraOn;
+      },
+    },
+  });
+
   // 唯一请求摄像头权限的地方。失败（拒绝 / 没有摄像头）就留着按钮，回放继续跑 ——
   // 观众看到的不是一个报错，而是"还没换成我"（docs/23 §S1 网页分支）。
-  if (entry) {
-    mountCameraButton(async () => {
-      const cam = await createCapture('webcam');
-      await cam.start();
-      if (cam.lastError) { console.warn('[main] camera:', cam.lastError); cam.stop(); return false; }
-      capture.stop();
-      capture = cam;
-      return true;
-    });
+  //
+  // **右下角那一列在场时不挂它**：那一列的「摄像头」行做的是同一件事
+  // （同一次 `createCapture('webcam')`、同一次权限请求），两个按钮并排贴在同一个角上
+  // 只会让观众以为它们不一样。`?exits=0` 下这条老路一个字都没变。
+  if (entry && !exits) {
+    mountCameraButton(async () => swapCapture('webcam'));
   }
 
   console.info(

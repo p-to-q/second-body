@@ -36,48 +36,8 @@
 /* 两节的标题。**它们是这一列上的两个题**，不是两个小标签 ——
    原来按 --sb-size-small 排，在满屏画面上小到读不出是可以点的东西。
    现在按 h2 走：和左边展签的问句同一档，右上角因此也立得住。 */
-.sb-nav-toggle {
-  appearance: none;
-  background: none;
-  border: 0;
-  padding: 0;
-  margin: 0;
-  font: inherit;
-  font-family: var(--sb-grotesk);
-  font-size: var(--sb-size-h2);
-  letter-spacing: -0.01em;
-  text-transform: none;
-  color: var(--sb-on-stage-dim);
-  cursor: pointer;
-  transition: color 180ms;
-}
-/* 第二节的题和上一节的面板之间要有一节的距离，否则两节读成一节 */
-.sb-nav-toggle + .sb-nav-toggle,
-.sb-nav-panel + .sb-nav-toggle { margin-top: calc(var(--sb-gutter) * 1.2); }
-/* 中文承重、英文辅助 —— 和全站的并置规矩一致（type.css 的 .sb-zh/.sb-en）。
-   0.78em + 0.45em 间距：英文比中文小一档、贴得更近，两个词因此读成
-   **一个标签**而不是两个并列的词。原来是同字号 + 0.6em，读起来是两件东西。 */
-.sb-nav-toggle .sb-zh,
-.sb-nav-toggle .sb-en { display: inline; }
-.sb-nav-toggle .sb-zh { color: var(--sb-on-stage); font-weight: var(--sb-weight-head); }
-/* **中英的比例不跟着字号动。** 0.78 是全站中英并置的那个比例（type.css），
-   放大标题的时候把英文按到 0.5 会让它从"并置的另一半"掉成一个角标 ——
-   那改的不是字号，是这两种文字在这件作品里的关系。 */
-.sb-nav-toggle .sb-en {
-  font-size: 0.78em;
-  margin-left: 0.45em;
-  letter-spacing: var(--sb-tracking-label);
-  text-transform: uppercase;
-  opacity: 0.6;
-}
-/* 焦点态不用浏览器的蓝框，也不用强调色 —— 只是变亮 */
-.sb-nav-toggle:hover,
-.sb-nav-toggle:focus-visible,
-.sb-nav-toggle.is-on,
-.sb-nav.is-open .sb-nav-toggle {
-  outline: none;
-  color: var(--sb-on-stage);
-}
+/* 节题的样式在 `ui/corner.css`，目录和控件**共用那一份**。
+   这里只留这一列自己的度量：两节之间的距离。 */
 
 /* 展开的那张表。右对齐落在收起态那个词的下面 */
 .sb-nav-panel {
@@ -184,8 +144,8 @@
    浅灰的开关在白底上几乎看不见。两条线各自都对，合起来坏了。
    `--sb-on-stage` 由舞台按当前场景底色亮度发布（stage.ts 的 publishStageInk），
    缺省等于 `--sb-ink`，所以文档页上的目录一个像素都不变。 */
-.sb-nav--overlay:not(.is-open) .sb-nav-toggle { color: var(--sb-on-stage); }
-.sb-nav--overlay:not(.is-open) .sb-nav-toggle .sb-en { color: var(--sb-on-stage-dim); }
+/* 这里曾经有两条只给目录的提亮覆盖。删掉了 —— 它们正是"同一列上两个题
+   英文一个亮一个暗"的来源。提亮归 corner.css 的 hover/展开那一条统一管。 */
 
 /* 文字页上的那一份（`overlay` 为 false）**不透明**。
  * 浮层那一份半透明是为了让作品从背后透出来 —— 背后是画面。

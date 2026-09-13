@@ -51,40 +51,7 @@
    它们是同一种东西的三块，不是两种东西挤在一个角。
    原来这一条是 label 档、全大写、带一条下划线，和上面两节一比就是另一套系统。
    凡是这里和 nav.css 不同的地方，都要么是 bug 要么需要一个写下来的理由。 */
-.sb-ctl-toggle {
-  appearance: none;
-  background: none;
-  border: 0;
-  padding: 0;
-  margin: 0;
-  font: inherit;
-  font-family: var(--sb-grotesk);
-  font-size: var(--sb-size-h2);
-  letter-spacing: -0.01em;
-  text-transform: none;
-  /* 直接贴在舞台画布上，所以用 --sb-on-stage：白展厅底下浅灰字看不见，
-     这个变量由 stage.ts 的 publishStageInk 按当前场景底色发布。
-     目录那一节在展签上（纸底），这一节在舞台上（底色会变），
-     这是两节之间**唯一**合理的差别。 */
-  color: var(--sb-on-stage-dim);
-  cursor: pointer;
-  transition: color 180ms;
-}
-.sb-ctl-toggle .sb-zh, .sb-ctl-toggle .sb-en { display: inline; }
-.sb-ctl-toggle .sb-zh { color: var(--sb-on-stage); font-weight: var(--sb-weight-head); }
-.sb-ctl-toggle .sb-en {
-  font-size: 0.78em;
-  margin-left: 0.45em;
-  letter-spacing: var(--sb-tracking-label);
-  text-transform: uppercase;
-  opacity: 0.6;
-}
-/* 展开态只变亮，不上色、不加线 —— 和目录同一条规矩：
-   docs/26 §F「全站只有一处用颜色承担语义（成立/不成立），其余一律灰阶」。
-   控件的开合不是那一处。 */
-.sb-ctl-toggle:hover,
-.sb-ctl-toggle:focus-visible,
-.sb-ctl.is-open .sb-ctl-toggle { outline: none; color: var(--sb-on-stage); }
+/* 节题的样式在 `ui/corner.css`，目录和控件**共用那一份**。 */
 
 /* ── 展开的面板 ──────────────────────────────────────────────────────────── */
 .sb-ctl-panel {
