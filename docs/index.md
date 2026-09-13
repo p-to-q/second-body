@@ -19,7 +19,8 @@
 面向"进来改代码的人"的规范与纪律是**英文**：`../README.md`、`../AGENTS.md`、
 [`02-ENGINEERING-PRINCIPLES.md`](02-ENGINEERING-PRINCIPLES.md)、
 [`15-ORCHESTRATION.md`](15-ORCHESTRATION.md)、
-[`34-REPO-STYLE.md`](34-REPO-STYLE.md)。
+[`34-REPO-STYLE.md`](34-REPO-STYLE.md)、
+[`38-RUNNING-THE-PIECE.md`](38-RUNNING-THE-PIECE.md)。
 它们的中文版**已被取代，不再维护** —— 两份规范一定会漂移，漂移的规范比没有规范更糟；
 旧措辞在 git history 里。
 
@@ -67,4 +68,5 @@
 | `CHANGES.md` | durable 变更的 append-only 记录 |
 | `15-ORCHESTRATION.md` | 并行推进的规则、泳道、合并顺序、踩过的坑（**英文**） |
 | `34-REPO-STYLE.md` | p-to-q 的 README 风格对照（每条有出处）与我们的差距（**英文**） |
+| `38-RUNNING-THE-PIECE.md` | 给**在房间里布置这件装置的人**：硬件与摄像头要求、开哪个 URL、全部 URL 开关一览（从 `shell/kiosk.ts` 现读）、权限为什么推迟到观众按下「开始」、正常与降级怎么一眼分辨、出问题怎么办、什么会离开这台机器（**英文**） |
 | `35-VISCOSE.md` | 首屏那个环移植自哪、授权能不能用、GLSL→TSL 逐条差异、签名效果做到了几成 |
