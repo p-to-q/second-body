@@ -137,6 +137,70 @@ export function luminance(c: RGB): number {
   return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
 }
 
+// ── 叠在画面上的字，翻到哪一侧 ──────────────────────────────────────────────
+
+/**
+ * 两套墨。**必须两侧都有** —— `test/css-tokens.test.ts` 盯着这件事：
+ * 少了任何一侧，就等于把字色写死在一种底色上，而底色每一场都不一样。
+ *
+ * 它们住在这里而不是 `stage.ts` 里，只为一个理由：能被单元测试拿到。
+ * `stage.ts` 要 `three`，测试不该为了量一个对比度去起一个渲染器。
+ */
+export const STAGE_INK = {
+  /** 底是暗的 → 浅墨 */
+  onDark: { on: '#dfe4ea', dim: '#9aa0a6', strong: '#fff' },
+  /** 底是亮的 → 深墨。最强的那一档也跟着翻：亮场景上最强的是黑，不是白 */
+  onLight: { on: '#1a1d21', dim: '#5b6168', strong: '#000' },
+} as const;
+
+export type StageInk = typeof STAGE_INK.onDark | typeof STAGE_INK.onLight;
+
+/**
+ * 覆盖层**实际坐落的那块底色**的线性亮度。
+ *
+ * 这个函数存在的全部理由是：以前这里读的是 `bgBottom`，而那是**错的像素**。
+ * `applyScene` 把 `bgBottom` 设成 `skyGlow` —— 身体背后那团晕，
+ * 画面里最亮的一块，而且它长在正中。字不坐在正中，字坐在两个角上。
+ *
+ * 相机在眼高水平看出去，地平线以下都是地面，"天"只占最上面那 25%
+ * （`scenes.ts` 的 `glowLift` 那段注释算过）。右上角因此落在 `skyTop` 上，
+ * 离晕心最远的那一块；左下角是地面，实测跟着 `skyTop` 走，从没落到另一侧。
+ *
+ * 实测（2026-09-13，1600×900，五套场景 × 弧线四点，帧在 `scratch/evidence/`）：
+ *
+ * | 场景 | bgBottom（旧输入） | skyTop（新输入） | 角上实测 |
+ * |---|---|---|---|
+ * | 纸 | 1.320 | 1.320 | 0.881 ~ 0.922 |
+ * | 白展厅 | 0.789 | 0.519 | 0.383 ~ 0.412 |
+ * | 深空 | 0.062 | 0.005 | 0.0008 ~ 0.016 |
+ * | 夜潮 | **0.592** | 0.0077 | **0.0017 ~ 0.033** |
+ * | 逆光 | **0.603** | 0.011 | **0.0013 ~ 0.021** |
+ *
+ * 粗的那两行就是旧输入翻错的地方：晕是亮的、角是黑的，差两个数量级。
+ *
+ * `skyTop` 被 `tinted()` 染色但**不改亮度**，所以这个数只跟场景有关、
+ * 跟站上来的是哪个物种无关 —— 一套场景一个数，测试因此量得住。
+ */
+export function overlayGroundLuma(look: LookProfile): number {
+  return luminance(look.skyTop);
+}
+
+/**
+ * 阈值。两套墨对比度相等的交点算出来是 **0.166**
+ * （`(L+0.05)² = (0.0106+0.05)(0.7231+0.05)`），0.18 就在它旁边 ——
+ * **这个数从来不是错的那一半**，错的是喂给它的像素，见 `overlayGroundLuma`。
+ *
+ * 实测的角上亮度是两极的：0.0008 ~ 0.033 和 0.383 ~ 0.922，
+ * 离这条线最近的一格（白展厅 0.383）也还有 2.3 倍。所以这里不需要连续过渡 ——
+ * 两套墨本来就是两个极端，往中间灰里掺只会让两边的对比度一起掉。
+ */
+export const INK_FLIP_LUMA = 0.18;
+
+/** 这一刻该发哪一套墨。纯函数，`stage.ts` 只负责把它写进行内样式 */
+export function stageInk(look: LookProfile): StageInk {
+  return overlayGroundLuma(look) < INK_FLIP_LUMA ? STAGE_INK.onDark : STAGE_INK.onLight;
+}
+
 /** sRGB → HSL。色相/彩度在 sRGB 里算更接近"人觉得它有多彩" */
 export function rgbToHsl(c: RGB): { h: number; s: number; l: number } {
   const [r, g, b] = c;

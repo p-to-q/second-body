@@ -42,7 +42,7 @@ import { readFlags } from '../shell/kiosk.ts';
 import { createBreathField, type BreathField } from './particles.ts';
 import { createPost, POST_DEFAULTS, type PostChain } from './post.ts';
 import {
-  applyArc, ARC_OFF, arcWeights, deriveLook, lerpLook, NEUTRAL_LOOK,
+  applyArc, ARC_OFF, arcWeights, deriveLook, lerpLook, NEUTRAL_LOOK, stageInk,
   type ArcWeights, type LookProfile, type RGB,
 } from './look.ts';
 import {
@@ -472,15 +472,20 @@ export function createStage(opt: StageOptions = {}): Stage {
    * 于是不在舞台上的页面一个字都不用改。
    */
   function publishStageInk(): void {
-    // 线性 RGB 的相对亮度。阈值 0.18 是"中灰"，两侧都留足对比
-    const [r, g, b] = look.bgBottom;
-    const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-    const dark = lum < 0.18;
+    // 翻到哪一侧由 `look.ts` 的 `stageInk()` 说了算 —— 那里是纯函数，量得住
+    // （`test/stage-ink.test.ts` 拿实测的角上亮度钉着它）。
+    //
+    // 这里原来自己算一遍 `look.bgBottom` 的亮度。那是**错的像素**：
+    // `bgBottom` 是身体背后那团晕，画面里最亮的一块，长在正中；
+    // 而字坐在两个角上。「夜潮」和「逆光」的晕亮到 0.59 / 0.60，
+    // 角上却只有 0.0013 ~ 0.033 —— 于是深墨被发到近乎全黑的角上，
+    // 对比度 1.2:1，那一行字在现场是看不见的。
+    const ink = stageInk(look);
     const root = document.documentElement.style;
-    root.setProperty('--sb-on-stage', dark ? '#dfe4ea' : '#1a1d21');
-    root.setProperty('--sb-on-stage-dim', dark ? '#9aa0a6' : '#5b6168');
+    root.setProperty('--sb-on-stage', ink.on);
+    root.setProperty('--sb-on-stage-dim', ink.dim);
     // 最强的那一档也跟着底色翻：亮场景上最强的是黑，不是白
-    root.setProperty('--sb-ink-strong', dark ? '#fff' : '#000');
+    root.setProperty('--sb-ink-strong', ink.strong);
   }
 
   function applyLook(): void {
