@@ -220,6 +220,34 @@ So the test can no longer be "I can see it from here". It has to be **the agent
 verifying it on its own side**. From now on, every task card opens like this:
 
 ```
+### 6.7 隔离工作树里**没有 gitignore 的东西** —— 素材任务不能用它
+
+一条要用参照图生成 3D 件的 lane，在 `isolation: worktree` 下跑了十分钟，
+然后卡死。它卡死前的最后一句话是：
+
+> Images exist in the main checkout (gitignored, so absent from the worktree).
+
+`assets/intake/**/*.png` 在 `.gitignore` 里（第 29–31 行），
+`assets/raw/*/` 也在（第 10 行）。`git worktree add` 检出的是**被追踪的文件**，
+所以隔离树里那两张图根本不存在 —— 而任务卡上写着"图就在那儿"，
+因为派任务的人（我）是在主检出里 `ls` 过的。
+
+**这不是 lane 的错，是环境给错了。** 它做的每一步都对，包括在花钱之前
+先去确认素材在不在 —— 正是那一步把这件事暴露出来的。
+
+规则：
+
+> **凡是要读 `assets/intake/`、`assets/raw/`、`scratch/` 或任何 gitignore
+> 路径的任务，一律不用隔离工作树。** 派在主检出里，并且在任务卡上写明
+> "只按路径提交你自己动过的文件，不许 `git add -A`、不许切分支"。
+
+反过来也成立：**纯代码 / 纯文档的任务应该用隔离工作树**，
+因为它们的并行收益是真的，而 §6.2 那条竞争是真的。
+
+怎么在派之前就发现：任务卡里出现一个具体文件路径时，问一句
+`git ls-files <path>` 有没有输出。没有输出 = 它不在工作树里。
+`ls` 会骗你，因为你是在主检出里 `ls` 的。
+
 ## First, one thing: confirm the baseline
 <three to five executable checks covering the paths, exports and symbols the card names>
 **If any one of them fails, stop and report immediately. Do not start work.**
