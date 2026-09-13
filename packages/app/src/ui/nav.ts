@@ -75,13 +75,19 @@ export interface NavOptions {
   /** 浮在 canvas 上（满屏画布页，4 秒后淡出）还是躺在文档流里（文字页，常驻） */
   overlay?: boolean;
   mount?: HTMLElement;
+  /**
+   * 展开状态变了就叫一声。**唯一的用处是让右上角另一条（控件条）让位**：
+   * 目录和控件条共用右上角这一列，展开的面板有自己的底色，两个同时展开必然叠。
+   * 用回调而不是让控件条自己去嗅 DOM：谁占了这个角，只有挂载它的那个人知道。
+   */
+  onOpenChange?(open: boolean): void;
 }
 
 export interface Nav { root: HTMLElement; open(): void; close(): void; }
 
 /** 挂上目录。`enabled` 为 false 时返回 null，调用点因此只有一行 */
 export function mountNav(options: NavOptions = {}): Nav | null {
-  const { enabled = true, overlay = false, mount = document.body } = options;
+  const { enabled = true, overlay = false, mount = document.body, onOpenChange } = options;
   if (!enabled || typeof document === 'undefined') return null;
 
   // `cleanUrls` 会把 /making.html 变成 /making，两种写法都要认得出"就是这一页"
@@ -144,6 +150,7 @@ export function mountNav(options: NavOptions = {}): Nav | null {
     root.classList.toggle('is-open', next);
     // 展开就不该还是半透明的：手伸过来了，别让他对着一团灰字找入口
     if (next) root.classList.remove('is-faded');
+    onOpenChange?.(next);
   };
 
   toggle.addEventListener('click', () => setOpen(!open));
