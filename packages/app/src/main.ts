@@ -487,6 +487,18 @@ async function boot(): Promise<void> {
     // 折一下，不发明第二套检测（docs/40 §3）。
     arcState = arc.update(arcPresent(p), dt);
 
+    // 把弧线交给**表面和光**（`docs/41-MATERIAL.md`）。
+    //
+    // 这一行之前，那整套材质设计在作品里是不存在的：`setArc()` 建好了、
+    // 测试绿了、文档写了，但没有人调用它，于是运行时永远停在 `ARC_OFF`。
+    // 一个没有调用方的功能和没有这个功能是同一件事 —— 它甚至更糟，
+    // 因为仓库里那些绿色的测试会让下一个人以为它已经在跑了（docs/02 P21）。
+    //
+    // 喂的是 `overall`（整条弧线 0..1），不是 `progress`（当前乐章内部的 0..1）：
+    // 表面要的是"走到哪儿了"，不是"这一段走了多少"。
+    stage.setArc(arcState.overall);
+    body.setArc?.(arcState.overall);
+
     // 那块小屏幕吃的是 **raw，不是精化之后的 cooked**。
     // 精化器会在遮挡时保持最后一次可信位置最多 0.67 秒（`core/refine.ts`）——
     // 那对身体是对的（抽搐比迟钝更毁体验），对这块屏幕是致命的：

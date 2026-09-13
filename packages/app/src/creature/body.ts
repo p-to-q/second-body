@@ -38,6 +38,16 @@ export interface BodyInstance {
   readonly stats: BodyStats;
   /** 帧循环调用：把骨架 + 在场状态变成这一帧的几何。不 throw、不 await */
   pose(sk: Skeleton, presence: Presence, dt: number): void;
+  /**
+   * 会话弧线走到哪儿了，0..1（`docs/40` 的 `overall`，不是乐章内部的进度）。
+   *
+   * **可选，而且是故意可选的。** 弧线作用在"表面"上（`docs/41-MATERIAL.md`：
+   * 它以一张画开场，然后变成一件东西），而团块和点场没有"表面"这个概念 ——
+   * 它们的身份就是材料本身，没有可以从画变成物的那一层。
+   * 一具不关心弧线的身体不实现它，比实现一个空函数诚实：
+   * 空函数会让调用方以为那边有东西在响应。
+   */
+  setArc?(progress: number): void;
   dispose(): void;
 }
 
