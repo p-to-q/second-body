@@ -55,7 +55,45 @@ export interface Flags {
    * 两种写法各自服务于一个人：序号给站在现场一台台试的人，deviceId 给开机脚本
    * （唯一可复现的写法）。认不出来的值一律 null —— 规矩和 `?shading=` 一样。
    */
-  cam: string | null;}
+  cam: string | null;
+  /**
+   * ?exits=0|1 右下角那一列（`ui/exits.ts`：回到大厅 / 把身体还回去 / 摄像头）。
+   *
+   * 默认开，**但 `?kiosk=1` 下默认关** —— 这不是"现场界面要干净"那条老理由的复读，
+   * 是一条更硬的：无人值守的装置不该向公众提供「回到大厅」，
+   * 第一个观众按一下走开，后面所有人看到的就是一张选择页。
+   * 有人看着的现场（讲解、评审）要它的话，`?kiosk=1&exits=1` 显式打开。
+   *
+   * 认不出来的值（`?exits=yes` / `?exits=true`）**不静默生效也不静默关掉**：
+   * 当没写过，并且打一条 warn —— 规矩和 `?scene=` / `?shading=` / `?cam=` 一样。
+   */
+  exits: boolean;
+}
+
+/**
+ * `?exits=` 的三态解析。`null` = 没写，或者写了但认不出来。
+ *
+ * 单独拎出来是为了能被单测直接钉住："认不出来"和"写了 0"必须是两件事 ——
+ * 前者回到默认（现场关、别处开），后者无论在哪里都是关。
+ */
+export function parseExits(raw: string | null): boolean | null {
+  if (raw === '1') return true;
+  if (raw === '0') return false;
+  return null;
+}
+
+/** 同一个坏值只喊一次 —— `readFlags()` 一次启动会被调好几处（采集端也读它） */
+const warnedExits = new Set<string>();
+
+function resolveExits(raw: string | null, kiosk: boolean): boolean {
+  const parsed = parseExits(raw);
+  if (parsed !== null) return parsed;
+  if (raw !== null && !warnedExits.has(raw)) {
+    warnedExits.add(raw);
+    console.warn(`[kiosk] ?exits=${raw} 认不出来，只认 0 / 1 —— 按没写过处理`);
+  }
+  return !kiosk;
+}
 
 /** MediaPipe 的三个 PoseLandmarker 档位。精度/延迟的实测差异见 docs/24 §3 */
 export type PoseModel = 'lite' | 'full' | 'heavy';
@@ -107,7 +145,9 @@ export function readFlags(search = location.search): Flags {
     // 认不出来（?cam=1.5 / ?cam=-1 / ?cam=前面那台）就是 null = 当没写过。
     // "那台不在" 不在这里判 —— 这里没有设备表，而且那是另一种错：
     // 它要的是现场看得见的大声回落，不是静默的 null（见 camera-select.ts 文件头）。
-    cam: isCamFlag(q.get('cam')) ? q.get('cam')!.trim() : null,  };
+    cam: isCamFlag(q.get('cam')) ? q.get('cam')!.trim() : null,
+    exits: resolveExits(q.get('exits'), q.get('kiosk') === '1'),
+  };
 }
 
 /** 防止 macOS 在无人交互时息屏 —— 装置会在这上面吃大亏 */

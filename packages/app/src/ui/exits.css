@@ -1,0 +1,116 @@
+/**
+ * 右下角那一列的皮肤。
+ *
+ * 和 `ui/corner.css` / `ui/nav.css` 是同一套语言，只是换了一个角：
+ * fixed 到安全区、纵向一列、右对齐、行与行之间一条细横线，
+ * 没有卡片、阴影、圆角、图标（docs/26 §F 的否定清单）。
+ *
+ * ## 这一列和右上角唯一的分歧：字**必须更重**
+ *
+ * 右上角落在舞台的天光或首屏那片纸上，`--sb-size-small` 的灰字托得住。
+ * 这一列压的是**实时画面** —— 一具等身的身体会从它底下走过去。
+ * 所以三条都提上来：
+ *   1. 字号走 `--sb-size-h2`（和右上角那两个题同一档，不是标注档）；
+ *   2. 中文那一行用 `--sb-ink-strong`（离底色最远的那一档，**跟着底色翻**，
+ *      不是写死的白 —— 白展厅场景下写死的白就等于没有字，
+ *      这个 bug 在这个仓库里犯过三次，见 type.css 的 `--sb-ink-strong`）；
+ *   3. 带可读性光晕（`--sb-halo`），和 `chrome.css` / `notice.css` 用法逐字相同。
+ *
+ * ## 状态用亮度表达，不用颜色
+ *
+ * docs/26 §F：全站只有一处用颜色承担语义，这里不是那一处。
+ * 所以「开 / 关」「跟着你 / 它自己动」的差别只由**墨色深浅**说出来：
+ * 常态是最强的那一档，指针压上去退到 `--sb-ink-dim`，按下去立刻回到最强 ——
+ * 也就是"手放上来它让一让，按下去它答应你"，一次位移都没有。
+ */
+
+.sb-exits {
+  position: fixed;
+  right: var(--sb-safe);
+  bottom: var(--sb-safe);
+  /* 5 = 和它替下来的那个「用我的摄像头」按钮（entry.css 的 .sb-camera）同一层。
+     压在作品之上、在加载态（8）与右上角那一列（11）之下 ——
+     这一列是给已经在看作品的人用的，不该盖住还没进来的人要看的东西。 */
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  /* 右下角一大片透明区域不许吃掉指针事件（和 corner.css 同一条） */
+  pointer-events: none;
+  text-align: right;
+  /* 一列文字，不是一块面板：宽度由最长的那一行决定，不给上限之外的任何度量 */
+  max-width: min(22rem, calc(100vw - var(--sb-safe) * 2));
+}
+.sb-exits > * { pointer-events: auto; }
+
+.sb-exit {
+  appearance: none;
+  background: none;
+  border: 0;
+  border-top: 1px solid var(--sb-rule);
+  margin: 0;
+  padding: 0.55rem 0 0;
+  font: inherit;
+  font-family: var(--sb-grotesk);
+  font-size: var(--sb-size-h2);
+  letter-spacing: -0.01em;
+  text-align: right;
+  cursor: pointer;
+  /* 压在实时画面上：身体走过去的时候这几个字不能被吞掉 */
+  text-shadow: 0 0 6px var(--sb-halo), 0 0 2px var(--sb-halo);
+}
+.sb-exit:first-child { border-top: 0; }
+.sb-exit + .sb-exit { margin-top: 0.5rem; }
+.sb-exit:disabled { cursor: default; }
+
+/* 中文承重、英文辅助 —— 比例（0.78em）和右上角那两个题逐字相同，
+   这两种文字在这件作品里的关系不随位置改变（见 nav.css 的同一段）。 */
+.sb-exit-name .sb-zh,
+.sb-exit-name .sb-en { display: inline; }
+.sb-exit-name .sb-zh {
+  color: var(--sb-ink-strong);
+  font-weight: var(--sb-weight-head);
+  transition: color 140ms;
+}
+.sb-exit-name .sb-en {
+  font-size: 0.78em;
+  margin-left: 0.45em;
+  letter-spacing: var(--sb-tracking-label);
+  text-transform: uppercase;
+  color: var(--sb-on-stage-dim);
+  transition: color 140ms;
+}
+
+/* 状态词：另起一行，小一档，但**不是灰的** —— 它是这一行要说的那半句话。
+   「摄像头 · 开」里真正的信息在「开」上，把它压暗就等于没显示状态。 */
+.sb-exit-state {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: var(--sb-size-small);
+  color: var(--sb-ink-strong);
+  transition: color 140ms;
+}
+.sb-exit-state:empty { display: none; }
+.sb-exit-state .sb-zh,
+.sb-exit-state .sb-en { color: inherit; }
+
+/* 手放上来：整行退到 dim。位移、下划线、变色一律没有 —— 只是让一让 */
+.sb-exit:hover .sb-exit-name .sb-zh,
+.sb-exit:focus-visible .sb-exit-name .sb-zh,
+.sb-exit:hover .sb-exit-state,
+.sb-exit:focus-visible .sb-exit-state { color: var(--sb-ink-dim); }
+.sb-exit:focus-visible { outline: none; }
+
+/* 按下去：立刻回到最强的那一档。这是这一列唯一的"回执" */
+.sb-exit:active .sb-exit-name .sb-zh,
+.sb-exit:active .sb-exit-state { color: var(--sb-ink-strong); }
+
+/**
+ * 这一列**不淡出**。
+ *
+ * 右上角的目录和控件条 4 秒后淡到 `--sb-layer-entry`，理由是
+ * docs/23 §S4「观众只需要知道一次」—— 那说的是**说明性**的东西。
+ * 这一列不是说明，是出口：观众需要它的那一刻，正是他已经看了很久、
+ * 决定要做点什么的那一刻。一个 4 秒后就几乎看不见的出口等于没有出口，
+ * 而"右下角那几行字看不见"正是这次要修的那个问题本身。
+ */
