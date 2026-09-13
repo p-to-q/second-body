@@ -28,7 +28,6 @@ import type { PartLibraryIndex, Rng, ThemeDef } from '../../../core/src/types.ts
 import { acquireRingField, type RingField } from './ring/field.ts';
 import { holdFirstScreen } from './ring/first-screen.ts';
 import { buildCard, loadImage, type BuiltCard } from './cards.ts';
-import { applyPool } from '../ui/pool.ts';
 
 export interface ChooseOptions {
   /** 选定了。id 已经写进 URL。 */
@@ -197,12 +196,9 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
   // 非确定性只从这里进来一次，之后全程用这个 Rng。
   const rng: Rng = mulberry32(options.seed ?? (Date.now() >>> 0));
 
-  const raw = options.themes
+  const library = options.themes
     ? { themes: options.themes.map(normalize), partCount: new Map<string, number>() }
     : await readLibrary(partsUrl);
-  // 上场名单在**取图之前**筛（`ui/pool.ts`）：关掉的那几类连 anchor 图都不必拉，
-  // 于是"只放机器人"那一场的加载时间是真的短，而不是等完了再藏起来。
-  const library = { themes: applyPool(raw.themes), partCount: raw.partCount };
 
   // 先拿 anchor 图，再决定谁能上场。一张也不等太久（cards.ts 有超时）。
   // 每张到货就报一次，好让外面的加载态往前走一格 —— 顺序无关，报的是"到齐了几张"。

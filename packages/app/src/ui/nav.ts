@@ -25,7 +25,6 @@
  *    中英并置不切换（那是设计决定，见 i18n 的文件头）。
  */
 import { COPY, setBi, type BiText } from './i18n.ts';
-import { POOL_KINDS, readPool, setPool, type PoolKind } from './pool.ts';
 import './type.css';
 import './nav.css';
 
@@ -110,15 +109,16 @@ export function mountNav(options: NavOptions = {}): Nav | null {
   root.className = overlay ? 'sb-nav sb-nav--overlay' : 'sb-nav';
 
   /**
-   * 右上角这一列上有**两节**：目录和设置。它们是平级的。
+   * 一节 = 一个标题 + 一张可收起的面板。
    *
-   * 上一版把设置塞在目录面板的底下，于是它成了"目录的一部分"——
-   * 可是它回答的问题和那六条完全不是一类：那六条是"这个站里有什么"，
-   * 它是"这一场里有谁"。层级摆错，读起来就是目录长了一条尾巴。
+   * 这里只剩目录一节了（曾经还有一节「设置」，用来选这一场上哪几类物种 ——
+   * 它被删掉了：**没有人用它**。一个没人用的开关不是"多一个选择"，
+   * 是多一样要维护、要排版、要在每次改版面时重新考虑的东西。
+   * 真要按场次筛物种，`assets/parts/curation.json` 本来就是干这个的，
+   * 而且它是可复现的文件，不是一个藏在面板里的勾。）
    *
-   * 现在它们是一列里的两个标题：点开哪一个，哪一个往下撑，把下面那个推下去。
-   * 用 flex 列 + 各自 hidden 的面板就够了 —— 不需要手风琴那套互斥逻辑，
-   * 两个同时开着也是合法的（屏幕高的时候本来就该让人一眼看全）。
+   * 函数留着，因为它是"一节长什么样"的定义 —— 右上角那一列上
+   * 控件条是第二节（`ui/controls.ts`），它照着同一套排。
    */
   const section = (
     title: typeof COPY.nav.title,
@@ -136,7 +136,6 @@ export function mountNav(options: NavOptions = {}): Nav | null {
   };
 
   const { head: toggle, panel } = section(COPY.nav.title, 'sb-nav-panel--menu');
-  const pool = section(COPY.nav.pool.title, 'sb-nav-panel--pool');
 
   for (const item of ITEMS) {
     const here = item.match(path);
@@ -163,9 +162,7 @@ export function mountNav(options: NavOptions = {}): Nav | null {
     panel.append(row);
   }
 
-  pool.panel.append(poolBlock());
-
-  root.append(toggle, panel, pool.head, pool.panel);
+  root.append(toggle, panel);
   mount.append(root);
   // 告诉页面"右上角被占了"。没有这一条，题头右侧的房间号会和目录压在一起 ——
   // 实测 724px 视口下 `VII`(r=694) 正好撞进目录(l=613)。
@@ -186,18 +183,6 @@ export function mountNav(options: NavOptions = {}): Nav | null {
 
   toggle.addEventListener('click', () => setOpen(!open));
 
-  // 设置那一节自己开关。它**不**参与 `onOpenChange` ——
-  // 那个回调只为一件事存在：让右上角的控件条给目录让位（见 NavOptions 的注释）。
-  // 设置在目录**下面**，它撑开推的是自己下面的空气，不会撞到控件条。
-  let poolOpen = false;
-  const setPoolOpen = (next: boolean): void => {
-    poolOpen = next;
-    pool.panel.hidden = !next;
-    pool.head.setAttribute('aria-expanded', String(next));
-    pool.head.classList.toggle('is-on', next);
-    if (next) root.classList.remove('is-faded');
-  };
-  pool.head.addEventListener('click', () => setPoolOpen(!poolOpen));
 
   // 作品那一页挂上来就是展开的：只有六个面，一次摆出来，观众第一眼就知道这里有什么；
   // 一个要先点开才看得见的目录，等于赌观众会去点。
@@ -209,98 +194,20 @@ export function mountNav(options: NavOptions = {}): Nav | null {
   // 点别处收起来。捕获阶段：展开的面板压在 canvas 上，
   // 而 canvas 自己会吞掉 pointerdown（选择页的拖动）
   const onAway = (e: Event): void => {
-    if (root.contains(e.target as Node)) return;
-    if (open) setOpen(false);
-    if (poolOpen) setPoolOpen(false);
+    if (open && !root.contains(e.target as Node)) setOpen(false);
   };
   addEventListener('pointerdown', onAway, true);
 
   const onKey = (e: KeyboardEvent): void => {
-    if (e.key !== 'Escape') return;
-    if (poolOpen) { setPoolOpen(false); pool.head.focus(); return; }
-    if (open) { setOpen(false); toggle.focus(); }
+    if (e.key === 'Escape' && open) { setOpen(false); toggle.focus(); }
   };
   addEventListener('keydown', onKey);
 
   // 展开着就不淡出（setOpen(true) 已经把 is-faded 摘掉了）。
   // 这个定时器只在观众自己收起来之后才有意义。
   if (overlay) {
-    setTimeout(() => { if (!open && !poolOpen) root.classList.add('is-faded'); }, FADE_AFTER_MS);
+    setTimeout(() => { if (!open) root.classList.add('is-faded'); }, FADE_AFTER_MS);
   }
 
   return { root, open: () => setOpen(true), close: () => setOpen(false) };
-}
-
-/**
- * 目录底下那一小块：**这一场里哪几类身体可以被选**（`ui/pool.ts`）。
- *
- * 为什么它在目录里而不在右上角的控件条里：控件条管的是**正在放的这一场**
- * 怎么看（画面、渲染、特效），改完立刻看得见；这一块管的是**下一场有谁**，
- * 它在选择页搭起来之前生效。两种东西混在一条上，人会以为勾掉一类
- * 眼前这具就会消失 —— 而它不会。
- *
- * 三条勾是三种出身，不是三个功能开关，所以它们长得和目录的每一条一样：
- * 一个名字，一句"是什么"。唯一多出来的是左边那个方框。
- */
-function poolBlock(): HTMLElement {
-  const box = document.createElement('div');
-  box.className = 'sb-nav-pool';
-
-  // 标题已经是这一节自己的头了（`section()`），这里只剩那一句说明和一处回应位。
-  const lede = document.createElement('p');
-  lede.className = 'sb-nav-pool-lede';
-  setBi(lede, COPY.nav.pool.lede);
-  const hint = document.createElement('span');
-  hint.className = 'sb-nav-pool-hint';
-  box.append(lede, hint);
-
-  const live = readPool();
-  const boxes = new Map<PoolKind, HTMLInputElement>();
-
-  /** 提示只说一次，两秒后自己收掉 —— 它是一次回应，不是一个状态 */
-  let hintTimer = 0;
-  const say = (text: BiText): void => {
-    setBi(hint, text);
-    hint.classList.add('is-on');
-    clearTimeout(hintTimer);
-    hintTimer = window.setTimeout(() => hint.classList.remove('is-on'), 2000);
-  };
-
-  for (const kind of POOL_KINDS) {
-    const copy = COPY.nav.pool.kinds[kind];
-    const row = document.createElement('label');
-    row.className = 'sb-nav-pool-item';
-
-    const input = document.createElement('input');
-    input.type = 'checkbox';
-    input.checked = live.has(kind);
-    boxes.set(kind, input);
-
-    const text = document.createElement('span');
-    const name = document.createElement('span');
-    name.className = 'sb-nav-pool-name';
-    setBi(name, copy.name);
-    const note = document.createElement('span');
-    note.className = 'sb-nav-pool-note';
-    setBi(note, copy.note);
-    text.append(name, note);
-
-    input.addEventListener('change', () => {
-      const next = POOL_KINDS.filter((k) => boxes.get(k)?.checked);
-      // 拒绝全关。**把勾打回去**再说话 —— 让一个勾停在"关"上而名单没变，
-      // 那是界面在撒谎（docs/02 P21 的同一条：仪表不能比事实好看）。
-      if (!setPool(next)) {
-        input.checked = true;
-        say(COPY.nav.pool.last);
-        return;
-      }
-      // 选择页已经搭好了就说清楚这一下什么时候生效，不偷偷重载
-      if (document.querySelector('.sb-ring')) say(COPY.nav.pool.restart);
-    });
-
-    row.append(input, text);
-    box.append(row);
-  }
-
-  return box;
 }
