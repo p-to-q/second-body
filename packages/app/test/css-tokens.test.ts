@@ -39,6 +39,17 @@ function cssFiles(dir: string, out: string[] = []): string[] {
   return out;
 }
 
+
+/** 递归收集 .ts（只看 src 下的，测试自己不算） */
+function tsFiles(dir: string, out: string[] = []): string[] {
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, e.name);
+    if (e.isDirectory()) tsFiles(p, out);
+    else if (e.name.endsWith('.ts')) out.push(p);
+  }
+  return out;
+}
+
 const FILES = cssFiles(UI);
 const stripComments = (s: string): string => s.replace(/\/\*[\s\S]*?\*\//g, '');
 
@@ -108,4 +119,47 @@ test('CSS："跟着底色翻"的令牌，亮底那一侧必须也有人翻', () 
     assert.ok(firstScreen.includes(n), `first-screen.css 没有翻 ${n}`);
     assert.ok(stage.includes(n), `stage.ts 的 publishStageInk 没有发布 ${n}`);
   }
+});
+
+/**
+ * **UI 颜色不许写成十六进制字面量 —— 除非那一处就是某个令牌的定义点。**
+ *
+ * 这条守的是今天犯了三次的那个 bug：`color: #fff` 在深色底上写的时候，
+ * 它的字面意思和意图恰好重合；首屏和白展厅翻成亮底之后，它的字面意思变成
+ * "和纸一样白"，手放上去那一行就没了。
+ *
+ * 规矩**不是"禁止十六进制"**：令牌本身总得在某处被定义成一个具体颜色，
+ * 而一块没有信号的屏幕就是黑的 —— 那是物理事实，不是主题色。
+ * 所以这里是一张**带理由的白名单**。一刀切的禁令只会被下一个人关掉；
+ * 一张要求写下理由才能进的名单，会逼他先想一下他到底在干什么。
+ *
+ * 这条测试本身是补上来的：它曾经被写在一张任务卡上当作"已经存在的东西"，
+ * 而它并不存在（一条 lane 去核了，发现树上还有七处）。把想做的事当成
+ * 做过的事，是 P21 的另一种形状。
+ */
+const HEX_ALLOWED: Array<{ file: string; why: string }> = [
+  { file: 'ui/type.css', why: '--sb-ink-strong 的深底定义点。令牌总要在某处是一个具体颜色' },
+  { file: 'choose/ring/first-screen.css', why: '同上的亮底定义点（首屏用 !important 翻过来）' },
+  { file: 'stage/look.ts', why: 'STAGE_INK：舞台两侧墨色三元组的定义点，由 publishStageInk 按场景亮度选一侧' },
+  { file: 'ui/preview.css', why: '摄像头小屏的底。**一块没有信号的屏幕就是黑的** —— 物理事实，不是主题色' },
+  { file: 'slow/slow.ts', why: '剪影遮罩的画布填充。它不是 UI，是喂给生成模型的一张图' },
+];
+
+test('CSS/TS：UI 颜色不写十六进制，除非它是令牌的定义点', () => {
+  const offenders: string[] = [];
+  for (const f of [...FILES, ...tsFiles(UI)]) {
+    const rel = f.slice(f.indexOf('/src/') + 5);
+    if (HEX_ALLOWED.some((a) => rel === a.file)) continue;
+    const src = stripComments(readFileSync(f, 'utf8'));
+    for (const m of src.matchAll(/#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})(?![0-9a-fA-F])/g)) {
+      const line = src.slice(0, m.index).split('\n').length;
+      offenders.push(`${rel}:${line} ${m[0]}`);
+    }
+  }
+  assert.deepEqual(
+    offenders, [],
+    '这些地方把颜色写死了。用 --sb-ink / --sb-ink-dim / --sb-ink-strong '
+    + '（它们跟着底色翻），或者把这一处连同**理由**加进 HEX_ALLOWED：\n'
+    + offenders.join('\n'),
+  );
 });
