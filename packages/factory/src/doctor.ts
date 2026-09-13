@@ -11,7 +11,7 @@ const bad = (s: string) => { console.log('  ✗ ' + s); fails++; };
 const warn = (s: string) => console.log('  ⚠ ' + s);
 let fails = 0;
 
-console.log('SEE-ME SEE-YOU · doctor\n');
+console.log('SEE-ME SEE-U · doctor\n');
 
 const major = Number(process.versions.node.split('.')[0]);
 major >= 22 ? ok(`node ${process.versions.node}（需要 ≥22：靠 type stripping 直接跑 .ts）`)

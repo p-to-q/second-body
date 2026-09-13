@@ -44,7 +44,7 @@ export function setBi(el: Element | null, t: BiText): void {
 
 export const COPY = {
   /** 作品 */
-  title: bi('看我看你', 'SEE-ME SEE-YOU'),
+  title: bi('看我看你', 'SEE-ME SEE-U'),
   subtitle: bi(
     '你选一个物种，然后它用你的身体活过来',
     'Choose a species. It comes alive using your body.',

@@ -1,6 +1,6 @@
-# SEE-ME SEE-YOU
+# SEE-ME SEE-U
 
-> SEE-ME SEE-YOU — a body that only stands up while you are standing there.
+> SEE-ME SEE-U — a body that only stands up while you are standing there.
 
 Stand in front of the camera and pick a species. A life-size synthetic body
 comes alive on your skeleton and copies you — and the more you move, the more
@@ -14,7 +14,7 @@ about a minute later, a part generated from *you* is growing on it.
 
 ![Position poster](assets/brand/poster-03-position-a1.png)
 
-The artwork is titled **SEE-ME SEE-YOU**; the engineering codename stays
+The artwork is titled **SEE-ME SEE-U**; the engineering codename stays
 `second-body` — the repository, the packages, the `@sb/*` prefix. The split is
 deliberate: what the audience reads is a wall label, not a repository name.
 

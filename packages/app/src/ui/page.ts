@@ -38,7 +38,7 @@ export interface PageHead {
   setState(text: string | null): void;
 }
 
-const WORK = 'SEE-ME SEE-YOU';
+const WORK = 'SEE-ME SEE-U';
 
 /** 浮层页头淡下去的时间。和 docs/23 §S4「进场后 4 秒淡出」同一个数 */
 const FADE_AFTER_MS = 4000;

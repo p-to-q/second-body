@@ -136,7 +136,7 @@ h3 { font-size: var(--sb-size-body); line-height: var(--sb-lh-body); }
   font-weight: var(--sb-weight-head);
   color: var(--sb-ink);
   margin: 0;
-  /* 巨题一定要能断在任意位置，否则窄屏下「SEE-ME SEE-YOU」会捅出视口 */
+  /* 巨题一定要能断在任意位置，否则窄屏下「SEE-ME SEE-U」会捅出视口 */
   overflow-wrap: anywhere;
 }
 
