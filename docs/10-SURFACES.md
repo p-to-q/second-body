@@ -6,7 +6,7 @@
 >
 > 规则：**动完代码就更新这张表。** 证据一栏必须是"跑过的命令"或"截图路径"，不能是"应该可以"。
 
-最后更新：2026-09-13
+最后更新：2026-09-14
 
 <details>
 <summary>改动史（每次动完代码追加一行）</summary>
@@ -17,6 +17,7 @@
 
 | 日期 | 这一版落地了什么 |
 |---|---|
+| 2026-09-14 | 第六层 · 工作声落地；第五层 `reveal` / `ground` 触发点已接，旋钮移交 `tuning.ts` |
 | 2026-09-13 | 选择页举手滚动落地后 |
 | 2026-09-13 | 网格落地补完：`vitality` 认身体方案 + 团块自己落地 |
 | 2026-09-13 | 真人录制进库：`assets/demo/` 不再只有合成数据 |
@@ -135,8 +136,11 @@
 | **可选条目 < 3 → 螺旋退化成横向一排（docs/23 §S2）** | `stable` | 以前没做：两个条目也照样进螺旋，看起来像一个转不动的轮子。现在走同一条 DOM 列表路径（键盘/自动选择/退出动画全照常），只是排成一排。用新开关 `/dev/choose.html?n=2` 当场跑得到 —— 没有这个开关这条降级路径永远不会被验证。截图 `scratch/evidence/ui-choose-row-under3.png` |
 | **全部页面共用 `src/ui/type.css` + 极简页头（`src/ui/page.ts`）** | `stable` | `/dev/{index,parts,figure,mass,choose,stage,capture,degrade,anchor}.html` 与 `?selftest=1` 全部改成 `<link>` type.css，各自的字号/颜色常量删光（自检页原本把 §0 那一套抄了第二遍）。页头两种形态：文字页在文档流里，满屏 canvas 页压进左上角安全区并在 4 秒后淡下去（截图里不留调试文字）。截图 `scratch/evidence/ui-{index,selftest,figure,mass,stage,capture,degrade}.png` |
 | 形态空间排布（按 `axes` 绕质心成环） | `experimental` | `?roster=1` 下 23 个条目排成一圈（autonomous→wheelleg→patrol→field→…→orb）；旧版 parts.json 无 `axes` 时退回数组顺序，也验过 |
-| **声音四层（`src/sound/`，docs/29）** | `experimental` | 在场 / 运动 / 升档 / 慢回路等待，全部 Web Audio 合成，**零素材文件**（`assets/sound/README.md` 里论证了为什么）。离线取证 8 张：`scratch/evidence/sound-{presence,motion,tier,wait,act-follow,act-echo,act-resist,act-facing}.png`（波形 + 对数频谱，跑的是 `buildSoundGraph` 那一份图本身）。实测：运动层静止 −29.4 → 峰值 −20.3 dBFS（+9.1dB）；在场 −34.8 → −30.2；升档 −29.2 → −18.0；四个玩法在同一条运动曲线下 −19.0 ~ −21.8 各不相同。两段可听的 wav：`sound-motion.wav` / `sound-tier.wav`。**只在合成信号上跑过，没接过真人；也没在现场音响上放过**（docs/09 里因此多一条未知：房间声学） |
+| **声音四层（`src/sound/`，docs/29）** | `experimental` | 在场 / 运动 / 升档 / 慢回路等待，全部 Web Audio 合成，**这四层零素材文件**（`assets/sound/README.md` 里论证了为什么；离散音那两层用素材，见下面两行 —— 原文这里写的是"零素材文件"，在第五层落地之后就不再准确了）。离线取证 8 张：`scratch/evidence/sound-{presence,motion,tier,wait,act-follow,act-echo,act-resist,act-facing}.png`（波形 + 对数频谱，跑的是 `buildSoundGraph` 那一份图本身）。实测：运动层静止 −29.4 → 峰值 −20.3 dBFS（+9.1dB）；在场 −34.8 → −30.2；升档 −29.2 → −18.0；四个玩法在同一条运动曲线下 −19.0 ~ −21.8 各不相同。两段可听的 wav：`sound-motion.wav` / `sound-tier.wav`。**只在合成信号上跑过，没接过真人；也没在现场音响上放过**（docs/09 里因此多一条未知：房间声学） |
 | **声音靶场 `/dev/sound.html`** | `stable` | 上半手推每一个信号 + 四层电平表，下半 `OfflineAudioContext` 取证。截图 `scratch/evidence/sound-range.png`（静止）与 `sound-range-live.png`（speed 1.4 / jerk 15 / resist / 等待中 → 身体 1.00、等待 1.00）。`?mute=1` 下劫持 `window.AudioContext` 计数，点遍所有按钮后仍是 **0** |
+| **第六层 · 工作声（`src/sound/work.ts`，docs/29 §2.6）** | `experimental` | 慢回路 `phase === 'running'` 的那 30–90 秒里，隔壁那间屋子的稀疏接触声：三个 CC0 变体轮换、900Hz 低通、间隔 `3.1 ± 1.6s`、`leadIn` 2.2s、**不加速不规律**。**排程是纯的，11 条 node 测试**（密度落在 90 秒 20–40 记、前后半段平均间隔比 > 0.65、间隔变异系数 > 0.15、连着两记不同采样、同 seed 可复现、掉帧不补发）。变异检验：把 `leadIn` 与"停在等待结束"那两处代码删掉 → 2 红；把 `gapJitter` 归零并让变体随机重复 → 3 红。**没有接过真人、没在现场音响上放过、听感侧的离线图这一轮没有重跑**（见 docs/29 §9 那条警告）。接线：**没有改 `main.ts` 一个字符** —— 它挂在已有的 `sound.update({ waiting })` 上。旋钮这一轮从 `work.ts` 的 `WORK` 移交给了 `SOUND.work`（`WORK` 现在就是它本身） |
+| **第五层新加的两记 `reveal` / `ground`（docs/29 §2.7 / §2.8）** | `experimental` | **触发点已接**（上一轮是 `stub`）。`reveal`：`main.ts` 里 `chooseTheme(...).then(handle => ...)` 中紧贴 `loading.finish()` —— 选择页**已经在屏幕上**的那一刻；`handle` 为 null（URL 里已有主题、这一页没出现过）时不响。`ground`：帧循环里紧贴 `stage.frame()`，判据 `sound/ground.ts` 吃的是**画接触阴影用的同一批落点**（`stage/framing.ts` 的 `contactPoints()`），**不是 `speed` / `energy`** —— 从 speed 推出来的是"动得快就响"，观众一听就知道对不上（P21）。三条规矩：只在多出一个落点的那一帧响（抬脚不响）、第一次观测只立基准（进场不砸一下，`presence.justReset` 时 `reset()`）、120ms 防抖。**判据是纯的，10 条 node 测试**（站着不动 300 帧 0 记、抬脚 0 记、落脚恰好 1 记、悬空 120 帧 0 记、0.15m 处不算着地、两步两记、reset 后不补、阈值夹在 0.03m 与 `STAGE.contactLiftRange` 之间）。红→绿：新断言先红（`ERR_MODULE_NOT_FOUND` / `TypeError`），实现后 app 185 → **195 全绿**。变异检验四发四中：去掉"只立基准"→ 3 红、去掉防抖 → 1 红、把"多出一个落点"改成"落点数变了"（抬脚也响）→ 3 红、不夹 `threshold` → 1 红。**仍然没有接过真人、没在现场音响上放过；`scratch/evidence/sound-cues.png` / `.wav` 仍是旧的**（docs/29 §9 那条警告说明了为什么，并补了十一格的实测峰值） |
+| **离散音素材共 9 个文件 18.9KB（19,326B）** | `stable` | 全部 CC0 1.0，逐条来源 URL / 作者 / 处理步骤在 `assets/sound/README.md` 的七列表里。这一轮新增 5 个共 **10,982B**（`reveal` 2,284 / `ground` 2,407 / `work-a` 1,830 / `work-b` 1,921 / `work-c` 2,540，`ls -l` 量的）。授权存证：前四个是 `licenses/*.png`（截图），**这一轮五个是 `licenses/*.txt`**（同一 URL 的页面原文 + 抓取时间 + 抓取命令 —— 这条 lane 上没有浏览器；原文可 grep 可 diff）。一条 CC-BY-NC 的候选（365863，声音最合适的那一条）**因为授权被否**。`test/sound.test.ts` 有一条断言把整层钉在 < 64KB |
 | **自动播放策略 / 现场关声** | `stable` | 主程序 `/?demo=1&debug=1&theme=patrol&seed=99` 开机日志 `sound=locked`，控制台**没有任何被拦截的音频警告**；点一下后转 `running`；按 `m` 打出「静音」「恢复」各一行。帧开销：一次控制 tick 中位 **4µs / p95 8µs**（真实 AudioContext，20×50 次取分位），`controlHz=30` 下两帧才发生一次 |
 | Web 部署（Vercel + serverless 慢回路） | `spec-only` | T-19，检查单在 `docs/13` §6 |
 

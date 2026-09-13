@@ -19,7 +19,7 @@ import { createPresence } from '../../core/src/presence.ts';
 import { makeGenome } from '../../core/src/genome.ts';
 import { remapSkeleton } from '../../core/src/bodyplan.ts';
 import { mulberry32 } from '../../core/src/rng.ts';
-import { CAPTURE, NASCENT, REFINE } from '../../core/src/tuning.ts';
+import { CAPTURE, NASCENT, REFINE, STAGE } from '../../core/src/tuning.ts';
 import type { MotionFeatures, Skeleton, Tier } from '../../core/src/types.ts';
 
 import { createCapture, type Capture } from './capture/capture.ts';
@@ -31,6 +31,7 @@ import { createNascent } from './creature/nascent.ts';
 import { createSwarmBody } from './creature/swarm.ts';
 import type { BodyInstance } from './creature/body.ts';
 import { createStage } from './stage/stage.ts';
+import { contactPoints } from './stage/framing.ts';
 import { chooseTheme, themeFromUrl } from './choose/choose.ts';
 import { createFrameLoop } from './shell/safe-frame.ts';
 import { showBootError } from './shell/boot-error.ts';
@@ -47,6 +48,7 @@ import { HANDED_BACK_ACT, mountExits } from './ui/exits.ts';
 import { createHud } from './shell/hud.ts';
 import { createSound } from './sound/sound.ts';
 import { createCues } from './sound/cues.ts';
+import { createGroundSense } from './sound/ground.ts';
 import { COPY } from './ui/i18n.ts';
 import { ACTS, createDirector, type World } from './acts/index.ts';
 
@@ -205,6 +207,11 @@ async function boot(): Promise<void> {
         // 选择页已经在屏幕上了 —— 观众有事可做，加载态立刻让位。
         // 剩下的预取在后面继续跑，但它不该再挡着任何人。
         loading.finish();
+        // 机器把一盘东西放到你面前（docs/29 §2.7）。**必须在这里，不能在
+        // `chooseTheme` 调用之前** —— 那时候页面还没落定，声音会早于画面，
+        // 读作"它自己弹出来了"而不是"它拿给你"。
+        // `handle` 为 null（URL 里已经有主题）时这一页压根没出现过，也就不该有这一声。
+        if (handle) cues.play('reveal');
         if (!handle) done();   // handle 为 null = URL 里已经有主题
       });
     });
@@ -337,6 +344,9 @@ async function boot(): Promise<void> {
   // 不新增任何计算。它自己等第一次用户手势才建 AudioContext（浏览器自动播放策略），
   // 建不起来就永久静音继续 —— 画面一帧都不受影响（P3）。
   const sound = createSound({ muted: flags.mute, seed, theme: themeDef ?? null });
+  // 触地那一记的判据（docs/29 §2.8）。它吃的是画接触阴影用的**同一批落点**，
+  // 不是 `speed` —— 从 speed 推出来的是"动得快就响"，观众一听就知道对不上（P21）。
+  const groundSense = createGroundSense();
   let slowWas = slow.phase;
   let lastFeatures: MotionFeatures | null = null;
   let lastSkeleton: Skeleton | null = null;
@@ -404,6 +414,10 @@ async function boot(): Promise<void> {
       // （没有脚的方案按整具最低关节，见 core/bodyplan.ts 的 groundsByLowestJoint）
       lastSkeleton = vitalityOn ? vitality.apply(planned, lastFeatures, dt, bodyPlan) : planned;
       stage.frame(lastSkeleton);   // 取景按**重映射之后**的身体算：四足是横的矮的
+      // 那具身体的重量真的落在地上。判据和上面那行画的接触阴影共用同一批落点，
+      // 所以听到的那一下和看到的那一摊影子不可能对不上。dt 不吃 timeScale（同 sound.update）
+      const feet = contactPoints(lastSkeleton, STAGE.contactPoints, STAGE.contactLiftRange);
+      if (groundSense.update(feet, dt)) cues.play('ground');
       const evo = evolution.update(lastFeatures, dt);
       // 团块的"沸腾"层由运动能量驱动 —— 动得越猛表面越沸（tuning 的 MASS.surface）
       massBody?.setEnergy(lastFeatures.energy);
@@ -434,6 +448,7 @@ async function boot(): Promise<void> {
       refiner?.reset();
       vitality.reset();
       slow.reset();
+      groundSense.reset();   // 换了一个人：下一次观测重新立基准，不在进场那一帧砸一下
       lastSkeleton = null;
       morph((flags.tier ?? 0) as Tier);
     }
