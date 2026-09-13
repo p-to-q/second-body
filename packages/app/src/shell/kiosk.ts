@@ -2,6 +2,7 @@
  * 现场外壳：全屏、藏鼠标、防休眠、无人降帧、context lost 自愈、URL 开关。
  * P10 现场优先 —— 启动 = 打开一个 URL，不需要在终端敲第二条命令。
  */
+import { BODY_PLANS, type BodyPlanId } from '../../../core/src/bodyplan.ts';
 import { isCamFlag } from '../capture/camera-select.ts';
 import { isShadingId, type ShadingId } from '../creature/shading.ts';
 import { getDegradeState } from './degrade.ts';
@@ -28,7 +29,7 @@ export interface Flags {
    * 他会以为是弧线错了，而不是参数错了（P21）。
    */
   arc: number | null;
-  plan: string | null;  // ?plan=quadruped 覆盖身体方案（docs/18）
+  plan: BodyPlanId | null;  // ?plan=quadruped 覆盖身体方案（docs/18）
   /** ?scene=void 覆盖舞台场景（app/src/stage/scenes.ts）。null = 按物种自动挑 */
   scene: string | null;
   selftest: boolean;    // ?selftest=1 开场自检页（不进主程序）
@@ -202,6 +203,23 @@ function resolveArc(raw: string | null): number | null {
   return null;
 }
 
+/**
+ * `?plan=`。认不出来就是 null = 当没写过，而且**喊一声**（和 `?model=` / `?shading=`
+ * / `?scene=` / `?cam=` 同一条规矩）。
+ *
+ * 这里原来是 `q.get('plan')` 原样透传。于是 `?plan=quadrupd` 一路滑到
+ * `remapSkeleton` 的 default，画面上站着一具**人形**，而地址栏里明明白白写着
+ * 四足 —— "我写了参数"和"参数没生效"在画面上分不开，正是这条规矩存在的理由。
+ * 和物种数据里拼错 `bodyPlan` 是同一个 bug，只是入口换成了地址栏。
+ */
+function resolvePlan(raw: string | null): BodyPlanId | null {
+  if (raw === null || raw.trim() === '') return null;
+  const v = raw.trim();
+  if ((BODY_PLANS as readonly string[]).includes(v)) return v as BodyPlanId;
+  console.warn(`[kiosk] ?plan=${raw} 认不出来，只认 ${BODY_PLANS.join(' / ')} —— 按没写过处理（用物种自己的方案）`);
+  return null;
+}
+
 /** MediaPipe 的三个 PoseLandmarker 档位。精度/延迟的实测差异见 docs/24 §3 */
 export type PoseModel = 'lite' | 'full' | 'heavy';
 const POSE_MODELS: readonly string[] = ['lite', 'full', 'heavy'];
@@ -229,7 +247,7 @@ export function readFlags(search = location.search): Flags {
     kiosk: q.get('kiosk') === '1',
     act: q.get('act'),
     arc: resolveArc(q.get('arc')),
-    plan: q.get('plan'),
+    plan: resolvePlan(q.get('plan')),
     scene: q.get('scene'),
     selftest: q.get('selftest') === '1',
     clip: q.get('clip'),

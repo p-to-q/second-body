@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { blendSkeletons, remapSkeleton, BODY_PLANS, PLANS_WITHOUT_FEET } from '../src/bodyplan.ts';
+import {
+  blendSkeletons, remapSkeleton, BODY_PLANS, PLANS_WITHOUT_FEET, PLANS_WITHOUT_PARTS,
+  type BodyPlanSpec,
+} from '../src/bodyplan.ts';
 import { buildSkeleton } from '../src/skeleton.ts';
 import { dist } from '../src/vec.ts';
 import type { Skeleton, Vec3 } from '../src/types.ts';
@@ -61,6 +64,12 @@ test('重映射之后要重新贴地（rig 除外 —— 它是恒等，落地�
   const sk = human();
   for (const plan of BODY_PLANS) {
     if (plan === 'rig') continue;
+    // B 档（mass / swarm）同理，而且理由更直接：它们根本不是骨架重映射，
+    // 是另一条身体实现（`app/src/creature/{mass,swarm}.ts`）。`remapSkeleton`
+    // 对它们返回同一个对象，拿"重映射之后要贴地"去要求它们等于要求
+    // `remapSkeleton` 去做 `stabilize` 的活。它们列在 BODY_PLANS 里是因为
+    // 那张表是**合法值的名单**，不是"这个文件处理得了的名单"。
+    if (PLANS_WITHOUT_PARTS.includes(plan)) continue;
     const out = remapSkeleton(sk, plan);
     const y = PLANS_WITHOUT_FEET.includes(plan) ? lowestJoint(out) : lowestFoot(out);
     assert.ok(Math.abs(y) < 1e-9, `${plan} 的最低点在 y=${y}，没贴地`);
@@ -186,7 +195,7 @@ test('拓扑 + 比例可以叠加，且顺序是先拓扑后比例', () => {
 });
 
 test('比例 spec 同样贴地、同样不产生 NaN', () => {
-  const specs = [
+  const specs: BodyPlanSpec[] = [
     { limb: 0.2, torso: 2.2, head: 0.4 },
     { arm: 1.5, leg: 0.82 },
     { kind: 'quadruped', limb: 0.7 },
@@ -202,7 +211,11 @@ test('比例 spec 同样贴地、同样不产生 NaN', () => {
 
 test('未知 kind 按 rig 处理，但比例照常生效（外部数据可能带我们不认识的 plan）', () => {
   const base = human();
-  const out = remapSkeleton(base, { kind: 'some-future-plan', torso: 1.5 });
+  // `as BodyPlanSpec` 是这条测试的全部意思：`kind` 现在是 `BodyPlanId`，
+  // 写不出未知值**正是新增的那道门**（拼错的 plan 在 tsc 就红）。
+  // 但运行时的宽容必须留着 —— parts.json 是外部数据，手改过的、旧版本写的、
+  // 将来某个版本加的方案都可能出现在这里，而这个函数在帧循环里，绝不许抛（P2）。
+  const out = remapSkeleton(base, { kind: 'some-future-plan', torso: 1.5 } as unknown as BodyPlanSpec);
   const t0 = dist(base.joints.pelvis, base.joints.chest);
   const t1 = dist(out.joints.pelvis, out.joints.chest);
   assert.ok(t1 > t0 * 1.4, '未知拓扑时比例也该生效');

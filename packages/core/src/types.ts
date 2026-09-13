@@ -5,6 +5,12 @@
  * 因为我们靠 Node 的 type stripping 直接跑 .ts，没有编译步骤。
  */
 
+// 唯一的一条 import，而且是 `import type` —— 类型在 Node 的 type stripping 里
+// 会被整条擦掉，所以它不产生运行时循环依赖（`bodyplan.ts` 反过来也只 import type）。
+// 为什么不在这里另抄一份九个方案的联合类型：抄一份就有两份真相，
+// 而这个字段存在的全部意义就是"声明必须等于运行时认得的那个集合"。
+import type { BodyPlanId, BodyPlanSpec } from './bodyplan.ts';
+
 export type Vec3 = [number, number, number];
 /** 列主序 4x4，与 three.js Matrix4.elements 一致 */
 export type Mat4 = number[];
@@ -158,13 +164,17 @@ export interface ThemeDef {
    * 身体方案（docs/18-BODY-PLANS.md）。缺省 'rig' = 人形刚体挂载、标准比例。
    * 这是"物种真的不一样"与"同一具人体换皮"之间的那个字段。
    *
-   * 字符串 = 预设拓扑（'quadruped' / 'towering' / 'stub' / 'inverted'）；
-   * 对象 = 拓扑 + 比例，可叠加（`{ kind: 'quadruped', limb: 0.7 }`）。
+   * 字符串 = 拓扑或比例预设；对象 = 拓扑 + 比例，可叠加
+   * （`{ kind: 'quadruped', limb: 0.7 }`）。合法值是 `BODY_PLANS` 那九个，
+   * 不要在这里另抄一份名单 —— 抄一份就会有一天对不上。
+   *
+   * **这里原来是 `string`。** 于是 `bodyPlan: 'quadrupd'` 类型通过、测试全绿、
+   * `remapSkeleton` 走 default，物种静默地按人形刚体装配出场 ——
+   * 看起来是一具没毛病的身体，只是不是它声明的那一具，没有任何一处会变红。
+   * 收紧成 `BodyPlanId` 让这种拼错在 `tsc` 就红；parts.json 这份**外部**数据
+   * 由 `check-parts.ts` 判错兜住（运行时仍然宽容，未知值按 'rig'，P2）。
    */
-  bodyPlan?: string | {
-    kind?: string;
-    limb?: number; torso?: number; head?: number; arm?: number; leg?: number;
-  };
+  bodyPlan?: BodyPlanId | BodyPlanSpec;
 }
 
 export interface PartLibraryIndex {
