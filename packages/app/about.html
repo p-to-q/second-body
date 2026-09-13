@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>作品陈述 · SEE-ME SEE-U</title>
+</head>
+<body>
+<!--
+  这一页**不启动主程序**：它要在一台没有 WebGPU、没有摄像头、甚至断了网的机器上照常打开。
+
+  以前它没有自己的 .html，是 index.html 里的一条路由，靠 vercel.json 的 rewrite 撑着。
+  代价是：`cleanUrls: true` 打开之后 rewrite 和它打架，线上 /about 直接 404 —— 而
+  /lineage、/making、/passport 三个真页面全都好好的。
+  改成真页面之后，它和其余三页走同一条路（vite 扫根目录 *.html 自动收），
+  也不再依赖任何部署平台的特殊规则。
+-->
+<script type="module" src="./src/about/page.ts"></script>
+</body>
+</html>
