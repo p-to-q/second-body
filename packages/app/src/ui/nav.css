@@ -60,9 +60,12 @@
 .sb-nav-toggle .sb-zh,
 .sb-nav-toggle .sb-en { display: inline; }
 .sb-nav-toggle .sb-zh { color: var(--sb-on-stage); font-weight: var(--sb-weight-head); }
+/* **中英的比例不跟着字号动。** 0.78 是全站中英并置的那个比例（type.css），
+   放大标题的时候把英文按到 0.5 会让它从"并置的另一半"掉成一个角标 ——
+   那改的不是字号，是这两种文字在这件作品里的关系。 */
 .sb-nav-toggle .sb-en {
-  font-size: 0.5em;
-  margin-left: 0.5em;
+  font-size: 0.78em;
+  margin-left: 0.45em;
   letter-spacing: var(--sb-tracking-label);
   text-transform: uppercase;
   opacity: 0.6;
@@ -114,7 +117,7 @@
 /* 同上：hover 只变亮，不上色。灰阶里 dim → ink 的跳变足够被看见 */
 .sb-nav-item .sb-nav-name .sb-zh { transition: color 140ms; }
 .sb-nav-item:hover .sb-nav-name .sb-zh,
-.sb-nav-item:focus-visible .sb-nav-name .sb-zh { color: #fff; }
+.sb-nav-item:focus-visible .sb-nav-name .sb-zh { color: var(--sb-ink-strong); }
 .sb-nav-item:focus-visible { outline: none; }
 
 .sb-nav-name {
