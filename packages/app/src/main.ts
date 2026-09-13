@@ -41,6 +41,7 @@ import { showNotice } from './shell/notice.ts';
 import { mountNav } from './ui/nav.ts';
 import { mountControls, type Controls } from './ui/controls.ts';
 import { cornerColumn } from './ui/corner.ts';
+import { mountPreview, wantsPreview, PREVIEW_BOTTOM } from './ui/preview.ts';
 import { createHud } from './shell/hud.ts';
 import { createSound } from './sound/sound.ts';
 import { createCues } from './sound/cues.ts';
@@ -133,7 +134,9 @@ async function boot(): Promise<void> {
   });
 
   enterKiosk(renderer.domElement, flags);
-  const hud = flags.debug ? createHud() : null;
+  // HUD 和那块小屏幕（`ui/preview.ts`）共用左上角，而小屏幕赢 ——
+  // 它是给观众的，HUD 是给我们自己的。挂不挂只看 flags，所以这里就能算出来。
+  const hud = flags.debug ? createHud({ top: wantsPreview(flags) ? PREVIEW_BOTTOM : 8 }) : null;
 
   // ── 3. 等资产（上面早就在跑了）──────────────────────────────────────────
   await libraryReady;
@@ -241,6 +244,31 @@ async function boot(): Promise<void> {
   // 换一个值下一帧就生效 —— 会重建身体的只有"进出团块"，那一条走重载（见 controls.ts）。
   let bodyPlan = flags.plan ?? themeDef?.bodyPlan ?? 'rig';
 
+  // ── 4b. 左上角那块小屏幕（`ui/preview.ts`）────────────────────────────────
+  // **挂在这里，不是更早。** 它要显示摄像头画面，而这件作品有一条硬规矩：
+  //「开始」之前一次权限都不问（`shell/entry.ts` 文件头）。挂在选择页之前，
+  // 它就得先有画面可显示，那就等于把权限弹窗提到了第一眼 —— 正好是那条规矩
+  // 存在的全部理由。所以它出现在**观众选完物种、已经进到作品里**之后：
+  // 这一刻回放或摄像头都已经在跑，它显示的是真事。
+  //
+  // 挂不挂的判断在 `wantsPreview()` 一处（`?demo=1` 永不挂、`?kiosk=1` 默认不挂），
+  // 这里不重写一遍那个条件 —— 和 `flags.nav` 同一条纪律。
+  const preview = mountPreview({
+    flags,
+    // 用 getter：观众按下「用我的摄像头」之后 `capture` 会被整个换掉，
+    // 这块屏幕必须跟着换到新的那一个 `<video>` 上。
+    // `video` 只有 `WebcamCapture` 有（回放没有摄像头画面），所以按可选字段读 ——
+    // 和 HUD 读 `camera` 是同一个写法，不为一个显示用的旁路去动 `Capture` 契约。
+    video: () => (capture as { video?: HTMLVideoElement }).video ?? null,
+    // "摄像头这条路通不通"问的是那条流还在不在，不是有没有报过错：
+    // `lastError` 上会留着"GPU delegate 失败，回落 CPU"这种**已经被兜住**的旧账，
+    // 拿它当判据，画面明明好好的却会一直写着"打开摄像头"。
+    cameraOn: () => {
+      const v = (capture as { video?: HTMLVideoElement }).video;
+      return !!v?.srcObject;
+    },
+  });
+
   // ── 5. 状态机 ───────────────────────────────────────────────────────────
   const presence = createPresence();
   const stabilizer = createStabilizer();
@@ -329,6 +357,13 @@ async function boot(): Promise<void> {
     const raw = capture.latest();
     const detected = raw !== null && raw.score > CAPTURE.minScore;
     const p = presence.update(detected, dt);
+
+    // 那块小屏幕吃的是 **raw，不是精化之后的 cooked**。
+    // 精化器会在遮挡时保持最后一次可信位置最多 0.67 秒（`core/refine.ts`）——
+    // 那对身体是对的（抽搐比迟钝更毁体验），对这块屏幕是致命的：
+    // 它会在人已经走出画面之后继续显示一副"看得见"的骨架。
+    // 这块屏幕唯一的职责就是说实话，所以它站在滤波之前。
+    preview?.update(raw, dt);
 
     if (raw) {
       // 运动特征算在**人的**骨架上：驱动演化的是观众实际动了多少，

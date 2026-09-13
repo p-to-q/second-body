@@ -23,10 +23,20 @@ export interface HudCounts {
   camFallback?: boolean;
 }
 
-export function createHud(): { update(s: FrameStats, c: Partial<HudCounts>): void; dispose(): void } {
+/**
+ * @param opts.top 距顶多少像素。默认 8 = 原来的位置。
+ *
+ * **为什么这个数需要从外面传**：左上角现在还住着一块小屏幕
+ *（`ui/preview.ts`，「它有没有看见我」），而那一块是给**观众**的，
+ * HUD 是给我们自己的 —— 同一个角上谁让谁没有悬念，观众那一块赢。
+ * 但这块屏幕不是每一场都挂（`?demo=1` / `?kiosk=1` 下不挂），
+ * 所以让 `main.ts` 按当场的实情给一个数，而不是在这里写死一个
+ * "反正躲开就行"的大数字 —— 那会让没有小屏幕的那几场里 HUD 平白掉下去一截。
+ */
+export function createHud(opts: { top?: number } = {}): { update(s: FrameStats, c: Partial<HudCounts>): void; dispose(): void } {
   const el = document.createElement('div');
   el.style.cssText =
-    'position:fixed;left:10px;top:8px;z-index:9999;font:12px ui-monospace,monospace;' +
+    `position:fixed;left:10px;top:${opts.top ?? 8}px;z-index:9999;font:12px ui-monospace,monospace;` +
     'color:#9aa;background:rgba(10,11,13,.72);padding:8px 10px;border-radius:6px;' +
     'white-space:pre;line-height:1.5;pointer-events:none';
   document.body.appendChild(el);

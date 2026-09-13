@@ -137,6 +137,7 @@ of anyone).
 | `?vitality=0` | on | Turns off follow-lag and breathing | On-site, for the same reason: it is the line between "looks alive" and "reacts late", and it must be comparable on the spot |
 | `?mute=1` | sound on | Kills sound completely — no `AudioContext` is even created. Pressing `m` while running also mutes, without a reload (`docs/29`) | On-site |
 | `?nopost=1` | post on | Turns postprocessing off. **Degrade rung 1 also flips this to true on its own**, so reading it tells you whether the piece has already degraded itself | On-site, for chasing frame rate |
+| `?preview=on\|off` | on for the web, off under `?kiosk=1`, **always off under `?demo=1`** | The small rounded screen in the **top-left** that answers "is it seeing me?" — the camera's own picture with the detected skeleton drawn on it, and a line of advice only when something is wrong. It opens no second camera and starts no second MediaPipe; it shows the video and the landmarks the piece already has. Under `?demo=1` it is not mounted at all and `?preview=on` will not bring it back: replay has no camera but *does* have someone else's landmarks, and a skeleton the visitor cannot move by moving is worse than no indicator. An unrecognised value (`?preview=1`) counts as unwritten, same rule as `?scene=` | **On-site** — reach for `?preview=on` when visitors are standing in front of the camera without realising anything is happening. It is off by default there only because the installation's frame is meant to carry no web furniture (`docs/23 §S4`); whether this venue wants it is a curatorial call, not a code one |
 | `?nav=0` | nav on | Drops the top-right contents menu. Under `?kiosk=1` it is already off. It also gates the on-screen controls bar | Setup — for "projected but not kiosk" |
 | `?loading=0` | on | Drops the loading layer that sits over the chooser's ring | On-site — it lets you pull that layer in three seconds instead of rolling back a build |
 | `?shading=toon\|physical` | per species | Forces the shading language. This is the only render flag that changes what a species *looks like*, which is why it is switchable live (`o` also toggles it) | Setup |
@@ -278,6 +279,11 @@ The symptom is a screen that still works: `webcam.ts` never throws out of
 The body will not stand up below `CAPTURE.minScore` (0.5 average visibility).
 In order of what actually fixes it on site:
 
+0. **Turn the little screen on: `?preview=on`.** It is the fastest way to tell
+   the three failures apart without reading any numbers — nobody found, half a
+   body in frame, or poor tracking each say a different line, and a working
+   visitor gets silence plus their own skeleton. It also tells the *visitor*
+   what to do, which no HUD row can.
 1. **Light the visitor from the front.** Backlight is the known killer — it is
    why `?model=` exists at all.
 2. **`?model=full`**, or `heavy`. Better landmarks at roughly +20% GPU for
