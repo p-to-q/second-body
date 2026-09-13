@@ -1,52 +1,57 @@
 {
   "foot.digitigrade.a": {
-    "verdict": "reject",
+    "at": "2026-09-12T07:22:25.337Z",
     "note": "互不相连的多物体，散成几根细棍",
-    "at": "2026-09-12T07:22:25.337Z"
+    "verdict": "reject"
+  },
+  "head.char.line.a": {
+    "at": "2026-09-13T12:40:00.000Z",
+    "note": "金属丝格栅，配方要的是「极简圆形、无表面细节」。PBR 着色一直盖着它；描边一上就糊成一团黑 —— 描边没制造这个问题，只是掀开了它。同 head.softwear.a 一类",
+    "verdict": "reject"
   },
   "head.digitigrade.a": {
-    "verdict": "reject",
+    "at": "2026-09-12T07:22:24.551Z",
     "note": "2-3 个互不相连的独立物体，不是单件",
-    "at": "2026-09-12T07:22:24.551Z"
+    "verdict": "reject"
   },
   "head.softwear.a": {
-    "verdict": "reject",
+    "at": "2026-09-12T07:22:25.729Z",
     "note": "炸开的尖刺团，糊成一团（原始网格 236k 面靠焊接兜底）",
-    "at": "2026-09-12T07:22:25.729Z"
+    "verdict": "reject"
   },
   "joint.digitigrade.a": {
-    "verdict": "reject",
+    "at": "2026-09-12T07:22:25.534Z",
     "note": "互不相连的多物体，不是关节球",
-    "at": "2026-09-12T07:22:25.534Z"
+    "verdict": "reject"
   },
   "joint.patrol.a": {
-    "verdict": "reject",
+    "at": "2026-09-12T07:22:25.927Z",
     "note": "细长塔状不是关节球；girth 0.43 = 槽位中位数的 0.43×",
-    "at": "2026-09-12T07:22:25.927Z"
+    "verdict": "reject"
   },
   "shin.digitigrade.a": {
-    "verdict": "reject",
+    "at": "2026-09-12T07:22:25.139Z",
     "note": "互不相连的多物体；girth 0.86 = 槽位中位数的 2.57×",
-    "at": "2026-09-12T07:22:25.139Z"
+    "verdict": "reject"
   },
   "spine.autonomous.a": {
-    "verdict": "reject",
+    "at": "2026-09-12T07:22:24.349Z",
     "note": "三块互不相连的薄壳 + 大洞，anchor 本身就是坏的",
-    "at": "2026-09-12T07:22:24.349Z"
+    "verdict": "reject"
   },
   "spine.digitigrade.a": {
-    "verdict": "reject",
+    "at": "2026-09-12T07:22:24.744Z",
     "note": "2-3 个互不相连的独立物体，不是单件",
-    "at": "2026-09-12T07:22:24.744Z"
+    "verdict": "reject"
   },
   "spine.wheelleg.a": {
-    "verdict": "reject",
+    "at": "2026-09-12T07:22:24.146Z",
     "note": "碎片状薄片，girth 0.23 = spine 中位数的 0.27×，不成躯干",
-    "at": "2026-09-12T07:22:24.146Z"
+    "verdict": "reject"
   },
   "upperArm.digitigrade.a": {
-    "verdict": "reject",
+    "at": "2026-09-12T07:22:24.941Z",
     "note": "互不相连的多物体；girth 0.98 = 槽位中位数的 3.07×",
-    "at": "2026-09-12T07:22:24.941Z"
+    "verdict": "reject"
   }
 }

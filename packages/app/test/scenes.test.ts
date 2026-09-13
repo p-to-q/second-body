@@ -99,6 +99,20 @@ test('scenes: 「纸」不被物种染色 —— 这是它和白展厅唯一的�
   // 对照：白展厅**应该**被染色，否则这两套就没区别了
   const g = applyScene(warm, SCENES.gallery);
   assert.notDeepEqual(g.skyGlow, SCENES.gallery.skyGlow, '白展厅该跟着主光染色');
+
+  // **地面也不许被染。** 天幕中性而地面带色，雾一混整块底就是暖的 ——
+  // 实测 char.line 站上去那张"纸"是米黄的，而这条测试当时是绿的，
+  // 因为它只看了天幕。仪表只量它想量的那一半，就是 P21。
+  const warmGround = { ...warm, groundNear: [0.9, 0.6, 0.3] as [number, number, number] };
+  const p2 = applyScene(warmGround, SCENES.paper);
+  const [r, gg, b] = p2.groundNear;
+  assert.ok(
+    Math.abs(r - gg) < 1e-6 && Math.abs(gg - b) < 1e-6,
+    `纸的地面被染成了 ${p2.groundNear.map((x) => x.toFixed(3)).join(', ')} —— 它必须是无彩的`,
+  );
+  // 对照：白展厅的地面**应该**带色
+  const g2 = applyScene(warmGround, SCENES.gallery);
+  assert.ok(g2.groundNear[0] > g2.groundNear[2], '白展厅的地面该跟着物种的地色走');
 });
 
 test('scenes: ?scene=paper 认得出来 —— 白底是一个可复现的选项，不是运气', () => {
