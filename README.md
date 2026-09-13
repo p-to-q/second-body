@@ -109,7 +109,7 @@ budget gates are documented in [`docs/index.md`](docs/index.md), not here.
 ## Licence
 
 The **source code** is MIT — see [`LICENSE`](LICENSE). Four things are carved
-out of it: the vendored dither-carousel, the ZKMSerendipity typeface, the
+out of it: the ring ported from Viscose-carousel, the ZKMSerendipity typeface, the
 generated `.glb` parts and anchor images, and the artwork itself. The carve-outs
 are written out in `LICENSE` and restated for the audience under *Credits and
 licence* on [`/about`](https://second-body.ptoq.io/about). Open source code does

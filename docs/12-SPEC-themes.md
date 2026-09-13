@@ -55,26 +55,30 @@ tier   ← 观众的动作挣来的  （决定它有多复杂）
 ### 5.1 交互
 
 ```
-进入 → 六张卡片在一条竖直螺旋上滚动，远离的卡片溶解成有序抖动(dither)
-     → 选中一个主题 → 卡片冲向镜头 → 溶解 → 直接进入身体
-     → 30 秒无操作 → 自动随机选一个（现场不能停在菜单上）
+展签在场 → 一颗种子已经在背后缓慢地转
+「开始」 → 卡片一张张从前一张里剥出来，靠近的融在一起，分开的拉出越来越细的丝
+        → 环停在左侧，滚动 / 拖动带惯性，吸附到最近一张
+        → 选中一个主题 → 其余卡片被它吸回去、融成一团、涨出画面 → 直接进入身体
+        → 30 秒无操作 → 自动随机选一个（现场不能停在菜单上）
 ```
 
 - 卡片图 = 该主题的 `_anchor.png`（我们自己渲的，版权自有）。
 - `field` 没有 anchor，用程序化的粒子卡片。
 - 选择结果写进 URL（`?theme=patrol`），刷新可复现；现场遥控器/键盘数字键 1–6 直选。
 
-### 5.2 实现：移植 `dither-blur-carousel`
+### 5.2 实现：一个 SDF 的环，移植自 `Viscose-carousel`
 
-- 来源：https://github.com/Yousuf-developer/dither-blur-carousel
-- **代码 MIT** © 2026 Yousuf Soomro —— `gl/`、`components/`、`app/` 都可用、可改、可商用，
-  **必须保留版权声明**（我们把 LICENSE 原文放进 `packages/app/src/vendor/dither-carousel/LICENSE`）。
-- **`public/` 里的图片和字体不在 MIT 范围内**，作者明确说了是占位、来源不明、不得复用。
-  → 我们一张都不用。卡片图用自己的 anchor 渲染，字体用系统字体或自己有授权的。
-- 移植范围：`gl/` 是框架无关的 three.js 代码（scene / post / trail / shaders / config），
-  直接搬；`components/Carousel.jsx` 是 React 外壳，我们用一个 ~60 行的原生 TS 替代。
-- 依赖差异：它用 `lil-gui`（调参面板）和 `gsap`（缓动）。
-  lil-gui 只在 dev 需要 → devDependency；gsap 的用法很轻，能用自己的缓动函数替掉就替掉（P6 依赖纪律）。
+- 来源：https://github.com/Yousuf-developer/Viscose-carousel（MIT © 2026 Yousuf Soomro）
+- **授权判定、借了什么没借什么、GLSL→TSL 的逐条差异、旋钮对照，全在
+  [`docs/35-VISCOSE.md`](35-VISCOSE.md)。** 这里只记结论：
+  代码 MIT 可借（保留版权声明），`public/` 里的图片与字体一律不借（作者明确不授权）。
+- 实现是 `packages/app/src/choose/ring/`：整个环是**一个全屏片元着色器里的距离场**，
+  一个 draw call —— 环、卡片、卡片之间的丝、上下两条玻璃唇、光标的软化与尾波，
+  全部逐像素求值。**没有一行代码是逐字搬的**（上游是 GLSL + React，我们是 TSL + 原生 TS），
+  所以也没有 vendor 目录。
+- 开屏（`src/shell/entry.ts`）和这一页是**同一个场的两个阶段**，不是两层淡入淡出。
+- 首屏因此是**白底黑字**（全站唯一的例外，`ring/first-screen.css` 说明了为什么）。
+- 没有新依赖：GSAP 那条时间线换成六行算术，lil-gui 换成 `RingField.debug()` 的读数。
 
 ### 5.3 验收
 

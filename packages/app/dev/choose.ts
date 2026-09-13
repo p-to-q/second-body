@@ -11,6 +11,10 @@
  *   /dev/choose.html?idle=5000       缩短自动选择的等待，用来验那条 30 秒规则
  *   /dev/choose.html?n=2             只留前 2 个条目 —— 验「< 3 个退化成横向一排」
  *   /dev/choose.html?seed=1          固定随机种子
+ *   /dev/choose.html?freeze=1        挂上来就冻住时间线，之后用
+ *                                    `__ring.advance(秒)` 一步步走 —— 取证截图用这个，
+ *                                    **别用"等几秒再截"**：标签页在后台时 rAF 被节流到 1Hz，
+ *                                    等出来的"中间帧"根本不是那个时刻（docs/02 P21）
  *
  * 运行时（src/main.ts）还没接这一页 —— T-01…T-09 落地后再接。
  */
@@ -22,6 +26,7 @@ import type { ThemeDef } from '../../core/src/types.ts';
 // 而 S2 的规格里没有任何页头，截图上不该留着我们的调试文字。
 mountPageHead({
   title: '选择页', titleEn: 'Choose', overlay: true,
+  // 不是功能清单。这一页要说的是观众在这一刻在做什么
   note: '观众选身体的那一刻。他选的应该是"变成什么"，不是"点哪一个"。',
 });
 
@@ -80,8 +85,10 @@ const handle = await chooseTheme({
   },
 });
 
-// 调试把手：handle.entries() 能看见每张卡的图是 anchor / field / absent。
-Object.assign(window as unknown as Record<string, unknown>, { __choose: handle });
+// 调试把手：handle.entries() 能看见每张卡的图是 anchor / field / absent；
+// __ring 是环本体（fps / debug / freeze / advance）。
+Object.assign(window as unknown as Record<string, unknown>, { __choose: handle, __ring: handle?.gl });
+if (q.get('freeze') === '1') handle?.gl?.freeze(true);
 if (handle) {
   console.log(
     '[choose] mode=%s cards=%d',

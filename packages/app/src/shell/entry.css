@@ -21,6 +21,27 @@
 }
 @keyframes sb-entry-in { from { opacity: 0 } to { opacity: 1 } }
 
+/**
+ * 背后有场的时候（`ring/field.ts` 挂上了）：底色由那块画布出，这一层让开。
+ *
+ * 让开不等于什么都不做 —— 字压在一团正在转的东西上会读不清。
+ * 所以给一道**从下往上**的渐变：它盖住字所在的那一带，而把画面中心
+ * （种子正好在那儿）整个留出来。这和选择页 HUD 用的是同一个构件。
+ *
+ * 指针不许被这一层吃掉：环要收滚动和悬停，只有那两个动作自己接事件。
+ */
+.sb-entry.has-field {
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--sb-paper) 88%, transparent) 0%,
+    color-mix(in srgb, var(--sb-paper) 70%, transparent) 34%,
+    transparent 62%
+  );
+  pointer-events: none;
+}
+.sb-entry.has-field .sb-act,
+.sb-entry.has-field a { pointer-events: auto; }
+
 /* 出比进快（§0）。淡出期间不再接受点击 */
 .sb-entry.is-leaving {
   pointer-events: none;

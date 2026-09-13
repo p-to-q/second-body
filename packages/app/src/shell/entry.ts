@@ -22,8 +22,20 @@
  *
  * 现场（`?kiosk=1`）和任何带明确意图的深链（`?demo=` / `?theme=` / `?act=` …）
  * 一律跳过这一层：装置前面没有人会点「开始」，而深链的意思就是"我知道我要什么"。
+ *
+ * ## 展签背后的那一团
+ *
+ * 这一层**不是一块纯色底**：选择页那个环的场（`choose/ring/field.ts`）在它出现之前
+ * 就已经挂上去、种子已经出生、在背后缓慢地转。按下「开始」不是"这一层淡出、
+ * 那一页淡入"，而是**同一个场进入下一个阶段** —— 卡片开始一张张从前一张里剥出来。
+ * 这是"一比一"里最容易被做丢的一半：参考作品的入场之所以成立，
+ * 前提正是在剥离之前所有卡片本来就已经在那里了。
+ *
+ * 场起不来（没有 WebGPU）时这一层原样退回纯色底 —— 展签本身不依赖它。
  */
 import { COPY, setBi } from '../ui/i18n.ts';
+import { acquireRingField } from '../choose/ring/field.ts';
+import { holdFirstScreen } from '../choose/ring/first-screen.ts';
 import type { Flags } from './kiosk.ts';
 import '../ui/type.css';
 import './entry.css';
@@ -87,6 +99,18 @@ export function mountEntry(flags: Flags): Entry | null {
   const layer = document.createElement('div');
   layer.className = 'sb-entry';
 
+  // 展签自己也要白底黑字 —— 哪怕场起不来（那时它就是一块纯白的展签）
+  const releaseFirstScreen = holdFirstScreen();
+
+  // 场先挂上：种子在展签背后出生。这一步是同步的，WebGPU 的初始化在背后跑；
+  // 起不来就把 has-field 摘掉，退回纯色底（P3：每条降级路径都必须存在）。
+  const field = acquireRingField();
+  layer.classList.add('has-field');
+  field.attract();
+  void field.ready.then((ok) => {
+    if (!ok) layer.classList.remove('has-field');
+  });
+
   const enter = biNode('button', COPY.entry.enter, 'sb-act');
   enter.type = 'button';
 
@@ -147,7 +171,16 @@ export function mountEntry(flags: Flags): Entry | null {
   enter.focus({ preventScroll: true });
 
   const started = new Promise<void>((resolve) => {
-    enter.addEventListener('click', () => { dismiss(layer); resolve(); }, { once: true });
+    enter.addEventListener('click', () => {
+      // 剥离从这一下开始 —— 但真正开剥要等卡片到齐（见 field.ts 的"闸门"）。
+      // 在那之前观众看到的还是那一团在转，而不是一圈空白卡。
+      field.play();
+      dismiss(layer);
+      // 展签这一份还回去。环和选择页还各自 hold 着，所以底色不会在这里翻 ——
+      // 只有深链（`?theme=`，选择页根本不挂）那一条会一路还到 0，那是对的。
+      releaseFirstScreen();
+      resolve();
+    }, { once: true });
   });
 
   return { started };

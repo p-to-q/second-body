@@ -104,6 +104,27 @@ export const COPY = {
   choose: {
     prompt: bi('选一个身体', 'Choose a body'),
     auto: bi('即将自动选择', 'Choosing for you'),
+    /**
+     * 这一页唯一的提示语。**它说的是会发生什么，不是这一页支持什么。**
+     *
+     * 原来写的是「滚动 / 拖动 穿越形态空间 · 数字键直选 · ↑↓ 移动 · Enter 确认」——
+     * 那是一张功能清单：它假设观众关心的是"这一页有哪些操作"，
+     * 而观众此刻关心的只有一件事 —— 我停在这儿会怎么样。
+     */
+    hint: bi('停在谁面前，就成为谁', 'Whoever you stop in front of is who you become'),
+    /**
+     * 按键图例。**和上面那句不是一回事**：那句是说给人听的，这个是一张图例 ——
+     * 现场可能只有一个遥控器，不给图例，观众不知道手里那两个键有用。
+     * 用等宽、极小号、压暗排成"标注"而不是"说明文字"（docs/23 §0）。
+     *
+     * 它**不是 BiText**：全是符号，没有中英之分，硬凑一份对照只会多出一行噪声。
+     * 这是"并置不切换"那条规矩的边界，不是例外 —— 没有语言的东西不需要对照。
+     */
+    keys: '↑ ↓ · ENTER',
+    /** 退化成列表时：没有"停在谁面前"这回事了，所以换一句 */
+    hintList: bi('挑一个，它会用你的骨架站起来', 'Pick one. It will stand up on your skeleton.'),
+    emptyTitle: bi('今天没有可以成为的身体', 'Nothing to become today'),
+    emptyNote: bi('零件还在长，过一会儿再来', 'The parts are still growing. Come back in a while.'),
     kinds: {
       archetype: bi('物种', 'Archetype'),
       character: bi('角色', 'Character'),
