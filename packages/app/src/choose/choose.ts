@@ -1,9 +1,14 @@
 /**
  * 开场选择页 —— 观众选自己要变成的那具身体（docs/12 §5、docs/14 §4）。
  *
- * 卡片骑在一条竖直螺旋上，远离的溶解成有序抖动。轮播本身是移植来的
- * （`../vendor/dither-carousel`，MIT，见那边的 LICENSE 与 README）；
+ * 卡片骑在一个**大半在屏幕外**的环上，靠近时融在一起，分开时拉出越来越细的丝，
+ * 直到断掉。环本身是 `ring/`（一个全屏片元着色器里的距离场，一个 draw call），
+ * 数学移植自 Viscose-carousel（MIT，授权判定与逐条差异见 `docs/35-VISCOSE.md`）；
  * 这个文件是它的外壳：数据、排布、选中、以及现场需要的那几条兜底。
+ *
+ * **开屏和这一页是同一个场的两个阶段**（见 `ring/field.ts` 的文件头）：
+ * 展签还立着时种子已经出生、在背后缓慢地转，按下「开始」之后卡片才一张张剥出来。
+ * 所以这里拿到的环**可能已经在跑了** —— `acquireRingField()` 返回的是同一个实例。
  *
  * 三条不能忘的现场规则：
  *   1. **30 秒无操作自动选一个。** 装置不能停在菜单上。
@@ -19,7 +24,7 @@
 import '../ui/type.css';
 import { mulberry32 } from '../../../core/src/rng.ts';
 import type { PartLibraryIndex, Rng, ThemeDef } from '../../../core/src/types.ts';
-import { createCarousel, type CarouselHandle } from '../vendor/dither-carousel/scene.ts';
+import { acquireRingField, type RingField } from './ring/field.ts';
 import { buildCard, loadImage, type BuiltCard } from './cards.ts';
 
 export interface ChooseOptions {
@@ -36,7 +41,14 @@ export interface ChooseOptions {
   themes?: ThemeDef[];
   /** 强制走无 WebGL 的降级路径。 */
   forceFallback?: boolean;
-  /** 让 canvas 可读回（截图取证用）。现场不要开。 */
+  /**
+   * 让 canvas 可读回（截图取证用）。现场不要开。
+   *
+   * ⚠️ 换到 WebGPU 之后这个开关**是个空档**：WebGPU 的画布不需要
+   * `preserveDrawingBuffer` 这类设置，`canvas.toDataURL()` 本来就拿得到画面。
+   * 留着它是因为它在 `ChooseOptions` 上、dev 页和别处的调用还在传 ——
+   * 删一个参数的收益不值得那次连锁。
+   */
   capture?: boolean;
   /**
    * 中心卡换了一张（滚动 / 拖动 / 键盘 / 降级列表上划过一行都算）。
@@ -72,8 +84,8 @@ export interface ChooseHandle {
   entries(): BuiltCard[];
   /** 走的是 GL 还是降级列表 */
   mode: 'gl' | 'fallback';
-  /** 轮播本体，降级时为 null。调试用（replayEntry / step / internals）。 */
-  gl: CarouselHandle | null;
+  /** 环本体，降级时为 null。调试用（fps / step / exit）。 */
+  gl: RingField | null;
 }
 
 const DEFAULT_IDLE_MS = 30_000;
@@ -173,7 +185,6 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
     refsBase = '/refs',
     idleMs = DEFAULT_IDLE_MS,
     forceFallback = false,
-    capture = false,
     // 不传 = 一个什么都不做的函数。这样下面的调用点不需要每处写 `?.()`，
     // 「不传时行为逐字不变」也就只有这一处需要保证
     onPass = () => {},
@@ -218,7 +229,7 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
   const ui = buildDom(mount);
   let disposed = false;
   let committed = false;
-  let carousel: CarouselHandle | null = null;
+  let carousel: RingField | null = null;
   let fallbackIndex = 0;
   let mode: 'gl' | 'fallback' = 'gl';
 
@@ -281,7 +292,28 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
   function finish(id: string): void {
     if (finished) return;
     finished = true;
+    handOver();
     onChoose(id);
+  }
+
+  /**
+   * 交棒给 S3。
+   *
+   * **必须拆掉那块画布。** 环是不透明的（底色合成在着色器里，见 ring/sdf.ts），
+   * 留着它就等于把接下来出现的身体挡在后面 —— 而 `main.ts` 从来不调
+   * `handle.dispose()`（选完主题它就往下走了），所以这件事只能由这一页自己做。
+   *
+   * 180ms 是 §0 的出场时长。此刻整个屏幕已经被选中的那张卡涨满，
+   * 淡掉的是一张满屏的图，不是一个正在动的东西 —— 所以这一下读作交接，不读作消失。
+   */
+  function handOver(): void {
+    const field = carousel;
+    carousel = null;
+    field?.canvas.classList.add('is-gone');
+    setTimeout(() => {
+      field?.dispose();
+      ui.root.remove();
+    }, 180);
   }
   let exitDone: (id: string) => void = () => {};
 
@@ -346,17 +378,18 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
   function toFallback(reason: unknown): void {
     if (mode === 'fallback') return;
     mode = 'fallback';
+    // 环归这一页处置：它没有别的用户了（展签那一层这时已经不在）
+    carousel?.dispose();
     carousel = null;
-    ui.canvas.style.display = 'none';
     ui.list.hidden = false;
     ui.root.classList.add('is-fallback');
-    // 提示语必须跟着降级路径一起变：没有螺旋可以"穿越"，
+    // 提示语必须跟着降级路径一起变：没有环可以"穿越"，
     // 一条教人做不到的事的提示比没有提示更糟
     ui.hint.textContent = '点一行即确认\n数字键直选 · ↑↓ 移动 · Enter 确认';
     // 条目太少是**设计好的**退化，不是故障 —— 别在控制台吼它，
     // 否则真正的 GL 失败会淹没在噪音里（P14：测量工具本身会骗人）
-    if (reason === 'cards < 3') console.info('[choose] 条目 < 3，螺旋退化成横向一排（docs/23 §S2）');
-    else console.warn('[choose] 轮播不可用，走 DOM 降级列表：', reason);
+    if (reason === 'cards < 3') console.info('[choose] 条目 < 3，环退化成横向一排（docs/23 §S2）');
+    else console.warn('[choose] 环不可用，走 DOM 降级列表：', reason);
     cards.forEach((card, index) => {
       const row = document.createElement('button');
       row.className = 'sb-row';
@@ -381,19 +414,19 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
   } else if (forceFallback) {
     toFallback('forceFallback');
   } else if (cards.length < 3) {
-    // docs/23 §S2：「可选条目 < 3 个 → 螺旋退化成横向一排」。
-    // 理由写在规格里：3 个以下的螺旋看起来像坏了 —— 卡片绕不满一圈，
+    // docs/23 §S2：「可选条目 < 3 个 → 退化成横向一排」。
+    // 理由写在规格里：3 个以下的环看起来像坏了 —— 卡片绕不满一圈，
     // 观众看到的是一个转不动的轮子，而不是一条可以穿越的形态空间。
-    // 走的是同一条 DOM 路径（键盘、自动选择、退出动画全部照常），只是排成一排。
+    // 而且丝也失去了意义：一条只连着两张卡的丝读作一根杠，不读作正在断的糖浆。
+    // 走的是同一条 DOM 路径（键盘、自动选择全部照常），只是排成一排。
     toFallback('cards < 3');
     ui.list.classList.add('is-row');
     ui.list.style.setProperty('--sb-row-n', String(cards.length));
   } else {
     try {
-      carousel = createCarousel(ui.canvas, {
-        textures: cards.map((c) => c.texture),
-        preserveDrawingBuffer: capture,
-        random: () => rng.next(),
+      // 可能已经在跑了（展签那一层先拿过它）。拿到的是同一个实例，
+      // 这里只是把 handler 换成这一页的，然后把卡片交给它。
+      const field = acquireRingField({
         onActiveChange: showActive,
         onPick: (index) => commit(index),
         onExitDone: (index) => exitDone(cards[index].theme.id),
@@ -402,7 +435,16 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
           if (!committed) toFallback(error);
         },
       });
-      showActive(carousel.activeIndex());
+      carousel = field;
+      field.setCards(cards.map((c) => c.canvas));
+      // 展签在场时这一下已经按过了（幂等）；深链和现场没有展签，这一下就是入场。
+      field.play();
+      showActive(field.activeIndex());
+      // WebGPU 起不来（旧浏览器、禁用了硬件加速）——**这是最常见的那条降级**，
+      // 而且它是异步的：canvas 已经挂上去了，几百毫秒之后才知道不行。
+      void field.ready.then((ok) => {
+        if (!ok && !committed && !disposed) toFallback('WebGPU 不可用');
+      });
     } catch (error) {
       toFallback(error);
     }
@@ -456,7 +498,6 @@ export async function chooseTheme(options: ChooseOptions): Promise<ChooseHandle 
 
 interface Ui {
   root: HTMLElement;
-  canvas: HTMLCanvasElement;
   list: HTMLElement;
   name: HTMLElement;
   nameEn: HTMLElement;
@@ -478,11 +519,15 @@ interface Ui {
  * 同一个作品名在两页里不是同一个字。改成变量之后，换字体只用改 type.css 一行。
  */
 const CSS = `
-.sb-choose{position:fixed;inset:0;background:#000;color:var(--sb-ink);
+/* 这一层是叠在环上面的字，不是一块底。底色由环那块画布自己出
+   （ring/field.ts 把 --sb-paper 合成进着色器），所以这里必须是透明的，
+   而且必须让指针穿过去 —— 滚动、拖动、悬停全是环在收。 */
+.sb-choose{position:fixed;inset:0;z-index:2;pointer-events:none;color:var(--sb-ink);
   font-family:var(--sb-grotesk);font-size:var(--sb-size-body);line-height:var(--sb-lh-body);overflow:hidden}
-.sb-choose canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+/* 降级到列表时反过来：没有环，这一层就是这一页的全部 */
+.sb-choose.is-fallback{pointer-events:auto;background:var(--sb-paper)}
 .sb-hud{position:absolute;left:0;right:0;bottom:0;padding:var(--sb-safe);pointer-events:none;
-  background:linear-gradient(to top,rgba(0,0,0,.75),transparent)}
+  background:linear-gradient(to top,color-mix(in srgb,var(--sb-paper) 82%,transparent),transparent)}
 .sb-name{font-size:var(--sb-size-h1);font-weight:var(--sb-weight-head);
   line-height:var(--sb-lh-h1);letter-spacing:var(--sb-tracking-h1)}
 .sb-name .sb-en{font-size:var(--sb-size-small);font-weight:var(--sb-weight-body);
@@ -507,7 +552,7 @@ const CSS = `
 
 /* 无 WebGL 的降级列表。**同样的排版语言**（等宽字、同底色、卡片图）——
    docs/23 §S2：「降级路径也是作品的一部分」，不是丑陋兜底。 */
-.sb-list{position:absolute;inset:0;overflow-y:auto;padding:var(--sb-safe);display:grid;
+.sb-list{position:absolute;inset:0;overflow-y:auto;pointer-events:auto;padding:var(--sb-safe);display:grid;
   gap:var(--sb-gutter);grid-template-columns:repeat(auto-fill,minmax(18rem,1fr));align-content:start}
 .sb-row{background:none;border:1px solid var(--sb-rule);color:inherit;padding:0;cursor:pointer;
   font:inherit;text-align:left;display:block}
@@ -537,7 +582,6 @@ function buildDom(mount: HTMLElement): Ui {
   const root = document.createElement('div');
   root.className = 'sb-choose';
   root.innerHTML = `
-    <canvas></canvas>
     <div class="sb-list" hidden></div>
     <div class="sb-hud">
       <div class="sb-name"><span class="sb-cn"></span><span class="sb-en"></span></div>
@@ -549,7 +593,6 @@ function buildDom(mount: HTMLElement): Ui {
   mount.appendChild(root);
   return {
     root,
-    canvas: root.querySelector('canvas')!,
     list: root.querySelector<HTMLElement>('.sb-list')!,
     name: root.querySelector<HTMLElement>('.sb-cn')!,
     nameEn: root.querySelector<HTMLElement>('.sb-en')!,

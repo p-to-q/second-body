@@ -1,19 +1,18 @@
 /**
- * 卡片贴图 —— 开场轮播上那一张图是怎么来的。
+ * 卡片图 —— 环上那一张图是怎么来的。
  *
  * 三条来源，按这个顺序：
  *   1. `/refs/<id>/_anchor.png`        我们自己渲的主题参考图，版权自有（docs/12 §3）
  *   2. 程序化「场」卡片                 source === 'procedural' 的条目（field）
  *   3. 程序化「空位」卡片               还没生成、但库里已有部件的条目
- * 一张上游的图片或字体都没有用 —— 它们不在 MIT 范围内（见 vendor/dither-carousel/LICENSE 末尾）。
+ * 一张参考作品的图片或字体都没有用 —— 它们不在 MIT 范围内（见 docs/35-VISCOSE.md）。
  *
- * 每张卡片都先合成到一张 2:1 的 canvas 上再变成贴图，因为角标（guest / character）
- * 要画在**卡片上**而不是浮在 DOM 里 —— 它得跟着卡片一起被 dither 溶解掉。
+ * 每张卡片都先合成到一张 2:1 的 canvas 上，因为角标（guest / character）要画在
+ * **卡片上**而不是浮在 DOM 里 —— 它得跟着卡片一起被融化、被拉丝、被吞掉。
  */
-import * as THREE from 'three';
 import type { Rng, ThemeDef } from '../../../core/src/types.ts';
 
-/** 2:1，和 config.cardWidth / config.cardHeight 一致 */
+/** 2:1。图集的格子也是这个比例（`ring/atlas.ts` 的 CELL_ASPECT），改一边就要改另一边 */
 export const CARD_W = 1024;
 export const CARD_H = 512;
 
@@ -147,7 +146,12 @@ export type CardKind = 'anchor' | 'field' | 'absent';
 
 export interface BuiltCard {
   theme: ThemeDef;
-  texture: THREE.CanvasTexture;
+  /**
+   * 合成好的那张 2D canvas。**交出去的是画布，不是贴图**：
+   * 环把所有卡片拼进同一张图集（`ring/atlas.ts`），贴图只有那一张，
+   * 由环自己拥有。这里再造一个 `CanvasTexture` 不但没人用，还会把
+   * three 的 WebGL 构建拖进这一页的包里（我们用的是 `three/webgpu`）。
+   */
   canvas: HTMLCanvasElement;
   /** 这张卡的图是从哪来的 —— 报告和 dev 页面用 */
   from: CardKind;
@@ -168,6 +172,5 @@ export function buildCard(theme: ThemeDef, image: HTMLImageElement | null, rng: 
     from = 'absent';
   }
   drawKindBadge(ctx, theme.kind);
-  const texture = new THREE.CanvasTexture(canvas);
-  return { theme, texture, canvas, from };
+  return { theme, canvas, from };
 }
