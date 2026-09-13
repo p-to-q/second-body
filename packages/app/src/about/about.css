@@ -173,3 +173,84 @@
 
 /* 立意句走楷书 —— 它是这一页唯一"在说话"的地方（边界见 ui/pages.css） */
 .about-lede .sb-zh { font-family: var(--sb-kai); }
+
+/* ── 作品陈述 ─────────────────────────────────────────────────────────────
+ * 这一节的正文不是我们写的（`i18n.ts` 的 `statement*` 那段解释了它的身份）。
+ * 排版上因此比别的节克制：**没有为它发明任何新元素** —— 一句立意、一条线上的原句、
+ * 一张术语表，用的全是这一页已经有的三样东西（楷书的立意句、细横线、左右两栏的行）。
+ *
+ * 三个决定，每个都对应一条已经立好的规矩：
+ *
+ * 1. **立意句走楷书**（继承 `.about-lede .sb-zh`）。它是叙事性中文 ——
+ *    `assets/fonts/Iansui/NOTICE.md` 的用法边界里，"作品陈述里的段落"正是点名要给楷书的。
+ *    字号抬到 h2：级差表里 display 与 h2 之间是**故意空的**（`type.css`），
+ *    所以想强调只能用 h2，不许在中间偷造一级。
+ *
+ *    ⚠️ **今天这一句是半楷半黑的，而且这不是这一节的错。** 实测（浏览器里逐字比对
+ *    Iansui 渲染与 Helvetica Neue 渲染的像素，不是看截图 —— 无头 Chrome 根本不加载这个
+ *    webfont，截图会骗你说全站都没上楷书）：子集里只有 **958** 个字，这一句的
+ *    「关 观 对 实 验」与问句的「栖 究 竟」**不在子集里**，落回 grotesk。
+ *    首屏那句现成的引言早就同样破着（「选」「过」两个字）—— 也就是说这是
+ *    `assets/fonts/Iansui/Iansui-subset.woff` 的覆盖面问题，不是这一节引入的。
+ *    **修法是拿今天仓库里的中文重跑一次子集化，不是把这条排版规矩撤掉**：
+ *    撤掉只会让"叙事中文用楷书"这条规矩死在第一个不方便的地方。
+ *
+ * 2. **那一行英文原句不配中文，也不加引号。** 它是艺术家用英文写的正文，
+ *    不是任何一句中文的对照；塞进 `.sb-bi` 的"中主英辅"会把原文降级成译文。
+ *    它靠**上下两条细横线**自己站住 —— 线是这套排版里唯一的分区手段（docs/23 §0），
+ *    引号和卡片都不是。字号取 h1 而不是 display：display 一屏只有一个，那一个是页题。
+ *
+ * 3. **五个概念的中文注不走楷书。** 它们是术语不是"一个人说的话"，
+ *    NOTICE.md 的反面清单里"槽位名、数据、标签"就是这一类。上了楷书会读成在抒情。
+ *    拉丁词与中文注**本身就是一次中英并置**，所以这张表不需要第三列。
+ */
+.about-statement__lead {
+  font-size: var(--sb-size-h2);
+  line-height: 1.45;
+  margin-top: 0.9rem;
+}
+.about-statement__lead .sb-en { font-size: 0.78em; }
+
+.about-statement__call {
+  /* 行长上限是给正文的；这一行要横着摊开，让它自己决定断在哪 */
+  max-width: none;
+  margin: clamp(1.75rem, 3vw, 3rem) 0;
+  padding: clamp(1.25rem, 2.2vw, 2.25rem) 0;
+  border-top: 1px solid var(--sb-rule);
+  border-bottom: 1px solid var(--sb-rule);
+  font-size: var(--sb-size-h1);
+  line-height: var(--sb-lh-h1);
+  letter-spacing: var(--sb-tracking-h1);
+  font-weight: var(--sb-weight-head);
+  color: var(--sb-ink);
+  /* 五个短句，断行随幅面走；balance 让它不至于末行只剩两个词 */
+  text-wrap: balance;
+}
+
+.about-concepts {
+  margin: 0.9rem 0 0;
+  padding: 0;
+}
+.about-concept {
+  display: grid;
+  grid-template-columns: minmax(0, 11rem) minmax(0, 1fr);
+  gap: 0.5rem var(--sb-gutter);
+  align-items: baseline;
+  padding: 0.7rem 0;
+  border-top: 1px solid var(--sb-rule);
+}
+.about-concept:first-child { border-top: 0; }
+.about-concept__term {
+  color: var(--sb-ink);
+  /* 术语是这张表的"数据"那一列，等宽让五行的左缘真的对齐 */
+  font-family: var(--sb-mono);
+  font-size: var(--sb-size-small);
+}
+.about-concept__zh {
+  margin: 0;
+  color: var(--sb-ink-dim);
+  font-size: var(--sb-size-small);
+}
+@media (max-width: 520px) {
+  .about-concept { grid-template-columns: minmax(0, 1fr); gap: 0.15rem; }
+}
