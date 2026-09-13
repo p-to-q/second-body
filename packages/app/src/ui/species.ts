@@ -9,6 +9,7 @@
  * 并列时按 id 兜底，保证任何一次渲染都给出同样的编号。
  */
 import type { ThemeDef } from '../../../core/src/types.ts';
+import { BODY_PLANS } from '../../../core/src/bodyplan.ts';
 import { COPY, type BiText } from './i18n.ts';
 
 /** `bodyPlan` 可以是字符串、`{ kind }` 对象，或者没有（= 人形）。归一到一个字符串 */
@@ -19,14 +20,16 @@ export function planKind(t: ThemeDef): string {
   return 'rig';
 }
 
-export const PLAN_LABEL: Record<string, BiText> = {
-  rig: COPY.plans.rig,
-  quadruped: COPY.plans.quadruped,
-  mass: COPY.plans.mass,
-  stub: COPY.plans.stub,
-  towering: COPY.plans.towering,
-  inverted: COPY.plans.inverted,
-};
+/**
+ * 方案 → 名字。**从 `BODY_PLANS` 生成，不手抄**。
+ *
+ * 手抄的那一版漏了 radial / column / swarm 三个（九个里的三个），
+ * `/about` 的图例因此把英文 id 原样印给中文观众。漏一条的代价是"看起来还行"，
+ * 所以它藏得住 —— 现在多一个方案而 `COPY.plans` 没跟上，`tsc` 就红，
+ * 因为下面这个索引要求 `COPY.plans` 覆盖 `BodyPlanId` 的每一个成员。
+ */
+export const PLAN_LABEL: Record<string, BiText> =
+  Object.fromEntries(BODY_PLANS.map((id) => [id, COPY.plans[id]]));
 
 export function orderThemes(themes: readonly ThemeDef[]): ThemeDef[] {
   return [...themes].sort(

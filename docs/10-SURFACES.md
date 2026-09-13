@@ -17,6 +17,7 @@
 
 | 日期 | 这一版落地了什么 |
 |---|---|
+| 2026-09-13 | `BodyPlanId` 补齐成真实的九个、`bodyPlan` 不再是裸 string、未知方案在 `check:parts` 判**错**；`stub`/`towering` 的条目自带比例不再被预设吞掉 |
 | 2026-09-14 | 五个展陈面逐条核对：过期数字改掉、弧线与物质进 `/about`、两份审计与那次浸泡进 `/making`、护照多一枚章 |
 | 2026-09-14 | 会话弧线落地：四个乐章一条时间轴，导演不再摇骰子（docs/40） |
 | 2026-09-14 | 两份审计的落地：物种不再被静默替换、`?gl=off` 接上正式程序、降级阶梯前两级真的有人接（docs/36 D2/D4、docs/39 §2.1） |
@@ -82,6 +83,8 @@
 | `genome.ts` 抽取 | `stable` | 同 seed 两次刷新 genome 深度相等（`/dev/figure.html?seed=1234` 实测）|
 | **`ground.ts` 网格落地（`lowestPointOf` / `groundLift` / `liftMatrixInPlace` / `MAX_LIFT`）** | `stable` | 纯几何：每件部件的局部 aabb 过它自己的挂载矩阵，取全身最低角，整体抬到 y=0。骨架那一层只保证最低的**脚关节**在 y=0，而脚这个部件绕骨轴长出来 → 底面还在骨轴下方半个脚厚（29 个条目实测沉 3~6cm，最深 `digitigrade` −0.059m）。`packages/core/test/ground.test.ts` 量的是真的 `foot.porcelain.a` 包围盒 + 真的挂载参数；端到端由 `packages/app/test/ground.test.ts` 跑真的 `assemble()` × 七种方案证。消费者：`app/src/creature/assemble.ts` 的 `groundToFloor()`，以及 `mass.ts`（只借 `MAX_LIFT` 这条安全阀） |
 | **`vitality.ts` 末尾的再落地认身体方案（`apply(..., plan)`）** | `stable` | 它在 `remapSkeleton` **之后**跑，末尾会再落一次地，而那一次原来写死 `footIdxL/R, ankleL/R` —— 对 `PLANS_WITHOUT_FEET`（`radial` / `inverted`）等于拿一组长在身体**顶上**的关节往下拽。参考站姿实测：`inverted` 整具骨架被埋到 **−1.290m**、`radial` **−0.601m**。网格落地会把递给它的东西原样抬回来，所以**画面上看不见**；但读关节的那些人（接触阴影 `framing.ts`、取景、截图）读到的全是这具沉下去的骨架。谓词只有一个：`bodyplan.ts` 的 `groundsByLowestJoint()`（`PLANS_WITHOUT_FEET` 的唯一判据函数，**不许再建第二张表**）。`core/test/vitality.test.ts` 新增 3 条：两个无脚方案各钉 10 帧最低关节在 y=0，外加一条反向护栏（人形蹲下摸地、手尖低于脚尖时，基准**仍然是脚**）。注释掉修复 → 那两条立刻红成上面两个数 |
+| **`bodyplan.ts` 的 `BODY_PLANS` = 合法方案名单（九个）+ `PLANS_WITHOUT_PARTS`** | `stable` | 名单以前只列七个，而线上真的在跑九个（`mass` / `swarm` 是另一条身体实现，`main.ts` 用字符串比较够它们）；`ThemeDef.bodyPlan` 当时是**裸 string**，于是 `bodyPlan: 'quadrupd'` 类型过、测试全绿、`check:parts` 不响，而 `remapSkeleton` 走 default —— 物种**静默地按人形刚体装配出场**，画面上看不出任何异常。现在三道门：类型（`RosterEntry` / `ThemeDef` 收紧成 `BodyPlanId`，拼错在 `tsc` 就红）、`check:parts` 对 parts.json 判**错**（外部数据那一层）、`app/test/body-plans.test.ts` 守「声明 ⊆ 名单」与「名单 ⊆ 接线」。五次刻意破坏各自看过红：加第十个方案不接线 / 谱系表拼错 / parts.json 拼错 / 拆掉 `main.ts` 那句 `=== 'swarm'` / 退回预设吞比例。改后 `check:parts` **220 件 0 错 12 警告**（原 15 警告，少的 3 条是 step 5 修掉的那一类），core 182 + app 262 绿 |
+| **`stub` / `towering` 认条目自己的比例（`withPreset`）** | `stable` | 以前 switch 走 `proportion(sk, PRESETS[kind])`，条目自带的 spec 被整份丢掉，出口那遍又被 `FIXED_PROPORTION` 挡住 —— 实测 `{kind:'stub',head:2.1,limb:0.3,torso:0.9}` 与光写 `'stub'` 的关节坐标一模一样。现在预设与 spec 合并（条目写了的字段赢）。**三个条目的剪影因此改变**（参考站姿骨架盒 高/宽/中心）：`droid` 1.325/0.827/0.663 → 1.370/0.827/0.685；`char.diva` 1.987/1.315/0.994 → 1.815/1.198/0.908；`char.line` 1.325/0.827/0.663 → 1.053/0.534/0.527。只写字符串的 `compact` / `char.paper` 逐位未变 |
 | `skeleton.ts` / `stabilize.ts` / `motion.ts` | `spec-only` | 见 `docs/11-TASKS.md` T-02/T-04/T-06 |
 
 ## Runtime（浏览器）

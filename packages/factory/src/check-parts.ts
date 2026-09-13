@@ -10,6 +10,9 @@ import { PARTS_DIR } from './ledger.ts';
 import { glbStats } from './glb-stats.ts';
 import { SLOT_FIT } from '../../core/src/tuning.ts';
 import { entryById, isPublic, SIGNATURE_SLOTS } from '../recipes/roster.ts';
+// 名单从 core 拿，不在这里另抄一份。抄一份的那个版本已经出过事：
+// `ui/controls.ts` 抄的那份只写了 `mass`，于是 `swarm` 落在控件条外面。
+import { BODY_PLANS, PLANS_WITHOUT_PARTS } from '../../core/src/bodyplan.ts';
 import type { PartLibraryIndex, Slot, ThemeDef } from '../../core/src/types.ts';
 
 const EPS = 2e-3;
@@ -18,10 +21,6 @@ const MAX_BYTES = 1_500_000;   // docs/02 P5 的单件预算
 
 /** docs/26 §H / §I：uniform 槽位的 girth 必须落在该槽位中位数的这个区间里 */
 const GIRTH_BAND: [number, number] = [0.7, 1.3];
-/** `remapSkeleton` 里把整份 spec 换成预设、只认 kind 的那两个拓扑（bodyplan.ts 的 switch） */
-const PRESET_ONLY_KINDS = new Set(['stub', 'towering']);
-/** 一件槽位件都不实例化的身体方案（docs/18 B 档）—— 对它们问"凑不凑得齐件"没有意义 */
-const PLANS_WITHOUT_PARTS = new Set(['mass', 'swarm']);
 
 const median = (xs: number[]): number => {
   const s = xs.slice().sort((a, b) => a - b);
@@ -98,21 +97,28 @@ export async function checkParts(): Promise<number> {
   }
 
   /**
-   * `bodyPlan: { kind: 'stub' | 'towering', ... }` 的比例字段会被**丢掉**。
-   * `bodyplan.ts` 的 switch 对这两个 kind 走的是 `proportion(sk, PRESETS[kind])`，
-   * 用的是预设而不是条目自己的 spec，出口那一遍又被 `FIXED_PROPORTION` 挡住。
-   * 实测：`{kind:'stub',head:2.1,limb:0.3,torso:0.9}` 与 `'stub'` 输出的关节坐标一模一样。
-   * 于是 parts.json 里那几个数是**装饰**：条目声明了一种身材，运行时给的是另一种。
+   * **认不出来的身体方案 —— 这是错，不是警告。**
+   *
+   * 为什么必须是错：`remapSkeleton` 的 switch 对认不出来的 kind 走 default，
+   * 也就是**原样返回人体骨架**，于是这个物种照人形刚体装配出场。
+   * 画面上是一具没有任何毛病的身体 —— 只是不是它声明的那一具。
+   * 没有异常、没有占位几何、没有一处变红，件数一件不少。
+   * 这个仓库今天已经踩过同一类失败一次了（静默换种，docs/39 §4）。
+   *
+   * 类型那道门（`RosterEntry.bodyPlan` / `ThemeDef.bodyPlan` 现在是 `BodyPlanId`）
+   * 挡的是**源头**；这一条挡的是 parts.json —— 它是外部数据，可能是手改的、
+   * 旧版本写的、或者某个绕过 `buildIndex()` 的写入路径产生的。两道门缺一不可。
+   *
+   * 报错文本里必须同时出现"它声明了什么"和"它会静默变成什么"：
+   * 只说前者的话，读的人不知道后果，会把它当成一个可以晚点再说的拼写问题。
    */
+  const KNOWN_PLANS = new Set<string>(BODY_PLANS);
   for (const t of index.themes ?? []) {
-    const bp = t.bodyPlan;
-    if (typeof bp !== 'object' || bp === null) continue;
-    if (!PRESET_ONLY_KINDS.has(bp.kind ?? '')) continue;
-    const dropped = (['limb', 'torso', 'head', 'arm', 'leg'] as const).filter((k) => bp[k] !== undefined);
-    if (dropped.length) {
-      warns.push(`${t.id}: bodyPlan kind='${bp.kind}' 会丢掉它自己的比例 ${dropped.join('/')}`
-        + `（bodyplan.ts 对 stub/towering 只认预设）—— 声明的身材不是运行时的身材`);
-    }
+    const kind = planKindOf(t);
+    if (KNOWN_PLANS.has(kind)) continue;
+    errs.push(`${t.id}: bodyPlan 声明了 '${kind}'，不在 BODY_PLANS（${BODY_PLANS.join(' / ')}）里 —— `
+      + `remapSkeleton 走 default，它会**静默地**按 'rig'（人形刚体装配、标准比例）出场，`
+      + `画面上看不出任何异常，只是它不是声明的那具身体`);
   }
 
   const { loadCuration, summary } = await importCuration();
@@ -182,7 +188,7 @@ export async function checkParts(): Promise<number> {
   const liveOwnSlots = (fam: string) =>
     new Set(index.parts.filter((p) => p.family === fam && !rejectedIds.has(p.id)).map((p) => p.slot));
   for (const t of index.themes ?? []) {
-    if (PLANS_WITHOUT_PARTS.has(planKindOf(t))) continue;
+    if ((PLANS_WITHOUT_PARTS as readonly string[]).includes(planKindOf(t))) continue;
     if (t.source === 'procedural') continue;
     if (!familiesInIndex.has(t.id)) {
       warns.push(`${t.id}: parts.json 里一件自有件都没有 —— `

@@ -45,7 +45,7 @@
  * 选项之间用细横线分区，键位用等宽字 —— 这是 `type.css` 已经立好的语言。
  * 它应该读起来像一台设备的面板，不像一个网页的设置弹窗。
  */
-import { BODY_PLANS } from '../../../core/src/bodyplan.ts';
+import { BODY_PLANS, PLANS_WITHOUT_PARTS } from '../../../core/src/bodyplan.ts';
 import { SHADING_IDS, type ShadingId } from '../creature/shading.ts';
 import { randomPatch, SEED_MAX } from './random-url.ts';
 import type { ThemeDef } from '../../../core/src/types.ts';
@@ -60,13 +60,17 @@ import './controls.css';
 const FADE_AFTER_MS = 4000;
 
 /**
- * 「团块」不在 `BODY_PLANS` 里，这是对的 —— 它不是一种骨架重映射，
- * 而是另一条身体实现（`creature/mass.ts`）。但它**是** `?plan=` 的合法值
- * （`main.ts` 用 `planKind === 'mass'` 判断），所以面板上要有它，
- * 而且要标成"必须重载"的那一类。
+ * 形体按钮就是 `BODY_PLANS`，一个不多一个不少。
+ *
+ * 这里原来是 `[...BODY_PLANS, 'mass']` —— 因为当时 `BODY_PLANS` 只有七个，
+ * 团块是手写补上去的。代价是 `swarm`（同一档的另一个方案，`field`／「场」
+ * 线上真的在用）**两边都不在**，于是调试面板上按不出来，只能靠 `?plan=swarm`
+ * 重载。手写补一个就会漏掉第二个，这就是那一次。
  */
-const MASS = 'mass';
-const FORM_IDS: readonly string[] = [...BODY_PLANS, MASS];
+const FORM_IDS: readonly string[] = BODY_PLANS;
+/** 进出这一档要重载（另一条身体实现，热切不出来）。名单在 core，别在这里抄 */
+const isBodyImpl = (id: string): boolean =>
+  (PLANS_WITHOUT_PARTS as readonly string[]).includes(id);
 
 /** 玩法。id 来自 `acts/index.ts` 的 `ACTS`，顺序照抄，不在这里另排 */
 type CopyPair = { name: BiText; note: BiText };
@@ -78,7 +82,7 @@ export interface ControlsHost {
   themeId: string | null;
   themes: readonly ThemeDef[];
 
-  /** 形体。`setPlan` 只在**两边都不是团块**时被调用，其余走重载 */
+  /** 形体。`setPlan` 只在**两边都不是 B 档（团块/点场）**时被调用，其余走重载 */
   planId(): string;
   setPlan(id: string): void;
 
@@ -449,11 +453,11 @@ export function mountControls(options: ControlsOptions): Controls | null {
     reloadWith(host, patch);
   }
 
-  /** 形体：七种骨架之间热切；进出「团块」是另一条身体实现，必须重建 */
+  /** 形体：骨架重映射之间热切；进出 B 档（团块 / 点场）是另一条身体实现，必须重建 */
   function setForm(id: string): void {
     const now = host.planId();
     if (id === now) return;
-    if (id === MASS || now === MASS) { reloadWith(host, { plan: id }); return; }
+    if (isBodyImpl(id) || isBodyImpl(now)) { reloadWith(host, { plan: id }); return; }
     host.setPlan(id);
     sync();
   }

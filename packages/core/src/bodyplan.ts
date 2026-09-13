@@ -9,11 +9,41 @@
 import type { Bone, BoneId, Skeleton, Vec3 } from './types.ts';
 import { add, dist, norm, scale, sub, sane } from './vec.ts';
 
+/**
+ * 全部身体方案。**这张表是"物种声明了什么"与"运行时给了什么"之间唯一的对账凭据。**
+ *
+ * 前七个是这个文件里的骨架重映射；后两个（`mass` / `swarm`）不是重映射，
+ * 而是**另一条身体实现**（`app/src/creature/{mass,swarm}.ts`），`remapSkeleton`
+ * 对它们走 default、原样返回人体骨架 —— 差别发生在渲染那一层，不在这里。
+ *
+ * 它们仍然必须列在这里，理由是这张表被当成**合法值的名单**在用（`check-parts.ts`
+ * 判错、`ui/controls.ts` 排按钮、`ThemeDef.bodyPlan` 的类型）。名单少列两个，
+ * 那两个就成了"合法但不被承认"的值，而这正是下面这个 bug 的另一半。
+ *
+ * 这里防的 bug：一个条目写 `bodyPlan: 'quadrupd'`（拼错、或者方案被改过名），
+ * 类型通过、测试全绿、`remapSkeleton` 的 switch 走 default —— 它**静默地**
+ * 按人形刚体装配出场。症状是"身体看起来没毛病，只是不是它声明的那一具"，
+ * 没有任何一处会变红。同一类失败（静默换种）这个仓库今天已经踩过一次了。
+ */
 export type BodyPlanId =
-  | 'rig' | 'quadruped' | 'towering' | 'stub' | 'inverted' | 'radial' | 'column';
+  | 'rig' | 'quadruped' | 'towering' | 'stub' | 'inverted' | 'radial' | 'column'
+  | 'mass' | 'swarm';
 
 export const BODY_PLANS: readonly BodyPlanId[] =
-  ['rig', 'quadruped', 'towering', 'stub', 'inverted', 'radial', 'column'];
+  ['rig', 'quadruped', 'towering', 'stub', 'inverted', 'radial', 'column', 'mass', 'swarm'];
+
+/**
+ * B 档：**一件槽位件都不实例化**的那两个方案（docs/18 §2 B 档）。
+ *
+ * 拎出来是因为它有四个使用者，而且四处问的是同一件事：
+ *  - `check-parts.ts`：对它们问"凑不凑得齐件"没有意义，跳过；
+ *  - `ui/controls.ts`：进出这两个方案要**重载**（另一条身体实现，热切不出来）；
+ *  - 本文件的测试：`remapSkeleton` 对它们是恒等，不该拿"重映射之后要贴地"去要求它们；
+ *  - `main.ts`：`planKind === 'mass' / 'swarm'` 决定建哪一具身体。
+ * 这张表以前有两份拷贝（`check-parts.ts` 一份、`controls.ts` 一份写成了单个 `MASS`），
+ * 于是 `swarm` 落在控件条外面 —— 抄一张表就会有一天对不上，这就是那一天。
+ */
+export const PLANS_WITHOUT_PARTS: readonly BodyPlanId[] = ['mass', 'swarm'];
 
 /**
  * 哪些方案**不能拿脚当落地基准**。这张表是给测试和 `rebuild()` 共用的。
@@ -35,9 +65,20 @@ export const PLANS_WITHOUT_FEET: readonly string[] = ['radial', 'inverted'];
  * `kind` 缺省 'rig' 时只改比例，不改拓扑；也可以和 'quadruped' 叠加。
  */
 export interface BodyPlanSpec {
-  /** 拓扑。用 string 而不是 BodyPlanId 是故意的：parts.json 是外部数据，
-   *  里面可能出现我们还不认识的 plan —— 未知值按 'rig' 处理，不该让类型系统炸掉（P2）。 */
-  kind?: string;
+  /**
+   * 拓扑。
+   *
+   * 这里原来是 `string`，注释写着"parts.json 是外部数据，未知值不该让类型系统炸掉"。
+   * 那句话把**运行时的宽容**和**声明时的宽容**混成了一件事，代价是拼错的 plan
+   * 从数据一路畅通无阻地滑到 default 分支。现在分开：
+   *  - 声明侧收紧成 `BodyPlanId`（`ThemeDef.bodyPlan` 与 `RosterEntry.bodyPlan` 同此），
+   *    拼错的值在 `tsc` 就红；
+   *  - 运行时的宽容仍然在 —— `remapSkeleton` 的入参是 `BodyPlan`（含 `string`），
+   *    未知值照旧按 'rig' 处理、绝不抛（P2）；
+   *  - 而 parts.json 这份外部数据由 `check-parts.ts` 当场判**错**（不是警告），
+   *    它会把"声明了什么 / 会静默变成什么"两句话一起印出来。
+   */
+  kind?: BodyPlanId;
   /** 四肢整体缩放，1 = 不变 */
   limb?: number;
   /** 躯干缩放 */
@@ -448,6 +489,29 @@ const PRESETS: Record<string, BodyPlanSpec> = {
 const isSpec = (p: unknown): p is BodyPlanSpec =>
   typeof p === 'object' && p !== null && !Array.isArray(p);
 
+/** BodyPlanSpec 的五个比例字段。写一次，下面两处共用 —— 加第六个只改这里 */
+const PROPORTION_KEYS = ['limb', 'torso', 'head', 'arm', 'leg'] as const;
+
+/**
+ * 预设 + 条目自己写的比例：**条目写了的字段赢，没写的落回预设。**
+ *
+ * 这里修的 bug：`{ kind: 'stub', head: 1.5 }` 以前整份 spec 被丢掉，
+ * switch 走的是 `proportion(sk, PRESETS.stub)`，出口那一遍又被 `FIXED_PROPORTION`
+ * 挡住 —— 实测 `{kind:'stub',head:2.1,limb:0.3,torso:0.9}` 与光写 `'stub'`
+ * 吐出来的关节坐标一模一样。于是 `droid` / `char.line` / `char.diva` 这三个条目里
+ * 那几个数是**装饰**：数据声明了一种身材，运行时给的是另一种，而且没有任何一处会红。
+ * 和"拼错的 plan 静默变人形"是同一类失败 —— **声明没有到达运行时**。
+ *
+ * 为什么是合并而不是覆盖：`'stub'` 这个名字本身就承载三个数（limb/torso/head），
+ * 只写 `{kind:'stub', head:1.5}` 的人要的是"矮壮，但头再大一点"，不是
+ * "把 limb/torso 恢复成 1"。覆盖式会让 `droid` 从矮壮变回正常比例的大头人。
+ */
+function withPreset(kind: string, spec: BodyPlanSpec): BodyPlanSpec {
+  const out: BodyPlanSpec = { ...(PRESETS[kind] ?? {}) };
+  for (const k of PROPORTION_KEYS) if (spec[k] !== undefined) out[k] = spec[k];
+  return out;
+}
+
 /**
  * 一个 `BodyPlan`（字符串 / 预设名 / spec 对象）到底是**哪一个拓扑**。
  *
@@ -473,11 +537,12 @@ export const groundsByLowestJoint = (plan: BodyPlan = 'rig'): boolean =>
 
 /** 这个 spec 会不会真的改变比例？全是 1 就别白跑一趟 */
 const changesProportion = (s: BodyPlanSpec): boolean =>
-  [s.limb, s.torso, s.head, s.arm, s.leg].some((v) => v !== undefined && v !== 1);
+  PROPORTION_KEYS.some((k) => s[k] !== undefined && s[k] !== 1);
 
 /**
  * 这些 kind 自己已经把比例消化掉了，出口不许再来一遍。
- * towering / stub 是因为它们**就是**比例预设；
+ * towering / stub 是因为上面那一句 `proportion(sk, withPreset(kind, spec))`
+ * 已经把预设和条目自己的比例合并着做完了 —— 出口再来一遍就是平方；
  * radial / column 是因为 `proportion()` 依赖"肩是肩、胯是胯"这套人体语义，
  * 而这两个拓扑把那套语义拆了 —— 拓扑之后再缩放会把环和桅杆撕开。
  * 所以它们改成**先缩放人体、再换拓扑**：比例仍然生效，而且作用在一具还是人的骨架上。
@@ -503,8 +568,9 @@ export function remapSkeleton(sk: Skeleton, plan: BodyPlan = 'rig'): Skeleton {
   switch (kind) {
     case 'quadruped': out = quadruped(sk); break;
     case 'inverted': out = inverted(sk); break;
-    case 'towering': out = proportion(sk, PRESETS.towering); break;
-    case 'stub': out = proportion(sk, PRESETS.stub); break;
+    // 预设 + 条目自己的比例（`withPreset`）。以前这里写死 `PRESETS[kind]`，
+    // 条目自带的那几个数被静默丢掉 —— 见 `withPreset` 的注释。
+    case 'towering': case 'stub': out = proportion(sk, withPreset(kind, spec)); break;
     // radial / column 的比例是**先**做的，见下面 PRE_PROPORTION 的理由
     case 'radial': out = radial(pre(sk, spec)); break;
     case 'column': out = column(pre(sk, spec)); break;

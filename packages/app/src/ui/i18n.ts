@@ -203,13 +203,24 @@ export const COPY = {
   },
 
   /** 身体方案 */
+  /**
+   * 九个身体方案的名字。**必须和 `BODY_PLANS` 一一对应** ——
+   * `ui/species.ts` 的 PLAN_LABEL 直接由它组成，`/about` 的图例读那张表。
+   * 这里以前少了 radial / column / swarm 三个，于是图例上那三种标记的名字
+   * 是**英文 id 原样**（`about.ts` 的兜底分支），中文观众读到 "radial"。
+   * 少一条不会报错、不会崩、只是"看起来像是有人故意这么写的" —— 和 CSS 那个
+   * 嵌套 `:root` 是同一种藏法。`test/body-plans.test.ts` 现在盯着这一条。
+   */
   plans: {
     rig: bi('人形', 'Humanoid'),
     quadruped: bi('四足', 'Quadruped'),
     mass: bi('团块', 'Mass'),
+    swarm: bi('点场', 'Swarm'),
     stub: bi('矮壮', 'Stub'),
     towering: bi('高瘦', 'Towering'),
     inverted: bi('倒置', 'Inverted'),
+    radial: bi('放射', 'Radial'),
+    column: bi('单柱', 'Column'),
   },
 
   /** 档案页 */
@@ -559,6 +570,10 @@ export const COPY = {
       rig: { name: bi('人形', 'Rig'), note: bi('和你一样的骨架', 'The same rig as you') },
       quadruped: { name: bi('四足', 'Quadruped'), note: bi('手臂变成前腿，横着走', 'Arms become forelegs') },
       mass: { name: bi('团块', 'Mass'), note: bi('没有零件，整团在动', 'No parts — one moving mass') },
+      // 点场。控件条上以前没有它 —— `FORM_IDS` 抄的是 `BODY_PLANS` 加一个手写的
+      // `mass`，而 `swarm` 两边都不在，于是一个**线上真的在用**的方案在调试面板上
+      // 根本按不出来（只能靠 `?plan=swarm` 重载）。
+      swarm: { name: bi('点场', 'Swarm'), note: bi('身体没了，只剩一片跟着动的点', 'The body is gone — only moving points') },
       stub: { name: bi('短肢', 'Stub'), note: bi('大躯干，退化的四肢', 'Big torso, stunted limbs') },
       radial: { name: bi('放射', 'Radial'), note: bi('四肢绕着核心散开', 'Limbs fan out around a core') },
       column: { name: bi('柱状', 'Column'), note: bi('立起来的一根，四肢收拢', 'One upright column') },

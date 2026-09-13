@@ -25,6 +25,7 @@
  *   lifeLike   0 = 像工具/家具       1 = 像活的
  */
 import type { Tier } from '../../core/src/types.ts';
+import type { BodyPlanId, BodyPlanSpec } from '../../core/src/bodyplan.ts';
 
 export type RosterKind = 'archetype' | 'guest' | 'character';
 export type Clearance = 'own' | 'public-figure' | 'third-party-ip' | 'licensed';
@@ -54,8 +55,16 @@ export interface RosterEntry {
   coverage: 'full' | 'light';
   /** light 条目缺件时从哪个条目借 */
   base?: string;
-  /** 身体方案，见 docs/18。字符串 = 拓扑预设；对象 = 拓扑 + 比例 */
-  bodyPlan?: string | { kind?: string; limb?: number; torso?: number; head?: number; arm?: number; leg?: number };
+  /**
+   * 身体方案，见 docs/18。字符串 = 拓扑预设；对象 = 拓扑 + 比例。
+   *
+   * **这里原来是 `string`**，于是下面那张 `BODY_PLAN` 表里一个拼错的方案名
+   * （或者一个被改过名的方案）完全合法：类型过、测试绿、`check:parts` 不响，
+   * 而运行时 `remapSkeleton` 走 default，这个物种**静默地按人形出场**。
+   * 谱系表是这件事的源头数据，所以门必须开在这里 —— `ThemeDef.bodyPlan`
+   * 是同一个类型，`index-parts.ts` 把这里的值原样写进 parts.json。
+   */
+  bodyPlan?: BodyPlanId | BodyPlanSpec;
   tierOfVariant: Record<string, Tier>;
   /** 取材说明。取材 ≠ 复制，写清楚出处是为了让自己保持诚实 */
   reference?: string;
