@@ -41,7 +41,10 @@ import { SKELETON, STAGE } from '../../../core/src/tuning.ts';
 import { readFlags } from '../shell/kiosk.ts';
 import { createBreathField, type BreathField } from './particles.ts';
 import { createPost, POST_DEFAULTS, type PostChain } from './post.ts';
-import { deriveLook, lerpLook, NEUTRAL_LOOK, type LookProfile, type RGB } from './look.ts';
+import {
+  applyArc, ARC_OFF, arcWeights, deriveLook, lerpLook, NEUTRAL_LOOK,
+  type ArcWeights, type LookProfile, type RGB,
+} from './look.ts';
 import {
   boundsOfPlan, boundsOfSkeleton, contactPoints, fitFrame, lerpBounds, DEFAULT_BOUNDS,
   type BodyBounds,
@@ -96,6 +99,16 @@ export interface Stage {
   readonly post: boolean;
   /** 当前生效的 look，给 HUD 和 dev 页面看 */
   readonly look: LookProfile;
+
+  /**
+   * 弧线进度 `0..1`（docs/40 的四个乐章 → 灯，docs/41）。**每帧调都行**。
+   *
+   * 它盖在「主题 → 场景」之上，是同一套 `LookProfile` 的第三层，
+   * 只缩放已有字段（`applyArc`）—— 不是第二套颜色/灯光系统。
+   * 从来没被调过的时候这一层不存在，灯和今天完全一样。
+   */
+  setArc(progress: number): void;
+  readonly arc: number;
 
   /**
    * 换场景（整个视觉世界：天幕 / 地面 / 布光 / 雾 / 后期 / 粒子）。
@@ -183,10 +196,23 @@ export function createStage(opt: StageOptions = {}): Stage {
   let viewH = 720;
 
   // ── look（主题微调）────────────────────────────────────────────────────
+  /**
+   * 两个 look，不是一个：
+   *   `baseLook` = 主题（它是什么颜色）→ 场景（它站在什么地方），过渡在这一层上插值
+   *   `look`     = 再盖上弧线（这是第几分钟），**渲染读的是它**
+   *
+   * 分成两个的唯一理由：弧线每帧都在动，而换主题的交叉淡入是从**上一个 baseLook**
+   * 起步的。合成一个变量的话，换场景那一刻会把当时的弧线偏移一起冻进起点，
+   * 然后再叠一次 —— 第 IV 乐章换场景会突然暗一档，而且不会自己恢复。
+   */
+  let baseLook: LookProfile = NEUTRAL_LOOK;
   let look: LookProfile = NEUTRAL_LOOK;
   let lookFrom: LookProfile = NEUTRAL_LOOK;
   let lookTo: LookProfile = NEUTRAL_LOOK;
   let lookMix = 1;
+  /** 弧线进度与它此刻的四个份量。没有人调过 `setArc()` 时是 `ARC_OFF`，这一层等于不存在 */
+  let arc = 0;
+  let arcW: ArcWeights = ARC_OFF;
   let themeSet = false;
 
   // ── 灯 ────────────────────────────────────────────────────────────────
@@ -526,7 +552,7 @@ export function createStage(opt: StageOptions = {}): Stage {
   function composeLook(fade: number): void {
     const base = deriveLook(curTheme, curMaterials);
     sceneId = sceneForced ?? pickScene(curTheme, base);
-    lookFrom = look;
+    lookFrom = baseLook;
     lookTo = applyScene(base, SCENES[sceneId]);
     lookMix = 0;
     lookFade = fade;
@@ -676,7 +702,8 @@ export function createStage(opt: StageOptions = {}): Stage {
       // ── 主题过渡：换主题不该是一次跳变 ──
       if (lookMix < 1) {
         lookMix = Math.min(1, lookMix + step / Math.max(0.05, lookFade));
-        look = lerpLook(lookFrom, lookTo, lookMix * lookMix * (3 - 2 * lookMix));
+        baseLook = lerpLook(lookFrom, lookTo, lookMix * lookMix * (3 - 2 * lookMix));
+        look = applyArc(baseLook, arcW);
         applyLook();
         // 晕心 / 构图 / 地平线都跟着 look 走，过渡期间必须每帧重算 ——
         // 不然换场景时世界换了、晕却停在上一套的位置上
@@ -820,6 +847,17 @@ export function createStage(opt: StageOptions = {}): Stage {
 
     get post() { return postEnabled && post !== null; },
     get look() { return look; },
+
+    setArc(progress) {
+      const a = Number.isFinite(progress) ? Math.max(0, Math.min(1, progress)) : 0;
+      // 一帧的增量小于这个数就不重算。1e-4 × 180s ≈ 18ms，比一帧还短 —— 线不会变成阶梯
+      if (Math.abs(a - arc) < 1e-4 && arcW !== ARC_OFF) return;
+      arc = a;
+      arcW = arcWeights(arc);
+      look = applyArc(baseLook, arcW);
+      applyLook();
+    },
+    get arc() { return arc; },
 
     setScene(id) {
       sceneForced = isSceneId(id) ? id : null;
