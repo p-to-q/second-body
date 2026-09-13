@@ -1,0 +1,52 @@
+/**
+ * 字标的皮肤。**这一处是全站最大的字**，它的作用是把空画面变成构图。
+ */
+
+.sb-wordmark {
+  position: fixed;
+  top: calc(var(--sb-safe) * 0.5);
+  left: calc(var(--sb-safe) * 0.5);
+  /* 10 = 在入口展签之下、在画布之上。目录和控件是 11，它们展开时压过字标 —— 对的，
+     因为那时观众在操作，不在看标识。 */
+  z-index: 10;
+  pointer-events: none;
+  transition: opacity 600ms;
+}
+.sb-wordmark-link { pointer-events: auto; display: block; border: 0; }
+
+/* 字标本身。mask 而不是 <img> 直接显示 —— 这样它取 CSS 的颜色，
+   在白展厅下自动变深（--sb-on-stage 由 stage.ts 按场景底色发布）。 */
+.sb-wordmark-mark {
+  display: block;
+  /* 宽度跟着视口走：1440 上约 250px，比正文的 display 级还大一档。
+     上限 320 是为了在超宽屏上不失控 —— 它是标识不是标题。 */
+  width: clamp(9.5rem, 17vw, 20rem);
+  aspect-ratio: 489 / 313;
+  background: var(--sb-on-stage);
+  -webkit-mask: var(--mark) no-repeat center / contain;
+  mask: var(--mark) no-repeat center / contain;
+}
+
+/* 字标下面那一句：一条线切开，然后是并置的中英。
+   线的宽度跟字标一样 —— 两者因此读成一块，而不是一个 logo 加一段说明。 */
+.sb-wordmark-line {
+  width: clamp(9.5rem, 17vw, 20rem);
+  margin: 0.7rem 0 0;
+  padding-top: 0.55rem;
+  border-top: 1px solid color-mix(in srgb, var(--sb-on-stage) 28%, transparent);
+  font-size: var(--sb-size-small);
+  line-height: 1.45;
+}
+.sb-wordmark-line .sb-zh { color: var(--sb-on-stage); font-family: var(--sb-kai); }
+.sb-wordmark-line .sb-en { color: var(--sb-on-stage-dim); }
+
+/* 满屏画布页 4 秒后淡下去 —— 和目录、控件、页头同一个数（docs/23 §S4）。
+   不淡到 0：它是说明牌，得一直认得出来。 */
+.sb-wordmark.is-faded { opacity: 0.3; }
+.sb-wordmark:hover, .sb-wordmark:focus-within { opacity: 1; }
+
+@media (max-width: 560px) {
+  /* 窄屏上 17vw 太小，反而失去张力；同时那一句让位 */
+  .sb-wordmark-mark, .sb-wordmark-line { width: clamp(8rem, 38vw, 12rem); }
+  .sb-wordmark-line .sb-en { display: none; }
+}
