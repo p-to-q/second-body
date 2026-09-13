@@ -74,7 +74,7 @@ there is no build step to develop against.
 npm install
 npm run doctor          # environment self-check
 npm run dev             # → http://localhost:5173
-npm run kiosk           # build + serve + open /?kiosk=1 — the installation itself
+npm run kiosk           # build + serve + open /?kiosk=1&preview=on — the installation itself
 ```
 
 It runs with no assets at all (placeholder geometry). The one gate before

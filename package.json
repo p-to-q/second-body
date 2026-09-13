@@ -10,7 +10,7 @@
     "dev": "npm run dev -w @smu/app",
     "dev:slow": "SLOW_FAKE=1 npm run dev -w @smu/app",
     "build": "npm run build -w @smu/app",
-    "kiosk": "npm run build && npm run preview -w @smu/app -- --open \"/?kiosk=1\"",
+    "kiosk": "npm run build && npm run preview -w @smu/app -- --open \"/?kiosk=1&preview=on\"",
     "selftest": "npm run build && npm run preview -w @smu/app -- --open \"/?selftest=1\"",
     "test": "npm run test -w @smu/core && npm run test -w @smu/app",
     "factory:balance": "node --env-file=.env packages/factory/src/cli.ts balance",

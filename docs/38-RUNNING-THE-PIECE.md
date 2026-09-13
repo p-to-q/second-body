@@ -76,11 +76,11 @@ from another machine on the LAN, you need `https`.
 ```bash
 npm install
 npm run doctor          # machine self-check; changes nothing, prints no keys
-npm run kiosk           # build + preview + opens /?kiosk=1
+npm run kiosk           # build + preview + opens /?kiosk=1&preview=on
 ```
 
 `npm run kiosk` (root `package.json`) builds and serves the production bundle,
-then opens **`http://localhost:4173/?kiosk=1`**. That is the URL the installation
+then opens **`http://localhost:4173/?kiosk=1&preview=on`**. That is the URL the installation
 runs on. Nobody types a second command afterwards — that is P10, and it is why
 every on-site adjustment in §3 is a URL parameter rather than a rebuild.
 
@@ -123,6 +123,16 @@ of anyone).
 
 | Flag | Default | What it does | When you use it |
 |---|---|---|---|
+> **Run kiosk with `&preview=on`.** On its own, `?kiosk=1` turns off the exits
+> column, the nav, the HUD *and* the one visitor-facing degradation notice.
+> Each of those is right by itself; together they leave the on-site
+> configuration with **no outward signal at all**, so a dead camera and an
+> empty room look identical and the piece can play to a wall all evening while
+> the screen looks fine (`docs/36-DEGRADATION-AUDIT.md` D1). The small screen
+> in the top-left is what breaks the tie: with no camera it says
+> 「打开摄像头，它就能看见你」. It costs nothing and it is the only thing on
+> screen that can report this failure.
+
 | `?kiosk=1` | off | **On-site mode.** Hides the cursor, goes fullscreen on the first click anywhere, and turns the nav and the controls bar off. Also skips the entry layer, so the camera is requested at load (§4) | Setup. This is the installation's URL |
 | `?demo=1` | off | Replays recorded pose data instead of opening the camera. MediaPipe's wasm and models are not even fetched on this path | On-site — the survival mode when the camera dies or the network is gone |
 | `?clip=<name>` | auto | Picks the replay clip, with `?demo=1`. Three spellings all work: `walkturn`, `pose-walkturn.json`, `/demo/pose-walkturn.json`. Available today: `pose-walkturn`, `pose-jumpingjacks` (both real recordings) and `pose-synthetic`. With no flag it picks a **real** recording before a synthetic one | On-site, with `?demo=1` |
