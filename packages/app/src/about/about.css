@@ -5,7 +5,7 @@
  *
  * 骨架已经搬到 `ui/editorial.css`：巨题首屏（`.ed-hero`）和吸顶标签的两栏
  * （`.ed-section`）都在那里，因为 /making 和 /passport 要用同一套。
- * 这个文件只剩**这一页独有**的东西：90 秒的五步、两条回路的对照、
+ * 这个文件只剩**这一页独有**的东西：三分钟的五步与四个乐章、两条回路的对照、
  * 以及物种谱系那张散点 —— 那是 /about 的关键视觉，别的页面没有。
  *
  * 不用卡片、不用阴影、不用圆角（docs/23 §0 禁止清单）。分区只用细横线。
@@ -40,7 +40,7 @@
 .about-tag .sb-zh, .about-tag .sb-en { display: inline; }
 .about-tag .sb-en::before { content: ' / '; color: var(--sb-rule); }
 
-/* ── 90 秒：五个步骤横排。用线分栏，不用框 ──────────────────────────── */
+/* ── 观众的三分钟：五个步骤横排。用线分栏，不用框 ──────────────────── */
 .about-steps {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -68,6 +68,27 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--sb-gutter);
   margin: 1.25rem 0;
+}
+
+/* ── 三分钟：四个乐章。同一个构件，少一栏 ──────────────────────────────
+ * 不为它发明第二种横排：这一节和 90 秒那一条读起来必须是同一种东西 ——
+ * 一条时间轴。差别只有栏数（四段而不是五步），以及左上角那个坐标从序号
+ * 换成时刻，因为乐章有时间点而步骤没有。
+ */
+.about-steps--arc { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 720px) {
+  .about-steps--arc { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+/* 时刻。等宽，和 /making 左栏那一列是同一个构件 */
+.about-step-at { display: block; margin-bottom: 0.4rem; }
+/* 陈述里的那个词。等宽小号压暗 —— 它是标注，不是小标题 */
+.about-step-term {
+  display: block;
+  font-family: var(--sb-mono);
+  font-size: var(--sb-size-micro);
+  letter-spacing: var(--sb-tracking-label);
+  color: var(--sb-ink-dim);
+  margin-bottom: 0.4rem;
 }
 @media (max-width: 720px) { .about-loops { grid-template-columns: minmax(0, 1fr); } }
 .about-loop { border-top: 1px solid var(--sb-rule); padding-top: 0.75rem; }

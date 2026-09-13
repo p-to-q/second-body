@@ -257,7 +257,12 @@ export const COPY = {
     metaFormV: bi('实时交互装置 · 姿态捕捉 · 实时生成', 'Real-time interactive installation · pose capture · generative'),
     metaSpecies: bi('物种', 'Species'),
     metaDuration: bi('单次时长', 'Duration'),
-    metaDurationV: bi('约 90 秒', 'about 90 seconds'),
+    /**
+     * 单次时长。**这个数不是估的，它是 `tuning.ts` 的 `ARC.total`**（180 秒）——
+     * 会话弧线落地之前这里写的是「约 90 秒」，那时它确实只是一个观察值；
+     * 现在它是一条被定死的时间轴，展签上就该写那条时间轴的长度（docs/40 §2）。
+     */
+    metaDurationV: bi('约三分钟', 'about three minutes'),
   },
 
   /** 作品陈述页 `/about` —— 面向观众和评委，不是面向开发者 */
@@ -323,10 +328,15 @@ export const COPY = {
     // ── 它是什么 ──────────────────────────────────────────────────────
     whatTitle: bi('它是什么', 'What it is'),
     whatLead: bi(
-      '一台摄像头认出你的身体。屏幕上一具等身的合成身体跟着你动；你动得越多，它长得越复杂。',
-      'A camera finds your body. A life-size synthetic body moves as you move — and the more you move, the more elaborate it grows.',
+      '一台摄像头认出你的身体。屏幕上一具等身的合成身体跟着你动，然后用三分钟一点点不再是你。',
+      'A camera finds your body. A life-size synthetic body moves as you move — and then, over three minutes, stops being you.',
     ),
-    ninety: bi('观众的 90 秒', 'Ninety seconds'),
+    /**
+     * 这一栏原来写「观众的 90 秒」。90 从来只是一个观察值；
+     * 会话弧线落地之后这件作品有了一条定死的时间轴（`ARC.total = 180`），
+     * 而展签、这一页、弧线那一节必须是同一个数。
+     */
+    ninety: bi('观众的三分钟', 'The visitor’s three minutes'),
     steps: {
       see: bi('看见', 'See'),
       seeNote: bi('空场里一团粒子在呼吸', 'A field of particles, breathing'),
@@ -339,6 +349,58 @@ export const COPY = {
       leave: bi('带走', 'Leave'),
       leaveNote: bi('一个编号，扫码带走', 'A seed, taken away by phone'),
     },
+
+    // ── 三分钟 ────────────────────────────────────────────────────────
+    /**
+     * 会话弧线（`docs/40-SESSION-ARC.md`）。
+     *
+     * **为什么它该在这一页上，而不只是在 docs 里**：在这条弧线之前，这件作品
+     * 没有时间 —— 观众体验到的是一堆状态，不是一段经过。而陈述写的恰恰是一段经过。
+     * 四个乐章的名字**取自陈述里的那四个词**，所以这一节和上面那张概念表是同一件事
+     * 的两个面：那张表是艺术家给的词，这一节是那些词各自占据的那四十几秒。
+     *
+     * 两条纪律：
+     *
+     * 1. **不写秒表以外的承诺。** 时间点直接来自 `tuning.ts` 的 `ARC`
+     *    （`total: 180`、`beats: [0.22, 0.25, 0.28, 0.25]`），不另存一份。
+     * 2. **`arcNever` 那一段不要改软。** 它是这条弧线唯一的硬规矩，也是这件作品
+     *    和「一块自己在动的屏幕」之间的全部区别。写成"它仍然会参考你的动作"
+     *    就等于把它删了。
+     */
+    arcTitle: bi('三分钟', 'Three minutes'),
+    arcLead: bi(
+      '四个乐章不是我们另起的名字，它们就是陈述里的那四个词。时间是主轴，动作只是加速项 —— 一个站着不动的人也在经历这条弧线，只是慢一点。',
+      'The four movements are not our names for anything: they are the four words of the statement. Time is the main axis and movement only an accelerator — someone who stands perfectly still still goes through the arc, just more slowly.',
+    ),
+    /** `at` 是时间点，`term` 是陈述里的那个词（原文，不配第二层英文注） */
+    arcMovements: [
+      { at: '0:00', term: 'datafication',
+        name: bi('跟随', 'Follow'),
+        note: bi('它就是你：你的比例，零延迟。起初像是在看一面镜子。',
+                 'It is you — your proportions, no latency. At first it is like looking into a mirror.') },
+      { at: '0:40', term: 'Morphogenesis · zoe',
+        name: bi('回声', 'Echo'),
+        note: bi('它慢半拍，零件开始被换掉。形还是你的，材料已经不是了。',
+                 'Half a beat behind, and its parts begin to be replaced. The shape is still yours; the material is not.') },
+      { at: '1:25', term: 'simulacrum',
+        name: bi('抵抗', 'Resist'),
+        note: bi('人形让位给这个物种自己的身体。镜像开始脱离镜像。',
+                 'The humanoid gives way to this species’ own body. The mirror starts to leave the mirror.') },
+      { at: '2:15', term: 'distributed agency',
+        name: bi('朝向', 'Facing'),
+        note: bi('它转过来看你。你把动作给它，它把另一种身体还给你。',
+                 'It turns and looks at you. You give it your movement; it gives you back another kind of body.') },
+    ],
+    arcNever: bi(
+      '四个乐章变的是映射，不是来源。到第三分钟它已经不像你了，而它做的每一个动作仍然来自你此刻的动作 —— 你停下来，它也停下来。它要是自己动起来了，作者身份就完整地归了机器。',
+      'What the four movements change is the mapping, never the source. By the third minute it no longer looks like you, and every move it makes still comes from what you are doing right now — stop, and it stops. If it ever moved on its own, the authorship would pass whole to the machine.',
+    ),
+    /** 物质那一条（docs/41）。和上面是同一条线的两半：形在变，表面也在变 */
+    materialTitle: bi('它开场是一张画', 'It opens as a drawing'),
+    materialBody: bi(
+      '表面走同一条线。开场那一具是被画出来的：平涂、墨线、没有高光 —— 一张关于你的图示，而那正是数据化的零点。三分钟里它一点点变成一个东西：粗糙度按部位分开、材质自己的颜色从薄处透出来、金属起来，开始映这间屋子，而不是被我们的灯描述。最后那圈描边换成它自己的颜色 —— 线还在，但它不再是我们替它描的那一条。',
+      'The surface follows the same line. What stands up at the start is drawn: flat colour, an ink outline, no highlights — a diagram of you, which is exactly what datafication looks like. Over three minutes it becomes a thing instead: roughness splits by role, the material’s own colour shows through where it is thin, metal comes up and it starts reflecting the room rather than being described by our lights. At the end the outline takes its own colour — the line is still there, but it is no longer the one we drew for it.',
+    ),
 
     // ── 为什么 ────────────────────────────────────────────────────────
     whyTitle: bi('为什么', 'Why'),
@@ -384,8 +446,8 @@ export const COPY = {
       poseNote: bi('摄像头 → 骨架。全部在你的设备上算。', 'Camera to skeleton, computed entirely on your device.'),
       plan: bi('身体方案', 'Body plan'),
       planNote: bi(
-        '同一副骨架重映射成四种形体。换物种是换形体，不是换一层皮。',
-        'One skeleton, remapped into four builds. Changing species changes the body, not the paint.',
+        '同一副骨架重映射成九种形体。换物种是换形体，不是换一层皮。',
+        'One skeleton, remapped into nine builds. Changing species changes the body, not the paint.',
       ),
       express: bi('表达', 'Expression'),
       expressNote: bi(
@@ -459,7 +521,7 @@ export const COPY = {
   /**
    * 控件条 —— 把已经存在的能力变成可以当场演示的。
    *
-   * 为什么要有它：这件作品做了四套场景、八种身体方案、跟随延迟、时域精化、
+   * 为什么要有它：这件作品做了五套场景、九种身体方案、跟随延迟、时域精化、
    * 四个玩法，而**它们此前全部只能用 URL 参数切**。观众和评委看不见其中任何一样，
    * 不是因为它们没做，是因为没有一个地方能按一下。
    *
@@ -666,6 +728,30 @@ export const COPY = {
   },
 
   /**
+   * `/passport.html` 共生护照。
+   *
+   * 这一页此前把题头的中英文**手搭在 DOM 里**（`'共生护照'` / `'Symbiosis Passport'`
+   * 两个字面量直接进 `createElement`）。两个后果：中英对照永远可能漏一句，
+   * 而且那条路绕过了 `setBi`，于是汉字那 0.06em 的左边距补偿**一次都没有生效** ——
+   * 和选择页名牌那个自造 class 的 bug 是同一类，只是它躲在页题上更难看出来。
+   * 现在题头走这里。**章的正文仍然留在 `passport.ts`**：每一枚章是一条带日期的
+   * 存证记录，它和文案不是一个身份，搬进文案总册反而会让人以为它可以被改写。
+   */
+  passport: {
+    title: bi('共生护照', 'Symbiosis Passport'),
+    /** 三条，不是两条 —— 第三枚章是 2026-09-13 加的（裁定人是另一个代理） */
+    lede: bi(
+      '三条过程性证明。两次拒入，一次准入。',
+      'Three records of process. Two entries refused, one admitted.',
+    ),
+    work: bi('作品', 'Work'),
+    foot: bi(
+      '本页每一条都可在仓库中核对。挖不到证据的事件没有被写进来。',
+      'Every record on this page can be checked against the repository. Events without evidence were left out.',
+    ),
+  },
+
+  /**
    * `/lineage` 谱系页。
    *
    * 这一页只回答一个问题：**一个观众怎么知道"我身上这块是别人留下的"。**
@@ -741,8 +827,8 @@ export const COPY = {
   making: {
     title: bi('做的过程', 'The Making'),
     thesis: bi(
-      '一个人和一群代理在九个小时里一起做决定：谁说了什么、谁不同意、为什么、最后动的是哪一边。',
-      'One person and a crew of agents deciding together across nine hours — who said what, who disagreed, why, and which side actually moved.',
+      '一个人和一群代理在两天里一起做决定：谁说了什么、谁不同意、为什么、最后动的是哪一边。',
+      'One person and a crew of agents deciding together across two days — who said what, who disagreed, why, and which side actually moved.',
     ),
     lede: bi(
       '下面每一条都指向一个 commit。挖不到证据的事没有写进来。',
@@ -753,7 +839,7 @@ export const COPY = {
       numbers: bi('数字', 'Count'),
       timeline: bi('时间线', 'Timeline'),
       corrections: bi('互相纠正', 'Corrections'),
-      principles: bi('踩出来的十条', 'Ten Principles, Earned'),
+      principles: bi('踩出来的十一条', 'Eleven Principles, Earned'),
       gaps: bi('这一页没有写的', 'Left Out'),
     },
 
@@ -765,17 +851,24 @@ export const COPY = {
       result: bi('结果', 'Outcome'),
     },
 
+    /**
+     * **每次改这一页都要重新点一遍。** 这张表上的每个数都不是估的，
+     * 但「点出来的」只在点的那一刻为真（docs/02 P21 第 2 条）——
+     * 上一版把 191 件冻在这里，而部件库当时已经走到 208；合入 main 之后它又是 220。
+     * 复核的四条命令：提交数走版本历史、两个包各自的测试脚本、
+     * `npm run check:parts`（件数）、`node packages/app/poster/build-data.mjs`（条目与身体方案）。
+     */
     numbersNote: bi(
-      '全部从 git 与文件系统里点出来的，不是估的。',
-      'Counted out of git and the file system. Not estimated.',
+      '全部从版本历史与文件系统里点出来的，不是估的。这一栏点于 2026-09-13 —— 推导出来的数只在推导的那一刻为真，所以它带着日期。',
+      'Counted out of the history and the file system, not estimated. This column was counted on 2026-09-13 — a derived number is only true at the moment it was derived, so it carries its date.',
     ),
     timelineNote: bi(
       '不是 changelog。选进来的每一条都是一次判断 —— 有人本可以走另一边。',
       'Not a changelog. Each entry is a judgement call — someone could have gone the other way.',
     ),
     correctionsNote: bi(
-      '同一个结构展开：谁说了什么、谁不同意、理由、结果。六件都真的发生过。',
-      'Same shape each time: claim, objection, reason, outcome. All six actually happened.',
+      '同一个结构展开：谁说了什么、谁不同意、理由、结果。八件都真的发生过。最后两件里，不同意的那一方也是一个代理。',
+      'Same shape each time: claim, objection, reason, outcome. All eight actually happened. In the last two, the party that disagreed was also an agent.',
     ),
     principlesNote: bi(
       '每条原则都附着教会它的那件事。没有故事的原则活不过三天。',
@@ -788,94 +881,127 @@ export const COPY = {
 
     /** 数字。`value` 一律是从 git / 文件系统点出来的原样，不做四舍五入 */
     numbers: [
-      { value: '52', label: bi('次提交', 'Commits'), note: bi('14:24 → 23:28，同一天', '14:24 → 23:28, one day') },
-      { value: '8', label: bi('次合并', 'Merges'), note: bi('八条 worktree 分支各自合回一次', 'Eight worktree branches, merged back once each') },
-      { value: '6', label: bi('条泳道', 'Lanes'), note: bi('五条主线 + 一条素材侧线', 'Five main, one asset side-lane') },
-      { value: '5', label: bi('个并行 worktree', 'Parallel worktrees'), note: bi('git add -A 那一次索引里有五个（480a48f）', 'Five sat in the index the time git add -A swallowed them — 480a48f') },
+      { value: '249', label: bi('次提交', 'Commits'), note: bi('第一条 09-12 14:24，最后一条 09-13 22:56', 'First at 09-12 14:24, last at 09-13 22:56') },
+      { value: '62', label: bi('次合并', 'Merges'), note: bi('分支合回来，以及主线合进分支', 'Branches merged back, and main merged in') },
+      { value: '28', label: bi('条并行分支', 'Parallel branches'), note: bi('每条是一个代理的一间工作室', 'One worktree, one agent, one room') },
+      { value: '5', label: bi('个并行 worktree', 'Worktrees at once'), note: bi('git 一次把五个当成嵌入仓库吞了进去（480a48f）', 'Five got swallowed as embedded repos in one go — 480a48f') },
       { value: '7', label: bi('条契约裁决', 'Contract rulings'), note: bi('分三次报上来，三次都没在下游打补丁', 'Three reports, zero downstream patches') },
-      { value: '129', label: bi('个测试', 'Tests'), note: bi('core 91 + app 38，全过', 'core 91 + app 38, all green') },
-      { value: '15', label: bi('个测试文件', 'Test files'), note: bi('随 npm run check 一起跑', 'Run by npm run check') },
-      { value: '191', label: bi('件部件', 'Parts'), note: bi('23 个条目共用一个部件库', '23 entries share one library') },
-      { value: '10', label: bi('件剔除', 'Rejected'), note: bi('保留 0 件 —— keep 是审美判断，留给人', 'Zero keeps: that call belongs to a person') },
-      { value: '25', label: bi('份文档', 'Documents'), note: bi('契约与背景分开写', 'Contracts kept apart from context') },
-      { value: '94', label: bi('个 TS 文件', 'TS files'), note: bi('不含 node_modules', 'node_modules excluded') },
-      { value: '10', label: bi('条原则', 'Principles'), note: bi('P11–P20，每条都有它的事故', 'P11–P20, each with its incident') },
+      { value: '432', label: bi('个测试', 'Tests'), note: bi('core 182 + app 250，全过', 'core 182 + app 250, all green') },
+      { value: '48', label: bi('个测试文件', 'Test files'), note: bi('随 npm run check 一起跑', 'Run by npm run check') },
+      { value: '220', label: bi('件部件', 'Parts'), note: bi('28 个物种共用一个部件库', '28 species share one library') },
+      { value: '12', label: bi('件剔除', 'Rejected'), note: bi('保留 0 件 —— keep 是审美判断，留给人', 'Zero keeps: that call belongs to a person') },
+      { value: '45', label: bi('份文档', 'Documents'), note: bi('契约与背景分开写', 'Contracts kept apart from context') },
+      { value: '181', label: bi('个 TS 文件', 'TS files'), note: bi('不含 node_modules', 'node_modules excluded') },
+      { value: '11', label: bi('条原则', 'Principles'), note: bi('P11–P21，每条都有它的事故', 'P11–P21, each with its incident') },
     ],
 
     /** 时间线。每条都是一次判断 —— 不是 changelog */
     timeline: [
-      { hash: '2933ec4', time: '14:24', text: bi(
+      { hash: '2933ec4', day: '09-12', time: '14:24', text: bi(
         '起手先写契约和背景，再写第一行运行时代码。部件格式、挂载数学、主题表 —— 都在有东西可跑之前定下来。',
         'Contracts and context first, runtime code second. Part format, attachment math, theme table — all settled before anything could run.') },
-      { hash: '480a48f', time: '14:44', text: bi(
+      { hash: '480a48f', day: '09-12', time: '14:44', text: bi(
         '编排者的 git add -A 把五个 worktree 当成嵌入式仓库塞进了索引。下一条提交把它们排除出去。',
         'The orchestrator’s git add -A swallowed five worktrees as embedded repos. The next commit pushed them back out.') },
-      { hash: 'f9dc4b3', time: '14:52', text: bi(
+      { hash: 'f9dc4b3', day: '09-12', time: '14:52', text: bi(
         '?seed= 留空会被 Number(\'\') === 0 坑成锁定 seed 0 —— 现场会看到每个人都变成同一具身体。',
         'An empty ?seed= fell through Number(\'\') === 0 and pinned every visitor to seed 0 — the same body for everyone.') },
-      { hash: 'f720220', time: '14:59', text: bi(
+      { hash: 'f720220', day: '09-12', time: '14:59', text: bi(
         '裁决：验收标准是编排者写反的。改的是契约，不是实现。',
         'Ruling: the acceptance criterion itself was backwards. The contract moved, the implementation did not.') },
-      { hash: '4576a8b', time: '15:08', text: bi(
+      { hash: '4576a8b', day: '09-12', time: '15:08', text: bi(
         '采集线把量深度的工具和判据全部交付，结论那一栏空着 —— 这台机器前面没有人可以蹲下。',
         'The capture lane shipped the instrument and the criterion, and left the conclusion blank: nobody was there to squat in front of the camera.') },
-      { hash: '8720d21', time: '15:09', text: bi(
+      { hash: '8720d21', day: '09-12', time: '15:09', text: bi(
         '合成占位数据在加载路径上补了一条 console.warn。只写在文件里的警告，等于没有警告。',
         'The synthetic placeholder data got a console.warn on its load path. A warning only visible inside the file is not a warning.') },
-      { hash: '27aea60', time: '15:12', text: bi(
+      { hash: '27aea60', day: '09-12', time: '15:12', text: bi(
         '装配线报上来两处文档与实现不一致。文档改成指向 tuning.ts，不再自己抄一份数字。',
         'The assembly lane flagged two doc-vs-code mismatches. The doc now points at tuning.ts instead of keeping its own copy of the number.') },
-      { hash: '2370c67', time: '15:25', text: bi(
+      { hash: '2370c67', day: '09-12', time: '15:25', text: bi(
         '玩法扩展点自带故障隔离：连续 3 次抛异常就永久禁用并回落。让「随便试」变安全，是那块空间成立的前提。',
         'The act extension point ships with its own blast door: three consecutive throws and an act is disabled for good. Cheap experiments only exist if they are survivable.') },
-      { hash: '196f527', time: '15:26', text: bi(
+      { hash: '196f527', day: '09-12', time: '15:26', text: bi(
         '第一遍策展只标 10 个剔除，保留一个没标。keep 的含义是「永不重新生成」—— 那是审美判断。',
         'First curation pass marked ten rejects and zero keeps. A keep means “never regenerate this” — that is a taste call, not a machine call.') },
-      { hash: '05ffbb9', time: '15:34', text: bi(
+      { hash: '05ffbb9', day: '09-12', time: '15:34', text: bi(
         '目检 186 件得到的那张表没有被换成公式：长宽比 < 1.6 会漏掉 foot，而 foot 恰恰最严重。同一笔修掉了定向规范化会把 186 件索引删成 2 件。',
         'A list from eyeballing 186 parts stayed a list: the tidy “aspect ratio < 1.6” rule dropped foot, the worst offender. The same commit fixed a targeted normalize that cut a 186-part index down to 2.') },
-      { hash: '87b93f8', time: '15:41', text: bi(
+      { hash: '87b93f8', day: '09-12', time: '15:41', text: bi(
         '写下头号设计缺陷：23 个条目其实是同一具人体换皮。不是素材质量问题，是只有一种表达方式。',
         'The top design defect gets written down: all 23 entries are one human body reskinned. Not an asset-quality problem — only one mode of expression existed.') },
-      { hash: '4293b1c', time: '17:56', text: bi(
+      { hash: '4293b1c', day: '09-12', time: '17:56', text: bi(
         '补上 PRD 的三条产品主张，并当场写明第三条现在不成立。',
         'The PRD lands with three exclusive claims, and a note that the third one does not hold yet.') },
-      { hash: '8a8ab68', time: '18:00', text: bi(
+      { hash: '8a8ab68', day: '09-12', time: '18:00', text: bi(
         'P11–P20 并进宪法：原则散在 commit 信息里就会消失，收进一处并各自附上教会它的那件事。',
         'P11–P20 join the constitution. Principles scattered across commit messages evaporate; collected, each keeps the incident that taught it.') },
-      { hash: '19880ae', time: '18:12', text: bi(
+      { hash: '19880ae', day: '09-12', time: '18:12', text: bi(
         '第一个真的不是人形的物种。关键设计：四肢的世界方向原样保留，只把肩胯搬到水平躯干上 —— 「你抬手，它抬前腿」的因果不能断。',
         'The first genuinely non-human body plan. The design hinges on keeping limb world directions untouched and moving only the sockets: lift your arm, the foreleg lifts. That causal line must survive.') },
-      { hash: '448127a', time: '18:25', text: bi(
+      { hash: '448127a', day: '09-12', time: '18:25', text: bi(
         '现场兜底的全部前置条件做完 —— 录制页、写回管线、拒收合成数据的中间件。仍然没有兜底，因为缺的是一个真人，而代理没有再造一份假数据顶上。',
         'Every precondition for the venue fallback is finished — recorder page, write-back pipeline, middleware that refuses synthetic data. There is still no fallback, because what is missing is a person, and the agent would not fake one.') },
-      { hash: 'a2127d8', time: '18:29', text: bi(
+      { hash: 'a2127d8', day: '09-12', time: '18:29', text: bi(
         '一条线险些静默删掉别人刚落地的东西。它自己在提交前看了一眼暂存区，退回重做，并报了上来。',
         'One lane came within a commit of silently deleting work another lane had just landed. It checked its own staged diff, backed out, redid it, and said so.') },
-      { hash: '0869fc2', time: '18:57', text: bi(
+      { hash: '0869fc2', day: '09-12', time: '18:57', text: bi(
         '任务卡让代理去读一份还没提交的文档。代理如实说「这个前提是假的，所有数字是我自己测的」，没有假装读过。',
         'A task card told an agent to read a document that had never been committed. The agent said so plainly — “that premise is false; every number here is my own measurement” — instead of pretending.') },
-      { hash: 'dfc9c63', time: '18:58', text: bi(
+      { hash: 'dfc9c63', day: '09-12', time: '18:58', text: bi(
         '团块身体合入，代理自己标出三处不足：躯干是个圆蛋、低分辨率不是降质而是换了个生物、表面还不会动。',
         'The metaball body merges, with the agent listing its own three shortfalls: the torso is an egg, low resolution is a different creature rather than a cheaper one, and the surface does not move yet.') },
-      { hash: 'f013230', time: '22:55', text: bi(
+      { hash: 'f013230', day: '09-12', time: '22:55', text: bi(
         '第一次真跑构建：产物 975MB。「raw 绝不进 dist」这句话在文档里躺了一整天，没人验证过。降到 45MB。',
         'The first real build weighed 975MB. “raw never ships” had sat in the docs all day, unverified. Down to 45MB.') },
-      { hash: '3b63973', time: '23:02', text: bi(
+      { hash: '3b63973', day: '09-12', time: '23:02', text: bi(
         '舞台线推翻自己的前一版四处，每处给理由：升档脉冲从 +108% 改回规格的 +8%，地面冲击波环删掉。',
         'The stage lane overturns four of its own earlier choices and gives a reason for each: the tier-up pulse goes from +108% back to the specified +8%, and the ground shockwave ring is deleted.') },
-      { hash: '1e55834', time: '23:12', text: bi(
+      { hash: '1e55834', day: '09-12', time: '23:12', text: bi(
         '字体先决定不进仓库：理由不是权利人是谁，而是个人非商用的「使用」授权几乎从不包含「再分发」，而这个仓库是公开的。',
         'The typeface is first kept out of the repo — not because of who owns it, but because a personal non-commercial licence to use almost never includes redistribution, and this repo is public.') },
-      { hash: '2850e62', time: '23:17', text: bi(
+      { hash: '2850e62', day: '09-12', time: '23:17', text: bi(
         '项目持有人确认授权后字体才进仓库，并且做成可以随时拆掉：回退栈度量完全一致，删掉那个目录排版不变。',
         'It ships only after the project owner confirms the licence, and it ships detachable: the fallback stack has identical metrics, so deleting the folder changes nothing about the typography.') },
-      { hash: 'fe8a5c2', time: '23:24', text: bi(
+      { hash: 'fe8a5c2', day: '09-12', time: '23:24', text: bi(
         '团块补上表面语言 —— 这是它交回时自己指出的缺口。三层叠加各管一件事，幅度刻意小：破了硬夹剪影就散了，那时读到的是「模型在抖」。',
         'The metaball body gets its surface language — the gap the lane itself had named on handover. Three layered waves, each with one job, deliberately shallow: past the hard clamp the silhouette dissolves and it reads as a glitching mesh.') },
-      { hash: '96f5270', time: '23:26', text: bi(
+      { hash: '96f5270', day: '09-12', time: '23:26', text: bi(
         '收尾不是宣布完成，而是逐条对照六条判据：只有一条是确凿的。并记下那个结构性问题 —— 精力大量投在可自动验证的层，而作品成立与否落在只能由人判断的层。',
         'The last act is not a declaration of done but a line-by-line audit against six criteria: exactly one holds. Plus the structural note — effort pooled in the auto-verifiable layer, while whether the work lands at all sits in the layer only a person can judge.') },
+      { hash: '50ae32d', day: '09-13', time: '12:07', text: bi(
+        '叙事中文的楷书换掉，而不是重跑一遍子集：芫荽是繁体字身，「关 观 对 实 验」这 81 个字上游的字表里根本没有，重跑一百遍也救不回来。',
+        'The narrative typeface is replaced rather than re-subset: Iansui carries traditional forms, and the 81 simplified-only characters were never in the upstream font at all. No amount of re-subsetting recovers them.') },
+      { hash: '0b3fa23', day: '09-13', time: '17:30', text: bi(
+        '左上角多了一块小屏幕，回答「它有没有看见我」。「默认零 UI」的前提是它真的在动 —— 追踪垮掉时身体只是站着，而那和「坏了」在观众眼里是同一个画面。',
+        'A small screen appears in the top-left corner, answering one question: can it see me. “Zero UI by default” assumes the thing is actually moving — when tracking dies the body simply stands there, and to a visitor that is the same picture as broken.') },
+      { hash: 'b6e6ee6', day: '09-13', time: '17:41', text: bi(
+        '「场」的 tagline 是「身体消失，只剩运动」，而它当时是一具向别的物种借了整套四肢的机器人。改成 1400 个点跟着活骨架走，每个点停在自己的那一刻。',
+        'The species called Field is captioned “the body disappears; only the movement is left” — and it was a robot wearing a full set of limbs borrowed from other species. It becomes 1,400 points locked to the live skeleton, each sitting at its own moment in the past.') },
+      { hash: '2993fa7', day: '09-13', time: '19:21', text: bi(
+        '海报数字号称「算出来的，从不手打」。它确实算过 —— 算过一次，然后冻在 191 件，而部件库已经走到 208。这一条写下来的当天，它又变成了 220。',
+        'The poster numbers were “computed, never typed”. They were computed — once — and then frozen at 191 parts while the library moved on to 208. By the day this line was written it was 220.') },
+      { hash: 'a8c04ea', day: '09-13', time: '19:31', text: bi(
+        '在这之前这件作品没有时间：分档看的是累计运动量，玩法是随机加权挑的。四个乐章按陈述里的那四个词命名，时间成为主轴、动作降为加速项。',
+        'Until now the work had no time: tiers tracked accumulated movement and acts were drawn by weighted random. Four movements, named after the statement’s own four words, make time the main axis and movement merely an accelerator.') },
+      { hash: '04730e1', day: '09-13', time: '20:00', text: bi(
+        '把这条线上最硬的一条写成测试：到第四乐章它已经不像你，而它做的每一个动作仍然来自你此刻的动作。它要是自己动起来了，作者身份就完整地归了机器。',
+        'The arc’s hardest rule becomes a test: by the fourth movement it no longer looks like you, and every action it takes still comes from what you are doing right now. If it ever moved on its own, the authorship would pass whole to the machine.') },
+      { hash: '204b21e', day: '09-13', time: '20:07', text: bi(
+        '描边翻成全局默认，把一份写到一半的材质设计的前提掀了。停下来重读一遍陈述，结论反过来更准：平涂加墨线本身就是第一乐章 —— 它开场是一张画。',
+        'Turning the outline on by default pulled the ground out from under a half-written material design. Re-reading the statement turned the conclusion around and made it sharper: flat colour plus an ink line is the first movement. It opens as a drawing.') },
+      { hash: '7df5c18', day: '09-13', time: '20:22', text: bi(
+        '29 个物种逐条渲染复核。三条在运行时根本点不到 —— 而且不是报错，是静默换成另一个物种：帧上连名字都是别人的。',
+        'All 29 species are re-rendered and checked one by one. Three cannot be reached at runtime at all — and not with an error: they are silently swapped for another species, down to the name printed on the frame.') },
+      { hash: 'f826849', day: '09-13', time: '20:23', text: bi(
+        '降级路径审计，20 条跑了 12 条。最糟的失败不是崩溃 —— 崩溃看得见，有人会去按重启；最糟的是它安静地降级着跑完一整晚。',
+        'Every fallback path is audited; twelve of twenty were actually exercised. The worst failure is not a crash — a crash is visible and somebody restarts it. The worst is running the whole night quietly degraded.') },
+      { hash: '86bc02a', day: '09-13', time: '20:28', text: bi(
+        '第一次 30 分钟浸泡。判据是地板不是峰值：泄漏的签名是地板被抬高，而半小时后的地板和第一分钟逐字相同。',
+        'The first thirty-minute soak. The criterion is the floor, not the peak: a leak announces itself by lifting the floor, and after half an hour the floor read exactly what it read in the first minute.') },
+      { hash: '62b3c87', day: '09-13', time: '20:32', text: bi(
+        '手和脚上的墨碎成了片。判据只有一句：会变粗的是线，碎成片的是坏的。没有一个几何标量分得开 —— 全身最小的件反而最干净 —— 所以它只能是一张看出来的表。',
+        'The ink on hands and feet had shattered into flakes. One criterion settles it: a line that thickens is a line; a line that breaks into flakes is broken. No geometric scalar separates the two — the smallest part on the body is the cleanest — so it stays a list someone looked at.') },
     ],
 
     /** 互相纠正。四段式，全部真实，每件指到 commit */
@@ -958,9 +1084,35 @@ export const COPY = {
         result: bi('停下来问人。换一批随机种子重锚，并把这件事记在 RE_ANCHOR 里，而不是偷偷改 id 让它看起来没发生过。',
                    'It stopped and asked. The three were re-anchored with fresh seeds, recorded in RE_ANCHOR rather than quietly renamed so the failure would leave no trace.'),
       },
+      {
+        no: '07',
+        refs: ['7df5c18', 'b6e6ee6'],
+        title: bi('一个物种和它自己的说明书矛盾', 'A species that contradicted its own caption'),
+        said: bi('花名册上有一条叫「场」，tagline 写着「身体消失，只剩运动」。',
+                 'The roster carried a species called Field, captioned “the body disappears; only the movement is left”.'),
+        against: bi('物种自查那条线 —— 它把 29 条逐条渲染出来，和各自声称的对照。',
+                    'The species audit, which rendered all 29 entries one at a time and held each against what it declares.'),
+        because: bi('它当时没有自己的身体方案，走的是默认刚体装配，向别的物种借了一整套四肢 —— 画面上它是一具机器人，而机器人正是那句 tagline 说它已经不是的东西。',
+                    'It had no body plan of its own. It fell through to the default rigid assembly and wore a full set of limbs borrowed from other species — on screen it was a robot, which is precisely the thing its caption says it is no longer.'),
+        result: bi('给它一片跟着活骨架走的点：1400 个点，每个点停在过去自己的那一刻。不是给它换一套更好的零件 —— 有零件这件事本身就是那个矛盾。',
+                   'It was given a field of points locked to the live skeleton: 1,400 of them, each sitting at its own moment in the past. Not a better set of parts — having parts at all was the contradiction.'),
+      },
+      {
+        no: '08',
+        refs: ['7df5c18', '245b731'],
+        title: bi('三个物种在运行时被静默换成另一个', 'Three species were silently swapped for another'),
+        said: bi('花名册上 29 条，档案页、选择页、海报都按 29 条算。',
+                 'The roster lists 29 entries, and the archive, the chooser and the poster all counted 29.'),
+        against: bi('同一条自查线，在挨个渲染的时候发现三张帧长得一模一样。',
+                    'The same audit, which noticed while rendering them one by one that three frames looked identical.'),
+        because: bi('可选物种的名单是「索引里出现过的那些」。这三条一件自有件都没生成过，于是名单里没有它们，而那一行代码的另一个分支是随机挑一个 —— 不是报错，是换人：连画面上印的名字都是别人的。',
+                    'The list of available species is “whichever ones appear in the index”. These three had never had a single part generated, so they were not in the list — and the other branch of that line picks one at random. Not an error: a substitution, down to the name printed on the frame.'),
+        result: bi('修在源头，不是修那三条：缺件的表现应该是借件（沿 base 链，并且喊一声），不是换物种。一个故意留的空位现在看得见地缺席，而不是假装自己在场。',
+                   'Fixed at the source rather than in the three entries: missing parts should show up as borrowing — down the base chain, with a warning — never as a different species. A deliberately empty slot is now visibly absent instead of quietly impersonating someone.'),
+      },
     ],
 
-    /** P11–P20。每条 = 规则 + 教会它的那件事 */
+    /** P11–P21。每条 = 规则 + 教会它的那件事 */
     principles: [
       { id: 'P11',
         title: bi('契约的错由契约持有者裁决，不在下游打补丁', 'A broken contract is fixed by its owner, never patched downstream'),
@@ -1022,6 +1174,12 @@ export const COPY = {
                   'In order: git add -A staged five worktrees as submodules; a wait-loop command matched the very shell doing the waiting and hung two agents for half an hour; sharing the main directory with the asset lane collided on the git index.'),
         rule: bi('编排者的错会被乘以并行度。所以编排者的每一条指令，在发出去之前都该按「它会被执行十次」来检查。',
                  'An orchestrator’s mistakes are multiplied by the parallelism. Check every instruction as if it will be executed ten times, because it will.') },
+      { id: 'P21',
+        title: bi('仪表会朝着讨好你的方向说谎', 'Your instruments lie in the direction that flatters you'),
+        story: bi('同一种失败换了五张脸：号称「算出来从不手打」的海报数字，算过一次就冻在了 191；截图前那个「暂停」把每帧的 dt 夹在下限上，于是一千个虚拟帧照跑；等一行 ALLDONE 等了九分钟，而二十四张图早就在盘上了；取件来源钉在分支上，网格在脚下换掉而检查照样 0 错；帧时间显示 2.42 毫秒 —— 那一刻是 16 fps。',
+                  'One failure wearing five faces: poster numbers “computed, never typed” that were computed once and froze at 191; a pause button that clamped dt to its floor, so a thousand virtual frames ran before the screenshot; nine minutes spent waiting for a line of output while all twenty-four images already sat on disk; harvest sources pinned to a branch, so the mesh could change underfoot with every check still green; a frame-time readout of 2.42 ms — taken at 16 fps.'),
+        rule: bi('问一句：假如这件事真的坏了，这个仪表会显示什么？答案要是「和现在一模一样」，它就不是仪表。推导出来的数只在推导的那一刻为真 —— 要么在用的时候重新推一遍，要么把它是从哪儿推出来的一起写上。',
+                 'Ask what the instrument would show if the thing were broken. If the answer is “exactly what it shows now”, it is not an instrument. A derived number is only true at the moment it was derived: either re-derive it where it is used, or stamp it with what it came from.') },
     ],
 
     /** 挖不到证据的事。列出来，而不是编一条填上 */
@@ -1037,8 +1195,8 @@ export const COPY = {
     ],
 
     footer: bi(
-      '人类署名 2 人、代理共同署名 52 次。每一条 commit 都写着它是谁和谁一起做的。',
-      'Two human authors; fifty-two agent co-author lines. Every commit records who made it with whom.',
+      '人类署名 2 人；249 条提交里有 185 条写着代理的共同署名。每一条都写着它是谁和谁一起做的。',
+      'Two human authors; of 249 commits, 185 carry an agent’s co-author line. Every one records who made it with whom.',
     ),
   },
 } as const;

@@ -13,8 +13,10 @@
  *    要么不提，要么用 `about.spec`（规格）标出来。慢回路是这件作品概念上的核心，
  *    但它一行代码没写 —— 所以它在这一页上是「设计如此」，不是「已经做到」。
  *    这条比好看重要。
- * 2. **数字从 `parts.json` 现读。** 23 / 191 / 10 / 9 这些数写死在文案里，
- *    第一次改资产就会变成谎话。这一页要么读到真数据，要么不显示这一节。
+ * 2. **数字从 `parts.json` 现读。** 物种数、部件数、槽位数、材质数写死在文案里，
+ *    第一次改资产就会变成谎话 —— 这一页写这条注释的时候它们是 23 / 191 / 10 / 9，
+ *    今天是 28 / 208 / 10 / 9，而页面上一个字都没改过，因为它从来没存过那四个数。
+ *    这一页要么读到真数据，要么不显示这一节。
  * 3. **所有面向观众的字来自 `COPY`。** 这里一个中文字面量都不该出现。
  *
  * 页面是**并置双语**（`src/ui/i18n.ts` 的文件头解释了为什么不做切换）。
@@ -155,7 +157,7 @@ function statementSection(): HTMLElement {
     list);
 }
 
-/** 它是什么：一句话 + 观众的 90 秒（`docs/PRD §2` 那张图，搬到 web 上） */
+/** 它是什么：一句话 + 观众的三分钟（`docs/PRD §2` 那张图，搬到 web 上） */
 function whatSection(): HTMLElement {
   const steps: [BiText, BiText, boolean][] = [
     [COPY.about.steps.see, COPY.about.steps.seeNote, true],
@@ -203,6 +205,41 @@ function whySection(): HTMLElement {
     el('div', 'about-loops', fast, slow),
     biEl('p', COPY.about.slowLoopHonest, 'about-note'),
     biEl('p', COPY.about.slowLoopWhy),
+  );
+}
+
+/**
+ * 三分钟 —— 会话弧线与物质那一条（`docs/40` / `docs/41`）。
+ *
+ * **为什么它排在「为什么」之前**：上一节刚讲完观众在这三分钟里做什么，
+ * 这一节讲的是同一段时间里**作品在做什么**。把它推到论点之后，
+ * 读者会先读到"和 2019 年那件的区别"，再补一句"哦它还有时间轴" ——
+ * 而这条时间轴恰恰是那个区别的一半。
+ *
+ * **为什么四个乐章不带状态标记**：它们已经在跑（`main.ts` 每帧把 `arc.overall`
+ * 交给舞台和身体）。`docs/26 §G`：已实现的东西什么都不标，
+ * 而这一页的三个标记是留给"规格"和"现场限定"的，不是用来给每一节配一句告解。
+ */
+function arcSection(): HTMLElement {
+  const band = el('div', 'about-steps about-steps--arc');
+  for (const m of COPY.about.arcMovements) {
+    // 左上角那个时刻是**坐标**，等宽：它和 /making 左栏、和选择页倒计时同一个构件
+    const at = el('span', 'sb-label sb-num about-step-at');
+    at.textContent = m.at;
+    // 陈述里的那个词，原文。**不配第二层英文注** —— 它本来就是艺术家的英文
+    const term = el('span', 'about-step-term');
+    term.lang = 'en';
+    term.textContent = m.term;
+    band.append(el('div', 'about-step', at, biEl('h3', m.name), term, biEl('p', m.note)));
+  }
+
+  return section(COPY.about.arcTitle,
+    biEl('p', COPY.about.arcLead, 'about-lede'),
+    band,
+    // 这一段是整节的重心：它说的是这件作品和一块自己在动的屏幕之间的全部区别
+    biEl('p', COPY.about.arcNever, 'about-lede'),
+    biEl('h3', COPY.about.materialTitle),
+    biEl('p', COPY.about.materialBody),
   );
 }
 
@@ -386,7 +423,7 @@ export async function renderAbout(root: HTMLElement = document.body): Promise<vo
   document.body.style.cssText = 'overflow:auto;height:auto';
   root.classList.add('ed');
   const page = el('main', 'about');
-  page.append(head(), statementSection(), whatSection(), whySection());
+  page.append(head(), statementSection(), whatSection(), arcSection(), whySection());
   root.append(page);
 
   const index = await loadIndex();
