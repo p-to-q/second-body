@@ -21,8 +21,8 @@
  */
 import type { PartLibraryIndex } from '../../../core/src/types.ts';
 import { COPY, setBi, type BiText } from '../ui/i18n.ts';
-import { markNode } from '../ui/mark.ts';
 import { PLAN_LABEL, orderThemes, planKind, speciesNumber } from '../ui/species.ts';
+import { markNode } from '../ui/mark.ts';
 import '../ui/type.css';
 import '../ui/editorial.css';
 import './about.css';

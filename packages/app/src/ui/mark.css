@@ -5,7 +5,6 @@
   display: block;
   text-align: right;
   font-family: var(--sb-grotesk);
-  /* 和巨题同一套负字距，只是小一号 —— 它们必须读成同一个字标的两种尺寸 */
   letter-spacing: -0.04em;
   font-weight: var(--sb-weight-head);
   /* 两行贴在一起成为一个块：0.9 比正文的行高紧得多，那正是字标的样子 */
@@ -15,17 +14,6 @@
   white-space: nowrap;
 }
 .sb-mark-line { display: block; }
-
-.sb-mark-caption {
-  display: block;
-  margin-top: 0.6em;
-  font-size: calc(var(--sb-size-label) * 1);
-  font-weight: 400;
-  letter-spacing: var(--sb-tracking-label);
-  text-transform: uppercase;
-  line-height: var(--sb-lh-body);
-  color: var(--sb-on-stage-dim);
-}
 
 /* 展签上的那一份落在左上角，所以左对齐 —— 右对齐的块贴着左边缘会有一道
    参差的左边线，而展签的整块内容是靠那条左边线立起来的 */
