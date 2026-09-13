@@ -476,6 +476,7 @@ export const COPY = {
       act: bi('玩法', 'Act'),
       render: bi('渲染', 'Render'),
       species: bi('身体', 'Species'),
+      random: bi('随机', 'Random'),
     },
     /** 每组一句：说的是这一栏**在回答什么**，不是它有几个选项 */
     groupNotes: {
@@ -484,6 +485,11 @@ export const COPY = {
       act: bi('它和你是什么关系', 'What it is to you'),
       render: bi('它为什么看起来像活的', 'Why it reads as alive'),
       species: bi('它是什么物种。换物种要重新建身体', 'Which species. Changing this rebuilds the body'),
+      /**
+       * 说的是**按下去之后能不能走回来**，不是"这个按钮叫随机"。
+       * 一个回不去的随机按钮是老虎机 —— 这一句就是它不是老虎机的那句凭据。
+       */
+      random: bi('上面五样一起换。地址栏里留得住', 'Rolls all five above. The address bar keeps it'),
     },
 
     /** 身体方案（docs/18）。说明写的是**剪影**，因为物种靠整体剪影辨识 */
@@ -533,6 +539,19 @@ export const COPY = {
     on: bi('开', 'On'),
     off: bi('关', 'Off'),
 
+    /**
+     * 随机那一栏。按钮上写的是**它会做什么**，说明写的是**它怎么被走回去** ——
+     * 后面那半句才是这个按钮和老虎机的区别。
+     */
+    random: {
+      roll: {
+        name: bi('随机一具', 'Roll a new one'),
+        note: bi('物种 · 形体 · 画面 · 玩法 · 描边', 'Species · form · scene · act · outline'),
+      },
+      /** 地址栏那一行就是配方。刷新、后退、把链接发给别人，拿到的是同一具 */
+      keeps: bi('抽到的写进地址栏，刷新和后退都回得来', 'The draw goes into the URL — reload and Back both return it'),
+    },
+
     /** 物种那一栏 */
     filter: bi('筛物种', 'Filter species'),
     reload: bi('换物种会重开一次', 'Changing species restarts it'),
@@ -549,6 +568,7 @@ export const COPY = {
       post: bi('后期', 'Post'),
       mute: bi('声音', 'Sound'),
       outline: bi('描边', 'Outline'),
+      random: bi('随机一具', 'Roll a new one'),
     },
   },
 

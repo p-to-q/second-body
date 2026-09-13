@@ -46,7 +46,8 @@
  * 它应该读起来像一台设备的面板，不像一个网页的设置弹窗。
  */
 import { BODY_PLANS } from '../../../core/src/bodyplan.ts';
-import type { ShadingId } from '../creature/shading.ts';
+import { SHADING_IDS, type ShadingId } from '../creature/shading.ts';
+import { randomPatch, SEED_MAX } from './random-url.ts';
 import type { ThemeDef } from '../../../core/src/types.ts';
 import { SCENE_IDS } from '../stage/scenes.ts';
 import { COPY, setBi, type BiText } from './i18n.ts';
@@ -117,6 +118,17 @@ export interface ControlsOptions {
   /** 右上角那条目录。传进来只为一件事：展开时互相让位 */
   nav?: Nav | null;
   mount?: HTMLElement;
+  /**
+   * 「随机」那一下的**熵**从哪来。默认 `crypto.getRandomValues` 抽一个 uint32。
+   *
+   * 为什么它是一个参数而不是一行代码：AGENTS.md 的不变量写着"所有随机性都经由
+   * 注入的 Rng 到达，模块里不许裸用 Math.random()"。这里注入的不是 Rng 本身 ——
+   * 抽签的 Rng 是 `mulberry32(seed)`，纯的、在 `random-url.ts` 里、可测 ——
+   * 注入的是**那一个种子**，也就是整条链上唯一一处非确定性。它和 `main.ts` 里
+   * 那个会话种子（`// 仅此一处`）是同一类东西，区别只是这一个当场就被写进 URL，
+   * 于是它非确定的那一瞬间只有一帧长。
+   */
+  newSeed?: () => number;
 }
 
 export interface Controls {
@@ -198,7 +210,10 @@ function group(title: BiText, note: BiText, key: string | null): HTMLElement {
 }
 
 export function mountControls(options: ControlsOptions): Controls | null {
-  const { enabled = true, host, nav = null, mount = document.body } = options;
+  const {
+    enabled = true, host, nav = null, mount = document.body,
+    newSeed = () => crypto.getRandomValues(new Uint32Array(1))[0]!,
+  } = options;
   if (!enabled || typeof document === 'undefined') return null;
 
   const C = COPY.controls;
@@ -346,6 +361,28 @@ export function mountControls(options: ControlsOptions): Controls | null {
   });
   spSec.append(filter, spList);
 
+  // ── 6. 随机 ───────────────────────────────────────────────────────────────
+  // **放在控件条里，不放在选择页旁边。** 三条理由，都不是"这里有地方"：
+  //
+  //  1. 它抽的五样东西全在上面那五组里。一个按钮该和它作用的对象在一起 ——
+  //     放到选择页旁边，它就只剩下"随机选个物种"，而那一页早就有随机了
+  //     （docs/23 §S2 的 30 秒无操作自动选中），再加一个按钮是把同一件事说两遍。
+  //  2. 选择页上**根本没有控件条**：它挂在观众选完物种、身体已经在了之后
+  //     （main.ts 第 4b 节前后），实测那一页 `document.querySelector('.sb-ctl')`
+  //     是 null。所以"放在选择页旁边"不是换个位置，是另建一套。
+  //  3. 而且选择页那一下是**观众的选择**（docs/23 §S2：「选中，没有确认按钮」）。
+  //     在一个只关于"你要变成谁"的页面上放一个替观众掷骰子的按钮，和那一页
+  //     的立意是反的。随机属于**之后**那个可以来回试的场合。
+  //
+  // 放在最后一组：它是"把上面全部重掷一次"，读起来该在它作用的东西后面。
+  const randSec = group(C.groups.random, C.groupNotes.random, 'X');
+  const randRow = addRow(randSec);
+  randRow.append(option(C.random.roll, () => roll()));
+  const randNote = document.createElement('p');
+  randNote.className = 'sb-ctl-note';
+  setBi(randNote, C.random.keeps);
+  randSec.append(randNote);
+
   // ── Key 条 ────────────────────────────────────────────────────────────────
   // 现场和演示时手比鼠标快。每个键都要在这里看得见 —— 一个没有写出来的快捷键
   // 等于不存在。**刻意避开 1–9 / ↑↓ / Enter / 空格**：选择页在用（docs/23 §S2）。
@@ -365,6 +402,7 @@ export function mountControls(options: ControlsOptions): Controls | null {
     ['P', C.keys.post],
     ['M', C.keys.mute],
     ...(readShading && writeShading ? [['O', C.keys.outline] as [string, BiText]] : []),
+    ['X', C.keys.random],
   ];
   for (const [k, text] of KEY_ROWS) {
     const row = document.createElement('div');
@@ -379,11 +417,37 @@ export function mountControls(options: ControlsOptions): Controls | null {
     keys.append(row);
   }
 
-  panel.append(formSec, sceneSec, actSec, renderSec, spSec, keys);
+  panel.append(formSec, sceneSec, actSec, renderSec, spSec, randSec, keys);
   root.append(toggle, panel);
   mount.append(root);
 
   // ── 行为 ──────────────────────────────────────────────────────────────────
+
+  /**
+   * 重掷一次。**一次重载，不是六次热切。**
+   *
+   * 走 `reloadWith` 而不是挨个调 host 的 setter，是因为它抽的里面有物种和形体 ——
+   * 那两样本来就必须重建（见文件头第 2 条）。既然总要重载一次，那就让这一次
+   * 把全部参数一起带走，而不是先热切四样、再为第五样重载、把前四样丢掉。
+   *
+   * `randomPatch` 是纯的（`ui/random-url.ts`），所以"同一个 seed 给同一具身体"
+   * 这条性质是可测的；这里只负责给它一个新种子、把结果交给 `reloadWith`。
+   * `reloadWith` 用的是 `location.assign`，会**留下一条历史** —— 所以浏览器
+   * 的后退键就是这个按钮的撤销键，不需要再造一个。
+   */
+  function roll(): void {
+    const patch = randomPatch(newSeed() % SEED_MAX, {
+      themes: host.themes.map((t) => t.id),
+      forms: FORM_IDS,
+      scenes: SCENE_IDS,
+      acts: actIds,
+      // 团块没有网格可套外壳，这一项对它无意义 —— 和控件条上那个开关同一条判断。
+      // 不过 `?shading=` 落在一具团块身上只是被忽略，不会出错，所以这里不必分支：
+      // 抽到什么就写什么，下一屏是不是团块由 `plan` 那一格决定。
+      shadings: SHADING_IDS,
+    });
+    reloadWith(host, patch);
+  }
 
   /** 形体：七种骨架之间热切；进出「团块」是另一条身体实现，必须重建 */
   function setForm(id: string): void {
@@ -435,6 +499,8 @@ export function mountControls(options: ControlsOptions): Controls | null {
     if (k === 'd') { host.setVitality(!host.vitality()); sync(); return; }
     if (k === 'r') { host.setRefine(!host.refine()); sync(); return; }
     if (k === 'p') { host.setPost(!host.post()); sync(); return; }
+    // `x`：和上面五组的键一样避开 1–9 / ↑↓ / Enter / 空格（选择页在用）
+    if (k === 'x') { roll(); return; }
     if (k === 'o' && readShading && writeShading) {
       writeShading(readShading() === 'toon' ? 'physical' : 'toon');
       sync();
