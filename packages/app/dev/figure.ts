@@ -13,6 +13,7 @@
  *     ?pose=raise|crouch|open|apose   换一副合成姿态 —— 用来证明"因果还在"
  *     ?angle=0.35         冻结转台角度（弧度）
  *     ?still=90           跑满 N 帧就停 —— headless 取证必须有这个
+ *     ?shading=toon|physical  强制着色语言，压过条目自己声明的（`creature/shading.ts`）
  * 一排并排比较不同物种的形体，见 dev/lineup.html。
  * 键：←/→ 换主题，↑/↓ 换 tier，N 下一个 seed，空格暂停旋转，S 显示/隐藏骨架线。
  */
@@ -24,6 +25,7 @@ import type { Bone, BoneId, Genome, Presence, Skeleton, Tier, Vec3 } from '../..
 import { createPartLibrary } from '../src/assets/library.ts';
 import { partIdsOf } from '../src/creature/assemble.ts';
 import { createCreature } from '../src/creature/creature.ts';
+import { isShadingId, resolveShading, type ShadingId } from '../src/creature/shading.ts';
 import { remapSkeleton } from '../../core/src/bodyplan.ts';
 import { mountPageHead } from '../src/ui/page.ts';
 
@@ -140,7 +142,12 @@ skelGroup.visible = false;
 // 和 Rodin 生成件拼进同一具身体的。不给就是默认的 /parts/，行为不变。
 const library = createPartLibrary(qs.has('parts') ? { baseUrl: qs.get('parts')! } : {});
 await library.load();                          // parts.json 缺失也 resolve → 占位模式
-const creature = createCreature({ library });
+// 着色语言和 `?plan=` 同一套优先级：`?shading=` 覆盖 > 条目自己声明的 > physical。
+// dev 页和运行时对同一个条目必须看到同一具身体 —— 取证图要是比现场多一圈墨或少一圈墨，
+// 它就不是证据，是另一张图。
+const SHADING_OVERRIDE: ShadingId | null =
+  isShadingId(qs.get('shading')) ? (qs.get('shading') as ShadingId) : null;
+const creature = createCreature({ library, shading: resolveShading(qs.get('theme'), SHADING_OVERRIDE) });
 scene.add(creature.object);
 
 const themes = library.index.themes.map((t) => t.id)
@@ -180,6 +187,8 @@ function applyPlan(themeId: string) {
 
 async function rebuild() {
     applyPlan(themes[themeIdx]);
+  // ←/→ 换主题时着色也要跟着换，否则翻到「线」还是一条线都没有
+  creature.setShading(resolveShading(themes[themeIdx], SHADING_OVERRIDE));
   genome = makeGenome(seed, tier, library.index, { theme: themes[themeIdx], rejected: library.rejected });
   // 预取后再 remorph → 截图不会拍到占位体。
   // 但**时间不许被资产绑架**（P3）：preload 的契约是"永不 reject"，

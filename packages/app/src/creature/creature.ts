@@ -9,6 +9,11 @@
  *  - 实例总数硬顶 `BUDGET.maxInstances`，超了丢弃而不是"以后再优化"。
  *  - 换装只动**变化的槽位**，同时最多 `MORPH.maxConcurrentSwaps` 个，其余排队（docs/05 §3）。
  *
+ * 着色语言（`shading.ts`）：默认 `physical`，和此前完全一样。物种声明成 `toon` 时，
+ * 每个桶**多挂一块反向外壳**（`BackSide` + 沿法线外推）画描边，填充换成 3 级平涂。
+ * 为什么描边要在这里、而不是做成一个后期 pass，理由写在 `shading.ts` 里 ——
+ * 一句话是：后期是可以被降级阶梯自动关掉的，而一个物种的辨识度不能挂在那上面。
+ *
  * 镜像（docs/04 §4 的陷阱）：**不用负 X 缩放**。负行列式会把左半身的三角形全变成背面，
  * 而背面片元的法线会被取反 —— 左半身于是比右半身暗一大截，读起来像"左右手材质不一样"。
  * 改成向库要一块预镜像的几何（`library.mirrored()`），行列式保持为正。
@@ -23,11 +28,17 @@ import type {
 } from '../../../core/src/types.ts';
 import type { PartLibrary } from '../assets/library.ts';
 import { assemble, partIdsOf, type PartInstance, type SlotRender } from './assemble.ts';
+import {
+  createFillMaterial, createOutlineMaterial, disposeShading, type ShadingId,
+} from './shading.ts';
 
 export interface CreatureStats {
   instances: number;
   triangles: number;
-  /** 实际提交的 InstancedMesh 数量 ≈ draw call */
+  /**
+   * 实际提交的 InstancedMesh 数量 ≈ draw call。
+   * **描边外壳算在里面** —— HUD 上读到的必须是真的提交了多少次（P21）。
+   */
   drawCalls: number;
   swapsActive: number;
   swapsQueued: number;
@@ -41,6 +52,12 @@ export interface Creature {
   pose(sk: Skeleton, p: Presence, dt: number): void;
   /** 慢回路产物到货：把某个槽位热插拔成新部件，带组装动画 */
   graft(slot: SlotKey, meta: PartMeta, geometry: THREE.BufferGeometry): void;
+  /**
+   * 换着色语言。控件条的「描边」那一项走这里 —— 它要重建全部材质与桶，
+   * 所以只该被一次按键调用，不该每帧调。相同值是 no-op。
+   */
+  setShading(id: ShadingId): void;
+  readonly shading: ShadingId;
 
   /** 挂到 scene 上的根节点 */
   readonly object: THREE.Group;
@@ -53,6 +70,11 @@ export interface CreatureOptions {
   library: PartLibrary;
   /** 实例上限，默认 BUDGET.maxInstances */
   maxInstances?: number;
+  /**
+   * 着色语言。缺省 `physical`（此前唯一的那条路）。
+   * 调用方通常传 `resolveShading(themeId, flags.shading)` —— 物种自己声明，URL 可覆盖。
+   */
+  shading?: ShadingId;
 }
 
 interface Swap {
@@ -71,6 +93,12 @@ interface MeshEntry {
   trisPerInstance: number;
   /** 连续多少帧没被用到 —— 换材质/换部件后回收空 mesh，免得 draw call 慢慢长胖 */
   idleFrames: number;
+  /**
+   * 描边外壳（只在 `toon` 下存在）。**和填充共用同一个 `instanceMatrix`**：
+   * 矩阵每帧只写一遍，外壳白拿 —— 这是这条路径几乎不吃 CPU 的原因。
+   * 共用的代价是两块 mesh 必须一起建、一起丢（见 `disposeEntry`）。
+   */
+  outline: THREE.InstancedMesh | null;
 }
 
 /** 空 mesh 留这么多帧再回收（换装动画来回切时不要反复重建） */
@@ -100,6 +128,8 @@ export function createCreature(opt: CreatureOptions): Creature {
   const meshes = new Map<string, MeshEntry>();          // bucketKey() → mesh
   const materials = new Map<string, THREE.Material>();  // materialIdFor() 的键 → material
   const dirtyParts = new Set<string>();                 // 真几何到货 → 重建这些 mesh
+
+  let shading: ShadingId = opt.shading ?? 'physical';
 
   let genome: Genome | null = null;
   const active = new Map<SlotKey, Swap>();
@@ -141,22 +171,20 @@ export function createCreature(opt: CreatureOptions): Creature {
       ? harmonize(raw, find(toneId)!, role as MaterialRole)
       : raw;
     const c = def?.baseColor ?? DEFAULT_COLOR;
-    const color = new THREE.Color().setRGB(c[0], c[1], c[2], THREE.SRGBColorSpace);
-    const phys = new THREE.MeshPhysicalMaterial({
-      color,
+    // 调和出来的那一份参数两条着色路径共用 —— 平涂换的是**怎么照亮**，不是换一套颜色。
+    // 换了颜色的话「线」就不再是这个物种池里的成员了（`core/palette.ts` 的全部意义）。
+    m = createFillMaterial(shading, {
+      color: new THREE.Color().setRGB(c[0], c[1], c[2], THREE.SRGBColorSpace),
       roughness: Number.isFinite(def?.roughness) ? def!.roughness : 0.7,
       metalness: Number.isFinite(def?.metalness) ? def!.metalness : 0.05,
-      // 生成的部件不保证是封闭实体，单面渲染会露出破洞
-      side: THREE.DoubleSide,
+      clearcoat: def?.clearcoat,
+      emissive: def?.emissive
+        ? new THREE.Color().setRGB(def.emissive[0], def.emissive[1], def.emissive[2], THREE.SRGBColorSpace)
+        : undefined,
+      name: materialKey,
     });
-    if (def?.clearcoat) phys.clearcoat = def.clearcoat;
-    if (def?.emissive) {
-      phys.emissive = new THREE.Color().setRGB(def.emissive[0], def.emissive[1], def.emissive[2], THREE.SRGBColorSpace);
-      phys.emissiveIntensity = 1;
-    }
-    phys.name = materialKey;
-    materials.set(materialKey, phys);
-    return phys;
+    materials.set(materialKey, m);
+    return m;
   }
 
   // ── InstancedMesh 池 ────────────────────────────────────────────────────
@@ -164,6 +192,11 @@ export function createCreature(opt: CreatureOptions): Creature {
     const e = meshes.get(key);
     if (!e) return;
     object.remove(e.mesh);
+    if (e.outline) {
+      // 先摘外壳再摘填充：两者共用 instanceMatrix，留一个孤儿在场上等于画一帧鬼影
+      object.remove(e.outline);
+      e.outline.dispose();
+    }
     e.mesh.dispose();          // 只释放 instanceMatrix；geometry/material 是共享的，由库/本模块管
     meshes.delete(key);
   }
@@ -184,10 +217,26 @@ export function createCreature(opt: CreatureOptions): Creature {
       mesh.receiveShadow = true;
       mesh.count = 0;
       object.add(mesh);
+      // 描边外壳：同一块几何、同一份实例矩阵，只换材质和面向。
+      // `renderOrder = -1` 让它先画 —— 不是为了正确性（深度测试已经保证了遮挡关系），
+      // 而是为了让填充的片元大多数被提前剔掉，省一点 overdraw。
+      let outline: THREE.InstancedMesh | null = null;
+      if (shading === 'toon') {
+        outline = new THREE.InstancedMesh(geo, createOutlineMaterial(), capacity);
+        outline.name = `${key}~outline`;
+        outline.instanceMatrix = mesh.instanceMatrix;
+        outline.frustumCulled = false;
+        // 外壳**不投影**：一个被撑胖了一圈的影子会比身体大一圈，穿帮得非常明显
+        outline.castShadow = false;
+        outline.receiveShadow = false;
+        outline.renderOrder = -1;
+        outline.count = 0;
+        object.add(outline);
+      }
       const idx = geo.getIndex();
       const pos = geo.getAttribute('position');
       e = {
-        mesh, partId, materialId, capacity, idleFrames: 0,
+        mesh, partId, materialId, capacity, idleFrames: 0, outline,
         trisPerInstance: Math.floor((idx ? idx.count : pos ? pos.count : 0) / 3),
       };
       meshes.set(key, e);
@@ -309,12 +358,20 @@ export function createCreature(opt: CreatureOptions): Creature {
         cursor.set(key, 0);
         triangles += n * e.trisPerInstance;
         drawCalls++;
+        if (e.outline) {
+          e.outline.count = n;
+          e.outline.visible = true;
+          // 外壳的面和 draw 都要报出来。少报的那一份不会因为没写下来就不提交（P21）
+          triangles += n * e.trisPerInstance;
+          drawCalls++;
+        }
         if (!library.isLoaded(e.partId)) placeholders += n;
       }
       for (const [key, e] of [...meshes]) {
         if (counts.has(key)) continue;
         e.mesh.count = 0;
         e.mesh.visible = false;
+        if (e.outline) { e.outline.count = 0; e.outline.visible = false; }
         if (++e.idleFrames > IDLE_FRAMES_BEFORE_DISPOSE) disposeEntry(key);
       }
 
@@ -350,6 +407,19 @@ export function createCreature(opt: CreatureOptions): Creature {
       enqueue({ key: slot, from: prev, to: pick, t: 0 }, true);
     },
 
+    setShading(id) {
+      if (id === shading) return;
+      shading = id;
+      // 材质缓存的键里**没有**着色语言 —— 与其把它编进键（缓存里从此常驻两套材质，
+      // 而观众一场只会看见一套），不如整体重建：这条路一场演出最多被走几次。
+      for (const key of [...meshes.keys()]) disposeEntry(key);
+      for (const m of materials.values()) m.dispose();
+      materials.clear();
+      // 描边材质缓存在 `shading.ts` 里按线宽共享，这里不单独持有 —— 换回 physical
+      // 只是不再建外壳 mesh，材质留着（一场演出里 O 键会被按来按去）
+    },
+    get shading() { return shading; },
+
     get object() { return object; },
     get genome() { return genome; },
     get stats() { return stats; },
@@ -359,6 +429,7 @@ export function createCreature(opt: CreatureOptions): Creature {
       for (const key of [...meshes.keys()]) disposeEntry(key);
       for (const m of materials.values()) m.dispose();
       materials.clear();
+      disposeShading();
       object.clear();
     },
   };
