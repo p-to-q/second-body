@@ -854,13 +854,13 @@ export const COPY = {
     /**
      * **每次改这一页都要重新点一遍。** 这张表上的每个数都不是估的，
      * 但「点出来的」只在点的那一刻为真（docs/02 P21 第 2 条）——
-     * 上一版把 191 件冻在这里，而部件库已经走到 208。
+     * 上一版把 191 件冻在这里，而部件库当时已经走到 208；合入 main 之后它又是 220。
      * 复核的四条命令：提交数走版本历史、两个包各自的测试脚本、
      * `npm run check:parts`（件数）、`node packages/app/poster/build-data.mjs`（条目与身体方案）。
      */
     numbersNote: bi(
-      '全部从版本历史与文件系统里点出来的，不是估的 —— 而且每改一次这一页就重新点一遍。',
-      'Counted out of the history and the file system, not estimated — and re-counted every time this page changes.',
+      '全部从版本历史与文件系统里点出来的，不是估的。这一栏点于 2026-09-13 —— 推导出来的数只在推导的那一刻为真，所以它带着日期。',
+      'Counted out of the history and the file system, not estimated. This column was counted on 2026-09-13 — a derived number is only true at the moment it was derived, so it carries its date.',
     ),
     timelineNote: bi(
       '不是 changelog。选进来的每一条都是一次判断 —— 有人本可以走另一边。',
@@ -881,16 +881,16 @@ export const COPY = {
 
     /** 数字。`value` 一律是从 git / 文件系统点出来的原样，不做四舍五入 */
     numbers: [
-      { value: '235', label: bi('次提交', 'Commits'), note: bi('第一条 09-12 14:24，最后一条 09-13 22:07', 'First at 09-12 14:24, last at 09-13 22:07') },
-      { value: '59', label: bi('次合并', 'Merges'), note: bi('分支合回来，以及主线合进分支', 'Branches merged back, and main merged in') },
-      { value: '26', label: bi('条并行分支', 'Parallel branches'), note: bi('每条是一个代理的一间工作室', 'One worktree, one agent, one room') },
+      { value: '249', label: bi('次提交', 'Commits'), note: bi('第一条 09-12 14:24，最后一条 09-13 22:56', 'First at 09-12 14:24, last at 09-13 22:56') },
+      { value: '62', label: bi('次合并', 'Merges'), note: bi('分支合回来，以及主线合进分支', 'Branches merged back, and main merged in') },
+      { value: '28', label: bi('条并行分支', 'Parallel branches'), note: bi('每条是一个代理的一间工作室', 'One worktree, one agent, one room') },
       { value: '5', label: bi('个并行 worktree', 'Worktrees at once'), note: bi('git 一次把五个当成嵌入仓库吞了进去（480a48f）', 'Five got swallowed as embedded repos in one go — 480a48f') },
       { value: '7', label: bi('条契约裁决', 'Contract rulings'), note: bi('分三次报上来，三次都没在下游打补丁', 'Three reports, zero downstream patches') },
       { value: '432', label: bi('个测试', 'Tests'), note: bi('core 182 + app 250，全过', 'core 182 + app 250, all green') },
       { value: '48', label: bi('个测试文件', 'Test files'), note: bi('随 npm run check 一起跑', 'Run by npm run check') },
-      { value: '208', label: bi('件部件', 'Parts'), note: bi('28 个物种共用一个部件库', '28 species share one library') },
-      { value: '11', label: bi('件剔除', 'Rejected'), note: bi('保留 0 件 —— keep 是审美判断，留给人', 'Zero keeps: that call belongs to a person') },
-      { value: '43', label: bi('份文档', 'Documents'), note: bi('契约与背景分开写', 'Contracts kept apart from context') },
+      { value: '220', label: bi('件部件', 'Parts'), note: bi('28 个物种共用一个部件库', '28 species share one library') },
+      { value: '12', label: bi('件剔除', 'Rejected'), note: bi('保留 0 件 —— keep 是审美判断，留给人', 'Zero keeps: that call belongs to a person') },
+      { value: '45', label: bi('份文档', 'Documents'), note: bi('契约与背景分开写', 'Contracts kept apart from context') },
       { value: '181', label: bi('个 TS 文件', 'TS files'), note: bi('不含 node_modules', 'node_modules excluded') },
       { value: '11', label: bi('条原则', 'Principles'), note: bi('P11–P21，每条都有它的事故', 'P11–P21, each with its incident') },
     ],
@@ -979,8 +979,8 @@ export const COPY = {
         '「场」的 tagline 是「身体消失，只剩运动」，而它当时是一具向别的物种借了整套四肢的机器人。改成 1400 个点跟着活骨架走，每个点停在自己的那一刻。',
         'The species called Field is captioned “the body disappears; only the movement is left” — and it was a robot wearing a full set of limbs borrowed from other species. It becomes 1,400 points locked to the live skeleton, each sitting at its own moment in the past.') },
       { hash: '2993fa7', day: '09-13', time: '19:21', text: bi(
-        '海报数字号称「算出来的，从不手打」。它确实算过 —— 算过一次，然后冻在 191 件，而部件库已经走到 208。',
-        'The poster numbers were “computed, never typed”. They were computed — once — and then frozen at 191 parts while the library moved on to 208.') },
+        '海报数字号称「算出来的，从不手打」。它确实算过 —— 算过一次，然后冻在 191 件，而部件库已经走到 208。这一条写下来的当天，它又变成了 220。',
+        'The poster numbers were “computed, never typed”. They were computed — once — and then frozen at 191 parts while the library moved on to 208. By the day this line was written it was 220.') },
       { hash: 'a8c04ea', day: '09-13', time: '19:31', text: bi(
         '在这之前这件作品没有时间：分档看的是累计运动量，玩法是随机加权挑的。四个乐章按陈述里的那四个词命名，时间成为主轴、动作降为加速项。',
         'Until now the work had no time: tiers tracked accumulated movement and acts were drawn by weighted random. Four movements, named after the statement’s own four words, make time the main axis and movement merely an accelerator.') },
@@ -1195,8 +1195,8 @@ export const COPY = {
     ],
 
     footer: bi(
-      '人类署名 2 人；235 条提交里有 176 条写着代理的共同署名。每一条都写着它是谁和谁一起做的。',
-      'Two human authors; of 235 commits, 176 carry an agent’s co-author line. Every one records who made it with whom.',
+      '人类署名 2 人；249 条提交里有 185 条写着代理的共同署名。每一条都写着它是谁和谁一起做的。',
+      'Two human authors; of 249 commits, 185 carry an agent’s co-author line. Every one records who made it with whom.',
     ),
   },
 } as const;
