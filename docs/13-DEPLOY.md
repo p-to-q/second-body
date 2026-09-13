@@ -128,7 +128,7 @@ packages/app/dist/          静态站点（vite build）
 
 - [ ] `npm run check` 通过
 - [ ] `dist` 首屏 < 3 MB（`du -sh` + network 面板确认）
-- [ ] 部件真的解出来了（不是 191 件全回退占位几何）—— `npm run test -w @sb/app` 里那条
+- [ ] 部件真的解出来了（不是 191 件全回退占位几何）—— `npm run test -w @smu/app` 里那条
       meshopt 测试是门；现场再用 `?debug=1` 看一眼 HUD 的 loaded 数
 - [ ] 无摄像头权限时自动进 demo 回放，不白屏
 - [ ] WebGL2 回退路径实测过（Chrome 关掉 WebGPU flag）
@@ -161,6 +161,18 @@ u-see.me  ──NS──▶  Cloudflare（权威 DNS）
 **橙云必须关掉。** Cloudflare 的代理会终止 TLS，Vercel 就拿不到
 `.well-known/acme-challenge` 的回源，证书永远签不出来 —— 站点会挂在
 "Invalid Configuration"。要 CDN 的话那是 Cloudflare 自己的事，不能同时。
+
+### Vercel 项目仍然叫 `second-body`，这是故意的
+
+仓库改名成 `see-me-see-u` 之后，**Vercel 项目名没有跟着改**。
+
+改它会断三样东西：项目名决定 `second-body-one.vercel.app`；
+`useeme.ptoq.io` 是别人按项目挂上去的；而域名验证记录也绑在项目上。
+GitHub 那边的集成按**仓库 ID** 关联，改仓库名它自己跟着走 ——
+所以"改仓库名"和"改 Vercel 项目名"是两件不相干的事，
+只有后者会弄断线上地址。
+
+下面所有写着 `second-body` 的地方指的都是**那个 Vercel 项目**，不是仓库。
 
 ### Vercel 侧（已完成，2026-09-13）
 

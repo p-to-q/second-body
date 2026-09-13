@@ -1,4 +1,4 @@
-# Agent Instructions — SECOND BODY
+# Agent Instructions — SEE-ME SEE-U
 
 > Originally written in Chinese. **This English text is now the source of truth**;
 > the Chinese version has been superseded rather than kept alongside, because two
@@ -89,10 +89,39 @@ Three frozen contracts — `docs/03`, `docs/04`, and
 `contract change needed: <reason>`** and let the contract owner make the change
 and broadcast it.
 
-Commits: `<type>(<domain>): <imperative, lowercase, no trailing period>`.
+### Commits
+
+`<type>(<domain>): <imperative, lowercase, no trailing period>`
+
 `type` is one of feat / fix / perf / test / docs / chore. `domain` names a
 domain, not a directory: `rig` / `genome` / `factory` / `render` / `capture` /
 `stage` / `protocol`.
+
+**English. The subject line and the body.** The artwork's prose is Chinese —
+`docs/index.md` says which documents those are, and in-code comments follow the
+file they live in. Git history is not the artwork. It is read by whoever
+bisects this repository at 2am, and across p-to-q it is uniformly English:
+
+```
+fix(music-jobs): bind the lease timestamp Postgres can parse
+fix(quality-gate): hold the runtime bar at the release bar for dropouts
+chore(deps): bump the npm-prod group with 4 updates
+```
+
+**The body is optional, and when present it is short.** Say what changed and
+why, not how it felt to find out. A commit body is not a lab notebook — the
+notebook is `docs/`, and a finding worth keeping belongs in the file it
+concerns, where someone will trip over it at the point of use. If the body runs
+past a screen, the change is probably two changes.
+
+State measurements as numbers, not as narrative: `both headings 20px/15.6px,
+right edge 700px before and after` beats a paragraph about how they were
+compared.
+
+> This rule was written after a long session violated it: multi-paragraph
+> Chinese commit bodies, sometimes twenty lines, on single-file CSS changes. The
+> convention above already existed; the failure was not reading it. It is
+> repeated here with the evidence attached so the next reader has no excuse.
 
 ## Report when you stop
 

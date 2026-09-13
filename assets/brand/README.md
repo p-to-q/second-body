@@ -8,7 +8,7 @@
 重出全部：
 
 ```bash
-npm run dev -w @sb/app                       # publicDir 指向仓库 assets/，字体与 anchor 图才解析得到
+npm run dev -w @smu/app                       # publicDir 指向仓库 assets/，字体与 anchor 图才解析得到
 node packages/app/poster/build-data.mjs      # 先重算数字
 node packages/app/poster/shot.mjs --port=5173
 ```

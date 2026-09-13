@@ -27,7 +27,7 @@ import '../ui/type.css';
 import '../ui/editorial.css';
 import './about.css';
 
-const REPO = 'https://github.com/p-to-q/second-body';
+const REPO = 'https://github.com/p-to-q/see-me-see-u';
 const REFERENCE_URL = 'https://www.universaleverything.com/media-art/future-you';
 
 // ─────────────────────────── DOM 小工具 ───────────────────────────

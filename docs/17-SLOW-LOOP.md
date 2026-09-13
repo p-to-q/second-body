@@ -190,7 +190,7 @@ assets/parts/lineage/
 ## 7. 离线验证（不烧 credits）
 
 ```bash
-npm run dev:slow            # = SLOW_FAKE=1 npm run dev -w @sb/app
+npm run dev:slow            # = SLOW_FAKE=1 npm run dev -w @smu/app
 ```
 
 `SLOW_FAKE=1` 时不调 Rodin：从 `assets/parts/` 里按 seed 挑一件同槽位的已有 glb 当"生成结果"，

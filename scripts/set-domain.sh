@@ -12,6 +12,8 @@
 set -euo pipefail
 
 : "${VERCEL_TOKEN:?先 export VERCEL_TOKEN}"
+# 仓库叫 see-me-see-u，但 Vercel 项目仍然叫 second-body —— 改它会断掉
+# 线上地址和域名验证记录，理由写在 docs/13 §7。这里要的是**项目名**。
 PROJECT="${PROJECT:-second-body}"
 DOMAIN="${DOMAIN:-second-body.ptoq.io}"
 API="https://api.vercel.com"

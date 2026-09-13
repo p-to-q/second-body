@@ -1,5 +1,5 @@
 {
-  "name": "@sb/factory",
+  "name": "@smu/factory",
   "version": "0.1.0",
   "type": "module",
   "main": "src/cli.js",

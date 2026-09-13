@@ -164,7 +164,7 @@ The task-card format (`docs/11-TASKS.md`) is fixed:
 - Contract:   import these types from types.ts, do not redeclare them
 - Do:         ...
 - Do not:     ...
-- Acceptance: `npm run test -w @sb/core -- foo` passes, and <observable phenomenon>
+- Acceptance: `npm run test -w @smu/core -- foo` passes, and <observable phenomenon>
 ```
 
 - **Do not refactor other files on the way past.** If you see a bug elsewhere,

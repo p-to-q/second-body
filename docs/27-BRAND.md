@@ -4,7 +4,7 @@
 > 每一条都指向 `packages/app/src/ui/type.css` 里的一个具体的值，
 > 而那个文件是唯一真相 —— 这份文档不复制它的值，只解释它为什么是那个值。
 >
-> 看得见的版本：`/poster/brand.html`（跑 `npm run dev -w @sb/app`，开 `http://localhost:5173/poster/brand.html`）。
+> 看得见的版本：`/poster/brand.html`（跑 `npm run dev -w @smu/app`，开 `http://localhost:5173/poster/brand.html`）。
 > 那一页把下面每一条都**显示出来**，而且能当场测的数字是当场测的。
 > 截图：`assets/brand/brand-spec-page.png`。
 
@@ -221,7 +221,7 @@ node packages/app/poster/build-data.mjs     # 重出 data.js
 ## 8 · 怎么出片
 
 ```bash
-npm run dev -w @sb/app                       # 1. 起 dev server（publicDir 指向 assets/）
+npm run dev -w @smu/app                       # 1. 起 dev server（publicDir 指向 assets/）
 # 2a. 印刷：浏览器打开海报 → 打印 → 存为 PDF
 #     纸张选「A1 594×841mm」，边距 0，**必须勾选「背景图形」**
 # 2b. 截图：

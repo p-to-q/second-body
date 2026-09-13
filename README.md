@@ -22,7 +22,7 @@ registrar's parking page — it does not serve the piece yet
 ![Position poster](assets/brand/poster-03-position-a1.png)
 
 The artwork is titled **SEE-ME SEE-U**; the engineering codename stays
-`second-body` — the repository, the packages, the `@sb/*` prefix. The split is
+`second-body` — the repository, the packages, the `@smu/*` prefix. The split is
 deliberate: what the audience reads is a wall label, not a repository name.
 
 ## Statement

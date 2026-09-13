@@ -4,7 +4,7 @@
  * 用本机已装的 Chrome 无头模式，**不加任何依赖** —— 这条约束比"截图方便"重要。
  *
  * 用法：
- *   1. 另开一个终端：`npm run dev -w @sb/app`
+ *   1. 另开一个终端：`npm run dev -w @smu/app`
  *   2. `node packages/app/poster/shot.mjs [--port=5173]`
  *
  * 为什么要跑 dev server 而不是直接开 file://：

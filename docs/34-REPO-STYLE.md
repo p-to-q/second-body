@@ -15,6 +15,12 @@
 > repos/p-to-q/sonde` returns 404, and `ptoq.io/work` links "sonde" to
 > `github.com/moapacha/sonde`, a different owner. No claim below is based on it.
 >
+> **The repository has since been renamed** to `see-me-see-u`. Every
+> `second-body:N` citation below is left **exactly as written**: it names the
+> repository as it was at the moment it was read, and rewriting a citation to
+> match a later name would make it a false citation. The rows are evidence, not
+> prose.
+>
 > **Reading the `second-body` rows.** Every `second-body:N` citation describes our
 > README **as it stood before this pass** (commit `9e2ed4b`). That is the "before"
 > state §12 exists to justify changing; the current README no longer matches those
