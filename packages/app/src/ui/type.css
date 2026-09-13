@@ -92,6 +92,14 @@
  */
 :root {
   /** 标识：常亮 */
+  /**
+   * 浮层文字压在画面上时的可读性光晕。**它是底色的颜色，不是墨色的补色** ——
+   * 作用是把字周围那一小圈画面推远，所以它必须和背后那一片同色。
+   * 深底上是暗晕，亮底（白展厅 / 白首屏）上是亮晕；翻转由 `stage.ts` 的
+   * `publishStageInk()` 和 `first-screen.css` 各自负责，用到它的地方一律只写
+   * `text-shadow: 0 0 6px var(--sb-halo), 0 0 2px var(--sb-halo)`。
+   */
+  --sb-halo: rgba(0, 0, 0, 0.72);
   --sb-layer-mark: 1;
   /** 入口：安静但读得出 */
   --sb-layer-entry: 0.55;

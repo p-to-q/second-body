@@ -250,7 +250,14 @@ function createRingField(initial: FieldOptions): RingField {
   // 无图阶段（展签背后那一团）用的颜色 = 字色。**一团暗的东西压在浅底上** ——
   // 这正是参考作品关掉贴图时的样子（它的 uColor 是 #0a0a0a），
   // 也是这一段唯一要说的话：这里有一个有重量的东西。
-  readVar('--sb-ink', '#0a0a0a', u.color.value);
+  //
+  // 但**展签那一段不能真按满墨画**：上游那一屏上除了这个场什么都没有，
+  // 我们这一屏上还压着一个巨题和一整列目录。满墨的一团横在版心上，
+  // 就成了页面上对比度最高的东西 —— 实测就是这样，它从目录里横穿过去。
+  // 所以墨色留在 `inkFull` 里，每帧按 `launch` 把它掺进纸色（见 layout()）。
+  const inkFull = new THREE.Vector3();
+  readVar('--sb-ink', '#0a0a0a', inkFull);
+  u.color.value.copy(inkFull);
 
   const resize = (): void => {
     viewW = Math.max(1, innerWidth);
@@ -566,7 +573,15 @@ function createRingField(initial: FieldOptions): RingField {
         : 1;
       const dim = (1 - RING.sideDim * sideF[i]) * (i === exitIndex ? 1 : 1 - swallow);
 
-      scale[i].set(sx * sw * eat, sy * sw * eat, dim, cellOfPlane[i]);
+      // 展签那一段把长边收到和短边一样长。**只有这一段**：`attractWeight` 一旦
+      // 归零，`squash` 就是 1，这一行逐字等于原来的 `sx`，卡片恢复它自己的 2:1。
+      //
+      // 理由和上面那个 `u.round` 是同一条 —— 卡是 2:1，光把圆角推满只能得到一枚
+      // 胶囊，而胶囊仍然读作"一个横躺的物件"。要读成"一团"，长短边得先一样长。
+      // 收的倍数是 `H / W`（就是 1/cardAspect），不是一个手调的数：
+      // 换了卡片比例它自动还是正方，不需要有人记得回来改。
+      const squash = 1 + (H / W - 1) * attractWeight;
+      scale[i].set(sx * squash * sw * eat, sy * sw * eat, dim, cellOfPlane[i]);
 
       // 和着色器画的是同一个盒，在卡片自己的坐标系里测 —— 于是它回答的是
       // 这张卡**此刻真实的样子**：转过的、倾过的、胀过的。
@@ -662,6 +677,16 @@ function createRingField(initial: FieldOptions): RingField {
     u.wobble.value = RING.wobble * fit * Math.max(
       1 - smoothstep(0.2, 0.95, state.progress),
       attractWeight * 0.6,
+    );
+    // 展签那一段：形状按回圆、颜色掺淡。两个量都由 `launch` 一路交还给卡片，
+    // 所以「开始」按下去之后**同一个动作里**那团东西一边硬成卡一边吃满墨。
+    // 两条线共用 `attractWeight` 而不是各配一个时间轴：它们说的是同一件事。
+    u.round.value = RING.attractRound * attractWeight;
+    const ink = RING.attractInk + (1 - RING.attractInk) * launch;
+    u.color.value.set(
+      u.page.value.x + (inkFull.x - u.page.value.x) * ink,
+      u.page.value.y + (inkFull.y - u.page.value.y) * ink,
+      u.page.value.z + (inkFull.z - u.page.value.z) * ink,
     );
     u.textured.value = atlasReady ? 1 : 0;
     u.blend.value = Math.max(0.5, RING.blend * planeK * g);

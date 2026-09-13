@@ -62,7 +62,7 @@
   /* 直接贴在舞台画布上，所以用 --sb-on-stage：白展厅底下浅灰字看不见，
      这个变量由 stage.ts 的 publishStageInk 按当前场景底色发布。 */
   color: var(--sb-on-stage);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  text-shadow: 0 0 6px var(--sb-halo), 0 0 2px var(--sb-halo);
   cursor: pointer;
   transition: border-color 180ms;
 }

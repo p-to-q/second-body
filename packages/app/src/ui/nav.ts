@@ -25,6 +25,7 @@
  *    中英并置不切换（那是设计决定，见 i18n 的文件头）。
  */
 import { COPY, setBi, type BiText } from './i18n.ts';
+import { POOL_KINDS, readPool, setPool, type PoolKind } from './pool.ts';
 import './type.css';
 import './nav.css';
 
@@ -131,6 +132,8 @@ export function mountNav(options: NavOptions = {}): Nav | null {
     panel.append(row);
   }
 
+  panel.append(poolBlock());
+
   root.append(toggle, panel);
   mount.append(root);
   // 告诉页面"右上角被占了"。没有这一条，题头右侧的房间号会和目录压在一起 ——
@@ -176,4 +179,85 @@ export function mountNav(options: NavOptions = {}): Nav | null {
   }
 
   return { root, open: () => setOpen(true), close: () => setOpen(false) };
+}
+
+/**
+ * 目录底下那一小块：**这一场里哪几类身体可以被选**（`ui/pool.ts`）。
+ *
+ * 为什么它在目录里而不在右上角的控件条里：控件条管的是**正在放的这一场**
+ * 怎么看（画面、渲染、特效），改完立刻看得见；这一块管的是**下一场有谁**，
+ * 它在选择页搭起来之前生效。两种东西混在一条上，人会以为勾掉一类
+ * 眼前这具就会消失 —— 而它不会。
+ *
+ * 三条勾是三种出身，不是三个功能开关，所以它们长得和目录的每一条一样：
+ * 一个名字，一句"是什么"。唯一多出来的是左边那个方框。
+ */
+function poolBlock(): HTMLElement {
+  const box = document.createElement('div');
+  box.className = 'sb-nav-pool';
+
+  const head = document.createElement('div');
+  head.className = 'sb-nav-pool-head';
+  const title = document.createElement('span');
+  title.className = 'sb-nav-pool-title';
+  setBi(title, COPY.nav.pool.title);
+  const hint = document.createElement('span');
+  hint.className = 'sb-nav-pool-hint';
+  head.append(title, hint);
+  box.append(head);
+
+  const lede = document.createElement('p');
+  lede.className = 'sb-nav-pool-lede';
+  setBi(lede, COPY.nav.pool.lede);
+  box.append(lede);
+
+  const live = readPool();
+  const boxes = new Map<PoolKind, HTMLInputElement>();
+
+  /** 提示只说一次，两秒后自己收掉 —— 它是一次回应，不是一个状态 */
+  let hintTimer = 0;
+  const say = (text: BiText): void => {
+    setBi(hint, text);
+    hint.classList.add('is-on');
+    clearTimeout(hintTimer);
+    hintTimer = window.setTimeout(() => hint.classList.remove('is-on'), 2000);
+  };
+
+  for (const kind of POOL_KINDS) {
+    const copy = COPY.nav.pool.kinds[kind];
+    const row = document.createElement('label');
+    row.className = 'sb-nav-pool-item';
+
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.checked = live.has(kind);
+    boxes.set(kind, input);
+
+    const text = document.createElement('span');
+    const name = document.createElement('span');
+    name.className = 'sb-nav-pool-name';
+    setBi(name, copy.name);
+    const note = document.createElement('span');
+    note.className = 'sb-nav-pool-note';
+    setBi(note, copy.note);
+    text.append(name, note);
+
+    input.addEventListener('change', () => {
+      const next = POOL_KINDS.filter((k) => boxes.get(k)?.checked);
+      // 拒绝全关。**把勾打回去**再说话 —— 让一个勾停在"关"上而名单没变，
+      // 那是界面在撒谎（docs/02 P21 的同一条：仪表不能比事实好看）。
+      if (!setPool(next)) {
+        input.checked = true;
+        say(COPY.nav.pool.last);
+        return;
+      }
+      // 选择页已经搭好了就说清楚这一下什么时候生效，不偷偷重载
+      if (document.querySelector('.sb-ring')) say(COPY.nav.pool.restart);
+    });
+
+    row.append(input, text);
+    box.append(row);
+  }
+
+  return box;
 }

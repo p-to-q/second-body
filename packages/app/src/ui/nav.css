@@ -75,7 +75,18 @@
   /* 没有入场动效，理由写在 shell/notice.css 里：入场动效等于把静止态设成
      opacity: 0，而动画不一定跑得起来。一个点开之后可能是空白的菜单，
      比一个"唰"地出现的菜单糟糕得多。 */
+
+  /* **它可能比屏幕高。** 六条链接加底下那块设置，在 869px 的视口上正好差一点点 ——
+     实测设置那三条勾整个掉到画面外面去了，而一个看不见的开关等于没有这个开关。
+     所以给它一个高度上限，超出的部分自己滚。
+     上限 = 视口 − 它自己的上边距 − 一个安全区（底下也要留白，不能贴着屏幕边收口）。 */
+  max-height: calc(100vh - var(--sb-safe) * 1.5 - 3.4rem - var(--sb-gutter));
+  overflow-y: auto;
+  /* 滚动条不画。这一层的语言里没有"控件"这种东西（docs/26 §F 的否定清单），
+     而内容被切了这件事由最后一条的半截边线自己说得出来。 */
+  scrollbar-width: none;
 }
+.sb-nav-panel::-webkit-scrollbar { display: none; }
 
 .sb-nav-item {
   display: block;
@@ -131,7 +142,11 @@
  * 同一条规矩、同一个数（docs/23 §S4：观众只需要知道一次）。
  * 鼠标碰上去、或者用键盘 tab 到它，它自己回来。
  */
-.sb-nav--overlay .sb-nav-toggle { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9); }
+/* 这里**不加可读性光晕**。
+   浮层里只有它长期停在一个安静的角上（右上角在每一页都是空的，见 nav.ts 的决定 1），
+   底下要么是首屏那片纸，要么是舞台的天光 —— 两种都托得住这几个字。
+   加一道晕换来的是字背后糊着一小块东西，那比多出来的那一点点对比度贵。
+   真正需要晕的是压在**实时画面**上的那几条（chrome / notice），它们自己带。 */
 .sb-nav--overlay { transition: opacity 180ms cubic-bezier(.4, 0, 1, 1); }
 .sb-nav--overlay.is-faded { opacity: var(--sb-layer-entry); }
 .sb-nav--overlay:hover,
@@ -149,3 +164,96 @@
    缺省等于 `--sb-ink`，所以文档页上的目录一个像素都不变。 */
 .sb-nav--overlay:not(.is-open) .sb-nav-toggle { color: var(--sb-on-stage); }
 .sb-nav--overlay:not(.is-open) .sb-nav-toggle .sb-en { color: var(--sb-on-stage-dim); }
+
+/* ── 上场名单 ──────────────────────────────────────────────────────────────
+ *
+ * 目录底下的第二块。和目录之间只有**一条线加一段留白**：没有卡片、没有圆角、
+ * 没有折叠箭头。它和上面六条是同一种东西的两块，不是一个抽屉里的另一个抽屉。
+ *
+ * 勾选框用浏览器原生的那个，只把它压小、去掉强调色。
+ * 自绘一个方框要接管键盘、焦点环和 `indeterminate`，换来的只是形状上的一点点
+ * 统一 —— 那笔买卖在这一块上不划算（docs/26 §F 的否定清单：不要图标按钮）。
+ */
+.sb-nav-pool {
+  margin-top: calc(var(--sb-gutter) * 1.1);
+  padding-top: calc(var(--sb-gutter) * 1.1);
+  border-top: 1px solid var(--sb-rule);
+}
+
+.sb-nav-pool-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sb-gutter);
+}
+.sb-nav-pool-title {
+  font-family: var(--sb-grotesk);
+  font-size: var(--sb-size-label);
+  letter-spacing: var(--sb-tracking-label);
+  text-transform: uppercase;
+  color: var(--sb-ink-dim);
+}
+.sb-nav-pool-title .sb-en { margin-left: 0.45em; opacity: 0.62; }
+
+/* 回应，不是状态：说完 2 秒自己收。没有 toast、没有图标、不占位 */
+.sb-nav-pool-hint {
+  font-size: 0.78em;
+  color: var(--sb-ink-dim);
+  opacity: 0;
+  transition: opacity 160ms linear;
+}
+.sb-nav-pool-hint.is-on { opacity: 1; }
+.sb-nav-pool-hint .sb-en { display: none; }
+
+.sb-nav-pool-lede {
+  margin: 0.4rem 0 0.7rem;
+  font-size: 0.84em;
+  line-height: 1.35;
+  color: var(--sb-ink-dim);
+}
+.sb-nav-pool-lede .sb-en { opacity: 0.62; }
+
+.sb-nav-pool-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  padding: 0.3rem 0;
+  cursor: pointer;
+}
+.sb-nav-pool-item input {
+  appearance: none;
+  flex: 0 0 auto;
+  width: 0.62rem;
+  height: 0.62rem;
+  /* 跟着那一行的基线，不跟着整块的顶 —— 勾和名字要读成一件事 */
+  transform: translateY(-0.02em);
+  margin: 0;
+  border: 1px solid var(--sb-ink-dim);
+  background: none;
+  cursor: pointer;
+  transition: background-color 160ms linear, border-color 160ms linear;
+}
+/* 选中 = 实心。**不画勾** —— 一个 7px 的勾在这个字号下是一团糊，
+   而"实心 / 空心"在任何尺寸下都读得出 */
+.sb-nav-pool-item input:checked {
+  background: var(--sb-ink);
+  border-color: var(--sb-ink);
+}
+.sb-nav-pool-item input:focus-visible { outline: 1px solid var(--sb-ink); outline-offset: 2px; }
+.sb-nav-pool-item:hover input { border-color: var(--sb-ink); }
+
+.sb-nav-pool-name { display: block; font-size: 0.92em; }
+/* 中英同一行。`setBi` 默认把两半各摆一行（长文案该那样），
+   而这里是**一个名字**，拆成两行读起来像两条 */
+.sb-nav-pool-name .sb-zh,
+.sb-nav-pool-name .sb-en { display: inline; }
+.sb-nav-pool-name .sb-en { font-size: 0.78em; margin-left: 0.45em; opacity: 0.55; }
+.sb-nav-pool-note {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.78em;
+  line-height: 1.3;
+  color: var(--sb-ink-dim);
+}
+/* 这一条注解的英文在窄面板里会把行数翻倍，而它说的事中文已经说完了 */
+.sb-nav-pool-note .sb-en { display: none; }

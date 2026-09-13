@@ -92,6 +92,11 @@ export function createRingUniforms() {
      * 转换发生在 `field.ts` 的 `readPaper()` 一处，着色器里只管算。
      */
     color: uniform(new THREE.Vector3(0.02, 0.023, 0.028)),
+    /**
+     * 把卡片形状按回圆的程度，0..1。见着色器里用到它的那一处。
+     * 它是**展签那一段专用**的，入场一开始就被 `launch` 淡回 0。
+     */
+    round: uniform(0),
     page: uniform(new THREE.Vector3(0.004, 0.005, 0.006)),
     grid: uniform(new THREE.Vector2(1, 1)),
     blend: uniform(1),
@@ -267,7 +272,13 @@ export function createRingMaterial(u: RingUniforms, atlas: THREE.Texture): THREE
 
       // 出生时是个圆（半径 = 半边长），长大过程中松弛成圆角矩形
       const rMax = min(halfSize.x, halfSize.y).toVar();
-      const r = min(rMax, mix(rMax, u.radius, smoothstep(0.3, 1.0, min(sc.x, sc.y)))).toVar();
+      const relaxed = mix(rMax, u.radius, smoothstep(0.3, 1.0, min(sc.x, sc.y))).toVar();
+      // `u.round` 把它按回圆的那一头。**只有展签那一段会用到**：
+      // 那时候场上只有一张卡，而一张卡解不出黏稠 —— 糖浆是两张卡之间的事。
+      // 一张长大完的卡就是一块圆角矩形，在白底上慢慢斜着转，读起来是块板砖，
+      // 不是"有个东西在里面"。按回圆之后它才是一团**质量**；
+      // 转动仍然看得见，因为 wobble 那点表面张力抖动不是各向同性的。
+      const r = min(rMax, mix(relaxed, rMax, u.round)).toVar();
 
       const di = sdRoundBox(ql, halfSize, r).toVar();
       d.assign(smin(d, di, k));
