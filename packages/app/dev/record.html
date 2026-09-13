@@ -61,6 +61,19 @@
   </div>
 
   <div class="card" style="margin-top:12px">
+    <div class="k">或者：对一段视频跑</div>
+    <div style="margin:4px 0 8px;font-size:11.5px;color:#7c838c">
+      没有摄像头、或者手边没有真人时走这条。<b>它跑出来的仍然是真实录制</b> ——
+      真的人、真的抖动、真的遮挡，只是人不在这台机器前面。
+      逐帧 seek，不跟实时播放，所以序列是完整的（45s 大约要跑两分钟）。
+      授权必须干净，每段都要记进 <code>assets/demo/SOURCES.md</code>。
+    </div>
+    <input id="file" type="file" accept="video/*" style="display:none">
+    <button id="runfile">⇪ 选一个视频文件</button>
+    <div class="k" style="font-size:11.5px">也可以 <code>?video=&lt;url&gt;&amp;name=&lt;片段名&gt;</code> 直接跑（可加 <code>?model=lite|full|heavy</code>，默认 full）</div>
+  </div>
+
+  <div class="card">
     <div class="k">要录到的六件事（现场真会发生的）</div>
     <ol id="beats"></ol>
   </div>

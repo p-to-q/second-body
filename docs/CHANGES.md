@@ -19,6 +19,10 @@ Changed:    `compact` / `patrol` / `digitigrade` 各 10 个槽位改用真实 CA
 Why:        真实存在的机器，它的身份**就是**那台真机 —— 用真 CAD 不只是更准，是更诚实（docs/26 §H）。而且它救的正是参考图采集失败的那几个条目。规则写成"按 family 整具换"而不是一张退役名单，是因为名单会和现实分叉；`curation.json` 没有被借用来做这件事，因为那里的 `reject` 有一个已经被用掉的含义（立场海报上唯一的颜色 = 被人眼剔掉的那十件），而这 32 件不是坏件。
 Forecloses: 一个 family 从此不能真假混搭 —— 想给某个物种加一件生成件，得先让它的真实件全部退出。`assets/parts/` 里现在有不进索引的 glb，**扫目录得到的件数不再等于 `parts.json` 的件数**：海报的 `partsLive = parts.length - rejected.size` 因此当场改成了「数在池里的件」，而它的 `counts.parts` 从此混着生成件和取来的件（新增 `counts.partsReal` 用来分开，海报文案里「N 件生成」那一句下次出图前要改）。BY-SA 的源永久出局：BodyParts3D 的人体骨骼只要不能和 MIT 的代码分家，就不能入库。
 
+## 2026-09-13 — `assets/demo/` 里有真人录制了；顺带测出"身体的前后位移不在数据里"
+Changed:    `/dev/record.html` 多一条视频文件路（`?video=` / 选文件，逐帧 seek，不跟实时播放），用它对两段 CC BY-SA 4.0 的真人视频跑出 `pose-jumpingjacks.json`（45.2s）与 `pose-walkturn.json`（20.3s）。`/demo/index.json` 把真录制排在合成数据前面，所以 `?demo=1` 默认不再挑到 `pose-synthetic`。来源、授权、质量报告在 `assets/demo/SOURCES.md`；原料视频在 gitignore 的 `assets/capture-src/`。docs/09 的 U14 结掉、U2 结掉、U1 结掉一半。
+Why:        `?demo=1` 是现场断网 / 摄像头翻车时的唯一兜底，也是线上部署实际跑的那条路，而它之前放的是一段 2 秒的程序生成数据 —— 等于没有兜底。MediaPipe 在真人视频上的输出**就是真实录制**：真的关节抖动、真的遮挡、真的前缩。左前臂骨长变异系数从合成数据的 65.7% 降到 9.2%／11.1%。
+Forecloses: **MediaPipe `worldLandmarks` 的原点就是胯中点，所以整具身体的前后位移根本不在 `raw.world` 里** —— `pelvis.z` 恒等于 0 是定义不是测量。`pose-walkturn` 里人走远又走近（画幅内肩宽 211×），`world` 里的胯一动不动。`core/skeleton.ts` 只消费 `raw.world`，于是**观众往前走一米，生物不会往前走**；想要它动，必须另找信号（`screen` 尺度等）推全局位移，那是新的一张卡，不是调参。四肢相对躯干的深度则是可用的（跨度/抖动 51–128×），不用退 2.5D。
 ## 2026-09-13 — A 档新增两种**真的不是人**的拓扑，六个条目挪走
 Changed:    `BodyPlanId` 增加 `radial`（无躯干：四条肢摊成四条绕核心的轨道弧，核心压到 0.40）与 `column`（单柱：六块腿骨串成一根桅杆，双臂是顶端分支，蹲下按之字折叠）。两者输出仍是 17 根骨头的合法 `Skeleton`，走现有刚体渲染器。`orb`/`furball`→`radial`，`manipulator`/`screenface`→`column`，`autonomous`→`quadruped`，`xeno`→`inverted`，`char.paper`→`towering`。`radial` 与 `inverted` 改成按**整体最低点**贴地（`PLANS_WITHOUT_FEET`），不再按"最低的脚"。
 Why:        之前只有 `quadruped` 和 `mass` 真的换拓扑，`towering`/`stub` 只改比例 —— 所以 `xeno`（异形）、`orb`（球）、`furball`（毛球）这些"全部意义就是不是人"的条目仍然是穿着涂装的人形。光改数据解决不了，缺的是拓扑。选 A 档而不是 B 档，是因为 A 档**不作废任何已生成的部件**（这六个条目共 50 件）。
