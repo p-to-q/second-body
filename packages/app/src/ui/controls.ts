@@ -52,6 +52,7 @@ import { SCENE_IDS } from '../stage/scenes.ts';
 import { COPY, setBi, type BiText } from './i18n.ts';
 import type { Nav } from './nav.ts';
 import './type.css';
+import './section-head.css';
 import './controls.css';
 
 /** 和目录、`ui/page.ts` 同一个数：进场 4 秒后淡下去 */

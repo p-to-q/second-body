@@ -26,6 +26,7 @@
  */
 import { COPY, setBi, type BiText } from './i18n.ts';
 import './type.css';
+import './section-head.css';
 import './nav.css';
 
 /** 和 `ui/page.ts` 的浮层页头同一个数：进场后 4 秒淡下去 */

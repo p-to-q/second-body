@@ -1,0 +1,105 @@
+/**
+ * 节题 —— 目录和控件那两个可以点开的词，**共用这一份**。
+ *
+ * ## 为什么单独一个文件
+ *
+ * 它们原来各写各的，两份碰巧逐字相同 —— 那不叫统一，那叫巧合，而巧合会漂：
+ * `nav.css` 后来多了一条只给目录的提亮覆盖，于是同一列上两个题的
+ * **英文一个亮一个暗**，中文却一样黑。
+ *
+ * 合并之后还错了两次，两次都值得写下来：
+ *
+ * 1. 第一版选择器写成 `.sb-corner .sb-nav-toggle`。文字页（`/about`、谱系、
+ *    做的过程、护照）的目录是 `mountNav()` 直接挂在 body 上的，不在那一列里，
+ *    于是那个题在那几页上一条规则都不中。
+ * 2. 第二版去掉了作用域，但规则还放在 `corner.css` 里 —— 那个文件由
+ *    `corner.ts` 导入，而 `corner.ts` **只有 `main.ts` 用**。文字页压根不加载它，
+ *    题在线上仍然是一个 13.3px 的浏览器默认按钮（`text-align: center` 是那次的
+ *    指纹：连对齐都是默认值）。
+ *
+ * 所以它在这里：一个**两个组件各自 import 一次**的文件。
+ * 谁用这个构件，谁就把它带上 —— 不依赖第三个文件恰好也被加载。
+ *
+ * 分工：`corner.css` 只管这一列的位置；这里管字的样子。
+ */
+/* ── 节题：目录 / 控件 **共用这一份** ──────────────────────────────────────
+ *
+ * 它们原来各写各的，两份碰巧逐字相同 —— 那不叫统一，那叫巧合。
+ * 巧合会漂：`nav.css` 后来多了一条只给目录的提亮覆盖，于是同一列上两个题的
+ * **英文一个亮一个暗**，而中文一样黑。
+ *
+ * **选择器里没有 `.sb-corner`，这是要紧的。** 第一版写成 `.sb-corner .sb-nav-toggle`，
+ * 结果文字页（`/about`、谱系、做的过程、护照）当场全裸 —— 那几页的目录是
+ * `mountNav()` 直接挂在 body 上的，根本不在这一列里，于是那个题退回成一个
+ * 13px 的浏览器默认按钮。实测就是这么发现的。
+ *
+ * 分工：**这一列只管位置，字的样子不该依赖它在哪。**
+ */
+.sb-nav-toggle,
+.sb-ctl-toggle {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-family: var(--sb-grotesk);
+  font-size: var(--sb-size-h2);
+  letter-spacing: -0.01em;
+  text-transform: none;
+  /* 贴在舞台画布上，所以用 --sb-on-stage：它由 stage.ts 的 publishStageInk
+     按当前场景底色亮度发布，白展厅下浅灰字看不见，这个变量就是为那件事存在的。 */
+  color: var(--sb-on-stage-dim);
+  cursor: pointer;
+  text-align: right;
+  transition: color 180ms;
+}
+
+/* 中文承重、英文辅助 —— 和全站的并置规矩一致（type.css 的 .sb-zh / .sb-en）。
+   0.78 这个比例不许跟着字号动：改的话改的不是字号，是这两种文字的关系。 */
+.sb-nav-toggle .sb-zh,
+.sb-nav-toggle .sb-en,
+.sb-ctl-toggle .sb-zh,
+.sb-ctl-toggle .sb-en { display: inline; }
+
+.sb-nav-toggle .sb-zh,
+.sb-ctl-toggle .sb-zh {
+  color: var(--sb-on-stage);
+  font-weight: var(--sb-weight-head);
+}
+
+.sb-nav-toggle .sb-en,
+.sb-ctl-toggle .sb-en {
+  font-size: 0.78em;
+  margin-left: 0.45em;
+  letter-spacing: var(--sb-tracking-label);
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+/* 悬停 / 焦点 / 展开：**只变亮**，不上色、不加线、不位移。
+   docs/26 §F「全站只有一处用颜色承担语义」——节的开合不是那一处。 */
+.sb-nav-toggle:hover,
+.sb-nav-toggle:focus-visible,
+.sb-ctl-toggle:hover,
+.sb-ctl-toggle:focus-visible,
+.sb-nav.is-open .sb-nav-toggle,
+.sb-ctl.is-open .sb-ctl-toggle {
+  outline: none;
+  color: var(--sb-on-stage);
+}
+
+/* **展开时题不许移位。**
+ *
+ * 上一版让展开的那一节的题铺满面板宽度、改成左对齐，为的是让题和面板共用左边缘。
+ * 两条边确实对齐了，代价是那个词**在点击的瞬间从右边跳到左边** ——
+ * 而 `nav.css` 里早就写着这条：「一个会在点击时换位置的开关，观众会以为自己点错了」。
+ * 是我自己违反了它。
+ *
+ * 右边缘是这一列唯一的结构线（它就是安全区），每一样东西都贴着它，不管开还是关。
+ */
+.sb-nav.is-open > .sb-nav-toggle,
+.sb-ctl.is-open > .sb-ctl-toggle {
+  align-self: auto;
+  text-align: right;
+}
