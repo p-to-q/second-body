@@ -545,8 +545,12 @@ const CSS = `
   background:linear-gradient(to top,color-mix(in srgb,var(--sb-paper) 82%,transparent),transparent)}
 .sb-name{font-size:var(--sb-size-h1);font-weight:var(--sb-weight-head);
   line-height:var(--sb-lh-h1);letter-spacing:var(--sb-tracking-h1)}
+/* 这里**没有 margin-left**。原来有 0.8em —— 那是中英还在**同一行**时写的，
+   是两个词之间的间距。改成上下两行之后它原地变成了一个纯缩进：
+   实测英文那一行比其余三行右移 12.2px，正好是 0.8em 在这个字号下的值。
+   一条规则活过了它所描述的那个版式，这是本仓库反复犯的同一类错。 */
 .sb-name .sb-en{font-size:var(--sb-size-small);font-weight:var(--sb-weight-body);
-  letter-spacing:var(--sb-tracking-label);color:var(--sb-ink-dim);margin-left:0.8em;text-transform:uppercase}
+  letter-spacing:var(--sb-tracking-label);color:var(--sb-ink-dim);text-transform:uppercase}
 .sb-tag{color:var(--sb-ink-dim);margin-top:0.25em}
 .sb-kind{margin-top:0.4em;font-family:var(--sb-mono);font-size:var(--sb-size-small);
   letter-spacing:var(--sb-tracking-label);text-transform:uppercase;color:var(--sb-ink-dim);opacity:.7}
