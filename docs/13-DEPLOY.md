@@ -247,3 +247,4 @@ dig +short u-see.me NS && curl -sI https://u-see.me | head -1
 **`/making` `/passport` 这种不带扩展名的地址只在 Vercel 上成立**（`cleanUrls: true`），
 本机 `vite preview` 不支持 —— 本机测要带 `.html`。这不是 bug，但每次都会让人愣一下，
 所以记在这里。
+
