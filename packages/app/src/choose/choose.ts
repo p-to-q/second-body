@@ -24,10 +24,11 @@
 import '../ui/type.css';
 import { mulberry32 } from '../../../core/src/rng.ts';
 import { cjkClass, COPY, setBi } from '../ui/i18n.ts';
-import type { PartLibraryIndex, Rng, ThemeDef } from '../../../core/src/types.ts';
+import type { PartLibraryIndex, RawPose, Rng, ThemeDef } from '../../../core/src/types.ts';
 import { acquireRingField, type RingField } from './ring/field.ts';
 import { holdFirstScreen } from './ring/first-screen.ts';
 import { buildCard, loadImage, type BuiltCard } from './cards.ts';
+import { startWaveInput, type WaveDriver } from './ring/wave-input.ts';
 
 export interface ChooseOptions {
   /** 选定了。id 已经写进 URL。 */
@@ -74,6 +75,17 @@ export interface ChooseOptions {
    * 加载态（`shell/loading.ts`）靠它显示真实进度。
    */
   onProgress?: (done: number, total: number) => void;
+  /**
+   * 最近一帧姿态。给了才有**举手滚动**（`ring/wave.ts`）。
+   *
+   * **不传 = 这一页逐字和以前一样。** 所以所有的降级都在调用方那一侧收口，
+   * 用"传不传这个函数"表达，而不是在这里再判一次摄像头状态：
+   *   没摄像头 / 没授权 → `latest()` 恒为 null，手势永远武装不了；
+   *   `?demo=1`（回放）→ **根本不传**。让一段录像去操作名单，
+   *     观众会看见名单自己在动而现场没有人举手 —— 那是"它坏了"，不是降级。
+   *   `?wave=off` → 不传。
+   */
+  pose?: () => RawPose | null;
 }
 
 export interface ChooseHandle {
@@ -236,6 +248,8 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
   let disposed = false;
   let committed = false;
   let carousel: RingField | null = null;
+  /** 举手滚动的帧循环。没传 `pose` / 降级到列表时永远是 null */
+  let wave: WaveDriver | null = null;
   let fallbackIndex = 0;
   let mode: 'gl' | 'fallback' = 'gl';
 
@@ -320,6 +334,9 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
    */
   function handOver(): void {
     releaseFirstScreen();
+    // 环要拆了，喂它的那条循环必须先停 —— 不然它会对着一个已经 dispose 的场调用
+    wave?.stop();
+    wave = null;
     const field = carousel;
     carousel = null;
     field?.canvas.classList.add('is-gone');
@@ -392,6 +409,8 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
     if (mode === 'fallback') return;
     mode = 'fallback';
     // 环归这一页处置：它没有别的用户了（展签那一层这时已经不在）
+    wave?.stop();
+    wave = null;
     carousel?.dispose();
     carousel = null;
     ui.list.hidden = false;
@@ -450,6 +469,23 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
         },
       });
       carousel = field;
+      // 举手滚动。**只在环真的起来了之后挂**：降级列表是一条鼠标/键盘的路，
+      // 上面既没有环也没有惯性，硬给它接一条手势等于第二套实现（见 wave.ts 文件头）。
+      // 传了 `pose` 才有这一条 —— 没摄像头 / `?demo=1` / `?wave=off` 的收口都在调用方。
+      if (options.pose) {
+        const drive = options.pose;
+        void field.ready.then((ok) => {
+          if (!ok || committed || disposed) return;
+          wave = startWaveInput({
+            field,
+            pose: drive,
+            // 手势滚动和滚轮 / 指针**同一条待遇**：它就是一次操作，
+            // 所以它续那 30 秒。只有真的滚动了才续 —— 站着不动的人不该
+            // 把装置永远钉在菜单上（这条规则的本意是"没有操作"，不是"没有人"）。
+            onScroll: bump,
+          });
+        });
+      }
       field.setCards(cards.map((c) => c.canvas));
       // 展签在场时这一下已经按过了（幂等）；深链和现场没有展签，这一下就是入场。
       field.play();
@@ -472,6 +508,8 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
       disposed = true;
       releaseFirstScreen();
       clearInterval(idleTick);
+      wave?.stop();
+      wave = null;
       window.removeEventListener('keydown', onKeyDown);
       for (const type of ['pointerdown', 'pointermove', 'wheel', 'touchstart'] as const) {
         window.removeEventListener(type, bump);

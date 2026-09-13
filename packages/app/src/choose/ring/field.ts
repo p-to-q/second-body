@@ -116,6 +116,28 @@ export interface RingField {
   activeIndex(): number;
   focus(index: number): void;
   step(delta: number): void;
+  /**
+   * 环此刻收不收输入（= 稳态，入场演完了、还没开始坍缩）。
+   *
+   * 有它是为了让外部输入（`wave-input.ts` 的举手滚动）在该闭嘴的时候闭嘴，
+   * 而不用每帧调 `debug()` —— 后者每次都新建一个对象，那是**帧里 new**（P5）。
+   */
+  accepting(): boolean;
+  /**
+   * 外部输入：把一个角速度增量喂进来。**和滚轮走的是同一条路** ——
+   * 惯性、阻尼、槽位吸附全部原样复用（`spinStep()`）。
+   * 正在拖动 / 正在转场 / 已经坍缩时无效，不会打断它们。
+   */
+  nudge(delta: number): void;
+  /**
+   * 外部指针：不是鼠标的那种"有人在摸它"。`amount` 0 = 不在场，1 = 满。
+   *
+   * 用途只有一个：举手滚动需要一个**在这件作品的语言里**的"我武装了"，
+   * 而这一页本来就有那句话 —— 光标处的软化。于是它借用同一套 uniform，
+   * 不新增任何可见元素（docs/26 §F）。
+   * **真实鼠标永远优先**：手上来了也不会把鼠标顶掉（第 4 条：不许挡住既有输入）。
+   */
+  reach(x: number, y: number, amount: number): void;
   /** 选中：其余卡片被它吸回去，融成一团，涨出画面。幂等 */
   exit(index: number): void;
   /** 实测帧率（rAF 计数，不是毫秒 —— docs/02 P21） */
@@ -319,6 +341,8 @@ function createRingField(initial: FieldOptions): RingField {
   let travelY = 0;
 
   const pointer = { x: 0, y: 0, inside: false, seeded: false };
+  /** 非鼠标的那只"手"（`reach()`）。amt = 0 时整条不存在 */
+  const ghost = { x: 0, y: 0, amt: 0, seeded: false };
   const cursor = { x: 0, y: 0, amt: 0, wake: 0 };
   let coarse = false;
 
@@ -700,16 +724,25 @@ function createRingField(initial: FieldOptions): RingField {
 
   function updatePointer(dt: number): void {
     // 入场没演完之前不让光标动手：时间线还在画这个环
-    const live = pointer.inside && pointer.seeded && interactive && exitIndex < 0;
-    cursor.amt += ((live ? 1 : 0) - cursor.amt) * chase(dt, 0.12);
+    const mouseLive = pointer.inside && pointer.seeded && interactive && exitIndex < 0;
+    // 手（`reach()`）只在鼠标不在场时说话 —— **真实指针永远优先**。
+    // 反过来的话，一个凑近看的人会把正在用鼠标的人的软化抢走。
+    const handLive = !mouseLive && ghost.amt > 0.001 && interactive && exitIndex < 0;
+    const want = mouseLive ? 1 : handLive ? ghost.amt : 0;
+    cursor.amt += (want - cursor.amt) * chase(dt, 0.12);
 
+    // 没有手的时候**逐字还是原来那行**（追 `pointer`，不管 live 与否）：
+    // 入场那几秒 `interactive` 还是 false，但光标必须一直在追指针 ——
+    // 否则交互一接管，软化会从屏幕另一头横扫过整个环（`pointer.seeded` 挡的就是这个）。
+    const toX = handLive ? ghost.x : pointer.x;
+    const toY = handLive ? ghost.y : pointer.y;
     const k = chase(dt, RING.lag);
-    cursor.x += (pointer.x - cursor.x) * k;
-    cursor.y += (pointer.y - cursor.y) * k;
+    cursor.x += (toX - cursor.x) * k;
+    cursor.y += (toY - cursor.y) * k;
 
     // 它落在真实指针后面多远，就是"多快"的替身。起得猛、落得慢，
     // 于是尾波比制造它的那个动作活得更久。
-    const trail = Math.hypot(pointer.x - cursor.x, pointer.y - cursor.y);
+    const trail = Math.hypot(toX - cursor.x, toY - cursor.y);
     cursor.wake = Math.max(
       cursor.wake * Math.pow(0.94, dt * 60),
       clamp01(trail / (Math.max(dt, 0.001) * 2600)),
@@ -804,15 +837,28 @@ function createRingField(initial: FieldOptions): RingField {
   const pointerAngle = (e: PointerEvent): number =>
     Math.atan2(-(e.clientY - ringCentre.y), e.clientX - ringCentre.x);
 
+  /**
+   * 所有"推一把"的输入都从这里进：滚轮、触控板、以及举手滚动（`wave-input.ts`）。
+   * 一条路而不是两条，是为了让惯性 / 阻尼 / 吸附对它们**一模一样**。
+   *
+   * 拖动**不**在这里挡：滚轮原来就不挡它（拖动每帧会把 spinVel 直接覆盖掉，
+   * 所以那是一次无害的加法）。把手势挡在拖动之外的是 `accepting()`。
+   */
+  const nudge = (delta: number): void => {
+    if (!interactive || exitIndex >= 0) return;
+    if (!Number.isFinite(delta) || delta === 0) return;
+    picking = false;
+    settling = false;
+    spinVel += delta;
+    spinVel = Math.max(-RING.maxSpeed, Math.min(RING.maxSpeed, spinVel));
+  };
+
   const onWheel = (e: WheelEvent): void => {
     if (!interactive || exitIndex >= 0) return;
     e.preventDefault();
     // 触控板也会给横向的量，取占优的那一个
     const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
-    picking = false;
-    settling = false;
-    spinVel += d * RING.scrollSpeed;
-    spinVel = Math.max(-RING.maxSpeed, Math.min(RING.maxSpeed, spinVel));
+    nudge(d * RING.scrollSpeed);
   };
   const onPointerDown = (e: PointerEvent): void => {
     pointerTravel = 0;
@@ -1008,6 +1054,30 @@ function createRingField(initial: FieldOptions): RingField {
     step(delta) {
       const next = ((shown >= 0 ? shown : 0) + delta + count) % Math.max(1, count);
       goToPlane(planeOfCell[next]);
+    },
+    // 拖动中也算"不收"：手和鼠标同时在动时，鼠标说了算（第 4 条）
+    accepting: () => interactive && exitIndex < 0 && !dragging,
+    nudge,
+    reach(x, y, amount) {
+      const a = Number.isFinite(amount) ? clamp01(amount) : 0;
+      if (a <= 0) {
+        ghost.amt = 0;
+        ghost.seeded = false;
+        return;
+      }
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+      // 和 `pointer.seeded` 同一个理由：第一帧直接落位，否则软化会从上一个位置
+      // （可能是屏幕另一头的鼠标）一路横扫过整个环
+      if (!ghost.seeded) {
+        ghost.seeded = true;
+        if (!pointer.seeded) {
+          cursor.x = x;
+          cursor.y = y;
+        }
+      }
+      ghost.x = x;
+      ghost.y = y;
+      ghost.amt = a;
     },
     exit(index) {
       if (exitIndex >= 0) return;
