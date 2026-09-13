@@ -47,10 +47,11 @@
 .sb-wordmark-line .sb-zh { color: var(--sb-on-stage); font-family: var(--sb-kai); }
 .sb-wordmark-line .sb-en { color: var(--sb-on-stage-dim); }
 
-/* 满屏画布页 4 秒后淡下去 —— 和目录、控件、页头同一个数（docs/23 §S4）。
-   不淡到 0：它是说明牌，得一直认得出来。 */
-.sb-wordmark.is-faded { opacity: 0.3; }
-.sb-wordmark:hover, .sb-wordmark:focus-within { opacity: 1; }
+/* **常亮，不淡出。** 它是说明牌不是提示 —— 观众任何时候看一眼都该认得出
+   这是什么。原来 4 秒后淡到 0.3，那等于说"看过一次就不用再看了"，
+   而装置前面的人是随时来随时走的。
+   `is-faded` 保留但不做任何事：挂载方还在传 fade，去掉那个参数是另一次改动。 */
+.sb-wordmark, .sb-wordmark.is-faded { opacity: var(--sb-layer-mark); }
 
 @media (max-width: 560px) {
   /* 窄屏上 17vw 太小，反而失去张力；同时那一句让位 */

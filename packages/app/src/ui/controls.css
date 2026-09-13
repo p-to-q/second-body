@@ -44,7 +44,7 @@
 
 /* 进场 4 秒后淡下去 —— 和目录、和 ui/page.ts 的浮层页头同一个数。
    鼠标碰上去、tab 到它、或者它展开着，它自己回来。 */
-.sb-ctl.is-faded { opacity: 0.18; }
+.sb-ctl.is-faded { opacity: var(--sb-layer-entry); }
 .sb-ctl:hover, .sb-ctl:focus-within, .sb-ctl.is-open { opacity: 1; }
 
 /* ── 收起态：一个词 + 一条线（和 .sb-nav-toggle 是同一个构件）────────────── */
@@ -87,7 +87,10 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   text-align: left;
-  background: var(--sb-paper);
+  /* 半透明 + 背后虚化，理由同 nav.css：作品在面板背后还在 */
+  background: color-mix(in srgb, var(--sb-paper) calc(var(--sb-layer-panel) * 100%), transparent);
+  backdrop-filter: blur(18px) saturate(1.1);
+  -webkit-backdrop-filter: blur(18px) saturate(1.1);
   color: var(--sb-ink-dim);
   /* 没有入场动效，理由和 nav.css / notice.css 一样：入场动效等于把静止态
      设成 opacity 0，而动画不一定跑得起来。 */

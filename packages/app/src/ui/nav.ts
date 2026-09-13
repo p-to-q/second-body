@@ -35,7 +35,7 @@ interface NavItem {
   href: string;
   name: BiText;
   answers: BiText;
-  /** 判断"就是这一页"用的路径。命中时这一条不可点，右边写「在这里」 */
+  /** 判断"就是这一页"用的路径。命中时这一条不可点，并且排版上退一档（nav.css 的 .is-here） */
   match: (path: string) => boolean;
 }
 
@@ -111,7 +111,7 @@ export function mountNav(options: NavOptions = {}): Nav | null {
     // 当前这一页做成 <span> 而不是灰掉的 <a>：一条点了什么都不会发生的链接
     // 比没有链接更让人怀疑是不是坏了
     const row = document.createElement(here ? 'span' : 'a');
-    row.className = 'sb-nav-item';
+    row.className = here ? 'sb-nav-item is-here' : 'sb-nav-item';
     if (!here) (row as HTMLAnchorElement).href = item.href;
 
     const nameRow = document.createElement('div');
@@ -119,12 +119,9 @@ export function mountNav(options: NavOptions = {}): Nav | null {
     const name = document.createElement('span');
     setBi(name, item.name);
     nameRow.append(name);
-    if (here) {
-      const mark = document.createElement('span');
-      mark.className = 'sb-nav-here';
-      mark.textContent = `${COPY.nav.here.zh} · ${COPY.nav.here.en}`;
-      nameRow.append(mark);
-    }
+    // 不写「在这里 · You are here」。当前页本来就**不可点**（下面渲染成 span 不是 a），
+    // 那件事自己会说 —— 再配一个标签是把状态翻译成文字，读起来像网页教程。
+    // 靠 `.is-here` 上的排版差别表达，见 nav.css。
 
     const answer = document.createElement('p');
     answer.className = 'sb-nav-answer';

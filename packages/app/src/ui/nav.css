@@ -64,7 +64,11 @@
   margin-top: calc(var(--sb-gutter) * 0.6);
   width: min(30rem, calc(100vw - var(--sb-safe)));
   text-align: left;
-  background: var(--sb-paper);
+  /* 半透明 + 背后虚化：面板盖住作品的时候，作品还在背后。
+     这比一块实底更贴这件作品 —— 观众没有"离开画面去看菜单"。 */
+  background: color-mix(in srgb, var(--sb-paper) calc(var(--sb-layer-panel) * 100%), transparent);
+  backdrop-filter: blur(18px) saturate(1.1);
+  -webkit-backdrop-filter: blur(18px) saturate(1.1);
   /* 没有入场动效，理由写在 shell/notice.css 里：入场动效等于把静止态设成
      opacity: 0，而动画不一定跑得起来。一个点开之后可能是空白的菜单，
      比一个"唰"地出现的菜单糟糕得多。 */
@@ -93,18 +97,60 @@
 .sb-nav-name .sb-bi { display: block; }
 .sb-nav-name .sb-en { font-size: 0.8em; }
 
-/* 「在这里」：等宽小字，因为它是状态不是文案 */
-.sb-nav-here {
-  font-family: var(--sb-mono);
-  font-size: var(--sb-size-small);
-  letter-spacing: var(--sb-tracking-label);
-  color: var(--sb-ink-dim);
-  white-space: nowrap;
+/* 当前这一页：**不写"在这里"**，靠排版说 —— 名字退到 dim，左边一条短实线。
+   状态用状态表达，不要翻译成一行文字（那读起来像网页教程）。 */
+.sb-nav-item.is-here { position: relative; cursor: default; }
+.sb-nav-item.is-here .sb-nav-name .sb-zh { color: var(--sb-ink-dim); }
+.sb-nav-item.is-here::before {
+  content: '';
+  position: absolute;
+  left: -0.85rem; top: 1.05em;
+  width: 0.5rem; height: 1px;
+  background: var(--sb-ink);
 }
 
-.sb-nav-answer { margin-top: 0.25rem; }
+/* ── 悬停：**让那句话浮出来**，而不是把这一行点亮 ──────────────────────────
+ *
+ * 每一条底下都有一句"它能回答什么问题"。平时它退在暗处，悬停时整句亮起来、
+ * 并且**往右让开一点** —— 像一页纸被指尖压住之后微微翻起。
+ *
+ * 为什么不是加高亮或加底色：那是"你选中了它"，而观众此刻还没选，
+ * 他在**读**。悬停该回答"这一页是干什么的"，不是确认点击。
+ * 这也是 docs/26 §F 反面清单的落点：不加卡片、不加底色、不上色。
+ */
+.sb-nav-answer {
+  margin-top: 0.25rem;
+  transform: translateX(0);
+  transition: transform 220ms cubic-bezier(.2,.8,.2,1);
+}
 .sb-nav-answer .sb-zh,
-.sb-nav-answer .sb-en { color: var(--sb-ink-dim); font-size: 0.92em; }
+.sb-nav-answer .sb-en {
+  color: var(--sb-ink-dim);
+  font-size: 0.92em;
+  transition: color 220ms;
+}
+.sb-nav-item:hover .sb-nav-answer,
+.sb-nav-item:focus-visible .sb-nav-answer { transform: translateX(0.45rem); }
+.sb-nav-item:hover .sb-nav-answer .sb-zh,
+.sb-nav-item:focus-visible .sb-nav-answer .sb-zh { color: var(--sb-ink); }
+
+/* 名字左边一条会长出来的线 —— 悬停时从 0 拉到 0.5rem，和"当前页"那条同宽。
+   于是"我在看哪一条"和"我在哪一页"用的是同一个记号，只是一个会动。 */
+.sb-nav-item:not(.is-here) { position: relative; }
+.sb-nav-item:not(.is-here)::before {
+  content: '';
+  position: absolute;
+  left: -0.85rem; top: 1.05em;
+  width: 0; height: 1px;
+  background: var(--sb-ink-dim);
+  transition: width 220ms cubic-bezier(.2,.8,.2,1);
+}
+.sb-nav-item:not(.is-here):hover::before,
+.sb-nav-item:not(.is-here):focus-visible::before { width: 0.5rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sb-nav-answer, .sb-nav-item::before { transition: none; }
+}
 
 /* ── 浮在画布上的那一份 ────────────────────────────────────────────────────
  * 满屏 canvas 的页面上，目录 4 秒后淡下去 —— 和 `ui/page.ts` 的浮层页头
@@ -113,7 +159,7 @@
  */
 .sb-nav--overlay .sb-nav-toggle { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9); }
 .sb-nav--overlay { transition: opacity 180ms cubic-bezier(.4, 0, 1, 1); }
-.sb-nav--overlay.is-faded { opacity: 0.18; }
+.sb-nav--overlay.is-faded { opacity: var(--sb-layer-entry); }
 .sb-nav--overlay:hover,
 .sb-nav--overlay:focus-within,
 .sb-nav--overlay.is-open { opacity: 1; }

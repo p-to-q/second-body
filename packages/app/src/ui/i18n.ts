@@ -414,7 +414,7 @@ export const COPY = {
    */
   nav: {
     title: bi('目录', 'Contents'),
-    here: bi('在这里', 'You are here'),
+
     items: {
       work: {
         name: bi('作品', 'The work'),
@@ -445,9 +445,12 @@ export const COPY = {
 
   /** 隐私 —— 网页版必须在页面上（docs/13 §5） */
   privacy: {
+    // 「不离开你的浏览器」是一句技术保证，读起来像条款。
+    // 同样的事实换一种说法就有画面，而且更准：摄像头的画面从来没被送出去，
+    // 送出去的只有关节坐标 —— 它认得的一直只是一副骨头。
     short: bi(
-      '画面不离开你的浏览器',
-      'Video never leaves your browser',
+      '它只认得你的骨头',
+      'It only ever sees your bones',
     ),
     long: bi(
       '姿态识别全部在本地运行。唯一会上传的是你主动触发的那一张剪影，不保存、不关联身份。',
