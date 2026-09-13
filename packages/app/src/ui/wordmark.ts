@@ -22,10 +22,16 @@ export interface WordmarkOptions {
   fade?: boolean;
 }
 
-/** 字标下面那一句。取自作品陈述的第一句 —— 它是这件事最短的完整说法 */
+/**
+ * 字标下面那一句。
+ *
+ * **不写"一次关于 X 与 Y 的生成实验"那一类。** 那种句子换个主语放到任何作品下面
+ * 都成立，所以它等于没说。这一句要让一个不认识这件作品的人**知道自己该做什么**，
+ * 并且知道会发生什么 —— 它在装置前面起的是说明牌的作用，不是海报标语。
+ */
 const LINE = bi(
-  '一次关于身体、观看与对抗的生成实验',
-  'A generative experiment on body, seeing and resistance',
+  '站到镜头前，选一个物种。它会用你的骨架站起来。',
+  'Step into frame and pick a species. It stands up on your skeleton.',
 );
 
 export function mountWordmark(opt: WordmarkOptions = {}): { dispose(): void } | null {

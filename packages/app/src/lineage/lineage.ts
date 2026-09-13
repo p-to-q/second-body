@@ -312,7 +312,8 @@ function renderState(root: Element, title: BiText, body: BiText): void {
 // ─────────────────────────── 装配 ───────────────────────────
 
 async function render(root: HTMLElement): Promise<void> {
-  document.title = `${L.title.zh} · ${L.title.en} — ${COPY.title.en}`;
+  // COPY.title 是全站唯一倒置的一对：.zh 存的是作品名（英文），.en 存中文说明
+  document.title = `${L.title.zh} · ${L.title.en} — ${COPY.title.zh}`;
   renderHeader(root);
 
   const data = await loadLineage();

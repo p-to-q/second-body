@@ -213,7 +213,9 @@ ledeCol.append(
     '两条过程性证明。一次拒入，一次准入。',
     'Two records of process. One entry refused, one entry admitted.',
   ), 'p', 'sb-lede'),
-  biBlock(bi(`作品：${COPY.title.zh}`, `Work: ${COPY.title.en}`), 'p', 'pp-work sb-data'),
+  // 两行都用名字本身：COPY.title 是全站唯一倒置的一对（.zh 存的是英文名），
+  // 直接取 .en 会在英文行印出中文说明。
+  biBlock(bi(`作品：${COPY.title.zh}`, `Work: ${COPY.title.zh}`), 'p', 'pp-work sb-data'),
 );
 lede.append(ledeCol);
 header.append(lede);

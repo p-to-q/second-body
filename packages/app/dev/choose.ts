@@ -22,7 +22,7 @@ import type { ThemeDef } from '../../core/src/types.ts';
 // 而 S2 的规格里没有任何页头，截图上不该留着我们的调试文字。
 mountPageHead({
   title: '选择页', titleEn: 'Choose', overlay: true,
-  note: '开场轮播、30 秒自动选、无 WebGL 降级列表 —— 观众选身体的那一刻。',
+  note: '观众选身体的那一刻。他选的应该是"变成什么"，不是"点哪一个"。',
 });
 
 const q = new URLSearchParams(location.search);

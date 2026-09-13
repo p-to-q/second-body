@@ -43,8 +43,16 @@ export function setBi(el: Element | null, t: BiText): void {
 // ─────────────────────────── 文案 ───────────────────────────
 
 export const COPY = {
-  /** 作品 */
-  title: bi('看我看你', 'SEE-ME SEE-U'),
+  /**
+   * 作品名。
+   *
+   * **全站唯一一处中英倒置的并置。** 别处都是"中文承重、英文辅助"，
+   * 因为中文是原文。但**作品的名字就是 `SEE-ME SEE-U`** ——
+   * 「看我看你」是它的中文说明，不是名字的一部分。
+   * 所以这里让名字占承重的那一行，说明退到辅助行。
+   * 倒置只此一处，别处不要照抄。
+   */
+  title: bi('SEE-ME SEE-U', '看我看你'),
   subtitle: bi(
     '你选一个物种，然后它用你的身体活过来',
     'Choose a species. It comes alive using your body.',
