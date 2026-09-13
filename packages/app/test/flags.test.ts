@@ -79,3 +79,23 @@ test('flags: 现场模式下目录自动消失，不需要再写一个参数', (
   assert.equal(readFlags('?kiosk=1').nav, false);
   assert.equal(readFlags('?kiosk=1').loading, true, '现场照样要有加载态：黑屏在现场更致命');
 });
+
+test('flags: ?wave= 只认 on / off，认不出来的值 = 当没写过', () => {
+  // 和 ?scene= / ?shading= / ?cam= 同一条规矩：手滑写的参数**不许静默生效**，
+  // 也不许静默变成"我以为我关掉了"。null 的意思是"这条参数没被认出来"，
+  // 默认走哪条由消费者（main.ts）决定并把结论打印出来。
+  assert.equal(readFlags('').wave, null, '没写就是 null');
+  assert.equal(readFlags('?wave=on').wave, 'on');
+  assert.equal(readFlags('?wave=off').wave, 'off');
+  assert.equal(readFlags('?wave=1').wave, null, '?wave=1 不算 —— 它读起来像"开"，但我们没认');
+  assert.equal(readFlags('?wave=yes').wave, null);
+  assert.equal(readFlags('?wave=').wave, null);
+  assert.equal(readFlags('?wave=OFF').wave, null, '大小写不宽容：只有一种写法能关掉它');
+});
+
+test('flags: ?wave= 的默认不是"关" —— 现场没有输入设备，关掉等于没有这一条', () => {
+  // 这条钉的是**默认值本身**，它是一个判断不是一个实现细节：
+  // 现场（?kiosk=1）一件输入设备都没有，默认关掉的话观众只能等 30 秒被随机塞一具身体。
+  assert.notEqual(readFlags('?kiosk=1').wave, 'off');
+  assert.notEqual(readFlags('').wave, 'off');
+});

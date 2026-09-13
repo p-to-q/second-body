@@ -11,6 +11,12 @@
  *   /dev/choose.html?idle=5000       缩短自动选择的等待，用来验那条 30 秒规则
  *   /dev/choose.html?n=2             只留前 2 个条目 —— 验「< 3 个退化成横向一排」
  *   /dev/choose.html?seed=1          固定随机种子
+ *   /dev/choose.html?wave=sim        用一段**合成的**姿态驱动举手滚动 ——
+ *                                    右手举过肩、左右来回挥。没有摄像头也能把
+ *                                    「姿态 → wave.ts → 环真的转起来」整条链跑一遍
+ *                                    （AGENTS.md：每条路径必须存在**且被跑过**）。
+ *                                    ⚠️ 它是合成数据，不是证据：真人的手抖、遮挡、
+ *                                    逆光全都不在里面（P18 —— 所以它自己吼一声）
  *   /dev/choose.html?freeze=1        挂上来就冻住时间线，之后用
  *                                    `__ring.advance(秒)` 一步步走 —— 取证截图用这个，
  *                                    **别用"等几秒再截"**：标签页在后台时 rAF 被节流到 1Hz，
@@ -62,8 +68,31 @@ if (n !== undefined && Number.isFinite(n) && n > 0) {
   }))).slice(0, n);
 }
 
+/**
+ * `?wave=sim` 的合成姿态。**只在 dev 页存在**，运行时一行都不会走到这里。
+ *
+ * 造的是 MediaPipe **原始**坐标（米、y 向下为正、未镜像）—— 因为真正的采集端
+ * 交出来的就是这个，镜像和 Y 翻转由 `mediapipeToWorld()` 统一做（docs/04 §1 / P4）。
+ * 右手举过肩并以 0.33Hz 来回挥，左手垂着。
+ */
+function simPose(): { world: { x: number; y: number; z: number }[]; score: number; t: number } {
+  const t = performance.now() / 1000;
+  const world = Array.from({ length: 33 }, () => ({ x: 0, y: 0, z: 0 }));
+  // 肩：y 向下为正，所以肩在髋中点上方 = 负
+  world[11] = { x: -0.18, y: -0.50, z: 0 };   // 左肩
+  world[12] = { x: 0.18, y: -0.50, z: 0 };    // 右肩
+  world[15] = { x: -0.20, y: 0.05, z: 0 };    // 左腕：垂着，远低于肩
+  world[16] = { x: 0.18 + 0.35 * Math.sin(t * 2 * Math.PI / 3), y: -0.75, z: 0 };  // 右腕：举过肩，横向挥
+  return { world, score: 0.9, t: performance.now() };
+}
+if (q.get('wave') === 'sim') {
+  // P18：合成数据必须在**用到它的那条路上**吼一声，不能只写在文档里
+  console.warn('[choose] ?wave=sim —— 举手滚动正被一段合成姿态驱动，这不是真人证据');
+}
+
 const handle = await chooseTheme({
   themes,
+  pose: q.get('wave') === 'sim' ? simPose : undefined,
   idleMs: num('idle'),
   seed: num('seed'),
   forceFallback: q.get('gl') === 'off',

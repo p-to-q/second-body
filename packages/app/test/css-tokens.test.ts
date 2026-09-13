@@ -77,7 +77,7 @@ test('CSS：每一个 var(--sb-*) 都有地方定义它', () => {
   // 这几个由 JS 在运行时写进行内样式（stage.ts 的 publishStageInk），
   // 文本里也有缺省值，所以它们本来就该在 declared 里 —— 列出来是为了
   // 万一将来有人把缺省值删了，这条断言会指着它说话。
-  const runtime = ['--sb-on-stage', '--sb-on-stage-dim', '--sb-halo', '--sb-ink-strong', '--sb-stage-ground'];
+  const runtime = ['--sb-on-stage', '--sb-on-stage-dim', '--sb-ink-strong'];
   for (const n of runtime) {
     assert.ok(declared.has(n), `${n} 只在运行时被写入，CSS 里没有缺省值 —— 舞台不在场的页面上它是未定义的`);
   }
@@ -95,12 +95,16 @@ test('CSS：每一个 var(--sb-*) 都有地方定义它', () => {
   assert.deepEqual(missing, [], `有 var() 指向从未定义的令牌：\n${missing.join('\n')}`);
 });
 
-test('CSS：三个"跟着底色翻"的令牌，亮底那一侧必须也有人翻', () => {
+test('CSS："跟着底色翻"的令牌，亮底那一侧必须也有人翻', () => {
   // 深底是缺省值（type.css）。亮底有两处：首屏那个类，和舞台按场景亮度发布的那一份。
   // 少了任何一侧，都会退回成"在一种底色上写死"——那正是犯过三次的那个 bug。
   const firstScreen = readFileSync(join(UI, 'choose/ring/first-screen.css'), 'utf8');
   const stage = readFileSync(join(UI, 'stage/stage.ts'), 'utf8');
-  for (const n of ['--sb-halo', '--sb-ink-strong', '--sb-stage-ground']) {
+  // 曾经有三个。`--sb-halo`（字周围的光晕）和 `--sb-stage-ground`（面板的底）
+  // 都**删掉了** —— 浮层改成纯文字、面板改成无底，理由写在 nav.css 和 chrome.css：
+  // 任何一个固定的底色都只在几种场景上成立，在别的上面它就是一块补丁。
+  // 剩下这一个仍然要两侧都翻。
+  for (const n of ['--sb-ink-strong']) {
     assert.ok(firstScreen.includes(n), `first-screen.css 没有翻 ${n}`);
     assert.ok(stage.includes(n), `stage.ts 的 publishStageInk 没有发布 ${n}`);
   }

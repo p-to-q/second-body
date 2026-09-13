@@ -22,7 +22,7 @@ import { mulberry32 } from '../../core/src/rng.ts';
 import { CAPTURE, NASCENT, REFINE } from '../../core/src/tuning.ts';
 import type { MotionFeatures, Skeleton, Tier } from '../../core/src/types.ts';
 
-import { createCapture } from './capture/capture.ts';
+import { createCapture, type Capture } from './capture/capture.ts';
 import { createPartLibrary } from './assets/library.ts';
 import { createCreature } from './creature/creature.ts';
 import { resolveShading, type ShadingId } from './creature/shading.ts';
@@ -175,10 +175,23 @@ async function boot(): Promise<void> {
 
   let theme = flags.theme ?? themeFromUrl();
   if (!theme) {
+    // 举手滚动（`choose/ring/wave.ts`）。现场一件输入设备都没有，这是那一页
+    // 唯一一条不靠鼠标/键盘的输入。三个条件缺一不可，**判断只在这一处**：
+    //   1. `?wave=off` 没关掉它（认不出来的值 = 没写过，走默认 on）
+    //   2. 这一刻驱动帧的真的是摄像头 —— 网页版入口层还在时用的是回放，
+    //      现场 / 深链才是摄像头（和上面 `createCapture` 的判断同一条）
+    //   3. `?demo=1` 不算。让一段录像去操作名单，观众看见的是"它自己在动"
+    // 摄像头还在起（好几秒）时 `captureForChoose` 还是 null，手势就晚一点到位 ——
+    // 这一页在此期间照常可以用鼠标/键盘，不需要等它。
+    const waveOn = flags.wave !== 'off' && !entry && !flags.demo;
+    let captureForChoose: { latest(): ReturnType<Capture['latest']> } | null = null;
+    if (waveOn) void capturePromise.then((c) => { captureForChoose = c; });
+    console.info(`[main] 选择页举手滚动：${waveOn ? 'on' : 'off'}（?wave=${flags.wave ?? '默认'}）`);
     await new Promise<void>((done) => {
       void chooseTheme({
         onChoose: (id) => { theme = id; done(); },
         seed: flags.seed ?? undefined,
+        pose: waveOn ? () => captureForChoose?.latest() ?? null : undefined,
         onPass: () => cues.play('pass'),
         // 自动选择必须和手动确认**不是同一声**，否则观众会以为自己碰到了什么
         onCommit: (_id, how) => cues.play(how === 'idle' ? 'idle' : 'commit'),

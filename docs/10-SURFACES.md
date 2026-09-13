@@ -6,6 +6,8 @@
 >
 > 规则：**动完代码就更新这张表。** 证据一栏必须是"跑过的命令"或"截图路径"，不能是"应该可以"。
 
+最后更新：2026-09-13（选择页举手滚动落地后）
+
 最后更新：2026-09-13（网格落地补完：`vitality` 认身体方案 + 团块自己落地）
 
 最后更新：2026-09-13（真人录制进库：`assets/demo/` 不再只有合成数据）
@@ -108,6 +110,7 @@
 | 慢回路前端（提交/轮询/热插拔/血统抽取） | `spec-only` | T-17 的前端一半。接口清单在 `docs/17 §8` |
 | Stage / 后期 / 场景 | 见上面那一组 | T-09 已落地，舞台美学这一轮把地平线/接触阴影/粒子/多场景做完；仍欠：接进 `main.ts`（`stage.render()` / `stage.frame()` / `stage.timeScale` / `stage.setScene()`）、真人实测、现场投影亮度、脚部件与骨架落点的 14cm 缝 |
 | 开场选择页（SDF 环） | `experimental` | `/dev/choose.html`：6 张卡滚/选/进，`?theme=xeno` 跳过，数字键直选，空闲自动选（`?idle=6000` 验过）；截图 `scratch/evidence/choose-0{1-settled,2-entry,3-hover-trail}.png`。实现在 `packages/app/src/choose/ring/`（`sdf.ts` / `field.ts` / `atlas.ts` / `first-screen.*`），移植自 **Viscose-carousel**（MIT，署名保留；`public/` 素材一张没拿）。**没有 `src/vendor/` 目录，也不该有**：上游是 GLSL + React，这边是 TSL + 原生 TS，没有一行逐字搬过来，所以出处写在三个文件头和 `docs/35-VISCOSE.md`，而不是一个会谎称"这些文件是上游原样"的 vendor 目录。上一版 `dither-blur-carousel` 的 `src/vendor/dither-carousel/` 已随那次重做删掉。未验：真实现场投影分辨率与触摸屏 |
+| **选择页举手滚动（`?wave=on\|off`）** | `experimental` | 现场一件输入设备都没有 —— 在这之前，站在装置前面的人**翻不了名单**，只能等 30 秒被随机塞一具身体。现在：举**一只**手过同侧肩 0.10m、停住 **0.75 秒**、横向挥 = 翻名单。走的是**滚轮那条路**（新增 `field.nudge()`，滚轮自己也改成调它），所以惯性 / 阻尼 / 槽位吸附全部复用，不存在第二套手感。三道防误触发：过肩线（挡边说话边比划）、连续 0.75s（挡走过去的路人）、**只能一只手**（挡伸懒腰 / 举双手拍照）；松开侧有 12cm 滞回 + 0.35s 宽限。「它武装了」不画任何新东西（docs/26 §F 反面清单）：借用这一页本来就有的**光标软化** —— 蓄势那 0.75 秒里那团软化从无到有，位置跟着手沿卡片行进的那根轴走。**真实鼠标永远优先**。判断是纯函数（`src/choose/ring/wave.ts`），接线在 `wave-input.ts`；坐标换算只走 `mediapipeToWorld()`（P4）。证据：`packages/app/test/wave.test.ts` 13 个用例随 `npm run check` 跑 —— app **127 → 142 pass / 0 fail**，core 146 pass，`check:parts` 208 件 0 错，整条绿。红-绿都验过：把蓄势与双手判定拿掉（立即武装）→ **13 中 5 红**；把死区与跳变门限拿掉 → **13 中 2 红**；把 `?wave=` 改成原样透传（不校验）→ flags **8 中 1 红**；三次还原后全绿。整条链在真实的环上跑过（`/dev/choose.html?wave=sim`，合成姿态）：`__ring.debug()` 读到正面卡 3→2→1→0 走过 4 个物种、`state.spin` 摆幅 0.548 rad，页面自己的 rAF 帧率读数 110–119fps（不开手势时同一页 117fps）；不开手势时 `spin` 增量 0.0000（名单绝不自己动）；`?gl=off` 下是 29 行 DOM 列表、键盘照常、无环无手势。**没有真人验过**（P17）：手抖、逆光、遮挡、以及「0.75 秒会不会让人觉得没反应」都还是纸面的；`WAVE` 那组阈值是本文件局部常量，**没进 `tuning.ts`**（要收口的人点头） |
 | 选择页无 WebGL 降级（DOM 列表） | `experimental` | `/dev/choose.html?gl=off`：6 张卡列出、点选写 `?theme=`、键盘与自动选择照常；控制台 `mode=fallback`。排版已并入 `type.css`（等宽、同底色、卡片图 —— docs/23 §S2「降级路径也是作品的一部分」），列表模式下底部常驻名牌收起、提示语改写成"点一行即确认"。截图 `scratch/evidence/ui-choose-fallback.png`。真实的 context lost 分支 `Not run` |
 | **选择页 30 秒自动选的倒计时（docs/23 §S2）** | `stable` | 规格要的是"最后 **5** 秒、中心卡下方一条**极细的进度线**"；原来是右上角一行"10s 后自动选择"的文字。现在是 1px 横线，60ms 步进（200ms 肉眼能看出台阶）。截图 `scratch/evidence/ui-choose-countdown.png`（`?idle=7000`，快门落在倒计时中段） |
 | **可选条目 < 3 → 螺旋退化成横向一排（docs/23 §S2）** | `stable` | 以前没做：两个条目也照样进螺旋，看起来像一个转不动的轮子。现在走同一条 DOM 列表路径（键盘/自动选择/退出动画全照常），只是排成一排。用新开关 `/dev/choose.html?n=2` 当场跑得到 —— 没有这个开关这条降级路径永远不会被验证。截图 `scratch/evidence/ui-choose-row-under3.png` |

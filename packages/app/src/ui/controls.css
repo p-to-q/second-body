@@ -101,7 +101,12 @@
   scrollbar-width: none;
   text-align: left;
   /* 半透明，不虚化 —— 理由同 nav.css */
-  background: color-mix(in srgb, var(--sb-stage-ground) calc(var(--sb-layer-panel) * 100%), transparent);
+  /* **面板没有底色。**
+     原来是一层 82% 的纸色。去掉的理由不是"透明好看"，是**适配**：
+     这一层会压在任何一种画面上（纸、白展厅、深空、夜潮、逆光，还有观众自己），
+     而任何一个固定的底色都只在其中几种上成立 —— 在别的上面它就是一块补丁。
+     纯文字没有这个问题：字色由 `--sb-on-stage` 跟着场景亮度翻，
+     读得出与否只取决于字自己。 */
   color: var(--sb-ink-dim);
   /* 没有入场动效，理由和 nav.css / notice.css 一样：入场动效等于把静止态
      设成 opacity 0，而动画不一定跑得起来。 */

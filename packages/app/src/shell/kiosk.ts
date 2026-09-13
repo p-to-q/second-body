@@ -66,7 +66,23 @@ export interface Flags {
    *
    * 认不出来（?preview=1 / ?preview=yes）就是 null = 当没写过，规矩同 `?scene=`。
    */
-  preview: PreviewMode | null;}
+  preview: PreviewMode | null;
+  /**
+   * ?wave=on|off 选择页的举手滚动（`choose/ring/wave.ts`）。
+   * null = 没写，或者写了一个认不出来的值 —— 两种情况都按默认（开）走。
+   *
+   * 为什么默认开：现场（`?kiosk=1`）**一件输入设备都没有**，没有它，
+   * 站在装置前面的人翻不了名单，只能等 30 秒被随机塞一具身体。
+   * 而它不会误触发（三道闸写在 `wave.ts` 的文件头），也不会在没摄像头、
+   * `?demo=1`、`?gl=off` 时出现任何行为 —— 默认开的下行风险接近零。
+   *
+   * 认不出来的值（`?wave=yes` / `?wave=1`）**不静默退回**：`readFlags` 给 null，
+   * 选择页开机时打一行 `wave=on|off(默认)` 说明实际走的是哪条 ——
+   * 规矩和 `?scene=` / `?shading=` / `?cam=` 一样（"我明明写了参数"和
+   * "参数没生效"必须分得开）。
+   */
+  wave: WaveFlag | null;
+}
 
 /** `?preview=` 的两个合法值。和 `?shading=` 同一个位置、同一条规矩 */
 export type PreviewMode = 'on' | 'off';
@@ -75,6 +91,12 @@ const PREVIEW_MODES: readonly string[] = ['on', 'off'];
 export function isPreviewMode(v: unknown): v is PreviewMode {
   return typeof v === 'string' && PREVIEW_MODES.includes(v);
 }
+
+/** `?wave=` 认的两个值。别的一律 null */
+export type WaveFlag = 'on' | 'off';
+const WAVE_FLAGS: readonly string[] = ['on', 'off'];
+export const isWaveFlag = (v: string | null): v is WaveFlag =>
+  v !== null && WAVE_FLAGS.includes(v);
 
 /** MediaPipe 的三个 PoseLandmarker 档位。精度/延迟的实测差异见 docs/24 §3 */
 export type PoseModel = 'lite' | 'full' | 'heavy';
@@ -131,7 +153,11 @@ export function readFlags(search = location.search): Flags {
     // `?preview=1` 手滑写成数字**不该**被猜成 'on'，那样"我写了参数"和
     // "参数没生效"就分不开了。挂不挂的默认判断在 `ui/preview.ts` 的 `wantsPreview()`，
     // 不在这里 —— 这里只负责认字。
-    preview: isPreviewMode(q.get('preview')) ? (q.get('preview') as PreviewMode) : null,  };
+    preview: isPreviewMode(q.get('preview')) ? (q.get('preview') as PreviewMode) : null,
+    // 认不出来就是 null = 当没写过（和 ?shading= / ?cam= 同一条规矩）。
+    // "默认是哪一条"由消费者决定并打印出来，不在这里替它决定。
+    wave: isWaveFlag(q.get('wave')) ? (q.get('wave') as WaveFlag) : null,
+  };
 }
 
 /** 防止 macOS 在无人交互时息屏 —— 装置会在这上面吃大亏 */

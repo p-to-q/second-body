@@ -1,3 +1,13 @@
+/* **不画光晕。**
+ *
+ * 这里原来是 `text-shadow: 0 0 6px var(--sb-halo)` —— 把字周围一小圈画面推远，
+ * 好让字在任何画面上都读得出。它管用，但代价是**字的外面多了一圈白/黑边**，
+ * 在这件作品的版面语言里那就是一层材质，而这一层要的是平。
+ *
+ * 现在靠的是另一件事：字色本身跟着底色翻（`--sb-on-stage`，由 stage.ts 的
+ * publishStageInk 按当前场景亮度发布）。亮场景上是深字、暗场景上是浅字 ——
+ * 对比度从**字自己**来，不从字外面那一圈来。
+ */
 /**
  * 页面外壳 —— 页头、细横线、HUD 的共用皮肤。
  *
@@ -82,7 +92,6 @@
   z-index: 4;
   padding: calc(var(--sb-safe) * 0.5) calc(var(--sb-safe) * 0.5) 0;
   pointer-events: none;
-  text-shadow: 0 0 6px var(--sb-halo), 0 0 2px var(--sb-halo);
   transition: opacity 180ms cubic-bezier(0.4, 0, 1, 1);
 }
 
@@ -122,7 +131,6 @@
   color: var(--sb-ink-dim);
   white-space: pre-line;
   pointer-events: none;
-  text-shadow: 0 0 6px var(--sb-halo), 0 0 2px var(--sb-halo);
 }
 
 .sb-hud-dev b { color: var(--sb-ink); font-weight: var(--sb-weight-head); }
@@ -143,7 +151,6 @@
   opacity: 0.6;
   white-space: pre-line;
   pointer-events: none;
-  text-shadow: 0 0 6px var(--sb-halo), 0 0 2px var(--sb-halo);
 }
 
 /* 满屏画布页的共用底：canvas 铺满，页面不滚 */

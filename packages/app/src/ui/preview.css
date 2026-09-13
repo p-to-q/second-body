@@ -1,3 +1,13 @@
+/* **不画光晕。**
+ *
+ * 这里原来是 `text-shadow: 0 0 6px var(--sb-halo)` —— 把字周围一小圈画面推远，
+ * 好让字在任何画面上都读得出。它管用，但代价是**字的外面多了一圈白/黑边**，
+ * 在这件作品的版面语言里那就是一层材质，而这一层要的是平。
+ *
+ * 现在靠的是另一件事：字色本身跟着底色翻（`--sb-on-stage`，由 stage.ts 的
+ * publishStageInk 按当前场景亮度发布）。亮场景上是深字、暗场景上是浅字 ——
+ * 对比度从**字自己**来，不从字外面那一圈来。
+ */
 /**
  * 左上角那块小屏幕的皮肤。度量与颜色全部来自 type.css。
  *
@@ -67,7 +77,6 @@
   font-size: var(--sb-size-small);
   line-height: var(--sb-lh-body);
   color: var(--sb-on-stage);
-  text-shadow: 0 0 6px var(--sb-halo), 0 0 2px var(--sb-halo);
 }
 
 /* 中英并置：中文承重、英文辅助（type.css 的 .sb-zh / .sb-en）。

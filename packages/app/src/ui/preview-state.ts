@@ -29,6 +29,7 @@
  * 「往后退一点」是观众当场做得到的事，「光不够」不是。
  */
 import type { Landmark, RawPose } from '../../../core/src/types.ts';
+import { PREVIEW } from '../../../core/src/tuning.ts';
 import { qualityScale } from '../../../core/src/refine.ts';
 import { CAPTURE, REFINE } from '../../../core/src/tuning.ts';
 import type { Flags } from '../shell/kiosk.ts';
@@ -93,22 +94,10 @@ export interface SeeInput {
   pose: RawPose | null;
 }
 
-/**
- * 出画留多少余量才算"还在画面里"。
- *
- * 0 会把贴边站着的人判成出画（MediaPipe 的 `screen` 坐标在边缘会轻微越界），
- * 太大又会漏掉真的半个人出画。**这是一个该进 `tuning.ts` 的数**，
- * 但那是冻结契约（P0），所以暂住在这里，并已在收尾报告里报上去。
- */
-const EDGE_MARGIN = 0.02;
-
-/**
- * 几个点越界就算"半个人出画"。
- *
- * 不用"任何一个点越界"：手一扬出画外是常态，它不该让整块缩略图开口说话。
- * 33 个点里有 3 个以上可信点在画外，才是"你得往后退一点"。
- */
-const OUT_OF_FRAME_POINTS = 3;
+// 四个数都在 `core/tuning.ts` 的 `PREVIEW` 块里，各自的理由写在那边。
+// 搬过去的原因只有一个：`edgeMargin` 是换一颗镜头就要重调的量，
+// 而现场调一个数不该要求人去读一个 UI 文件。
+const { edgeMargin: EDGE_MARGIN, outOfFramePoints: OUT_OF_FRAME_POINTS } = PREVIEW;
 
 /** 哪些点参与出画判定：只看**可信**的点，理由同 `refine.ts` 的遮挡门限 */
 function trusted(l: Landmark | undefined): boolean {
@@ -167,8 +156,7 @@ export function seeState(input: SeeInput): SeeReading {
  * **新状态要连续成立 `ENTER_SECONDS` 才换过去**，回到 `ok` 也一样要憋
  * （憋得更久一点 —— 「好了」比「不好」更容易是一次误报）。
  */
-const ENTER_SECONDS = 0.45;
-const ENTER_OK_SECONDS = 0.8;
+const { enterSeconds: ENTER_SECONDS, enterOkSeconds: ENTER_OK_SECONDS } = PREVIEW;
 
 export interface SeeWatch {
   /** 喂一帧，拿回**当前对外的**读数（不是这一帧的原始判定） */
