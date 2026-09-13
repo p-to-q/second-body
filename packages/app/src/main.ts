@@ -577,8 +577,10 @@ async function boot(): Promise<void> {
     //
     // **任何跨观众留存的状态都是 bug**，除非它是 `/lineage` 谱系那一条
     //（那一条留在 `library.index.parts` 里，是开场就注入的，不在这里）。
-    // 所以除了种子和各个滤波器，这里还要把两样最容易被漏掉的东西收回来：
-    // 被按住的玩法（`untether` 写进 URL 那次 bug 的同一类）和物种身体的到场。
+    // 所以除了种子和各个滤波器，这里还要把最容易被漏掉的那一样收回来：
+    // **被按住的玩法**（`untether` 写进 URL 那次 bug 的同一类）。
+    // 物种身体的到场不用在这里写一行 —— `speciesArrived()` 读的就是
+    // `arcState.movement`，弧线一归零它自己就退回人形。派生状态不该被复制两份。
     if (arcState.justReset) {
       seed = (Math.random() * 0xffffffff) >>> 0;
       motion.reset();

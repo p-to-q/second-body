@@ -17,6 +17,7 @@
 
 | 日期 | 这一版落地了什么 |
 |---|---|
+| 2026-09-14 | 会话弧线落地：四个乐章一条时间轴，导演不再摇骰子（docs/40） |
 | 2026-09-14 | 第六层 · 工作声落地；第五层 `reveal` / `ground` 触发点已接，旋钮移交 `tuning.ts` |
 | 2026-09-13 | 选择页举手滚动落地后 |
 | 2026-09-13 | 网格落地补完：`vitality` 认身体方案 + 团块自己落地 |
@@ -83,7 +84,8 @@
 |---|---|---|
 | Vite + `three/webgpu` 渲染栈 | `stable` | `/dev/parts.html` 在 WebGPU 下正常出图 |
 | **主程序 `src/main.ts`（整条链收口）** | `experimental` | `/?demo=1&debug=1&theme=patrol&seed=99&tier=2` 装出整具真部件身体：**120fps · CPU 0.8ms · 30 实例 · 89k 三角 · 13 draw · 推理 30Hz**，全部在 `BUDGET` 内（`scratch/evidence/main-chain-patrol.png`）。tier 0 时如设计般是素几何（`main-chain-tier0.png`）。**只在回放数据上跑过，没接过真人** |
-| **玩法扩展点 `src/acts/`（Act / Director）** | `experimental` | `/?demo=1&debug=1&act=echo` → HUD 显示 `act echo 回声: 延迟 1.2s`，120fps / CPU 0.5ms。出错隔离（连续 3 次抛异常自动禁用并回落 follow）的分支 `Not run` |
+| **玩法扩展点 `src/acts/`（Act / Director）** | `experimental` | `/?demo=1&debug=1&act=echo` → HUD 显示 `act echo 回声: 延迟 1.2s`，120fps / CPU 0.5ms。出错隔离（连续 3 次抛异常自动禁用并回落 follow）的分支 `Not run`。**选角已经不是随机加权了**，见下一行 |
+| **会话弧线 `core/src/arc.ts` + `tuning.ts` 的 `ARC` 块（docs/40）** | `experimental` | 一条时间轴四个乐章（跟随 40s → 回声 45s → 抵抗 50s → 朝向 45s，比例 `ARC.beats`，`?arc=<秒>` 当场覆盖），导演按它排座次；分档跟着它走（运动量只能**提前**升档，不能把不动的人卡在 tier 0）；物种自己的 `bodyPlan` 推迟到第 III 乐章，用 `blendSkeletons` 在 `ARC.crossfade` 4 秒里漂过去；人走满 `ARC.resetAfter` 8 秒这一场归零。`npm run check` 全绿：core **178 pass**、app **217 pass**、`check:parts` 208 件 0 错 2 警告。新断言 40 条（`core/test/arc.test.ts` 16 · `app/test/director-arc.test.ts` 7 · `app/test/arc-still.test.ts` 7 · `app/test/hud-arc.test.ts` 6 · `core/test/bodyplan.test.ts` +3 · `app/test/flags.test.ts` +1）。**「永远不脱钩」是量出来的**（docs/40 §1）：喂一副一动不动的骨架，四个乐章各站 20 秒、整条弧线走 200 秒，身体在同一段映射之内自己动了 **0.0000mm**；同一套夹具下对照组 `untether` 动 **102.9mm** —— 没有那个对照组，上面那些 0 在夹具没跑起来时也会是绿的（P21）。变异检验三发三中：导演改回随机加权 → 14 中 **5 红**；弧线不看在场（时钟不停、永不归零）→ 16 中 **2 红**；把第 IV 乐章换成脱钩的 `untether` → 30 中 **8 红**；三次还原后回到全绿。**没有在浏览器里跑过**：这一轮全部证据都在 node 侧，`?debug=1` 的 `arc` 行、第 III 乐章的漂移、B 档物种的到场都还没有截图 |
 | `src/stage/stage.ts` 舞台（等身相机 / 三点光 / 影子 / **屏幕空间天幕 + 距离雾** / 接触阴影 / 空场粒子 / 升档脉冲） | `experimental` | **地平线那条硬边已经不存在了**（不是调淡了）：改前 `stage-before-idle.png` 第 240→249 行整行平均亮度 9px 内跳 **+5.6/255**；改后 `stage-after-idle.png` 同一带（y=200–284）单调平滑、总变化 **0.26/255**，整张图最大 4px 跳变 2.65/255 且落在页头文字上（量法 `scratch/scan.py`）。做法不是"让两个材质输出同一个颜色"（那条路实测证伪），而是天幕变成一个屏幕空间函数、地面靠 `scene.fogNode` 化进同一个函数。**仍然只在合成 A-pose 上跑过，没接过真人** |
 | **舞台场景 `src/stage/scenes.ts`（5 套完整视觉世界，`?scene=` 切换，按物种自动挑）** | `experimental` | `paper` 纸 / `gallery` 白展厅 / `void` 深空 / `tide` 夜潮 / `backlit` 逆光，各一张取证：`scratch/evidence/stage-scene-{gallery,void,tide,backlit}.png`（同 seed 同条目，差别全部来自场景）。同一套场景换物种 `stage-scene-void-xeno.png` 证明**灯的颜色仍归主题、场景只换世界**。切换复用 `lerpLook` 那条交叉淡入（`STAGE.sceneFade = 1.6s`，**不是硬切**），中间帧 `stage-transition-mid.png`。单测 `test/scenes.test.ts` 11 条：五套性格次序、晕心几何下限、雾密度上限、**地面反射不许有中间态**、`applyScene` 不动物种颜色、`pickScene` 分支、未知 `?scene=` 不静默兜底 |
 | 接触阴影（脚下那一圈，落点由骨架给） | `experimental` | `framing.ts` 的 `contactPoints()` + `stage.frame(skeleton)` 每帧喂。去重阈值 **0.19m** 是量出来的（脚踝↔脚尖 0.16m、两脚 0.20m，取 0.12 会让每只脚下面出现两个黑圆斑）；离地上限 `STAGE.contactLiftRange = 0.22m` 挡掉手尖（A-pose 手尖离地 0.73m，去重挡不住）。截图 `stage-scene-void.png` / `stage-scene-void-xeno.png` 脚下可见。接触阴影的"地面"取 **y=0**（不是身体自己的最低点）：陷进地里的脚照常有接触阴影，**真跳起来时接触阴影正确消失**（单测两条都钉住）。**未兑现的那一半**：脚的网格最低点在 y=−0.025（装配线实测，真实运行时 `ground()` 归零后再沉 ~3cm），身体整体陷进地里约 5cm —— 修法要装配时的 `aabb`，归 `src/creature/` 那条线；**他们加的 Y 偏移必须同时加在喂给 `stage.frame()` 的骨架上**，否则网格挪了影子留在原地 |
