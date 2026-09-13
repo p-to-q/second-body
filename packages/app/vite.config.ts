@@ -48,6 +48,34 @@ function demoIndex(): Plugin {
     buildStart() {
       try { writeDemoIndex(); } catch (e) { this.warn(`/demo/index.json 生成失败：${String(e)}`); }
     },
+
+    /**
+     * dev server 上**必须自己发这一个文件**，不能交给 publicDir 的静态中间件。
+     *
+     * 踩到的坑（docs/36 §D1）：Vite 的 html 中间件会把路径里那个 `index.*`
+     * 认成一张页面，于是 `GET /demo/index.json` 拿到的是 **200 + index.html**，
+     * 而同一个目录下的 `pose-*.json` 一切正常 —— 坏的只有这一个文件名。
+     * 下游 `fetchClipIndex()` 看到 `r.ok` 为真、`r.json()` 抛异常，按既定降级
+     * 退回写死的 `pose-synthetic.json`：**dev 上的 `?demo=1` 一直在放合成假数据**，
+     * 而画面上看不出来（合成数据也会动）。自检页同时报「一条片段都没有 ✗」，
+     * 那条 ✗ 说的不是产物的实情 —— `vite preview` 与 Vercel 上这个文件是好的。
+     *
+     * 这正是 P21 那条：仪表读数为真，但它说的是错的那件事。所以修在根上 ——
+     * 让 dev 与 preview 对同一个 URL 给出同一个答案，自检页才重新值得信。
+     */
+    configureServer(server) {
+      server.middlewares.use('/demo/index.json', (_req, res) => {
+        try {
+          res.setHeader('content-type', 'application/json');
+          res.end(readFileSync(resolve(DEMO_DIR, 'index.json'), 'utf8'));
+        } catch {
+          // 还没生成出来（比如 assets/demo/ 是空的）。给一个**空索引**而不是 404：
+          // 「没有片段」是 replay.ts 认得的状态，它会退回默认文件；
+          // 而 404 在 SPA 回退下又会变回 200 + index.html，等于绕回原来那个坑。
+          res.end('{"clips":[]}');
+        }
+      });
+    },
   };
 }
 
