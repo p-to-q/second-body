@@ -65,6 +65,7 @@
 | [`25-COMPLETENESS.md`](25-COMPLETENESS.md) | 离"完整"还差什么？内部账本 —— 诚实集中的三处之一（`26` §G） | 中文 |
 | [`26-ARTWORK-STANDARD.md`](26-ARTWORK-STANDARD.md) | 怎么判断它是作品还是 demo？拿参考图谱的尺子量自己；§G 定了"诚实只放三处"这条规矩 | 中文 |
 | [`39-SPECIES-AUDIT.md`](39-SPECIES-AUDIT.md) | 每个物种渲染出来的，是不是它声称的那一个？29 条逐条判决、五个系统性成因、`check:parts` 看不见的那几种坏法 | 中文 |
+| [`41-MATERIAL.md`](41-MATERIAL.md) | 三分钟里身体的**表面**在说什么？四个乐章 → 一条连续的表面曲线（`MATERIAL` 块）；描边翻成默认之后这条线为什么反而更准；手脚的墨为什么按槽位收窄 | 中文 |
 | [`27-BRAND.md`](27-BRAND.md) | 对外物料长什么样？品牌字体规范、海报与票根（导出在 `../assets/brand/`） | 中文 |
 | [`31-ARCHETYPES.md`](31-ARCHETYPES.md) | 每个物种的参考来自哪台真机器？16 个 archetype ↔ roster id 对表、prompt 摘要、bodyPlan 不符清单 | 中文 |
 

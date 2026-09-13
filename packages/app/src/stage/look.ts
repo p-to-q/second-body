@@ -21,6 +21,7 @@
  *   - `humanLike` 低 = 更像机器 → 更硬更强的轮廓光；
  *   - `lifeLike` 高 = 更像活物 → 更软的主光、更活跃的粒子。
  */
+import { MATERIAL } from '../../../core/src/tuning.ts';
 import type { MaterialDef, ThemeDef } from '../../../core/src/types.ts';
 
 /** 线性空间 RGB，0..1（three 的 Color 内部也是线性的） */
@@ -349,4 +350,90 @@ export function lerpLook(a: LookProfile, b: LookProfile, t: number): LookProfile
     else if (Array.isArray(va) && Array.isArray(vb)) out[k] = mixRgb(va as RGB, vb as RGB, t);
   }
   return out as unknown as LookProfile;
+}
+
+// ── 弧线（docs/40 的四个乐章 → 这一套 look 的第三层）──────────────────────
+//
+// 为什么在这个文件里，而不是另起一套：`docs/41 §2` 的硬约束 ——
+// 颜色与光只有 `LookProfile` 一套。弧线因此和场景**同构**：
+//   主题（它是什么颜色）→ 场景（它站在什么地方）→ 弧线（这是第几分钟）
+// 三层都只是作用在同一个 `LookProfile` 上的纯函数，都白拿 `lerpLook` 的过渡。
+//
+// 为什么四条权重也在这里，而不是在 `creature/surface.ts`：
+// 灯和表面必须读**同一条**曲线。曲线放在被两边共用的那一侧，
+// 一条线才不会在中途分叉成两条（那正是 docs/40 说的"四个开关"怎么长出来的）。
+
+/** 四个乐章在此刻各自的份量。全部 ∈ [0,1]，**可以同时非零** —— 它们是交叠的 */
+export interface ArcWeights {
+  /** I · datafication */
+  quote: number;
+  /** II · morphogenesis / zoe */
+  grow: number;
+  /** III · simulacrum */
+  diverge: number;
+  /** IV · other */
+  other: number;
+}
+
+export const ARC_OFF: ArcWeights = { quote: 0, grow: 0, diverge: 0, other: 0 };
+
+const smoothstep = (a: number, b: number, x: number): number => {
+  if (b - a < 1e-6) return x < a ? 0 : 1;
+  const t = clamp01((x - a) / (b - a));
+  return t * t * (3 - 2 * t);
+};
+
+/**
+ * `arc ∈ [0,1]`（整条弧线的进度，不是秒）→ 四个乐章此刻各自的份量。
+ *
+ * 全是 C¹ 连续的曲线，而且**互相重叠**：0.45 处 quote 刚归零、grow 正接近峰值、
+ * diverge 已经起来了 —— 观众看不到任何一处"换了"。
+ * 钟形用余弦而不是高斯：余弦在两端**精确**归零，高斯永远留一条尾巴，
+ * 于是第 IV 乐章还挂着一点第 II 乐章的微光，那是一条擦不干净的线。
+ */
+export function arcWeights(arc: number, gain = MATERIAL.gain): ArcWeights {
+  if (!Number.isFinite(arc)) return ARC_OFF;
+  const a = clamp01(arc);
+  const g = Number.isFinite(gain) ? Math.max(0, gain) : 1;
+  if (g <= 0) return ARC_OFF;
+  const d = Math.abs(a - MATERIAL.growCenter) / Math.max(1e-6, MATERIAL.growWidth);
+  const bell = d >= 1 ? 0 : 0.5 * (1 + Math.cos(Math.PI * d));
+  return {
+    quote: g * (1 - smoothstep(0, MATERIAL.quoteEnd, a)),
+    grow: g * bell,
+    diverge: g * smoothstep(MATERIAL.divergeFrom, MATERIAL.divergeTo, a),
+    other: g * smoothstep(MATERIAL.otherFrom, 1, a),
+  };
+}
+
+/**
+ * 把弧线盖到 look 上。**只缩放已有字段，一个新字段都没加** ——
+ * 和 `applyScene` 同一条规矩：这一层管的是"时间"，不是又一套世界。
+ *
+ * 四句话：
+ *  I  翻拍台的平光（补光起、轮廓光落）—— 文献翻拍就是这么打的，那是"被引用"的光
+ *  II AO 与粒子起来一点：周围开始有东西在结
+ *  III 不动灯。第 III 乐章的话由**表面**说（见 `creature/surface.ts`），
+ *      灯再插一句会把那句话盖掉
+ *  IV 轮廓光起、主光落：它越来越由自己的边来说明，而不是由我们的主光
+ *
+ * **接触阴影一个字都不改。** 那一项是"它站在地上"，全程不许动 ——
+ * 一件飘起来的作品不再是屋里的一件东西（docs/26 §F）。
+ */
+export function applyArc(look: LookProfile, w: ArcWeights): LookProfile {
+  if (!w || (w.quote <= 0 && w.grow <= 0 && w.other <= 0)) return look;
+  const q = clamp01(w.quote);
+  const g = clamp01(w.grow);
+  const o = clamp01(w.other);
+  return {
+    ...look,
+    fillIntensity: look.fillIntensity * (1 + MATERIAL.quoteFill * q),
+    rimIntensity: look.rimIntensity * (1 - MATERIAL.quoteRim * q) * (1 + MATERIAL.otherRim * o),
+    keyIntensity: look.keyIntensity * (1 - MATERIAL.otherKey * o),
+    aoStrength: look.aoStrength * (1 + MATERIAL.growAo * g),
+    particleGain: look.particleGain * (1 + MATERIAL.growParticle * g),
+    // 0.45 是 `applyScene` 立的那条硬顶（`test/scenes.test.ts` 钉着）。
+    // 弧线不是把它抬高的理由 —— 再往上就从"被拍下来"变成"加了滤镜"
+    bloomStrength: Math.min(0.45, look.bloomStrength * (1 + MATERIAL.otherBloom * o)),
+  };
 }

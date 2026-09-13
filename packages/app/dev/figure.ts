@@ -14,6 +14,10 @@
  *     ?angle=0.35         冻结转台角度（弧度）
  *     ?still=90           跑满 N 帧就停 —— headless 取证必须有这个
  *     ?shading=toon|physical  强制着色语言，压过条目自己声明的（`creature/shading.ts`）
+ *     ?arc=0..1           弧线进度（docs/40 的四个乐章 → 表面，docs/41）。
+ *                         **不给就是不给** —— 整条物质语言不生效，画面和它出现之前相同。
+ *                         这一页只有一副写死的灯，所以它证的是**表面**那一半；
+ *                         灯那一半（`stage/look.ts` 的 `applyArc`）在这一页上看不见。
  * 一排并排比较不同物种的形体，见 dev/lineup.html。
  * 键：←/→ 换主题，↑/↓ 换 tier，N 下一个 seed，空格暂停旋转，S 显示/隐藏骨架线。
  */
@@ -26,6 +30,7 @@ import { createPartLibrary } from '../src/assets/library.ts';
 import { partIdsOf } from '../src/creature/assemble.ts';
 import { createCreature } from '../src/creature/creature.ts';
 import { isShadingId, resolveShading, type ShadingId } from '../src/creature/shading.ts';
+import { arcWeights } from '../src/stage/look.ts';
 import { remapSkeleton } from '../../core/src/bodyplan.ts';
 import { createSwarmBody, type SwarmBody } from '../src/creature/swarm.ts';
 import type { BodyInstance } from '../src/creature/body.ts';
@@ -149,6 +154,17 @@ await library.load();                          // parts.json 缺失也 resolve �
 // 它就不是证据，是另一张图。
 const SHADING_OVERRIDE: ShadingId | null =
   isShadingId(qs.get('shading')) ? (qs.get('shading') as ShadingId) : null;
+/**
+ * `?arc=` 缺省是 `null`，**不是 0**。
+ * 0 是「第 I 乐章刚开始」（表面已经被压平成被引用的数据），
+ * `null` 是「这条线不存在」—— 两者看起来差很多，混掉的话这一页就再也拍不出对照组了。
+ */
+const ARC: number | null = (() => {
+  const raw = qs.get('arc');
+  if (raw === null || raw.trim() === '') return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : null;
+})();
 const creature = createCreature({ library, shading: resolveShading(qs.get('theme'), SHADING_OVERRIDE) });
 scene.add(creature.object);
 
@@ -232,6 +248,9 @@ async function rebuild() {
     new Promise((r) => setTimeout(r, 3000)),
   ]);
   creature.remorph(genome);                    // 第一次调用直接成型，之后是 crossfade
+  // 换主题会重建全部材质（`setShading`），弧线要跟着重新盖一次 ——
+  // 否则翻过一个主题之后表面悄悄退回弧线起点，而 HUD 上那一行还写着 0.90
+  if (ARC !== null) creature.setArc(ARC);
   activeBody().pose(skeleton, presence, 1 / 60);
     fitCamera();
   syncUrl();
@@ -326,6 +345,12 @@ function drawHud() {
     `<b>${def ? `${def.name} · ${def.nameEn}` : themes[themeIdx]}</b>  (${themeIdx + 1}/${themes.length})\n` +
     `${def?.tagline ?? ''}\n\n` +
     `seed ${seed} · tier ${tier} · 身高 ${BODY_HEIGHT}m\n` +
+    // 取证图必须自己说明它是第几分钟的身体，不能靠文件名（文件名会被改，图不会）
+    (ARC === null ? '' : (() => {
+      const w = arcWeights(ARC);
+      return `弧线 arc=${ARC.toFixed(2)} · quote ${w.quote.toFixed(2)}`
+        + ` grow ${w.grow.toFixed(2)} diverge ${w.diverge.toFixed(2)} other ${w.other.toFixed(2)}\n`;
+    })()) +
     `←/→ 主题 · ↑/↓ tier · N 换 seed · 空格 暂停 · S 骨架线\n` +
     (library.usingFallback ? '⚠ parts.json 不可用 → 程序化占位几何（P3）\n' : '') +
     // 点场一个槽位件都不实例化，"槽位齐全"对它是一句没有意义的话 ——
@@ -339,6 +364,24 @@ function drawHud() {
         `${fps.toFixed(0)} fps · pose ${poseMs.toFixed(2)}ms · frame ${jsMs.toFixed(2)}ms · 占位实例 ${s.placeholders ?? 0} · 换装 ${s.swapsActive ?? 0}活/${s.swapsQueued ?? 0}排\n` +
         `资产 ${library.stats.loaded} 已加载 / ${library.stats.failed} 失败 / ${library.stats.pending} 在途`
       : '');
+  // `?probe=ink`：每个桶的**世界包围球半径**。墨宽那次决策的数就是从这里读的
+  // （`TOON.outlineSlotScale` 的注释里那一串）。只看第 0 个实例的矩阵 ——
+  // 同一个桶里的实例缩放是同一套，取一个就够，别为了一个 dev 探针去遍历全部。
+  if (qs.get('probe') === 'ink') {
+    const rows: string[] = [];
+    for (const o of creature.object.children) {
+      const m = o as THREE.InstancedMesh;
+      if (!m.isInstancedMesh || m.name.endsWith('~outline') || !m.count) continue;
+      m.geometry.computeBoundingSphere();
+      const r = m.geometry.boundingSphere?.radius ?? 0;
+      const e = new THREE.Matrix4().fromArray(m.instanceMatrix.array as unknown as number[], 0).elements;
+      const s = Math.max(
+        Math.hypot(e[0], e[1], e[2]), Math.hypot(e[4], e[5], e[6]), Math.hypot(e[8], e[9], e[10]),
+      );
+      rows.push(`${m.name.split('#')[0]} r=${(r * s).toFixed(4)}m`);
+    }
+    hud.innerHTML += `\n${rows.sort().join('\n')}`;
+  }
 }
 
 // ── 交互 ────────────────────────────────────────────────────────────────────
