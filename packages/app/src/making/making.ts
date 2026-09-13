@@ -24,6 +24,7 @@
  * 窄屏下左栏塌到内容上方（见 making.html 的 media query），顺序不变。
  */
 import { COPY, setBi, type BiText } from '../ui/i18n.ts';
+import { markNode } from '../ui/mark.ts';
 import { mountNav } from '../ui/nav.ts';
 
 const M = COPY.making;
@@ -77,11 +78,12 @@ function renderHeader(root: Element): void {
   const head = el('header', 'ed-hero', root);
 
   const meta = el('div', 'ed-hero__meta', head);
-  const back = el('a', 'sb-label sb-bi-inline', meta);
+  const back = el('a', 'ed-hero__back', meta);
   back.setAttribute('href', '/about');
   setBi(back, COPY.about.back);
   const work = el('span', 'sb-label sb-bi-inline', meta);
   setBi(work, COPY.title);
+  meta.append(markNode('span'));
 
   el('hr', 'ed-rule ed-rule--heavy', head);
 

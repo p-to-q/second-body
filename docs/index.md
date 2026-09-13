@@ -68,6 +68,7 @@
 | [`41-MATERIAL.md`](41-MATERIAL.md) | 三分钟里身体的**表面**在说什么？四个乐章 → 一条连续的表面曲线（`MATERIAL` 块）；描边翻成默认之后这条线为什么反而更准；手脚的墨为什么按槽位收窄 | 中文 |
 | [`27-BRAND.md`](27-BRAND.md) | 对外物料长什么样？品牌字体规范、海报与票根（导出在 `../assets/brand/`） | 中文 |
 | [`31-ARCHETYPES.md`](31-ARCHETYPES.md) | 每个物种的参考来自哪台真机器？16 个 archetype ↔ roster id 对表、prompt 摘要、bodyPlan 不符清单 | 中文 |
+| [`42-REAL-MACHINES.md`](42-REAL-MACHINES.md) | 那台真机的**几何**在哪、授权是什么？18 条对表与三档判定（实·有几何／实·无几何／虚）、逐台来源 URL 与授权、取件的字节与工程量、命名建议 | 中文 |
 
 ## 背景（是 context，不是 contract）
 
@@ -87,6 +88,7 @@
 | [`32-RESEARCH-editorial.md`](32-RESEARCH-editorial.md) | 作品集版面怎么排？实测与落点 | 中文 |
 | [`33-RESEARCH-open3d.md`](33-RESEARCH-open3d.md) | 哪些开源真实 3D 资产能用？调研、实测与授权 | 中文 |
 | [`35-VISCOSE.md`](35-VISCOSE.md) | 首屏那个环从哪来、能不能用？移植出处、授权判定、GLSL→TSL 逐条差异 | 中文 |
+| [`43-ARCHIVE.md`](43-ARCHIVE.md) | 每一次到访要不要留下来、留下什么、留在哪、怎么回放？**一份等裁定的方案**：一条记录的四档与实测字节、存储选型与三个规模的钱、命名的法律轴与艺术轴、隐私文案两版、降级矩阵、最小第一步 | 中文 |
 
 ## 状态与流水
 

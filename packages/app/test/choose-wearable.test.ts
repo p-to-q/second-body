@@ -66,10 +66,13 @@ test('真 parts.json：列出来的每一具，makeGenome 都装配成它自己'
     }
   }
 
-  // 三条零自有件的条目（docs/39 §1）此刻必须**不在**轮播里
-  for (const id of ['char.diva', 'guest.keynote', 'guest.founder']) {
-    const t = index.themes.find((x) => x.id === id);
-    if (t) assert.equal(isWearable(t, library), false, `${id} 还在轮播里`);
+  // 反方向：零自有件的条目必须**不在**轮播里。
+  // 这一条从索引推出来，不钉死某几个 id —— 一个条目一旦真的生成了自有件
+  // （`char.diva` / `guest.keynote` 2026-09-13 就是这样上场的），它上场是对的，
+  // 该失败的是「有件却不上场」和「没件却上场」，不是「名单变了」。
+  for (const t of index.themes) {
+    if (t.source === 'procedural') continue;
+    if (!partCount.get(t.id)) assert.equal(isWearable(t, library), false, `${t.id} 零自有件却还在轮播里`);
   }
 });
 

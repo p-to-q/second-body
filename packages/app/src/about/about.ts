@@ -106,7 +106,7 @@ function head(): HTMLElement {
   const back = el('a', 'sb-label');
   back.setAttribute('href', '/');
   setBi(back, COPY.about.back);
-  back.classList.add('sb-bi-inline');
+  back.classList.add('ed-hero__back');
 
   const title = biEl('h1', COPY.title, 'sb-display ed-rise');
   // 中文和英文各自是一段揭示（--ed-i 是它们的先后）。分段而不是整块，

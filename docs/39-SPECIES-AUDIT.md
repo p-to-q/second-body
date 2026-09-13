@@ -59,13 +59,15 @@ headless Chrome（`--enable-unsafe-webgpu`），帧落在 `scratch/evidence/`（
 | `char.paper` | character · light | `towering` | 6/6 | **成立** | 又高又薄，折面与硬边读得出来。`fig-char.paper.png` |
 | `char.idol` | character · light | `{head:1.35, limb:0.9}` | 6/6 | **勉强** | 手办比例的那个「大头」拿不到（§2.3），剩下的是一具配色更亮的人形。`fig-char.idol.png` |
 | `char.inflate` | character · light | 比例 | **1/6** | **名不副实** | 只生成了 `spine` 一件，其余九个槽位全借 `porcelain`：画面上是一具瓷的身体 + 一块悬空的深色头 + 被 `limb:0.55` 压成一条横杆的双臂。「被气撑起来」的封闭软体积一点没有。`fig-char.inflate.png` |
-| `char.diva` | character · light | `{kind:'towering', …}` | 0/6 | **不存在 → 空壳（2026-09-13）** | 同 `guest.founder`：`?theme=char.diva` 渲染出来的是 `porcelain`，连名字都是「瓷」。`fig-char.diva.png`。**已改**：不再换物种 —— `?theme=char.diva` 现在**就是** `char.diva`，全部槽位沿 base 链（`char.ghost`）借件并 warn 一行；选择页把它挡在轮播外。**它仍然是一个只剩配色的物种**，生成与否是 §4 第 1 条那个裁定 |
+| `char.diva` | character · light | `{kind:'towering', …}` | **5/6** | **勉强** | **2026-09-13 已生成**（6 件 image-to-3D，3 credits），`joint.char.diva.a` 被 reject（girth 0.56× 中位数，越过 §H 的带）。画面上它成立为一具又高又细、胸口一簇半透明飘带的身体 —— 「半透明自发光」那条轴只拿到了半透明，自发光在材质库里仍然没有落点。参考图被整只照抄进每一个槽位（`docs/30 §5.5` 末尾那一段），这是这 3 credits 买到的主要教训。`fig-char.diva-post-reject-a0.png`、`part-*.char.diva.a.png` |
 | `char.line` | character · light | `{kind:'stub', head:2.1, …}` | 5/6（head 被 reject） | **名不副实（形体）· 成立（表面）** | 描边着色是真的在工作（§I 说对了一半：它的身份确实住在表面）。但「几乎只有一个头」三重落空：spec 被 `stub` 丢掉、`head` 系数对 uniform 槽位无效、它自己的头件被 reject 后借的是**团子的头**。`fig-char.line.png` |
-| `guest.keynote` | **character** · light | — | 0/6 | **不存在 → 空壳（2026-09-13）** | 渲染出来是 `porcelain`。另有一处名实不符：id 前缀是 `guest.`，`kind` 却是 `character` —— 档案页按 kind 分组，它会出现在「角色」里。`fig-guest.keynote.png`。**已改**：同 `char.diva`（base 是 `porcelain`）。id 与 kind 的那处名实不符**没动**，它是 §4 第 7 条 |
+| `guest.keynote` | **character** · light | — | 6/6 | **成立** | **2026-09-13 已生成**（6 件 image-to-3D，3 credits）。六个槽位拿到的都是一件完整的毛衣，但压进各自 bbox 之后恰好读成袖子与裤腿 —— 装出来是一具**穿着圆领毛衣和长裤的身体**，领口、袖口罗纹、下摆都读得出。「织物」这条 §4 第 1 条预判会落空的技术轴，这一次真的落地了。id 与 kind 的那处名实不符没动，它仍是 §4 第 7 条。`fig-guest.keynote-a0.png`、`part-*.guest.keynote.a.png` |
 | `char.tokusatsu` | character · light | 比例 | 6/6（借 `industrial`） | **勉强** | 「镀铬 + 三原色」是一条**材质**轴，而材质库里没有它：渲染出来是配色偏暖的人形。`lineup-humanoid.png` |
 | `char.painting` | character · light | 比例 | 6/6 | **勉强偏成立** | 躯干那件的垂坠褶读得出来，是「比例组」里唯一自己承担了辨识度的一条。`lineup-humanoid.png` |
 
-**合计：成立 8（含 `field`）· 勉强 8 · 名不副实 10 · 不存在 3。**
+**合计（2026-09-13 生成两条之后）：成立 9（含 `field`）· 勉强 9 · 名不副实 10 · 不存在 1。**
+（原为 成立 8 · 勉强 8 · 名不副实 10 · 不存在 3；`char.diva` / `guest.keynote` 从「不存在」移出，
+`guest.founder` 是剩下的那一个，而它是**故意**的空位。）
 
 ## 2. 五个系统性成因（不是十三个孤立问题）
 
@@ -225,6 +227,14 @@ uniform 名单从五个改成四个（`head` / `spine` / `hand` / `joint`），�
    **2026-09-13：最坏的那一半已经拆掉，裁定本身还在这里等。**
    `guest.founder` 按 `clearance` 挡在 parts.json 之外（明确缺席，不再是静默替换）；
    另外两条不再换物种、也不进轮播，但仍然是空壳。**生成它们要什么**：
+   **✅ 2026-09-13 裁定已执行：生成。** 两条各 6 件、各 3 credits、合 6，全部 image-to-3D
+   （参考图见 `assets/intake/<id>/SOURCES.md`，两张都裁过再发）。12 件 0 失败，
+   `joint.char.diva.a` 事后被 reject。`guest.keynote` 落在「成立」，`char.diva` 落在「勉强」——
+   比这一条当初的预判（「大概率还是落在勉强那一档」）好半档。
+   `guest.founder` 不动，它仍是故意的空位。买到的那条教训在 `docs/30 §5.5` 末尾。
+
+   下面这段是裁定执行前的原文，留着看当时算的是什么账：
+
    两条都是 `coverage: 'light'` = 6 个标志性槽位 × 1 变体 = **各 3 credits，合 6**，
    跑 `factory:generate` → `factory:normalize` → `factory:compress` → `factory:index`
    （两条的 `look` 都已经写好了，在 `recipes/invited.ts` 里，不用再想造型）。

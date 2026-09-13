@@ -1,38 +1,38 @@
 /* 由 build-data.mjs 生成，不要手改。跑 `node packages/app/poster/build-data.mjs` 重出。 */
 window.SB_POSTER = {
-  "generatedAt": "2026-09-13T14:19:57.729Z",
+  "generatedAt": "2026-09-13T14:56:41.776Z",
   "source": {
     "parts": "assets/parts/parts.json",
     "curation": "assets/parts/curation.json",
-    "partsGeneratedAt": "2026-09-13T12:37:46.564Z",
+    "partsGeneratedAt": "2026-09-13T14:41:27.776Z",
     "partsVersion": 1
   },
   "counts": {
     "entries": 28,
-    "parts": 208,
-    "partsRejected": 11,
-    "partsLive": 204,
+    "parts": 220,
+    "partsRejected": 12,
+    "partsLive": 215,
     "partsReal": 30,
     "slots": 10,
     "boneKeys": 18,
     "materials": 9,
     "plans": 9,
-    "triangles": 613597,
+    "triangles": 648435,
     "entriesWithAnchor": 22,
-    "vacancies": 3,
+    "vacancies": 1,
     "fullyBorrowed": 1
   },
   "bySlot": {
     "clavicle": 11,
-    "foot": 27,
+    "foot": 29,
     "foreArm": 11,
     "hand": 11,
-    "head": 27,
-    "joint": 27,
-    "shin": 27,
-    "spine": 29,
+    "head": 29,
+    "joint": 29,
+    "shin": 29,
+    "spine": 31,
     "thigh": 11,
-    "upperArm": 27
+    "upperArm": 29
   },
   "byPlan": {
     "rig": 10,
@@ -50,7 +50,7 @@ window.SB_POSTER = {
     "character": 10
   },
   "tier": 2,
-  "totalBodies": 1446403,
+  "totalBodies": 1446915,
   "entries": [
     {
       "id": "porcelain",
@@ -1087,11 +1087,30 @@ window.SB_POSTER = {
         "ceramic.pearl",
         "matte.ash"
       ],
-      "ownParts": 0,
-      "ownRejected": 0,
+      "ownParts": 6,
+      "ownRejected": 1,
       "fullyBorrowed": false,
-      "bodies": null,
-      "perSlot": null,
+      "bodies": 256,
+      "perSlot": {
+        "spine": 1,
+        "neck": 1,
+        "head": 1,
+        "clavicleL": 2,
+        "clavicleR": 2,
+        "upperArmL": 1,
+        "upperArmR": 1,
+        "foreArmL": 2,
+        "foreArmR": 2,
+        "handL": 2,
+        "handR": 2,
+        "thighL": 2,
+        "thighR": 2,
+        "shinL": 1,
+        "shinR": 1,
+        "footL": 1,
+        "footR": 1,
+        "joint": 1
+      },
       "anchor": false
     },
     {
@@ -1158,11 +1177,30 @@ window.SB_POSTER = {
         "matte.bone",
         "metal.graphite"
       ],
-      "ownParts": 0,
+      "ownParts": 6,
       "ownRejected": 0,
       "fullyBorrowed": false,
-      "bodies": null,
-      "perSlot": null,
+      "bodies": 256,
+      "perSlot": {
+        "spine": 1,
+        "neck": 1,
+        "head": 1,
+        "clavicleL": 2,
+        "clavicleR": 2,
+        "upperArmL": 1,
+        "upperArmR": 1,
+        "foreArmL": 2,
+        "foreArmR": 2,
+        "handL": 2,
+        "handR": 2,
+        "thighL": 2,
+        "thighR": 2,
+        "shinL": 1,
+        "shinR": 1,
+        "footL": 1,
+        "footR": 1,
+        "joint": 1
+      },
       "anchor": false
     },
     {
@@ -1272,6 +1310,10 @@ window.SB_POSTER = {
     {
       "id": "head.softwear.a",
       "note": "炸开的尖刺团，糊成一团（原始网格 236k 面靠焊接兜底）"
+    },
+    {
+      "id": "joint.char.diva.a",
+      "note": "girth 0.5505 = joint 中位数的 0.56×，越过 docs/26 §H 的 0.7×–1.3× 带；joint 是 uniform 槽位，这个比例直接变成尺寸 —— 帧上它是肩胯处那几片过大的白飘带。另：参考图被整只照抄，这一件是一具被压扁的小人形"
     },
     {
       "id": "joint.digitigrade.a",

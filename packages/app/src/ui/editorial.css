@@ -190,3 +190,41 @@ a.ed-link:hover { background-size: 100% 1px; }
     to   { transform: none; opacity: 1; }
   }
 }
+
+/* ── 页眉的「回到作品」：和右边那个字标**等大、齐头** ──────────────────────
+ *
+ * 这四页的页眉是一条横带：左边是回到作品，右边是 `SEE-ME / SEE-U` 字标。
+ * 它们此前不是一个量级 —— 左边是 label 档（11px 上下）的一行小字，
+ * 右边是 h2 档的两行字标，于是那条横带一头轻一头重，读起来不是一个构件。
+ *
+ * 现在中文那一行取和字标**逐字相同**的字号与行高，两边因此齐头；
+ * 英文按全站并置的 0.78 一同放大 —— 放大的是尺寸，**颜色和字体一个都不动**。
+ * 0.78 这个比例不许跟着字号改：改它改的不是字号，是中英在这件作品里的关系。
+ */
+.ed-hero__back {
+  display: block;
+  font-family: var(--sb-grotesk);
+  font-size: var(--sb-size-h2);
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  color: var(--sb-ink-dim);
+  text-decoration: none;
+  transition: color 180ms;
+}
+.ed-hero__back .sb-zh,
+.ed-hero__back .sb-en { display: block; }
+.ed-hero__back .sb-zh { color: var(--sb-ink); font-weight: var(--sb-weight-head); }
+.ed-hero__back .sb-en {
+  font-size: 0.78em;
+  margin-top: 0.35em;
+  letter-spacing: var(--sb-tracking-label);
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+/* 悬停只提亮，不位移不加线 —— 和右上角那两节同一条规矩 */
+.ed-hero__back:hover .sb-zh,
+.ed-hero__back:focus-visible .sb-zh { color: var(--sb-ink-strong); }
+
+/* 两端齐头：横带按顶边对齐，而不是按基线 —— 两侧各自是两行，
+   基线对齐只会让行数不同的一侧掉下去。 */
+.ed-hero__meta { align-items: flex-start; }
