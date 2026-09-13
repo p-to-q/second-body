@@ -34,6 +34,7 @@
  */
 import type { PartLibraryIndex, PartMeta, ThemeDef } from '../../../core/src/types.ts';
 import { COPY, setBi, type BiText } from '../ui/i18n.ts';
+import { markNode } from '../ui/mark.ts';
 import { mountNav } from '../ui/nav.ts';
 // 缩略图方案只有一份。它住在 dev/ 是因为 `/dev/parts.html` 先用上它，
 // 但它本身没有任何 dev-only 的东西：一个纯模块，照用。
@@ -157,12 +158,15 @@ function renderHeader(root: Element): void {
   const head = el('header', 'ed-hero');
 
   const meta = el('div', 'ed-hero__meta');
-  const back = el('a', 'sb-label sb-bi-inline');
+  const back = el('a', 'ed-hero__back');
   back.href = '/about';
   setBi(back, COPY.about.back);
   const work = el('span', 'sb-label sb-bi-inline');
   setBi(work, COPY.title);
-  meta.append(back, work);
+  // 字标**最后** append：这一条横带靠 `justify-content: space-between` 分两端，
+  // 顺序就是左右。先前多写了一次 `meta.append(back, …)`，那会把 back
+  // 从原位**移到**末尾（append 移动已有节点，不是复制），于是字标跑到了左边。
+  meta.append(back, work, markNode('span'));
 
   head.append(meta, el('hr', 'ed-rule ed-rule--heavy'));
 
