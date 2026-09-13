@@ -22,31 +22,41 @@
   align-items: flex-end;
 }
 
-/* 收起态：一个词 + 一条线。展开时线亮成强调色 */
+/* 收起态：**只有两个词，没有线、没有框、没有底**。
+ *
+ * 原来它有一条下划线，展开时线亮成强调色。两处都去掉了：
+ *  - 框：这是一件装置的画面，不是一个网页的按钮。一个词就该只是一个词。
+ *  - 强调色：`docs/26 §F` 写着"全站只有一处用颜色承担语义（成立/不成立），
+ *    其余一律灰阶"。目录的 hover 不是那一处 —— 这条规矩是我们自己立的，
+ *    它却第一个违反了。状态差别改用**墨色深浅**表达，这在灰阶里够用。
+ */
 .sb-nav-toggle {
   appearance: none;
   background: none;
   border: 0;
-  border-bottom: 1px solid var(--sb-rule);
-  padding: 0 0 0.3rem;
+  padding: 0;
   margin: 0;
   font: inherit;
   font-family: var(--sb-grotesk);
   letter-spacing: var(--sb-tracking-label);
   text-transform: uppercase;
-  color: var(--sb-ink);
+  color: var(--sb-on-stage-dim);
   cursor: pointer;
-  transition: border-color 180ms;
+  transition: color 180ms;
 }
+/* 中文承重、英文辅助 —— 和全站的并置规矩一致（type.css 的 .sb-zh/.sb-en）。
+   0.78em + 0.45em 间距：英文比中文小一档、贴得更近，两个词因此读成
+   **一个标签**而不是两个并列的词。原来是同字号 + 0.6em，读起来是两件东西。 */
 .sb-nav-toggle .sb-zh,
 .sb-nav-toggle .sb-en { display: inline; }
-.sb-nav-toggle .sb-en { color: var(--sb-ink-dim); margin-left: 0.6em; }
-/* 焦点态用那条线，不用浏览器的蓝框（和 entry.css 的 .sb-act 同一条理由） */
+.sb-nav-toggle .sb-zh { color: var(--sb-on-stage); font-weight: var(--sb-weight-head); }
+.sb-nav-toggle .sb-en { font-size: 0.78em; margin-left: 0.45em; letter-spacing: 0.06em; }
+/* 焦点态不用浏览器的蓝框，也不用强调色 —— 只是变亮 */
 .sb-nav-toggle:hover,
 .sb-nav-toggle:focus-visible,
 .sb-nav.is-open .sb-nav-toggle {
   outline: none;
-  border-bottom-color: var(--sb-accent);
+  color: var(--sb-on-stage);
 }
 
 /* 展开的那张表。右对齐落在收起态那个词的下面 */
@@ -68,8 +78,10 @@
   color: inherit;
 }
 .sb-nav-item:first-child { border-top: 0; }
+/* 同上：hover 只变亮，不上色。灰阶里 dim → ink 的跳变足够被看见 */
+.sb-nav-item .sb-nav-name .sb-zh { transition: color 140ms; }
 .sb-nav-item:hover .sb-nav-name .sb-zh,
-.sb-nav-item:focus-visible .sb-nav-name .sb-zh { color: var(--sb-accent); }
+.sb-nav-item:focus-visible .sb-nav-name .sb-zh { color: #fff; }
 .sb-nav-item:focus-visible { outline: none; }
 
 .sb-nav-name {

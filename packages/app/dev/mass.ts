@@ -154,14 +154,14 @@ async function ensureCreature() {
   if (creature) return creature;
   creature = createCreature({ library });
   rigHolder.add(creature.object);
-  const genome = makeGenome(seed, tier, library.index, { theme: themes[themeIdx] });
+  const genome = makeGenome(seed, tier, library.index, { theme: themes[themeIdx], rejected: library.rejected });
   await library.preload(partIdsOf(genome));    // 预取后再 remorph → 截图不会拍到占位体
   creature.remorph(genome);
   return creature;
 }
 async function reskinCreature() {
   if (!creature) return;
-  const genome = makeGenome(seed, tier, library.index, { theme: themes[themeIdx] });
+  const genome = makeGenome(seed, tier, library.index, { theme: themes[themeIdx], rejected: library.rejected });
   await library.preload(partIdsOf(genome));
   creature.remorph(genome);
 }

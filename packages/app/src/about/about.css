@@ -170,3 +170,6 @@
   margin-top: calc(var(--sb-safe) * 0.75);
 }
 .about-foot .sb-label { white-space: nowrap; }
+
+/* 立意句走楷书 —— 它是这一页唯一"在说话"的地方（边界见 ui/pages.css） */
+.about-lede .sb-zh { font-family: var(--sb-kai); }

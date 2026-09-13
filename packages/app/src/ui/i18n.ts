@@ -44,7 +44,7 @@ export function setBi(el: Element | null, t: BiText): void {
 
 export const COPY = {
   /** 作品 */
-  title: bi('看我看你', 'SEE-ME SEE-YOU'),
+  title: bi('看我看你', 'SEE-ME SEE-U'),
   subtitle: bi(
     '你选一个物种，然后它用你的身体活过来',
     'Choose a species. It comes alive using your body.',
@@ -305,6 +305,92 @@ export const COPY = {
       'The work itself is an installation. Open source code is not permission to re-stage it.',
     ),
     repo: bi('仓库', 'Repository'),
+  },
+
+  /**
+   * 控件条 —— 把已经存在的能力变成可以当场演示的。
+   *
+   * 为什么要有它：这件作品做了四套场景、八种身体方案、跟随延迟、时域精化、
+   * 四个玩法，而**它们此前全部只能用 URL 参数切**。观众和评委看不见其中任何一样，
+   * 不是因为它们没做，是因为没有一个地方能按一下。
+   *
+   * 为什么每一个都配一句短说明：一个写着「逆光」的按钮只说得出它叫什么，
+   * 说不出按下去会发生什么。这一条和目录那一条（「它能回答什么问题」）是同一条规矩。
+   * 说明必须短 —— 它是刻在面板上的丝印，不是帮助文档。
+   */
+  controls: {
+    title: bi('控件', 'Controls'),
+    /** 分组的题。全大写小标签，承担"这一栏管什么"那个角色 */
+    groups: {
+      form: bi('形体', 'Form'),
+      scene: bi('画面', 'Scene'),
+      act: bi('玩法', 'Act'),
+      render: bi('渲染', 'Render'),
+      species: bi('身体', 'Species'),
+    },
+    /** 每组一句：说的是这一栏**在回答什么**，不是它有几个选项 */
+    groupNotes: {
+      form: bi('同一个你，换一具身体的骨架', 'Same you, a different skeleton'),
+      scene: bi('它站在什么地方', 'Where it is standing'),
+      act: bi('它和你是什么关系', 'What it is to you'),
+      render: bi('它为什么看起来像活的', 'Why it reads as alive'),
+      species: bi('它是什么物种。换物种要重新建身体', 'Which species. Changing this rebuilds the body'),
+    },
+
+    /** 身体方案（docs/18）。说明写的是**剪影**，因为物种靠整体剪影辨识 */
+    form: {
+      rig: { name: bi('人形', 'Rig'), note: bi('和你一样的骨架', 'The same rig as you') },
+      quadruped: { name: bi('四足', 'Quadruped'), note: bi('手臂变成前腿，横着走', 'Arms become forelegs') },
+      mass: { name: bi('团块', 'Mass'), note: bi('没有零件，整团在动', 'No parts — one moving mass') },
+      stub: { name: bi('短肢', 'Stub'), note: bi('大躯干，退化的四肢', 'Big torso, stunted limbs') },
+      radial: { name: bi('放射', 'Radial'), note: bi('四肢绕着核心散开', 'Limbs fan out around a core') },
+      column: { name: bi('柱状', 'Column'), note: bi('立起来的一根，四肢收拢', 'One upright column') },
+      towering: { name: bi('高耸', 'Towering'), note: bi('拉长，比你高一截', 'Stretched — taller than you') },
+      inverted: { name: bi('倒置', 'Inverted'), note: bi('翻过来，头着地', 'Upside down, head on the ground') },
+    },
+
+    /** 四套场景（stage/scenes.ts）。说明说的是"看得见什么变化" */
+    scene: {
+      gallery: { name: bi('白展厅', 'Gallery'), note: bi('亮底，剪影最清楚', 'Bright ground, sharpest silhouette') },
+      void: { name: bi('深空', 'Void'), note: bi('一束顶光，四周全黑', 'One top light, nothing else') },
+      tide: { name: bi('夜潮', 'Tide'), note: bi('地面是湿的，有倒影', 'Wet ground — it gets a reflection') },
+      backlit: { name: bi('逆光', 'Backlit'), note: bi('只剩一圈轮廓光', 'Only a rim of light left') },
+    },
+
+    /** 四个玩法（docs/16） */
+    act: {
+      follow: { name: bi('跟随', 'Follow'), note: bi('它就是你', 'It is you') },
+      echo: { name: bi('回声', 'Echo'), note: bi('慢一步 —— 那是刚才的你', 'A step behind — that was you') },
+      resist: { name: bi('抵抗', 'Resist'), note: bi('它有重量，你得迁就它', 'It has weight; you give way') },
+      facing: { name: bi('朝向', 'Facing'), note: bi('镜像没了，它在看你', 'The mirror drops — it looks at you') },
+    },
+
+    /** 渲染开关。`on/off` 只是状态词，说明写的是"关掉之后你会看到什么" */
+    render: {
+      vitality: { name: bi('跟随延迟', 'Lag'), note: bi('关掉它，整具身体同时到位', 'Off: the whole body arrives at once') },
+      refine: { name: bi('时域精化', 'Smoothing'), note: bi('关掉它，抖动直接进画面', 'Off: the jitter comes straight through') },
+      post: { name: bi('后期', 'Post'), note: bi('辉光、暗角、颗粒', 'Bloom, vignette, grain') },
+      mute: { name: bi('声音', 'Sound'), note: bi('四层环境声', 'Four layers of ambience') },
+    },
+    on: bi('开', 'On'),
+    off: bi('关', 'Off'),
+
+    /** 物种那一栏 */
+    filter: bi('筛物种', 'Filter species'),
+    reload: bi('换物种会重开一次', 'Changing species restarts it'),
+
+    /** Key 条。现场手比鼠标快 —— 每个键都要在条上看得见 */
+    keys: {
+      title: bi('快捷键', 'Keys'),
+      toggle: bi('显示 / 藏起这条', 'Show / hide this bar'),
+      form: bi('下一个形体', 'Next form'),
+      scene: bi('下一套画面', 'Next scene'),
+      act: bi('下一个玩法', 'Next act'),
+      vitality: bi('跟随延迟', 'Lag'),
+      refine: bi('时域精化', 'Smoothing'),
+      post: bi('后期', 'Post'),
+      mute: bi('声音', 'Sound'),
+    },
   },
 
   /**

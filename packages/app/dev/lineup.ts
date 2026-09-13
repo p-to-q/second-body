@@ -139,7 +139,7 @@ const creatures = row.map((r) => {
 });
 
 for (let i = 0; i < row.length; i++) {
-  const g = makeGenome(seed, tier, library.index, { theme: row[i].id });
+  const g = makeGenome(seed, tier, library.index, { theme: row[i].id, rejected: library.rejected });
   await Promise.race([library.preload(partIdsOf(g)), new Promise((r) => setTimeout(r, 4000))]);
   creatures[i].remorph(g);
   creatures[i].pose(row[i].sk, presence, 1 / 60);

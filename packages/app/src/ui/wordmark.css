@@ -1,0 +1,60 @@
+/**
+ * 字标的皮肤。**这一处是全站最大的字**，它的作用是把空画面变成构图。
+ */
+
+.sb-wordmark {
+  position: fixed;
+  /* **贴紧角**。别的浮层用 --sb-safe*0.5（24px），字标比它们更靠外：
+     它是标识不是内容，离角越近越像"盖在这张画面上的印"，离得远就变成一个元素。
+     0.9rem 是在 1440 上目测贴住又不碰边的值。 */
+  top: 0.9rem;
+  left: 1.1rem;
+  /* 10 = 在入口展签之下、在画布之上。目录和控件是 11，它们展开时压过字标 —— 对的，
+     因为那时观众在操作，不在看标识。 */
+  z-index: 10;
+  pointer-events: none;
+  transition: opacity 600ms;
+}
+.sb-wordmark-link { pointer-events: auto; display: block; border: 0; }
+
+/* 字标本身：**直接排字**。三个数只在这一个选择器里生效，
+   不进 type.css 的级差 —— 作用域就是防污染的办法，不需要换资产。 */
+.sb-wordmark-mark {
+  display: block;
+  font-family: var(--sb-grotesk);
+  /* 1440 上约 82px。比正文的 display 级小，但因为它在角上、且是两行压紧的块，
+     视觉分量反而更重。上限 6rem 防超宽屏失控。 */
+  font-size: clamp(2rem, 5.7vw, 6rem);
+  font-weight: 600;
+  line-height: 0.94;                 /* < 1，两行因此读成一块 */
+  letter-spacing: -0.055em;          /* 比 display 级的 −0.025 再紧一档 */
+  color: var(--sb-on-stage);
+  white-space: nowrap;
+}
+.sb-wordmark-mark > span { display: block; }
+
+/* 字标下面那一句：一条线切开，然后是并置的中英。
+   线的宽度跟字标一样 —— 两者因此读成一块，而不是一个 logo 加一段说明。 */
+.sb-wordmark-line {
+  /* 和字标同宽：两行大写字母的宽度 ≈ 6.1 个字宽 */
+  max-width: clamp(11rem, 20vw, 22rem);
+  margin: 0.7rem 0 0;
+  padding-top: 0.55rem;
+  border-top: 1px solid color-mix(in srgb, var(--sb-on-stage) 28%, transparent);
+  font-size: var(--sb-size-small);
+  line-height: 1.45;
+}
+.sb-wordmark-line .sb-zh { color: var(--sb-on-stage); font-family: var(--sb-kai); }
+.sb-wordmark-line .sb-en { color: var(--sb-on-stage-dim); }
+
+/* 满屏画布页 4 秒后淡下去 —— 和目录、控件、页头同一个数（docs/23 §S4）。
+   不淡到 0：它是说明牌，得一直认得出来。 */
+.sb-wordmark.is-faded { opacity: 0.3; }
+.sb-wordmark:hover, .sb-wordmark:focus-within { opacity: 1; }
+
+@media (max-width: 560px) {
+  /* 窄屏上 17vw 太小，反而失去张力；同时那一句让位 */
+  .sb-wordmark-mark { font-size: clamp(1.6rem, 9vw, 2.6rem); }
+  .sb-wordmark-line { max-width: 60vw; }
+  .sb-wordmark-line .sb-en { display: none; }
+}

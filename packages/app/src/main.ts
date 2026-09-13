@@ -38,7 +38,9 @@ import { mountCameraButton, mountEntry } from './shell/entry.ts';
 import { mountLoading } from './shell/loading.ts';
 import { showNotice } from './shell/notice.ts';
 import { mountNav } from './ui/nav.ts';
+import { mountControls, type Controls } from './ui/controls.ts';
 import { createHud } from './shell/hud.ts';
+import { mountWordmark } from './ui/wordmark.ts';
 import { createSound } from './sound/sound.ts';
 import { createCues } from './sound/cues.ts';
 import { COPY } from './ui/i18n.ts';
@@ -61,7 +63,15 @@ async function boot(): Promise<void> {
 
   // 目录（docs/23 §S4）。现场（`?kiosk=1`）下 `flags.nav` 为 false，等于不存在。
   // 挂在这里而不是等选择页结束：慢网上它正好是那几秒里唯一"还有别的可看"的出口。
-  mountNav({ enabled: flags.nav, overlay: true });
+  //
+  // 控件条（`ui/controls.ts`）和它共用右上角，所以目录一展开就要让位。
+  // 控件条要等身体和舞台都在了才挂得起来，于是这里只能留一个可变引用 ——
+  // 两条线的先后顺序是真实存在的，不假装它不存在。
+  let controls: Controls | null = null;
+  const nav = mountNav({
+    enabled: flags.nav, overlay: true,
+    onOpenChange: (open) => controls?.setNavOpen(open),
+  });
 
   // ── 0b. 网页版入口层（docs/PRD §8 / docs/23 §S0 网页分支） ─────────────────
   // 唯一的作用是把「请求摄像头」推迟到观众自己按那一下为止：在此之前用回放驱动，
@@ -112,6 +122,8 @@ async function boot(): Promise<void> {
   });
 
   enterKiosk(renderer.domElement, flags);
+  // 左上角常驻字标。满屏画布页 4 秒后淡下去，但不消失 —— 它是说明牌。
+  mountWordmark({ fade: true });
   const hud = flags.debug ? createHud() : null;
 
   // ── 3. 等资产（上面早就在跑了）──────────────────────────────────────────
@@ -211,7 +223,9 @@ async function boot(): Promise<void> {
   //        而那是给我们看的，不是给观众看的。
   if (themeDef) showNotice({ zh: themeDef.name, en: themeDef.nameEn });
   if (renderFellBack && !flags.kiosk) showNotice(COPY.boot.fallbackRender, { corner: 'bottom-right' });
-  const bodyPlan = flags.plan ?? themeDef?.bodyPlan ?? 'rig';
+  // `let`：控件条会在七种骨架之间热切它。`remapSkeleton` 是纯函数、每帧调一次，
+  // 换一个值下一帧就生效 —— 会重建身体的只有"进出团块"，那一条走重载（见 controls.ts）。
+  let bodyPlan = flags.plan ?? themeDef?.bodyPlan ?? 'rig';
 
   // ── 5. 状态机 ───────────────────────────────────────────────────────────
   const presence = createPresence();
@@ -219,10 +233,15 @@ async function boot(): Promise<void> {
   // 时域精化在**原始 landmark 上**做，在 buildSkeleton 之前 ——
   // 骨架是从 landmark 推出来的，先抖后建等于把抖动烘进骨长和朝向里，
   // 后面再滤就只能滤掉症状。顺序不能反（docs/24 §2）。
-  const refiner = REFINE.enabled && flags.refine ? createRefiner() : null;
+  // 建出来就不再拆：这两个是控件条上唯一**必须能当场比**的两项
+  //（"它为什么看起来像活的"），而重建一次精化器等于丢掉整条滚动中位数。
+  // 所以开关是一个 boolean，不是一个 null —— 关掉时它不参与那一帧，仅此而已。
+  const refiner = REFINE.enabled ? createRefiner() : null;
+  let refineOn = flags.refine;
   // 生命力在 remapSkeleton **之后**才作用（见帧循环）：延迟要发生在**那具身体**的链上，
   // 不是人的链上。反了的话四足的前腿会带着人类肩膀的延迟。
-  const vitality = flags.vitality ? createVitality() : null;
+  const vitality = createVitality();
+  let vitalityOn = flags.vitality;
   const motion = createMotion();
   const evolution = createEvolution();
   // 身体方案决定用哪种**表达**：刚体挂载（手办式）还是团块（物质式）。
@@ -264,7 +283,7 @@ async function boot(): Promise<void> {
     // tier 0 一件部件都没有（parts.json 里 tier 0 的件数是 0），有开场形态接着的时候
     // remorph 只会白建 30 个占位实例然后被团块盖住 —— 那 30 个实例正是这次要拿掉的东西。
     if (!nascent || tier >= 1) {
-      creature.remorph(makeGenome(seed, tier, library.index, { theme: theme ?? undefined }));
+      creature.remorph(makeGenome(seed, tier, library.index, { theme: theme ?? undefined, rejected: library.rejected }));
     }
   };
   morph(tier);
@@ -296,16 +315,16 @@ async function boot(): Promise<void> {
     if (raw) {
       // 运动特征算在**人的**骨架上：驱动演化的是观众实际动了多少，
       // 而不是重映射之后那具身体动了多少。顺序不能反。
-      const cooked = refiner ? refiner.apply(raw, dt) : raw;
+      const cooked = refiner && refineOn ? refiner.apply(raw, dt) : raw;
       const humanSk = stabilizer.apply(buildSkeleton(mediapipeToWorld(cooked), cooked.world, cooked.t), dt);
       // 反折约束放在稳定化**之后**：它靠骨长把远端点转回去，
       // 而骨长要等滚动中位数定下来才可信（放前面就是拿噪声当尺子）。
-      if (refiner) clampFold(humanSk);
+      if (refiner && refineOn) clampFold(humanSk);
       lastFeatures = motion.update(humanSk, dt);
       const planned = remapSkeleton(humanSk, bodyPlan);
       // 刚体挂载做不出"弯"，但一串各自延迟不同的刚体看起来就是在弯 ——
       // 这是参照作品那句 "wiggles, shifts, and bends" 唯一能不做蒙皮就拿到的部分。
-      lastSkeleton = vitality ? vitality.apply(planned, lastFeatures, dt) : planned;
+      lastSkeleton = vitalityOn ? vitality.apply(planned, lastFeatures, dt) : planned;
       stage.frame(lastSkeleton);   // 取景按**重映射之后**的身体算：四足是横的矮的
       const evo = evolution.update(lastFeatures, dt);
       // 团块的"沸腾"层由运动能量驱动 —— 动得越猛表面越沸（tuning 的 MASS.surface）
@@ -335,7 +354,7 @@ async function boot(): Promise<void> {
       evolution.reset();
       stabilizer.reset();
       refiner?.reset();
-      vitality?.reset();
+      vitality.reset();
       slow.reset();
       lastSkeleton = null;
       morph((flags.tier ?? 0) as Tier);
@@ -377,6 +396,37 @@ async function boot(): Promise<void> {
   if (flags.act && !director.force(flags.act, world)) {
     console.warn(`[main] ?act=${flags.act} 不存在或已被禁用，按正常流程选`);
   }
+
+  // ── 控件条（`ui/controls.ts`）──────────────────────────────────────────────
+  // 这件作品的能力此前全部只能用 URL 参数切，等于观众和评委看不见。
+  // 这里只是把**已经存在的**开关接出去：一个都不新增，一个都不编。
+  // 现场（`?kiosk=1`）下 `flags.nav` 为 false，这一整条不挂 —— 和目录同一个判断。
+  controls = mountControls({
+    enabled: flags.nav,
+    nav,
+    host: {
+      themeId: theme ?? null,
+      themes: library.index.themes ?? [],
+      planId: () => (typeof bodyPlan === 'string' ? bodyPlan : (bodyPlan.kind ?? 'rig')),
+      // 只在"两边都不是团块"时会被调到（controls.ts 的 setForm 负责那条判断）。
+      // 换方案时把比例也一起丢掉是对的：比例是**那个物种**的身材，
+      // 而观众此刻要看的正是"换一具身体会怎样"。
+      setPlan: (id) => { bodyPlan = id; },
+      sceneId: () => stage.sceneId,
+      setScene: (id) => stage.setScene(id),
+      actId: () => director.currentId,
+      actIds: ACTS.filter((a) => a.kind === 'body').map((a) => a.id),
+      setAct: (id) => director.force(id, world),
+      vitality: () => vitalityOn,
+      setVitality: (on) => { vitalityOn = on; if (!on) vitality.reset(); },
+      refine: () => refineOn && refiner !== null,
+      setRefine: (on) => { refineOn = on; if (!on) refiner?.reset(); },
+      post: () => stage.post,
+      setPost: (on) => stage.setPost(on),
+      toggleMute: () => sound.toggleMute(),
+      muted: () => sound.state === 'off' || sound.state === 'muted',
+    },
+  });
 
   loop.start();
 
