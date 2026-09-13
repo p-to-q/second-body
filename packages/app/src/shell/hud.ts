@@ -29,7 +29,7 @@ export function createHud(): { update(s: FrameStats, c: Partial<HudCounts>): voi
   return {
     update(s, c) {
       el.innerHTML = [
-        row('fps', s.fps, 55, '', true),
+        row('fps', s.fps, BUDGET.minFps, '', true),
         row('cpu', s.cpuMs, BUDGET.maxCpuMsPerFrame, ' ms'),
         row('instances', c.instances ?? 0, BUDGET.maxInstances),
         row('tris', (c.triangles ?? 0) / 1000, BUDGET.maxTriangles / 1000, ' k'),

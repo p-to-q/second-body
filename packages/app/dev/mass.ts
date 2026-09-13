@@ -223,23 +223,44 @@ Object.assign(globalThis as Record<string, unknown>, {
     },
     setSpin(v: boolean) { paused = !v; return !paused; },
     setAngle(a: number) { spinAngle = a; paused = true; return a; },
+    /**
+     * 取证用：这一帧真正提交给 GPU 的面数 / draw 数（`renderer.info`）。
+     * 和 `stats.triangles` 对不上 = 有人在偷偷实例化。`docs/18 §7` 的配方用它。
+     */
+    get submitted() {
+      const r = renderer.info.render;
+      return { triangles: r.triangles, drawCalls: r.drawCalls };
+    },
   },
 });
 
 // ── HUD ─────────────────────────────────────────────────────────────────────
 let jsMs = 0;
 let fps = 60;
+/**
+ * 这一帧**真正提交给 GPU** 的面数（`renderer.info`），和团块自报的 `stats.triangles`
+ * 分开显示。两者一旦对不上，就说明有人在这条路上偷偷实例化 —— 那正是
+ * 「2k 面的身体每帧提交 1200 万面」那个根因的表征。留着它，下次一眼就能看见。
+ */
+let gpuTris = 0;
 function drawHud() {
   const s = mass.stats;
   const r = creature?.stats;
   const def = library.index.themes.find((t) => t.id === themes[themeIdx]);
   const overBudget = s.cpuMs > BUDGET.maxCpuMsPerFrame;
+  // fps 独占一行、掉帧就整行标红。**毫秒和帧率不是同一件事**：团块曾经每帧
+  // 只花 1~2ms JS 却只跑 9 fps（时间全在 GPU 提交那一侧），当时这一行是灰的，
+  // 旁边 `frame 2.42ms` 一片祥和，于是这件事在眼皮底下待了很久。见 BUDGET.minFps。
+  const slow = fps < BUDGET.minFps;
   hud.innerHTML =
     `<b>mass · 团块</b>  ${def ? `${def.name} · ${def.nameEn}` : themes[themeIdx]}\n` +
     `模式 ${mode} · 姿势 ${poseMode}\n` +
     `←/→ res · ↑/↓ 主题 · M 模式 · P 姿势 · 空格 转台 · S 骨架线\n\n` +
     `<b>res ${s.resolution}</b> · 球 ${s.balls} · 三角 ${s.triangles.toLocaleString()} · draw ${s.drawCalls}\n` +
-    `${fps.toFixed(0)} fps · mass ${s.cpuMs.toFixed(2)}ms${overBudget ? ' ⚠超预算' : ''} · frame ${jsMs.toFixed(2)}ms\n` +
+    `<span style="color:${slow ? '#e0455a' : '#9aa'}"><b>${fps.toFixed(0)} fps</b>` +
+    `${slow ? ` ⚠ 掉帧（下限 ${BUDGET.minFps}）` : ''}</span>\n` +
+    `mass ${s.cpuMs.toFixed(2)}ms${overBudget ? ' ⚠超预算' : ''} · frame ${jsMs.toFixed(2)}ms` +
+    ` · 提交 ${(gpuTris / 1000).toFixed(1)}k 面/帧\n` +
     `预算 ${BUDGET.maxTriangles.toLocaleString()} 三角 / ${BUDGET.maxDrawCalls} draw / ${BUDGET.maxCpuMsPerFrame}ms\n` +
     (r ? `\n<b>rig · 刚体对照</b>  实例 ${r.instances} · 三角 ${r.triangles.toLocaleString()} · draw ${r.drawCalls}\n` : '') +
     (library.usingFallback ? '\n⚠ parts.json 不可用 → 程序化占位几何（P3）' : '');
@@ -306,6 +327,7 @@ renderer.setAnimationLoop((now: number) => {
   if (creature && rigHolder.visible) creature.pose(skeleton, presence, dt);
 
   renderer.render(scene, camera);
+  gpuTris = renderer.info.render.triangles;
   jsMs = jsMs * 0.9 + (performance.now() - t0) * 0.1;
   if (now - hudAt > 200) { hudAt = now; drawHud(); }   // HUD 每 200ms 一次，别让 innerHTML 进预算
 
