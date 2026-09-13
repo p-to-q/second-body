@@ -62,7 +62,7 @@
   /* 直接贴在舞台画布上，所以用 --sb-on-stage：白展厅底下浅灰字看不见，
      这个变量由 stage.ts 的 publishStageInk 按当前场景底色发布。 */
   color: var(--sb-on-stage);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  text-shadow: 0 0 6px var(--sb-halo), 0 0 2px var(--sb-halo);
   cursor: pointer;
   transition: border-color 180ms;
 }
@@ -134,7 +134,7 @@
 .sb-ctl-opt:hover, .sb-ctl-opt:focus-visible { outline: none; border-bottom-color: var(--sb-rule); }
 .sb-ctl-opt:hover .sb-ctl-opt-name .sb-zh { color: var(--sb-ink); }
 /* 当前生效的那一个：底边一条强调色。全站只有一处用颜色承担语义（docs/26 §F） */
-.sb-ctl-opt.is-on { border-bottom-color: #fff; }
+.sb-ctl-opt.is-on { border-bottom-color: var(--sb-ink-strong); }
 .sb-ctl-opt.is-on .sb-ctl-opt-name .sb-zh { color: var(--sb-ink); }
 
 .sb-ctl-opt-name { display: flex; align-items: baseline; }
@@ -155,7 +155,7 @@
   letter-spacing: var(--sb-tracking-label);
   color: var(--sb-ink-dim);
 }
-.sb-ctl-opt.is-on .sb-ctl-state { color: #fff; }
+.sb-ctl-opt.is-on .sb-ctl-state { color: var(--sb-ink-strong); }
 
 /* ── 物种那一栏 ──────────────────────────────────────────────────────────── */
 .sb-ctl-filter {
@@ -201,7 +201,7 @@
 }
 .sb-ctl-sp:hover .sb-ctl-opt-name .sb-zh { color: var(--sb-ink); }
 .sb-ctl-sp:focus-visible { outline: none; border-left-color: var(--sb-rule); }
-.sb-ctl-sp.is-on { border-left-color: #fff; }
+.sb-ctl-sp.is-on { border-left-color: var(--sb-ink-strong); }
 
 /* ── Key 条 ──────────────────────────────────────────────────────────────── */
 .sb-ctl-keys {
@@ -229,7 +229,7 @@
  * `docs/26 §F`：全站只有**一处**用颜色承担语义（作品自评里的成立／不成立），
  * 其余一律灰阶。控件的开／关不是那一处。
  *
- * 三级灰就够分：**选中 = #fff（最亮）· 悬停 = --sb-ink · 未选 = --sb-ink-dim**。
+ * 三级灰就够分：**选中 = --sb-ink-strong（离底最远）· 悬停 = --sb-ink · 未选 = --sb-ink-dim**。
  * 用亮度而不是色相去分状态，还有一个好处：它在四套场景下都成立，
  * 而一个固定的强调色在白展厅里会显得很脏。
  */

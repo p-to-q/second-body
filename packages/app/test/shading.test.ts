@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three/webgpu';
+import { TOON } from '../../core/src/tuning.ts';
 import {
-  SHADING_OF_THEME, TOON, createFillMaterial, createOutlineMaterial, isShadingId, resolveShading,
+  SHADING_OF_THEME, createFillMaterial, createOutlineMaterial, isShadingId, resolveShading,
 } from '../src/creature/shading.ts';
 
 /**

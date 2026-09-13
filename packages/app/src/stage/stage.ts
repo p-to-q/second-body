@@ -453,6 +453,12 @@ export function createStage(opt: StageOptions = {}): Stage {
     const root = document.documentElement.style;
     root.setProperty('--sb-on-stage', dark ? '#dfe4ea' : '#1a1d21');
     root.setProperty('--sb-on-stage-dim', dark ? '#9aa0a6' : '#5b6168');
+    // 可读性光晕跟着**底色**翻，不跟着字色。
+    // 它写死成黑色的时候，白展厅和白首屏上每一个浮层标签背后都糊着一小块灰 ——
+    // 那一道本来是用来把字从画面里托出来的，在亮底上它做的事正好相反。
+    root.setProperty('--sb-halo', dark ? 'rgba(0, 0, 0, 0.72)' : 'rgba(250, 250, 250, 0.85)');
+    // 最强的那一档也跟着底色翻：亮场景上最强的是黑，不是白
+    root.setProperty('--sb-ink-strong', dark ? '#fff' : '#000');
   }
 
   function applyLook(): void {

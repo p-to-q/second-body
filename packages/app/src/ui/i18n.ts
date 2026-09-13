@@ -443,8 +443,9 @@ export const COPY = {
       inverted: { name: bi('倒置', 'Inverted'), note: bi('翻过来，头着地', 'Upside down, head on the ground') },
     },
 
-    /** 四套场景（stage/scenes.ts）。说明说的是"看得见什么变化" */
+    /** 五套场景（stage/scenes.ts）。说明说的是"看得见什么变化" */
     scene: {
+      paper: { name: bi('纸', 'Paper'), note: bi('和开头同一张白纸', 'The same white paper as the opening') },
       gallery: { name: bi('白展厅', 'Gallery'), note: bi('亮底，剪影最清楚', 'Bright ground, sharpest silhouette') },
       void: { name: bi('深空', 'Void'), note: bi('一束顶光，四周全黑', 'One top light, nothing else') },
       tide: { name: bi('夜潮', 'Tide'), note: bi('地面是湿的，有倒影', 'Wet ground — it gets a reflection') },
@@ -535,6 +536,36 @@ export const COPY = {
         name: bi('工作台', 'Workbench'),
         answers: bi('每条降级路径长什么样？我们自己怎么验收？', 'What does each fallback look like? How do we check our own work?'),
       },
+    },
+
+    /**
+     * 上场名单。目录底下那一小块（`ui/pool.ts`）。
+     *
+     * 这里**不写"设置"两个字以外的任何功能名**：三条勾是三种出身，
+     * 而出身正是观众在选择页上一眼分得出的那件事 —— 一具工业机器狗和初音
+     * 不需要解释也知道不是一路的。所以每一条只用一个名字加一句"是什么"。
+     */
+    pool: {
+      title: bi('设置', 'Settings'),
+      lede: bi('这一场里，哪几类身体可以被选。', 'Which kinds of body are in play this session.'),
+      kinds: {
+        archetype: {
+          name: bi('机器物种', 'Machines'),
+          note: bi('真实存在的机器，网格按实物校过', 'Real machines, meshes checked against the originals'),
+        },
+        guest: {
+          name: bi('嘉宾', 'Guests'),
+          note: bi('被请进名单的人', 'People invited into the roster'),
+        },
+        character: {
+          name: bi('角色', 'Characters'),
+          note: bi('画出来的、没有实物的身体', 'Drawn bodies, with no original to check against'),
+        },
+      },
+      /** 最后一类被关掉时。**不是报错，是解释为什么这一下没生效** */
+      last: bi('至少留一类', 'Keep at least one'),
+      /** 选择页已经在屏幕上时改了名单 */
+      restart: bi('重新选一次生效', 'Takes effect on the next pick'),
     },
   },
 

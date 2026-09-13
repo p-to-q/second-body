@@ -22,7 +22,7 @@
  * 按 `tuning.ts` 的规矩本该住在 `tuning.ts`。`tuning.ts` 是冻结契约，我没有自行修改，
  * 所以它们暂时是本模块常量 + `MassOptions` 覆盖。见收尾报告「需要变更契约」。
  *
- * 三个必须知道的实现细节：
+ * 四个必须知道的实现细节：
  *  1. **不要每帧重建对象。** 每帧的开销就是 `reset()` + N 次 `addBall()` + `update()`，
  *     三者都在同一个常驻的 MarchingCubes 上就地做。
  *  2. MarchingCubes 默认整块上传 position/normal 缓冲区（按 `maxPolyCount` 开的，几 MB），
@@ -33,9 +33,14 @@
  *     addon 把它当成"这一帧的顶点数"来写。WebGPU 后端照字段名取实例数
  *     （`RenderObject.js:623`），于是团块被实例化几千份：2k 面的身体一帧提交 1200 万面。
  *     这就是团块方案从落地那天起从没跑到过帧率的原因。
+ *  4. **落地是这里自己的事**（`pose()` 第 6 步）。团块不走 `assemble()`，
+ *     所以 `core/ground.ts` 那条网格落地的路**管不到它** —— 修之前整具身体一直
+ *     沉在地板下面约半个球半径（站姿实测 -0.062m）。这里量的是三角化之后
+ *     geometry 里真的要画的顶点，不是球心加半径。
  */
 import * as THREE from 'three/webgpu';
 import { MarchingCubes } from 'three/addons/objects/MarchingCubes.js';
+import { MAX_LIFT } from '../../../core/src/ground.ts';
 import { SLOT_OF_BONE } from '../../../core/src/slots.ts';
 import { SKELETON, SLOT_WIDTH } from '../../../core/src/tuning.ts';
 import type { MaterialDef, Presence, Skeleton, Vec3 } from '../../../core/src/types.ts';
@@ -51,6 +56,12 @@ import { MASS } from '../../../core/src/tuning.ts';
 export interface MassStats extends BodyStats {
   /** 当前体素分辨率 */
   resolution: number;
+  /**
+   * 这一帧为了让等值面贴地，整团被沿 +Y 抬了多少米（见 `pose()` 第 6 步）。
+   * 报出来是为了它**可被读到**：团块沉在地里的时候画面上看不出来，
+   * 而这个数会一直是 0。
+   */
+  lift: number;
   /** 这一帧真正喂给场的球数 */
   balls: number;
   /** reset + addBall + update 的 CPU 开销（毫秒，EMA） */
@@ -158,7 +169,13 @@ export function createMassBody(opt: MassOptions = {}): MassBody {
   blob.receiveShadow = true;
   object.add(blob);
 
-  const stats: MassStats = { triangles: 0, drawCalls: 0, resolution: res, balls: 0, cpuMs: 0 };
+  const stats: MassStats = { triangles: 0, drawCalls: 0, resolution: res, balls: 0, cpuMs: 0, lift: 0 };
+
+  /**
+   * 上一帧算出来的落地抬升（米）。进出场那几帧**冻结**它，不重算 —— 理由在 `pose()` 第 6 步。
+   * 它是状态，所以住在闭包里而不是每帧从 stats 读回来（stats 是给外面看的，不是账本）。
+   */
+  let lift = 0;
 
   // ── 表面语言的状态（tuning.ts 的 MASS.surface）──────────────────────────
   /** 会话时钟。用累计 dt 而不是 performance.now()：P1 —— 模块里不读时钟 */
@@ -278,7 +295,8 @@ export function createMassBody(opt: MassOptions = {}): MassBody {
         center[2] += (cz - center[2]) * a;
       }
 
-      blob.position.set(center[0], center[1], center[2]);
+      // Y 先按 center 摆着；这一帧的落地抬升要等等值面真的生成出来才量得到（第 6 步）
+      blob.position.set(center[0], center[1] + lift, center[2]);
       blob.scale.setScalar(half);          // 局部空间是 [-1,1]³ → 世界边长 2·half
 
       // 3. 撒球。addBall 的坐标是 0..1 的场空间；强度由想要的世界半径反解：
@@ -357,6 +375,44 @@ export function createMassBody(opt: MassOptions = {}): MassBody {
         attr.addUpdateRange(0, mc.count * attr.itemSize);
         attr.needsUpdate = true;
       }
+
+      // 6. 落地：量**这一帧真的三角化出来的那个等值面**，把整团抬到地面上。
+      //
+      //    为什么这一步非有不可：团块身体（coral / char.dumpling / char.ghost，以及
+      //    每个人的 tier 0 开场形态）**不走 `assemble()`**，而 `assemble()` 才是网格落地
+      //    （`core/ground.ts`）那条路。骨架那一层只保证最低的**脚关节**在 y=0，而球是绕
+      //    骨线撒的、还会互相融胖一圈 —— 于是脚那一段的表面一直在地板下面
+      //    （参考站姿实测 -0.062m，蹲姿 -0.047m）。
+      //
+      //    为什么量顶点而不是"球心 - 半径"：融合让表面胖出球半径之外，胖多少取决于
+      //    相邻球间距和 isolation，不是一个能写下来的数 —— 那是估计，不是测量（P21）。
+      //    `mc.update()` 之后 geometry 里躺着的就是这一帧要画的顶点，量它才是量成品。
+      //
+      //    ⚠️ 这里读的是 `mc.count`（**顶点数**，addon 的用法），不是实例数 ——
+      //    这个字段名冲突就是文件头 §3 那个坑。它在这一行是安全的，因为 mc 不进场景图。
+      //
+      //    为什么进出场要冻结：`shrink` 把物质向质心收回去，等值面的最低点自然升高。
+      //    那时再重算抬升，团块会**一边化开一边往地上掉** —— 那不是"物质收回去"，
+      //    那是"东西掉下来了"。所以只在满在场时量，其余时候沿用上一次的值。
+      if (pres >= 0.999) {
+        let loLocal = Infinity;
+        const pos = geo.getAttribute('position');
+        const n = Math.min(mc.count, pos.count);
+        for (let i = 0; i < n; i++) {
+          const y = pos.getY(i);
+          if (y < loLocal) loLocal = y;               // NaN 比不过任何数，自然被跳过（P2）
+        }
+        if (Number.isFinite(loLocal)) {
+          // 摆放是 blob.position.y = center[1] + lift，局部 [-1,1]³ 乘 half，
+          // 所以世界最低点 = center[1] + lift + loLocal·half。要它落在 y=0 上
+          // ⇒ lift = -(center[1] + loLocal·half)。
+          // 钳位复用 `core/ground.ts` 的 MAX_LIFT：数据坏掉时宁可让身体还沉着，
+          // 也不要把它弹出画面（那条安全阀的理由写在 ground.ts 上，这里不重写第二份）。
+          lift = clamp(-(center[1] + loLocal * half), -MAX_LIFT, MAX_LIFT);
+          blob.position.y = center[1] + lift;
+        }
+      }
+      stats.lift = lift;
 
       stats.balls = balls;
       stats.triangles = Math.floor(mc.count / 3);

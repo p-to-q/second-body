@@ -181,6 +181,14 @@ curl -X POST -H "Authorization: Bearer $VERCEL_TOKEN" \
 | `@` | A | `76.76.21.21` | 关 |
 | `www` | CNAME | `cname.vercel-dns.com` | 关 |
 
+### 线上地址（2026-09-13 起）
+
+**https://useeme.ptoq.io** —— 由有 `ptoq.io` 权限的人在他们那边挂好的。
+推 `main` 就会更新，不需要我们这边再做任何事。核过一次：它服务的就是 `f29cb27`。
+
+`u-see.me` 是作品自己的域名，还没接上（下面那一步）。两个地址并存不冲突：
+`ptoq.io` 那个是 p-to-q 的作品列表里的位置，`u-see.me` 是这件作品自己的门牌。
+
 ### 还没做的那一步：把 NS 从 Spaceship 换到 Cloudflare
 
 实测 `u-see.me` 的 NS 仍是 `launch1.spaceship.net` / `launch2.spaceship.net`，

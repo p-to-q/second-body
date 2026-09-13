@@ -24,6 +24,10 @@ html.sb-first-screen {
      判到"亮场景"时发布的那一对**逐字相同**，这样首屏和白展厅是同一种深色。 */
   --sb-on-stage: #1a1d21 !important;
   --sb-on-stage-dim: #5b6168 !important;
+  /* 光晕跟着底色翻。理由同 type.css 里那个令牌的注释。 */
+  --sb-halo: rgba(250, 250, 250, 0.85) !important;
+  /* 亮底上最强的那一档是黑，不是白。理由见 type.css 里那个令牌的注释 */
+  --sb-ink-strong: #000 !important;
 }
 
 /** 环那块画布。底色由它自己在着色器里合成，这里的 background 只是它到位之前的那一瞬 */

@@ -21,6 +21,7 @@
  */
 import type { PartLibraryIndex } from '../../../core/src/types.ts';
 import { COPY, setBi, type BiText } from '../ui/i18n.ts';
+import { markNode } from '../ui/mark.ts';
 import { PLAN_LABEL, orderThemes, planKind, speciesNumber } from '../ui/species.ts';
 import '../ui/type.css';
 import '../ui/editorial.css';
@@ -112,7 +113,7 @@ function head(): HTMLElement {
   title.querySelector('.sb-en')?.setAttribute('style', '--ed-i:1');
 
   return el('header', 'ed-hero',
-    el('div', 'ed-hero__meta', back, biInline(COPY.about.credit, 'sb-label')),
+    el('div', 'ed-hero__meta', back, markNode('span')),
     el('hr', 'ed-rule ed-rule--heavy'),
     el('div', 'ed-hero__title', title),
     el('hr', 'ed-rule'),
@@ -128,7 +129,7 @@ function head(): HTMLElement {
  *
  * 三处排版决定，理由都在 `about.css` 的 `.about-statement`：
  * 中文立意句走楷书（叙事性中文），那一行英文原句走 grotesk 且**不配中文**，
- * 五个概念的中文注是**术语**不是叙事，所以留在 grotesk 里（`Iansui/NOTICE.md` 的边界）。
+ * 五个概念的中文注是**术语**不是叙事，所以留在 grotesk 里（`LXGWWenKai/NOTICE.md` 的边界）。
  */
 function statementSection(): HTMLElement {
   const call = el('p', 'about-statement__call');

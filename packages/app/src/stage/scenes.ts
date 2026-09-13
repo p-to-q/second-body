@@ -25,7 +25,7 @@ import type { LookProfile, RGB } from './look.ts';
 import { luminance } from './look.ts';
 import type { ThemeDef } from '../../../core/src/types.ts';
 
-export type SceneId = 'gallery' | 'void' | 'tide' | 'backlit';
+export type SceneId = 'paper' | 'gallery' | 'void' | 'tide' | 'backlit';
 
 export interface SceneDef {
   id: SceneId;
@@ -125,6 +125,58 @@ function tinted(base: RGB, ref: RGB, w: number): RGB {
 // 数值的来路写在 docs/28。这里只写"它为什么长这样"。
 
 export const SCENES: Record<SceneId, SceneDef> = {
+  /**
+   * 纸。**首屏那张纸一直铺到舞台上** —— 身体出现在它刚才被印在上面的那张纸上。
+   *
+   * 它和「白展厅」的区别只有一个字，但那个字是全部：**它不被物种染色**（tint 0）。
+   * 白展厅的天幕跟着主光走，所以一具暖色的身体会把整间屋子染成米色 —— 那是
+   * 摄影棚的道理，对的。这一套要的不是屋子，是**纸**：不管站上去的是谁，
+   * 底永远是 `#fafafa`，和展签、和选择页、和 logo 用的是同一个值。
+   * 于是整件作品从头到尾只有一种白，而身体是那张纸上唯一的墨。
+   *
+   * 代价写在这里，别让下一个人重新发现：亮底上**加性混合的粒子等于不存在**，
+   * 所以这一套没有粒子；辉光也压到最低 —— 亮底上的 bloom 只会把剪影的边吃掉，
+   * 而剪影是这一套唯一的表达。
+   */
+  paper: {
+    id: 'paper', name: '纸', nameEn: 'Paper',
+    serves: '任何物种，但它偏爱有明暗可看的身体 —— 纸上唯一能把一个形说清楚的是'
+      + '它自己的明暗，不是环境。情绪：被印在纸上的一个形，没有房间、没有气氛、'
+      + '没有时间，只有一张纸和一团墨。它是这件作品的素色。',
+    // #fafafa 的线性值（0.980392 的 sRGB→linear ≈ 0.9559）。上下同色 = 无缝，
+    // 不是"天空和地面恰好接近"，是真的同一张纸
+    // 线性值给到 1.32 而不是 #fafafa 的 0.956：色调映射会把线性值往下压，
+    // 要让**编码之后**落在 #fafafa 上，进去的那个数就得高一些。
+    // 这个数是看出来的，不是算出来的 —— 色调映射曲线不是一个可以反解的函数。
+    skyTop: [1.32, 1.32, 1.32], skyGlow: [1.32, 1.32, 1.32],
+    // 不染色。这一条是这套场景存在的全部理由，改它等于把它变回白展厅
+    glowLift: 0.70, glowRadius: 1.6, glowSoft: 0.9, tint: 0,
+    // 比白展厅还狠：天幕和地面同色时，地平线是唯一会露馅的地方，要雾到看不见
+    fogDensity: 0.092,
+    ground: 6.0, groundReflect: 0, groundRipple: 0, groundGlossNear: 1.0, groundGlossFar: 1.0,
+    // 顶光为主、补光很足：纸上要的是**形**，不是体积感；
+    // 侧光一强就有了房间，而这一套的立意是没有房间
+    // **补光要少，不要多。** 第一版给了 fill 1.85 / hemi 3.0，想的是"纸上要干净"。
+    // 结果是把形体彻底打平 —— 而平 + 白 = 看不见：char.line 站上去，
+    // 画面上只剩两个接触阴影，身体整个消失在纸里。
+    //
+    // 白底上唯一能把一个浅色身体说清楚的，是**它自己的明暗**。
+    // 所以主光抬起来、补光压下去、轮廓光留一点把边缘从纸上剥开。
+    // 这和白展厅（漫射为主）是相反的方向，两套因此也真的是两套。
+    //
+    // 曝光不抬。抬到 1.14 试过：底色是到了纸的亮度，可是连身体带墨线一起推爆。
+    // 曝光是整张画面的音量，用它来调一个颜色，代价一定落在别的东西身上。
+    key: 1.35, fill: 0.62, rim: 0.72, hemi: 0.85, exposure: 0.96,
+    keyDir: [0.7, 4.2, 1.0], fillDir: [-2.2, 1.8, 1.6], rimDir: [-0.4, 2.0, -2.0],
+    // 接触阴影是这一套里**唯一**说明"它站在什么上面"的东西，所以它要实
+    shadow: 0.62, contact: 0.72, contactCore: 0.70, contactCoreRadius: 0.22,
+    // 暗角是 0：暗角的作用是把注意力收回画面中心，而纸是**平的**，
+    // 一圈渐渐变暗的边等于承认这是一张照片。颗粒也压到最低，同理。
+    bloom: 0.12, ao: 1.25, vignette: 0, grain: 0.3,
+    particle: 0.0, particleDrift: 1, particleSize: 1,
+    frameLift: 0.02,
+  },
+
   /**
    * 白展厅。影棚的无缝背景纸（cyclorama）搬进来：没有地平线、没有角，
    * 光从四面漫过来，**身体唯一的边界是它自己的接触阴影**。
@@ -258,7 +310,19 @@ export function applyScene(look: LookProfile, scene: SceneDef): LookProfile {
     // 背景布/兜底色仍然要给：渲染不到天幕的那一帧（首帧、建链失败）不能是纯黑
     bgTop: skyTop,
     bgBottom: skyGlow,
-    groundNear: mul(look.groundNear, scene.ground),
+    // 地面。`scene.ground` 是一个**乘在物种固有地色上**的倍数 ——
+    // 对四套有房间的场景这是对的：地板会把身体的颜色反上来。
+    //
+    // 但 `tint: 0` 的那一套（纸）不行：天幕不染色而地面染色，
+    // 结果是上半屏中性、下半屏是物种的颜色，雾一混整块底就暖了 ——
+    // 实测 char.line 站上去，那张"纸"是米黄的。
+    // 所以 `tint` 管的不只是天幕，是**这一套底色认不认得站上来的是谁**。
+    // `scene.ground` 是个**倍数**，乘在物种的固有地色上。那几个值（5~6）
+    // 是按暗色地色配的，乘在已经接近 1 的纸色上会直接爆掉 —— 实测整块底
+    // 冲成纯白，连身体带影子一起没了。
+    // 所以 `tint: 0` 的那一套不乘，**直接等于天幕**：那才是"无缝的一张纸"
+    // 的字面意思，也省掉一个需要人去配平的数。
+    groundNear: scene.tint === 0 ? scene.skyGlow : mul(look.groundNear, scene.ground),
     groundFar: skyGlow,
 
     glowLift: scene.glowLift,

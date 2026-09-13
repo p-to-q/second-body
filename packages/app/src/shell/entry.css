@@ -12,7 +12,12 @@
   z-index: 10;
   display: flex;
   flex-direction: column;
+  /* 底对齐是这一屏的构图：整块字压在左下，上面全是空。
+     但**屏幕不够高的时候底对齐会从上面切**，而被切掉的正好是巨题 ——
+     实测 869px 的视口上第一行就没了。所以高度够就贴底，不够就贴顶再自己滚。 */
   justify-content: flex-end;
+  overflow-y: auto;
+  scrollbar-width: none;
   gap: var(--sb-gutter);
   padding: var(--sb-safe);
   background: var(--sb-paper);
@@ -20,6 +25,11 @@
   animation: sb-entry-in 240ms cubic-bezier(.16, 1, .3, 1) both;
 }
 @keyframes sb-entry-in { from { opacity: 0 } to { opacity: 1 } }
+.sb-entry::-webkit-scrollbar { display: none; }
+/* flex 的底对齐会把溢出的那一头顶出容器，连滚都滚不回来（这是 flexbox 的老问题）。
+   给第一个孩子一个 auto 的上外边距，效果和 flex-end 一样，但溢出时它自己塌成 0，
+   于是内容从顶上开始、下面照常滚得到。 */
+.sb-entry > *:first-child { margin-top: auto; }
 
 /**
  * 背后有场的时候（`ring/field.ts` 挂上了）：底色由那块画布出，这一层让开。
@@ -55,7 +65,13 @@
 .sb-entry-lede { color: var(--sb-ink); margin: 0; }
 .sb-entry-lede .sb-en { color: var(--sb-ink-dim); }
 
-.sb-entry-actions { display: flex; flex-wrap: wrap; gap: calc(var(--sb-gutter) * 1.5); }
+.sb-entry-actions {
+  display: flex; flex-wrap: wrap;
+  gap: calc(var(--sb-gutter) * 2);
+  margin-top: 0.4rem;
+  /* 两个动作是这一屏上仅次于字标的东西，正文字号读起来像脚注 */
+  font-size: calc(var(--sb-size-h2) * 1.05);
+}
 
 /**
  * 动作是**文字加一条细线**，不是按钮。
@@ -79,10 +95,24 @@
  * 一个按钮的悬停不是那一处 —— 而且蓝线在这一屏上看着就是脏的。
  * 线本身仍然是可见的焦点指示，键盘用户照样看得见自己在哪。
  */
+/**
+ * 悬停 / 焦点：**线变实，字退一档**。
+ *
+ * 原来写的是 `color: #fff`。那条规则是在深色底上写的，首屏翻成白底之后
+ * 它的字面意思变成了"把字刷成和纸一样白" —— 手一放上去那两个词就没了。
+ * 一个只在某个底色下成立的悬停态，是一条写死了主题的规则。
+ *
+ * 现在两边都成立：**动的是线，不是字**。线从 `--sb-rule` 收到满墨，
+ * 读作"这里可以按"；字只退一小档，读作"被碰到了"。
+ *
+ * 退的那一档是往**纸**里掺，不是换成 `--sb-ink-dim` ——
+ * 那个令牌是辅助信息（英文行）的色，字退到那里就和自己下面那行英文一样重了，
+ * 主次当场平掉。62% 是"看得出淡了一点"和"还是主角"之间那一档。
+ */
 .sb-act:hover, .sb-act:focus-visible {
   outline: none;
   border-bottom-color: var(--sb-ink);
-  color: #fff;
+  color: color-mix(in srgb, var(--sb-ink) 62%, var(--sb-paper));
 }
 .sb-act .sb-en { color: var(--sb-ink-dim); }
 
@@ -117,10 +147,10 @@
 
 /* 问句比正文大一档、比标题小很多 —— 它是这一屏唯一需要被"读进去"的一句 */
 .sb-entry-lede {
-  max-width: 34ch;              /* 中文的行长上限比拉丁短，34 个汉字约等于 68 个字母 */
-  margin: 1.6rem 0 0;
-  font-size: var(--sb-size-h2);
-  line-height: 1.4;
+  max-width: 26ch;              /* 中文的行长上限比拉丁短；26 个汉字约两行，撑得住左栏 */
+  margin: 2rem 0 0;
+  font-size: calc(var(--sb-size-h2) * 1.18);
+  line-height: 1.45;
 }
 .sb-entry-lede .sb-zh { font-family: var(--sb-kai); letter-spacing: 0; }
 .sb-entry-lede .sb-en { font-size: 0.62em; margin-top: 0.45em; }
@@ -130,8 +160,8 @@
 .sb-entry-meta {
   display: grid;
   grid-template-columns: max-content 1fr;
-  gap: 0.35rem var(--sb-gutter);
-  margin: 2.4rem 0 0;
+  gap: 0.6rem calc(var(--sb-gutter) * 1.4);
+  margin: 3rem 0 0;
   max-width: 34rem;
 }
 .sb-entry-meta dt { margin: 0; align-self: baseline; }
@@ -174,9 +204,18 @@ html.sb-has-nav .sb-entry > * { max-width: min(34rem, calc(100vw - 24rem - var(-
  * `max-width` 拦不住 nowrap 的文字，这是实测出来的。
  * 而两行本来就是这个字标的样子：行距压到 0.92，两行读成一块。
  * `width: min-content` 让它在空格处断，不用在 DOM 里插 <br>。 */
+/* 巨题吃掉让出来的那一栏的**全部**宽度。
+   6vw 是按满屏算的，可是这一屏左边只有一半 —— 于是字标在 724px 的视口上只有
+   43px，一个"巨题"缩成了小标题，左边整块因此立不住。
+   现在按**左栏自己的宽度**算：`min(34rem, 100vw - 24rem)` 是那一栏的宽度
+   （见上面的 reserve 规则），字号取它的 1/6.2 —— 两行字标正好填满它。 */
 .sb-entry-title {
-  font-size: clamp(2.4rem, 6vw, 5.5rem);
-  letter-spacing: -0.045em;
+  font-size: clamp(2.6rem, min(34rem, calc(100vw - 24rem)) / 6.2, 6.2rem);
+  letter-spacing: -0.05em;
+}
+@media (max-width: 620px) {
+  /* 窄屏没有让位，左栏就是整屏 */
+  .sb-entry-title { font-size: clamp(2.6rem, 13vw, 6.2rem); }
 }
 .sb-entry-title .sb-zh { display: block; line-height: 0.92; }
 /* 两个词各占一行 —— 断点在 DOM 里定死（见 entry.ts 的 titleNode），

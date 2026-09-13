@@ -130,8 +130,6 @@ export function createCreature(opt: CreatureOptions): Creature {
   const dirtyParts = new Set<string>();                 // 真几何到货 → 重建这些 mesh
 
   let shading: ShadingId = opt.shading ?? 'physical';
-  /** 描边材质全场只有一块：它没有任何随物种变化的参数，墨就是墨 */
-  let outlineMaterial: THREE.MeshBasicNodeMaterial | null = null;
 
   let genome: Genome | null = null;
   const active = new Map<SlotKey, Swap>();
@@ -189,11 +187,6 @@ export function createCreature(opt: CreatureOptions): Creature {
     return m;
   }
 
-  function outlineFor(): THREE.MeshBasicNodeMaterial {
-    outlineMaterial ??= createOutlineMaterial();
-    return outlineMaterial;
-  }
-
   // ── InstancedMesh 池 ────────────────────────────────────────────────────
   function disposeEntry(key: string) {
     const e = meshes.get(key);
@@ -229,7 +222,7 @@ export function createCreature(opt: CreatureOptions): Creature {
       // 而是为了让填充的片元大多数被提前剔掉，省一点 overdraw。
       let outline: THREE.InstancedMesh | null = null;
       if (shading === 'toon') {
-        outline = new THREE.InstancedMesh(geo, outlineFor(), capacity);
+        outline = new THREE.InstancedMesh(geo, createOutlineMaterial(), capacity);
         outline.name = `${key}~outline`;
         outline.instanceMatrix = mesh.instanceMatrix;
         outline.frustumCulled = false;
@@ -422,7 +415,8 @@ export function createCreature(opt: CreatureOptions): Creature {
       for (const key of [...meshes.keys()]) disposeEntry(key);
       for (const m of materials.values()) m.dispose();
       materials.clear();
-      if (shading !== 'toon') { outlineMaterial?.dispose(); outlineMaterial = null; }
+      // 描边材质缓存在 `shading.ts` 里按线宽共享，这里不单独持有 —— 换回 physical
+      // 只是不再建外壳 mesh，材质留着（一场演出里 O 键会被按来按去）
     },
     get shading() { return shading; },
 
@@ -435,8 +429,6 @@ export function createCreature(opt: CreatureOptions): Creature {
       for (const key of [...meshes.keys()]) disposeEntry(key);
       for (const m of materials.values()) m.dispose();
       materials.clear();
-      outlineMaterial?.dispose();
-      outlineMaterial = null;
       disposeShading();
       object.clear();
     },

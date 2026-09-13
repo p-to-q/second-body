@@ -102,7 +102,7 @@ html.sb-has-nav .ed-hero__meta { padding-right: 5.5rem; }
   html.sb-has-nav .ed-hero__meta { padding-right: 0; }
 }
 
-/* ── 楷书用在哪（`assets/fonts/Iansui/NOTICE.md` 定的边界）────────────────
+/* ── 楷书用在哪（`assets/fonts/LXGWWenKai/NOTICE.md` 定的边界）────────────────
  * 只给**叙事性的中文**：引文、立意句、物种的一句话。
  * 不给标签、数字、id、HUD —— 楷书有手的温度，适合"一个人说的话"；
  * 数据要的是中性，上了楷书会变得像在抒情。

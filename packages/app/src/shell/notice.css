@@ -11,7 +11,7 @@
   margin: 0;
   max-width: 40ch;
   pointer-events: none;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  text-shadow: 0 0 6px var(--sb-halo), 0 0 2px var(--sb-halo);
 }
 
 /**

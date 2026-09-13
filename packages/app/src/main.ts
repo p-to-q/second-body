@@ -67,17 +67,23 @@ async function boot(): Promise<void> {
   // 控件条（`ui/controls.ts`）和它共用右上角，所以目录一展开就要让位。
   // 控件条要等身体和舞台都在了才挂得起来，于是这里只能留一个可变引用 ——
   // 两条线的先后顺序是真实存在的，不假装它不存在。
-  let controls: Controls | null = null;
-  const nav = mountNav({
-    enabled: flags.nav, overlay: true,
-    onOpenChange: (open) => controls?.setNavOpen(open),
-  });
-
   // ── 0b. 网页版入口层（docs/PRD §8 / docs/23 §S0 网页分支） ─────────────────
   // 唯一的作用是把「请求摄像头」推迟到观众自己按那一下为止：在此之前用回放驱动，
   // 一次权限都不问。现场（?kiosk=1）和深链拿到 null，这一层等于不存在。
   // 它不阻塞下面的加载 —— 只有进 S2 之前会 await 一次 entry.started。
+  //
+  // **它必须在目录之前建**：目录要不要挂上来就铺开，答案就是"展签在不在"，
+  // 而那个答案只有它知道。用它的返回值，不要在这里把它的条件重写一遍。
   const entry = mountEntry(flags);
+
+  let controls: Controls | null = null;
+  const nav = mountNav({
+    // 铺开是**展签版式的一部分** —— `shell/entry.css` 为它让出了右边一栏。
+    // 深链和现场没有展签，也就没有那一栏：那时候铺开的目录是整片压在作品上的。
+    startOpen: entry !== null,
+    enabled: flags.nav, overlay: true,
+    onOpenChange: (open) => controls?.setNavOpen(open),
+  });
 
   // 离散接触音（docs/29 §第五层）。**必须在这里建**，不能跟着 createSound 走：
   // 它要放的四记里有三记发生在选择页上，而 createSound 是选完主题才建的。
@@ -147,6 +153,11 @@ async function boot(): Promise<void> {
 
   // 展签还立着的时候不要把选择页顶出来。加载在后面照常进行，这里只等那一下点击。
   await entry?.started;
+
+  // 展签一走，目录就收回那个词。理由同上：让出右边一栏的是展签的版式，
+  // 展签不在了那一栏也就不在了，再铺着就是压在作品上。
+  // 观众想看目录随时点得开 —— 收起来的不是入口，只是那张表。
+  nav?.close();
 
   // 「开始」那一下同时是 AudioContext 的解锁时刻，一声轻触是"系统醒了"的唯一回执。
   // 放在 await 之后而不是塞进 entry.ts：`started` 是在 click 处理里 resolve 的，
@@ -326,7 +337,9 @@ async function boot(): Promise<void> {
       const planned = remapSkeleton(humanSk, bodyPlan);
       // 刚体挂载做不出"弯"，但一串各自延迟不同的刚体看起来就是在弯 ——
       // 这是参照作品那句 "wiggles, shifts, and bends" 唯一能不做蒙皮就拿到的部分。
-      lastSkeleton = vitalityOn ? vitality.apply(planned, lastFeatures, dt) : planned;
+      // 方案要一起递进去：vitality 末尾还要落一次地，而"拿谁当基准"随方案变
+      // （没有脚的方案按整具最低关节，见 core/bodyplan.ts 的 groundsByLowestJoint）
+      lastSkeleton = vitalityOn ? vitality.apply(planned, lastFeatures, dt, bodyPlan) : planned;
       stage.frame(lastSkeleton);   // 取景按**重映射之后**的身体算：四足是横的矮的
       const evo = evolution.update(lastFeatures, dt);
       // 团块的"沸腾"层由运动能量驱动 —— 动得越猛表面越沸（tuning 的 MASS.surface）

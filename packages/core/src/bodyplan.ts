@@ -448,6 +448,29 @@ const PRESETS: Record<string, BodyPlanSpec> = {
 const isSpec = (p: unknown): p is BodyPlanSpec =>
   typeof p === 'object' && p !== null && !Array.isArray(p);
 
+/**
+ * 一个 `BodyPlan`（字符串 / 预设名 / spec 对象）到底是**哪一个拓扑**。
+ *
+ * 单独抽出来是因为它有三个使用者（`remapSkeleton`、`groundsByLowestJoint`、`main.ts`
+ * 的 HUD），而 `towering` / `stub` 这两个预设名只改比例、拓扑其实是 `rig` ——
+ * 这条读法在三个地方各写一遍，迟早有一处漏掉。
+ */
+export function planKind(plan: BodyPlan = 'rig'): string {
+  if (isSpec(plan)) return plan.kind ?? 'rig';
+  return PRESETS[plan] ? 'rig' : (plan as string);
+}
+
+/**
+ * 这个方案的落地基准是**整具骨架的最低关节**（而不是脚）吗。
+ *
+ * 这是 `PLANS_WITHOUT_FEET` 唯一的判据函数 —— **不要再建第二张表**。
+ * 凡是"把骨架整体沿 Y 平移到地面"的地方（`bodyplan.ts` 的 `rebuild()`、
+ * `vitality.ts` 末尾那一段）都必须先问它一次，否则 `radial` / `inverted`
+ * 会被按着一组**长在身体顶上**的关节往下拽。
+ */
+export const groundsByLowestJoint = (plan: BodyPlan = 'rig'): boolean =>
+  PLANS_WITHOUT_FEET.includes(planKind(plan));
+
 /** 这个 spec 会不会真的改变比例？全是 1 就别白跑一趟 */
 const changesProportion = (s: BodyPlanSpec): boolean =>
   [s.limb, s.torso, s.head, s.arm, s.leg].some((v) => v !== undefined && v !== 1);
@@ -474,7 +497,7 @@ export function remapSkeleton(sk: Skeleton, plan: BodyPlan = 'rig'): Skeleton {
   if (!sk || !Array.isArray(sk.bones) || !sk.bones.length) return sk;
 
   const spec: BodyPlanSpec = isSpec(plan) ? plan : (PRESETS[plan] ?? { kind: plan as BodyPlanId });
-  const kind = spec.kind ?? (isSpec(plan) ? 'rig' : (PRESETS[plan] ? 'rig' : (plan as BodyPlanId)));
+  const kind = planKind(plan);
 
   let out = sk;
   switch (kind) {

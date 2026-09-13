@@ -31,33 +31,7 @@
  */
 import * as THREE from 'three/webgpu';
 import { float, normalLocal, positionLocal } from 'three/tsl';
-
-/**
- * 描边 / 平涂的三个旋钮。
- *
- * ⚠️ **它们本该在 `packages/core/src/tuning.ts`** —— AGENTS.md 的不变量写着
- * 「每一个可调的数都住在 tuning.ts，调在别处就是放错了地方」，而这三个数正是现场要调的。
- * 放在这里只有一个理由，而且是一个临时理由：写这一版时 `tuning.ts` 正被另一条线
- * 在同一个工作树里改（docs/15 §6 的并行纪律，P20），维护者明确要求这条线不要碰它。
- *
- * > **交接**：下一个动这个文件的人，把这个 `TOON` 整块搬进 `tuning.ts`
- * > （放在 `PALETTE` 之后、`FOOT` 之前），这里改成 import。搬完删掉这段注释。
- *
- * 单位：线宽是**米**，和 tuning.ts 其余部分一致 —— 不是像素。
- * 为什么是米而不是屏幕空间的恒定像素，见下面 `createOutlineMaterial` 的说明。
- * 1.7m 标准身材上 12mm 约等于参考图里那一圈墨线的粗细。
- */
-export const TOON = {
-  /** 反向外壳沿法线外推多少米。再粗会在细手指处糊成一团，再细在 1440p 上读不出来 */
-  outlineMeters: 0.012,
-  /** 墨色。不是纯黑：纯黑在深空场景里会和背景连成一片，轮廓反而消失 */
-  outlineColor: [0.06, 0.055, 0.06] as [number, number, number],
-  /**
-   * 平涂的色阶。**3 级，不是连续的 Lambert** —— 两级太像开关，四级以上就看不出是平涂了。
-   * 值是"这一级有多亮"的乘数，喂给 MeshToonNodeMaterial 的 gradientMap。
-   */
-  bands: [0.55, 0.78, 1.0] as readonly number[],
-};
+import { TOON } from '../../../core/src/tuning.ts';
 
 /** `physical` = 此前所有物种走的那条 PBR 路径；`toon` = 平涂 + 反向外壳描边 */
 export type ShadingId = 'physical' | 'toon';
@@ -127,6 +101,8 @@ function bandedGradient(): THREE.DataTexture {
 export function disposeShading(): void {
   gradientMap?.dispose();
   gradientMap = null;
+  outlineMaterial?.dispose();
+  outlineMaterial = null;
 }
 
 /** 正面（填充）材质。`physical` 走原来那条路，一个参数都没改 */
@@ -168,8 +144,11 @@ export function createFillMaterial(shading: ShadingId, spec: FillSpec): THREE.Ma
  *
  * 代价老实写在这里：
  *  - 内部折边不出线，只有剪影出线。参考图要的就是剪影那一圈，够用。
- *  - 硬边（法线被拆开的顶点）处外壳会裂开一道缝。归一化过的部件基本是光滑的，
- *    真遇上了把 `TOON.outlineMeters` 调小，不要去改几何。
+ *  - 硬边（法线被拆开的顶点）处外壳会裂开、叠出更重的墨。**这一条不修** ——
+ *    实测 `spine` / `foot` / `hand` 各有上千个拆开的法线（最大 169°），
+ *    而它们正是取证图里"形体交叠处墨变厚 / 脚上那圈重墨"的来源。
+ *    「线」是一个被手画出来的角色，一圈处处等宽的 12mm 偏移反而是错的答案 ——
+ *    把法线抹平会把这些一起削掉。为什么没有改成按件调线宽，见 `tuning.ts` 的 `TOON`。
  *  - draw call 翻倍（见 `creature.ts` 的 `stats.drawCalls`，那个数把外壳算进去了 ——
  *    HUD 上读到的必须是**真的提交了多少次**，不是我们希望是多少，P21）。
  *
@@ -179,11 +158,18 @@ export function createFillMaterial(shading: ShadingId, spec: FillSpec): THREE.Ma
  * **写进** `positionLocal` / `normalLocal`，**然后**才 `positionLocal.assign(this.positionNode)`。
  * 所以在 `positionNode` 里拿到的这两个量已经是实例变换之后的，单位是 creature 组的米。
  * 好处正是这次要的：部件在 `attachMatrix` 里被**非均匀**缩放过（粗细一套、长度一套），
- * 若在这之前推挤，胖部件的线就粗、细部件的线就细 —— 一具身体上会出现几种不同粗的墨线。
+ * 若在这之前推挤，胖部件的线就粗、细部件的线就细 —— 而那种粗细差是"被缩放出来的"，
+ * 不是"这件东西该有多重的墨"。
  * 反过来若用 `vertexNode`（three 自带 `toonOutlinePass` 的写法），整段顶点计算被接管，
  * 实例矩阵就丢了 —— 一整个桶的外壳会全部叠在原点。这是这个文件里最贵的一条信息。
+ *
+ * 全场只有一块：线宽是统一的（理由见 `tuning.ts` 的 `TOON`），墨色不随物种变，
+ * 所以每个桶各建一块只是多几条一模一样的 GPU 管线。
  */
+let outlineMaterial: THREE.MeshBasicNodeMaterial | null = null;
+
 export function createOutlineMaterial(): THREE.MeshBasicNodeMaterial {
+  if (outlineMaterial) return outlineMaterial;
   const c = TOON.outlineColor;
   const m = new THREE.MeshBasicNodeMaterial({
     color: new THREE.Color().setRGB(c[0], c[1], c[2], THREE.SRGBColorSpace),
@@ -192,5 +178,6 @@ export function createOutlineMaterial(): THREE.MeshBasicNodeMaterial {
   });
   m.positionNode = positionLocal.add(normalLocal.normalize().mul(float(TOON.outlineMeters)));
   m.name = 'toon-outline';
+  outlineMaterial = m;
   return m;
 }
