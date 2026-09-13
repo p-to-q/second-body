@@ -80,12 +80,19 @@
   font-weight: var(--sb-weight-head);
   transition: color 140ms;
 }
+/* 英文那半句：**和右上角的节题逐字同一种压法** —— 同色 + opacity 0.6，
+   而不是换一个更暗的颜色。
+   两个角是一把尺子上的两级：导航（右上）在下一级，动作（右下）在上一级 ——
+   动作是最亮的那一档，那是对的。但**一行之内中英的那一步必须相同**，
+   否则读起来就是两套系统。改之前这里用的是 --sb-on-stage-dim 且没有
+   opacity，于是右下角的英文比右上角的亮一档，实测那行 `BACK TO THE HALL`
+   抢在中文前面被看见。 */
 .sb-exit-name .sb-en {
   font-size: 0.78em;
   margin-left: 0.45em;
   letter-spacing: var(--sb-tracking-label);
   text-transform: uppercase;
-  color: var(--sb-on-stage-dim);
+  opacity: 0.6;
   transition: color 140ms;
 }
 

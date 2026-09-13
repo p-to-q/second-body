@@ -75,13 +75,29 @@ const H = 126;
  * 这一块在左上角占到多少像素（含安全区、含底下那句话）。
  * `?debug=1` 的 HUD 靠它让路（`shell/hud.ts` 的 `top`）。
  *
- * **这是一个量出来的数，不是估的**（P21：派生数要么在用的时候重新导出，
- * 要么标明它是从哪儿来的）：2026-09-13 在 Chrome 上逐句量四种状态的实际高度，
- * 最高的两句（「打开摄像头…」「往后退一点…」英文折成两行）是 188px，
- * 加安全区 24px 起算 = 212px。这里取 224，留一个空行的余量。
- * 文案改长了要重量一次 —— 变长的是英文那一行，它最容易折出第三行。
+ * 屏幕本身的高由 CSS 定（`--sb-see-h`，随视口走），**这里不再重复那个数** ——
+ * 上一版把它写死成 224，那是按当时固定的 126px 屏量出来的；屏一改成随视口，
+ * 那个常量就开始骗人（1080 上屏是 216px，HUD 会压在它身上）。
+ *
+ * 下面那块字的高度**仍然是量出来的**：2026-09-13 在 Chrome 上逐句量四种状态，
+ * 最高的两句（「打开摄像头…」「往后退一点…」英文折成两行）是 98px，
+ * 再加安全区 24px。文案改长了要重量一次 —— 变长的是英文那一行，
+ * 它最容易折出第三行。
  */
-export const PREVIEW_BOTTOM = 224;
+const SEE_TEXT_PX = 98 + 24;
+
+/**
+ * HUD 该从多高开始，才不压在小屏上。**用的时候导出，不存成常量**
+ * （P21：派生数要么在用的时候重新导出，要么标明它从哪儿来）。
+ * 屏高从 CSS 那一个来源读，所以改 `--sb-see-h` 这里自动跟上。
+ */
+export function previewReservedTop(): number {
+  if (typeof document === 'undefined') return 8;
+  const raw = getComputedStyle(document.documentElement).getPropertyValue('--sb-see-h').trim();
+  const h = Number.parseFloat(raw);
+  // 读不到（老浏览器、样式还没到）就按上限算：宁可 HUD 低一点，也不要压在屏上
+  return (Number.isFinite(h) ? h : 280) + SEE_TEXT_PX;
+}
 
 export interface Preview {
   /** 每帧调一次。`pose` 是帧循环手上那一份，不另取 */

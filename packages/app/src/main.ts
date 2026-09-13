@@ -43,7 +43,7 @@ import { showNotice } from './shell/notice.ts';
 import { mountNav } from './ui/nav.ts';
 import { mountControls, type Controls } from './ui/controls.ts';
 import { cornerColumn } from './ui/corner.ts';
-import { mountPreview, wantsPreview, PREVIEW_BOTTOM } from './ui/preview.ts';
+import { mountPreview, wantsPreview, previewReservedTop } from './ui/preview.ts';
 import { HANDED_BACK_ACT, mountExits } from './ui/exits.ts';
 import { createHud } from './shell/hud.ts';
 import { createSound } from './sound/sound.ts';
@@ -140,7 +140,7 @@ async function boot(): Promise<void> {
   enterKiosk(renderer.domElement, flags);
   // HUD 和那块小屏幕（`ui/preview.ts`）共用左上角，而小屏幕赢 ——
   // 它是给观众的，HUD 是给我们自己的。挂不挂只看 flags，所以这里就能算出来。
-  const hud = flags.debug ? createHud({ top: wantsPreview(flags) ? PREVIEW_BOTTOM : 8 }) : null;
+  const hud = flags.debug ? createHud({ top: wantsPreview(flags) ? previewReservedTop() : 8 }) : null;
 
   // ── 3. 等资产（上面早就在跑了）──────────────────────────────────────────
   await libraryReady;
