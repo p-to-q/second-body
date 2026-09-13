@@ -34,9 +34,14 @@
  * - 它对**所有**身体方案都生效，包括团块（`mass`）—— 它只认 Skeleton，不认渲染器；
  * - 四足/矮壮那些方案已经把插座搬过位置了，延迟应该发生在**那具身体**的链上，
  *   而不是人的链上。顺序反了，四足的前腿会带着人类肩膀的延迟。
+ *
+ * 代价是：它必须知道自己手上这具身体**是哪个方案**。因为末尾那次落地要按方案换基准
+ * （`apply()` 的 `plan` 参数 → `groundsByLowestJoint`）。不知道的话，没有脚的方案
+ * （`radial` / `inverted`）会被按着一组长在身体顶上的关节往下拽。
  */
 import { VITALITY } from './tuning.ts';
 import { BONES } from './skeleton.ts';
+import { groundsByLowestJoint, type BodyPlan } from './bodyplan.ts';
 import type { Bone, MotionFeatures, Skeleton, Vec3 } from './types.ts';
 
 /** 关节在链上的深度。根 = 0，越往末端越大 —— 延迟量就按它分配 */
@@ -57,8 +62,12 @@ export interface Vitality {
   /**
    * 返回一个**新的** Skeleton；输入不被改写。
    * 骨长与 `height` 逐字保持；只有关节的**方向**会有延迟。
+   *
+   * `plan` 是**这具身体已经被重映射成的那个方案**（`remapSkeleton` 的第二个参数，
+   * 原样传进来）。它只有一个用处：决定末尾那次落地拿谁当基准。
+   * 不传 = 按 `'rig'` 处理，也就是拿脚 —— 对人形是对的（P2：未知值走保守分支）。
    */
-  apply(sk: Skeleton, features: MotionFeatures | null, dt: number): Skeleton;
+  apply(sk: Skeleton, features: MotionFeatures | null, dt: number, plan?: BodyPlan): Skeleton;
   reset(): void;
 }
 
@@ -69,7 +78,7 @@ export function createVitality(): Vitality {
 
   function reset(): void { state = null; breath = 0; }
 
-  function apply(sk: Skeleton, features: MotionFeatures | null, dt: number): Skeleton {
+  function apply(sk: Skeleton, features: MotionFeatures | null, dt: number, plan: BodyPlan = 'rig'): Skeleton {
     if (!VITALITY.enabled || !sk?.joints) return sk;
     const step = Number.isFinite(dt) && dt > 0 ? Math.min(dt, 0.1) : 1 / 60;
 
@@ -147,8 +156,20 @@ export function createVitality(): Vitality {
       return finite(p0) && finite(p1) ? { ...b, p0: [...p0] as Vec3, p1: [...p1] as Vec3 } : b;
     });
 
+    // 拿谁当基准由**身体方案**决定，不是拿脚就完事：`radial` 把四肢拆成了绕核心的弧，
+    // `inverted` 整个翻了过来、脚在最上面（`PLANS_WITHOUT_FEET`）。对这两种方案
+    // 按脚落地 = 拿一组长在身体顶上的关节往下拽，实测能把整具骨架埋进地里一米多。
+    // 症状看不见，因为网格落地（`ground.ts`）会把递给它的东西原样抬回来 ——
+    // 但**读关节的那些人**（接触阴影 `framing.ts`、取景、截图）读到的是这具沉下去的骨架。
+    // 判据就是 `bodyplan.ts` 里那条注释写下的定义：没有脚的身体，"贴地"= 整具骨架的
+    // 最低关节回到 y=0。谓词只有 `groundsByLowestJoint` 一个，不在这里另建一张表（P15）。
     let lo = Infinity;
-    for (const n of ['footIdxL', 'footIdxR', 'ankleL', 'ankleR']) {
+    if (groundsByLowestJoint(plan)) {
+      for (const k in out) {
+        const y = out[k]?.[1];
+        if (Number.isFinite(y) && y < lo) lo = y;
+      }
+    } else for (const n of ['footIdxL', 'footIdxR', 'ankleL', 'ankleR']) {
       const y = out[n]?.[1];
       if (Number.isFinite(y) && y < lo) lo = y;
       if (n === 'footIdxR' && lo !== Infinity) break;   // 有脚尖就不看踝
