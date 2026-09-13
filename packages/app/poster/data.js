@@ -1,38 +1,38 @@
 /* 由 build-data.mjs 生成，不要手改。跑 `node packages/app/poster/build-data.mjs` 重出。 */
 window.SB_POSTER = {
-  "generatedAt": "2026-09-12T22:25:53.293Z",
+  "generatedAt": "2026-09-13T01:17:24.774Z",
   "source": {
     "parts": "assets/parts/parts.json",
     "curation": "assets/parts/curation.json",
-    "partsGeneratedAt": "2026-09-12T22:12:42.012Z",
+    "partsGeneratedAt": "2026-09-12T22:49:28.225Z",
     "partsVersion": 1
   },
   "counts": {
     "entries": 29,
-    "parts": 196,
+    "parts": 208,
     "partsRejected": 10,
-    "partsLive": 193,
+    "partsLive": 205,
     "partsReal": 30,
     "slots": 10,
     "boneKeys": 18,
     "materials": 9,
     "plans": 8,
-    "triangles": 577091,
+    "triangles": 613597,
     "entriesWithAnchor": 22,
-    "vacancies": 6,
+    "vacancies": 4,
     "fullyBorrowed": 1
   },
   "bySlot": {
     "clavicle": 11,
-    "foot": 25,
+    "foot": 27,
     "foreArm": 11,
     "hand": 11,
-    "head": 25,
-    "joint": 25,
-    "shin": 25,
-    "spine": 27,
+    "head": 27,
+    "joint": 27,
+    "shin": 27,
+    "spine": 29,
     "thigh": 11,
-    "upperArm": 25
+    "upperArm": 27
   },
   "byPlan": {
     "rig": 12,
@@ -50,7 +50,7 @@ window.SB_POSTER = {
     "character": 10
   },
   "tier": 2,
-  "totalBodies": 1445891,
+  "totalBodies": 1446403,
   "entries": [
     {
       "id": "porcelain",
@@ -1139,11 +1139,30 @@ window.SB_POSTER = {
         "matte.ash",
         "paint.hazard"
       ],
-      "ownParts": 0,
+      "ownParts": 6,
       "ownRejected": 0,
       "fullyBorrowed": false,
-      "bodies": null,
-      "perSlot": null,
+      "bodies": 256,
+      "perSlot": {
+        "spine": 1,
+        "neck": 1,
+        "head": 1,
+        "clavicleL": 2,
+        "clavicleR": 2,
+        "upperArmL": 1,
+        "upperArmR": 1,
+        "foreArmL": 2,
+        "foreArmR": 2,
+        "handL": 2,
+        "handR": 2,
+        "thighL": 2,
+        "thighR": 2,
+        "shinL": 1,
+        "shinR": 1,
+        "footL": 1,
+        "footR": 1,
+        "joint": 1
+      },
       "anchor": false
     },
     {
@@ -1191,11 +1210,30 @@ window.SB_POSTER = {
         "paint.hazard",
         "glow.signal"
       ],
-      "ownParts": 0,
+      "ownParts": 6,
       "ownRejected": 0,
       "fullyBorrowed": false,
-      "bodies": null,
-      "perSlot": null,
+      "bodies": 256,
+      "perSlot": {
+        "spine": 1,
+        "neck": 1,
+        "head": 1,
+        "clavicleL": 2,
+        "clavicleR": 2,
+        "upperArmL": 1,
+        "upperArmR": 1,
+        "foreArmL": 2,
+        "foreArmR": 2,
+        "handL": 2,
+        "handR": 2,
+        "thighL": 2,
+        "thighR": 2,
+        "shinL": 1,
+        "shinR": 1,
+        "footL": 1,
+        "footR": 1,
+        "joint": 1
+      },
       "anchor": false
     },
     {
