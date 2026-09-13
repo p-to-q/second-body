@@ -11,7 +11,7 @@
 
 | 层 | 文件 | 字节 |
 |---|---|---|
-| 第五层 · 离散接触音（`sound/cues.ts`） | `enter` `pass` `commit` `idle` `reveal` `ground` | 12,875 |
+| 第五层 · 离散接触音（`sound/cues.ts`） | `enter` `pass` `commit` `idle` `reveal` `ground` | 13,035 |
 | 第六层 · 工作声（`sound/work.ts` 排程，`cues.ts` 放） | `work-a` `work-b` `work-c` | 6,291 |
 
 前一轮四个共 8,344 字节，这一轮加了五个共 **10,982 字节**。
