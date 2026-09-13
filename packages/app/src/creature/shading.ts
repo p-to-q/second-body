@@ -135,8 +135,8 @@ function bandedGradient(): THREE.DataTexture {
 export function disposeShading(): void {
   gradientMap?.dispose();
   gradientMap = null;
-  outlineMaterial?.dispose();
-  outlineMaterial = null;
+  for (const m of outlineMaterials.values()) m.dispose();
+  outlineMaterials.clear();
 }
 
 /** 正面（填充）材质。`physical` 走原来那条路，一个参数都没改 */
@@ -178,11 +178,17 @@ export function createFillMaterial(shading: ShadingId, spec: FillSpec): THREE.Ma
  *
  * 代价老实写在这里：
  *  - 内部折边不出线，只有剪影出线。参考图要的就是剪影那一圈，够用。
- *  - 硬边（法线被拆开的顶点）处外壳会裂开、叠出更重的墨。**这一条不修** ——
- *    实测 `spine` / `foot` / `hand` 各有上千个拆开的法线（最大 169°），
- *    而它们正是取证图里"形体交叠处墨变厚 / 脚上那圈重墨"的来源。
- *    「线」是一个被手画出来的角色，一圈处处等宽的 12mm 偏移反而是错的答案 ——
- *    把法线抹平会把这些一起削掉。为什么没有改成按件调线宽，见 `tuning.ts` 的 `TOON`。
+ *  - 硬边（法线被拆开的顶点）处外壳会裂开、叠出更重的墨。躯干 / 四肢 / 头上
+ *    **这一条不修**：实测 `spine` / `foot` / `hand` 各有上千个拆开的法线（最大 169°），
+ *    而它们正是"形体交叠处墨变厚"的来源 —— 那是**有方向的**线，是这套语言要留的东西。
+ *    把法线抹平会把这些一起削掉，所以**不做平滑法线**（那是"把它磨平"，不是"把它修好"）。
+ *
+ *    **手和脚是另一件事，已修**（2026-09-13）：同样宽的 12mm 外壳套在手和脚上时
+ *    不再是"变粗的线"，而是**碎片** —— 一块白团上挂着几片脱落的黑渣，没有起笔收笔，
+ *    读不出任何方向。判据就是这一句：**会变粗的是线，碎成片的是坏的。**
+ *    修法是按槽位收窄墨（`TOON.outlineSlotScale`），**只收窄手和脚**；
+ *    其余九个槽位乘 1，逐像素不变 —— 所以躯干的轮廓不会因此变得更"匀"。
+ *    为什么不是按某个标量自动判，见 `tuning.ts` 的 `outlineSlotScale`。
  *  - draw call 翻倍（见 `creature.ts` 的 `stats.drawCalls`，那个数把外壳算进去了 ——
  *    HUD 上读到的必须是**真的提交了多少次**，不是我们希望是多少，P21）。
  *
@@ -200,18 +206,54 @@ export function createFillMaterial(shading: ShadingId, spec: FillSpec): THREE.Ma
  * 全场只有一块：线宽是统一的（理由见 `tuning.ts` 的 `TOON`），墨色不随物种变，
  * 所以每个桶各建一块只是多几条一模一样的 GPU 管线。
  */
-let outlineMaterial: THREE.MeshBasicNodeMaterial | null = null;
+const outlineMaterials = new Map<string, THREE.MeshBasicNodeMaterial>();
 
-export function createOutlineMaterial(): THREE.MeshBasicNodeMaterial {
-  if (outlineMaterial) return outlineMaterial;
+/**
+ * @param meters 这一块外壳推多远。缺省是全场那一个值；
+ *               `手 / 脚`按 `TOON.outlineSlotScale` 收窄（见那一条的理由）。
+ *
+ * 按线宽缓存，不是按桶：`outlineSlotScale` 目前只有两档，所以全场最多两块外壳材质
+ * （= 两条 GPU 管线）。**draw call 一次都没多** —— 外壳 mesh 的数量没变，
+ * 换的只是其中几块挂的材质。
+ */
+export function createOutlineMaterial(meters: number = TOON.outlineMeters): THREE.MeshBasicNodeMaterial {
+  const w = Number.isFinite(meters) ? Math.max(0, meters) : TOON.outlineMeters;
+  const key = w.toFixed(5);
+  const hit = outlineMaterials.get(key);
+  if (hit) return hit;
   const c = TOON.outlineColor;
   const m = new THREE.MeshBasicNodeMaterial({
     color: new THREE.Color().setRGB(c[0], c[1], c[2], THREE.SRGBColorSpace),
     // 外壳只画背面：正面被填充网格挡住，剩下能看见的正是剪影外那一圈
     side: THREE.BackSide,
   });
-  m.positionNode = positionLocal.add(normalLocal.normalize().mul(float(TOON.outlineMeters)));
-  m.name = 'toon-outline';
-  outlineMaterial = m;
+  m.positionNode = positionLocal.add(normalLocal.normalize().mul(float(w)));
+  m.name = `toon-outline@${key}`;
+  outlineMaterials.set(key, m);
   return m;
+}
+
+/**
+ * 把墨色推向一个颜色（`t` = 推多少，0 = 原样的墨）。给 `null` 或 0 就是复位。
+ *
+ * 这是第 IV 乐章的那一句（docs/41 §3）：**那条线不再是我们画的。**
+ * 描边是"这是一张画"的标记 —— 它是**我们**替这具身体描的边。走到"他者"的时候，
+ * 让这条线换成它自己的颜色，比让它消失更准：线还在（作品负责人要它普遍在），
+ * 但它已经属于那个东西，不再属于我们的画法。
+ *
+ * 全场只有一两块外壳材质（按线宽缓存），所以这是一两个 uniform 的事，不重编译。
+ */
+export function setOutlineTint(rgb: readonly [number, number, number] | null, t: number): void {
+  const k = Number.isFinite(t) ? Math.max(0, Math.min(1, t)) : 0;
+  const c = TOON.outlineColor;
+  const r = rgb && k > 0 ? c[0] + (rgb[0] - c[0]) * k : c[0];
+  const g = rgb && k > 0 ? c[1] + (rgb[1] - c[1]) * k : c[1];
+  const b = rgb && k > 0 ? c[2] + (rgb[2] - c[2]) * k : c[2];
+  for (const m of outlineMaterials.values()) m.color.setRGB(r, g, b, THREE.SRGBColorSpace);
+}
+
+/** 这个槽位的墨该有多粗（米）。写死的两档来路见 `TOON.outlineSlotScale` */
+export function outlineMetersFor(slot: string | null | undefined): number {
+  const k = slot ? (TOON.outlineSlotScale as Record<string, number>)[slot] : undefined;
+  return TOON.outlineMeters * (Number.isFinite(k) ? (k as number) : 1);
 }

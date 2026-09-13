@@ -9,8 +9,9 @@
  *  - 实例总数硬顶 `BUDGET.maxInstances`，超了丢弃而不是"以后再优化"。
  *  - 换装只动**变化的槽位**，同时最多 `MORPH.maxConcurrentSwaps` 个，其余排队（docs/05 §3）。
  *
- * 着色语言（`shading.ts`）：默认 `physical`，和此前完全一样。物种声明成 `toon` 时，
- * 每个桶**多挂一块反向外壳**（`BackSide` + 沿法线外推）画描边，填充换成 3 级平涂。
+ * 着色语言（`shading.ts`）：默认 `DEFAULT_SHADING`（2026-09-13 起是 `toon`）。
+ * 走 `toon` 时每个桶**多挂一块反向外壳**（`BackSide` + 沿法线外推）画描边，
+ * 填充换成 3 级平涂；墨的宽度按槽位来（`TOON.outlineSlotScale`，手和脚收窄）。
  * 为什么描边要在这里、而不是做成一个后期 pass，理由写在 `shading.ts` 里 ——
  * 一句话是：后期是可以被降级阶梯自动关掉的，而一个物种的辨识度不能挂在那上面。
  *
@@ -22,14 +23,16 @@
 import * as THREE from 'three/webgpu';
 import { harmonize } from '../../../core/src/palette.ts';
 import { ALL_SLOT_KEYS } from '../../../core/src/slots.ts';
-import { BUDGET, MORPH, TIME } from '../../../core/src/tuning.ts';
+import { BUDGET, MATERIAL, MORPH, TIME } from '../../../core/src/tuning.ts';
 import type {
-  Genome, MaterialDef, MaterialRole, PartMeta, Presence, Skeleton, SlotKey, SlotPick,
+  Genome, MaterialDef, MaterialRole, PartMeta, Presence, Skeleton, Slot, SlotKey, SlotPick,
 } from '../../../core/src/types.ts';
 import type { PartLibrary } from '../assets/library.ts';
 import { assemble, partIdsOf, type PartInstance, type SlotRender } from './assemble.ts';
 import {
-  createFillMaterial, createOutlineMaterial, disposeShading, type ShadingId,
+  createFillMaterial, createOutlineMaterial, DEFAULT_SHADING, disposeShading, outlineMetersFor,
+  setOutlineTint,
+  type ShadingId,
 } from './shading.ts';
 import { ARC_OFF, arcWeights, rgbToHsl, type ArcWeights } from '../stage/look.ts';
 import { surfaceFor, type SurfaceSpec } from './surface.ts';
@@ -82,7 +85,8 @@ export interface CreatureOptions {
   /** 实例上限，默认 BUDGET.maxInstances */
   maxInstances?: number;
   /**
-   * 着色语言。缺省 `physical`（此前唯一的那条路）。
+   * 着色语言。缺省 `DEFAULT_SHADING` —— dev 页不传这一项时看到的必须和现场一样，
+   * 否则取证图和现场不是同一具身体。
    * 调用方通常传 `resolveShading(themeId, flags.shading)` —— 物种自己声明，URL 可覆盖。
    */
   shading?: ShadingId;
@@ -148,7 +152,7 @@ export function createCreature(opt: CreatureOptions): Creature {
   const bases = new Map<string, { role: MaterialRole; base: SurfaceSpec; toneL: number }>();
   const dirtyParts = new Set<string>();                 // 真几何到货 → 重建这些 mesh
 
-  let shading: ShadingId = opt.shading ?? 'physical';
+  let shading: ShadingId = opt.shading ?? DEFAULT_SHADING;
   /** 弧线进度与它此刻的四个份量。`ARC_OFF` = 没有人调过 `setArc()`，这条线等于不存在 */
   let arc = 0;
   let weights: ArcWeights = ARC_OFF;
@@ -244,6 +248,7 @@ export function createCreature(opt: CreatureOptions): Creature {
    * 它的明暗是那张色阶贴图说了算的 —— 那正是「线」这个物种的身份，弧线不去动它。
    */
   function applyArcToMaterials(): void {
+    let ink: readonly number[] | null = null;
     for (const [key, info] of bases) {
       const m = materials.get(key);
       if (!m) continue;
@@ -253,7 +258,14 @@ export function createCreature(opt: CreatureOptions): Creature {
       mat.emissive?.setRGB(s.emissive[0], s.emissive[1], s.emissive[2], THREE.SRGBColorSpace);
       if (typeof mat.roughness === 'number') mat.roughness = s.roughness;
       if (typeof mat.metalness === 'number') mat.metalness = s.metalness;
+      // 墨跟着**主色**走：它是这具身体的锚，也是唯一一路不转色相的那个角色。
+      // 跟次要色走的话，同一条线在两个乐章之间会莫名其妙地换两次颜色
+      if (info.role === 'primary') ink = s.baseColor;
     }
+    setOutlineTint(
+      ink ? [ink[0] * MATERIAL.otherInkValue, ink[1] * MATERIAL.otherInkValue, ink[2] * MATERIAL.otherInkValue] : null,
+      MATERIAL.otherInk * weights.other,
+    );
   }
 
   // ── InstancedMesh 池 ────────────────────────────────────────────────────
@@ -270,7 +282,9 @@ export function createCreature(opt: CreatureOptions): Creature {
     meshes.delete(key);
   }
 
-  function entryFor(key: string, partId: string, materialId: string, mirrored: boolean, need: number): MeshEntry {
+  function entryFor(
+    key: string, partId: string, materialId: string, mirrored: boolean, need: number, slot: Slot,
+  ): MeshEntry {
     let e = meshes.get(key);
     if (e && e.capacity < need) {
       disposeEntry(key);
@@ -291,7 +305,9 @@ export function createCreature(opt: CreatureOptions): Creature {
       // 而是为了让填充的片元大多数被提前剔掉，省一点 overdraw。
       let outline: THREE.InstancedMesh | null = null;
       if (shading === 'toon') {
-        outline = new THREE.InstancedMesh(geo, createOutlineMaterial(), capacity);
+        // 墨按槽位定宽：手和脚收窄，其余九个槽位原样（`TOON.outlineSlotScale`）。
+        // 一个部件 id 只属于一个槽位（`PartMeta.slot`），所以桶的代表实例说了算
+        outline = new THREE.InstancedMesh(geo, createOutlineMaterial(outlineMetersFor(slot)), capacity);
         outline.name = `${key}~outline`;
         outline.instanceMatrix = mesh.instanceMatrix;
         outline.frustumCulled = false;
@@ -420,7 +436,7 @@ export function createCreature(opt: CreatureOptions): Creature {
       cursor.clear();
       for (const [key, n] of counts) {
         const spec = specs.get(key)!;
-        const e = entryFor(key, spec.partId, materialIdFor(spec.materialRole), spec.mirrored, n);
+        const e = entryFor(key, spec.partId, materialIdFor(spec.materialRole), spec.mirrored, n, spec.slot);
         e.mesh.count = n;
         e.mesh.visible = true;
         e.idleFrames = 0;

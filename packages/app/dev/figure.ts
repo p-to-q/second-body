@@ -364,6 +364,24 @@ function drawHud() {
         `${fps.toFixed(0)} fps · pose ${poseMs.toFixed(2)}ms · frame ${jsMs.toFixed(2)}ms · 占位实例 ${s.placeholders ?? 0} · 换装 ${s.swapsActive ?? 0}活/${s.swapsQueued ?? 0}排\n` +
         `资产 ${library.stats.loaded} 已加载 / ${library.stats.failed} 失败 / ${library.stats.pending} 在途`
       : '');
+  // `?probe=ink`：每个桶的**世界包围球半径**。墨宽那次决策的数就是从这里读的
+  // （`TOON.outlineSlotScale` 的注释里那一串）。只看第 0 个实例的矩阵 ——
+  // 同一个桶里的实例缩放是同一套，取一个就够，别为了一个 dev 探针去遍历全部。
+  if (qs.get('probe') === 'ink') {
+    const rows: string[] = [];
+    for (const o of creature.object.children) {
+      const m = o as THREE.InstancedMesh;
+      if (!m.isInstancedMesh || m.name.endsWith('~outline') || !m.count) continue;
+      m.geometry.computeBoundingSphere();
+      const r = m.geometry.boundingSphere?.radius ?? 0;
+      const e = new THREE.Matrix4().fromArray(m.instanceMatrix.array as unknown as number[], 0).elements;
+      const s = Math.max(
+        Math.hypot(e[0], e[1], e[2]), Math.hypot(e[4], e[5], e[6]), Math.hypot(e[8], e[9], e[10]),
+      );
+      rows.push(`${m.name.split('#')[0]} r=${(r * s).toFixed(4)}m`);
+    }
+    hud.innerHTML += `\n${rows.sort().join('\n')}`;
+  }
 }
 
 // ── 交互 ────────────────────────────────────────────────────────────────────
