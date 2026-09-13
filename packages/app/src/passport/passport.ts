@@ -1,5 +1,5 @@
 /**
- * 《共生护照》—— 人机共创的两条过程性证明。
+ * 《共生护照》—— 人机共创的三条过程性证明。
  *
  * ## 为什么做成签证页
  *
@@ -9,8 +9,15 @@
  *
  *   一、人类的判断 = 一次**拒入**。AI 的产物申请进入作品，被驳回。
  *   二、AI 意外结果 = 一次**准入**。没人申请，它自己来了，被允许留下。
+ *   三、**代理驳回代理** = 又一次拒入（2026-09-13 加）。
  *
  * 于是这一页的形式和内容是同一件事，而不是给内容套一个好看的壳。
+ *
+ * 第三枚章为什么值得单开一枚，而不是并进第一枚：前两枚里做判断的分别是
+ * **人**和**流水线**，它们合起来说的仍然是"人审 AI"。第三枚里签字的是
+ * 另一个代理 —— 它把一个物种和它自己的说明书对了一遍，然后驳回的不是一件产物，
+ * 是"再给它配一套更好的零件"这个方案。`docs/26 §B` 说这份人机协作档案是
+ * 这个项目最被低估的资产；那一栏成立与否，正取决于这类事有没有被展示出来。
  *
  * ## 纪律
  *
@@ -21,7 +28,7 @@ import '../ui/type.css';
 import '../ui/pages.css';
 import '../ui/editorial.css';
 import './passport.css';
-import { COPY, bi, type BiText } from '../ui/i18n.ts';
+import { COPY, bi, setBi, type BiText } from '../ui/i18n.ts';
 import { mountNav } from '../ui/nav.ts';
 
 interface Stamp {
@@ -100,6 +107,35 @@ const STAMPS: Stamp[] = [
     ),
     evidence: ['docs/07-HYPER3D-API.md §3.3', 'packages/factory/src/normalize.ts weldTolerant()', 'docs/09 U11'],
   },
+  {
+    verdict: 'refused',
+    no: 'III',
+    date: '2026-09-13',
+    officer: bi('自查那条线（另一个代理）', 'The audit — another agent'),
+    subject: bi(
+      '花名册上一个叫「场」的物种，和它自己的那一行说明',
+      'A species on the roster called Field, and the single line that describes it',
+    ),
+    facts: [
+      { k: bi('自有部件', 'Parts of its own'), v: '0' },
+      { k: bi('借来的槽位', 'Slots borrowed'), v: '10' },
+      { k: bi('逐条复核的物种', 'Species re-checked'), v: '29' },
+      { k: bi('现在的点数', 'Points now'), v: '1,400' },
+    ],
+    quote: bi(
+      '身体消失，只剩运动。',
+      'The body disappears; only the movement is left.',
+    ),
+    reason: bi(
+      '它没有自己的身体方案，于是走默认的刚体装配，向别的物种借了一整套四肢 —— 画面上它是一具机器人，而机器人正是那句话说它已经不是的东西。坏的不是素材，是一个条目和它自己的说明书矛盾，而且矛盾了很久没有人看。',
+      'It had no body plan of its own, so it fell through to the default rigid assembly and wore a full set of limbs borrowed from other species — on screen, a robot, which is precisely the thing that line says it is no longer. Nothing was wrong with the assets: an entry contradicted its own description, and had done so for a long time with nobody looking.',
+    ),
+    consequence: bi(
+      '被驳回的是「再给它配一套更好的零件」—— 有零件这件事本身就是那个矛盾。它改成 1400 个点跟着活骨架走，每个点停在过去自己的那一刻，一件槽位件都不实例化。随后其余 28 条也被逐条渲染复核了一遍，因为在此之前没有人看过它们。',
+      'What was refused was “give it a better set of parts” — having parts at all was the contradiction. It became 1,400 points locked to the live skeleton, each sitting at its own moment in the past, instantiating no slot parts whatsoever. The other 28 entries were then rendered and checked one by one, because until then nobody had looked at them either.',
+    ),
+    evidence: ['docs/39-SPECIES-AUDIT.md', 'b6e6ee6 feat(render): 「场」不再借别人的四肢', 'packages/app/src/creature/swarm.ts'],
+  },
 ];
 
 // ─────────────────────────── 渲染 ───────────────────────────
@@ -111,9 +147,18 @@ const el = (tag: string, cls?: string, text?: string): HTMLElement => {
   return n;
 };
 
+/**
+ * 双语块。**一律走 `setBi`，不自己拼那两个 span。**
+ *
+ * 这里原来是手搭的：`el('span','sb-zh',t.zh)` + `el('span','sb-en',t.en)`。
+ * 类名是对的，所以它看起来没问题 —— 漏掉的是 `sb-cjk`。`setBi` 现在**按字**
+ * 决定补不补那 0.06em 的左边距（`i18n.ts` 的 `cjkClass`，不按槽位），
+ * 而手搭的这一条从来没算过它：整页的汉字因此比它左边的线凸出去半格，
+ * 而且越是大字号越明显。和选择页名牌那个自造 class 的 bug 是同一类。
+ */
 function biBlock(t: BiText, tag = 'div', cls = ''): HTMLElement {
-  const wrap = el(tag, `sb-bi ${cls}`.trim());
-  wrap.append(el('span', 'sb-zh', t.zh), el('span', 'sb-en', t.en));
+  const wrap = el(tag, cls);
+  setBi(wrap, t);   // setBi 自己会补上 .sb-bi 和 .sb-cjk
   return wrap;
 }
 
@@ -190,17 +235,18 @@ const root = document.getElementById('passport')!;
 const header = el('header', 'ed-hero');
 
 const meta = el('div', 'ed-hero__meta');
+// 回链的文案取 `COPY.about.back` —— /making 和 /lineage 用的是同一个常量。
+// 这里原来手写着一份大写的 'BACK TO THE WORK'，于是三个页头上的同一句话有两种写法。
 const back = el('a', 'sb-label');
 back.setAttribute('href', '/about');
-back.append(el('span', 'sb-zh', '回到作品'), el('span', 'sb-en', 'BACK TO THE WORK'));
-back.classList.add('sb-bi', 'sb-bi-inline');
+setBi(back, COPY.about.back);
+back.classList.add('sb-bi-inline');
 meta.append(back, el('span', 'sb-label sb-num', 'VII'));
 header.append(meta, el('hr', 'ed-rule ed-rule--heavy'));
 
 const titleBox = el('div', 'ed-hero__title');
 const h1 = el('h1', 'sb-display ed-rise');
-h1.append(el('span', 'sb-zh', '共生护照'), el('span', 'sb-en', 'Symbiosis Passport'));
-h1.classList.add('sb-bi');
+setBi(h1, COPY.passport.title);
 h1.querySelector('.sb-zh')!.setAttribute('style', '--ed-i:0');
 h1.querySelector('.sb-en')!.setAttribute('style', '--ed-i:1');
 titleBox.append(h1);
@@ -209,13 +255,11 @@ header.append(titleBox, el('hr', 'ed-rule'));
 const lede = el('div', 'ed-hero__lede');
 const ledeCol = el('div');
 ledeCol.append(
-  biBlock(bi(
-    '两条过程性证明。一次拒入，一次准入。',
-    'Two records of process. One entry refused, one entry admitted.',
-  ), 'p', 'sb-lede'),
+  biBlock(COPY.passport.lede, 'p', 'sb-lede'),
   // 两行都用名字本身：COPY.title 是全站唯一倒置的一对（.zh 存的是英文名），
   // 直接取 .en 会在英文行印出中文说明。
-  biBlock(bi(`作品：${COPY.title.zh}`, `Work: ${COPY.title.zh}`), 'p', 'pp-work sb-data'),
+  biBlock(bi(`${COPY.passport.work.zh}：${COPY.title.zh}`,
+             `${COPY.passport.work.en}: ${COPY.title.zh}`), 'p', 'pp-work sb-data'),
 );
 lede.append(ledeCol);
 header.append(lede);
@@ -224,10 +268,7 @@ root.append(header);
 for (const s of STAMPS) root.append(stampBlock(s));
 
 const foot = el('footer', 'sb-foot');
-foot.append(biBlock(bi(
-  '本页每一条都可在仓库中核对。挖不到证据的事件没有被写进来。',
-  'Every record on this page can be checked against the repository. Events without evidence were left out.',
-), 'p'));
+foot.append(biBlock(COPY.passport.foot, 'p'));
 root.append(el('hr', 'sb-rule'), foot);
 
 // 这一页原本是条死路：读完之后走不回作品，也走不到别的房间

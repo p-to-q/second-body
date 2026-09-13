@@ -118,7 +118,9 @@ function renderTimeline(root: Element): void {
   const s = section(root, 'timeline', M.sec.timeline, M.timelineNote);
   const list = el('div', 'mk-list', s);
   for (const t of M.timeline) {
-    const body = row(list, [t.hash, t.time]);
+    // 左栏三行：hash / 日期 / 时刻。日期是第二天的条目进来之后加的 ——
+    // 整条线只在一天里的时候，一个光秃秃的 14:24 不会有歧义；两天之后它会。
+    const body = row(list, [t.hash, t.day, t.time]);
     biBlock(body, t.text);
   }
 }
@@ -152,7 +154,7 @@ function renderCorrections(root: Element): void {
   }
 }
 
-// ── P11–P20 ─────────────────────────────────────────────────────────────────
+// ── P11–P21 ─────────────────────────────────────────────────────────────────
 
 function renderPrinciples(root: Element): void {
   const s = section(root, 'principles', M.sec.principles, M.principlesNote);
