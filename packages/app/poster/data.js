@@ -1,14 +1,14 @@
 /* 由 build-data.mjs 生成，不要手改。跑 `node packages/app/poster/build-data.mjs` 重出。 */
 window.SB_POSTER = {
-  "generatedAt": "2026-09-13T11:20:37.938Z",
+  "generatedAt": "2026-09-13T14:19:57.729Z",
   "source": {
     "parts": "assets/parts/parts.json",
     "curation": "assets/parts/curation.json",
-    "partsGeneratedAt": "2026-09-13T09:11:19.182Z",
+    "partsGeneratedAt": "2026-09-13T12:37:46.564Z",
     "partsVersion": 1
   },
   "counts": {
-    "entries": 29,
+    "entries": 28,
     "parts": 208,
     "partsRejected": 11,
     "partsLive": 204,
@@ -19,7 +19,7 @@ window.SB_POSTER = {
     "plans": 9,
     "triangles": 613597,
     "entriesWithAnchor": 22,
-    "vacancies": 4,
+    "vacancies": 3,
     "fullyBorrowed": 1
   },
   "bySlot": {
@@ -35,7 +35,7 @@ window.SB_POSTER = {
     "upperArm": 27
   },
   "byPlan": {
-    "rig": 11,
+    "rig": 10,
     "quadruped": 4,
     "inverted": 1,
     "mass": 3,
@@ -47,7 +47,6 @@ window.SB_POSTER = {
   },
   "byKind": {
     "archetype": 18,
-    "guest": 1,
     "character": 10
   },
   "tier": 2,
@@ -835,32 +834,6 @@ window.SB_POSTER = {
       "palette": [
         "glow.signal",
         "matte.ash",
-        "ceramic.pearl"
-      ],
-      "ownParts": 0,
-      "ownRejected": 0,
-      "fullyBorrowed": false,
-      "bodies": null,
-      "perSlot": null,
-      "anchor": false
-    },
-    {
-      "id": "guest.founder",
-      "kind": "guest",
-      "name": "创始人",
-      "nameEn": "The Founder",
-      "tagline": "（空位）把一个真实的人穿在身上",
-      "taglineEn": "(vacant) Wear a real person",
-      "plan": "rig",
-      "coverage": "light",
-      "base": "porcelain",
-      "axes": {
-        "humanLike": 1,
-        "lifeLike": 0.9
-      },
-      "palette": [
-        "matte.bone",
-        "metal.graphite",
         "ceramic.pearl"
       ],
       "ownParts": 0,
