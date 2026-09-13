@@ -22,15 +22,6 @@ export interface BiText { zh: string; en: string; }
 
 export const bi = (zh: string, en: string): BiText => ({ zh, en });
 
-/** 渲染成并置的 HTML 片段。中文为主、英文为辅 */
-export function biHtml(t: BiText, tag = 'span'): string {
-  const esc = (s: string) => s.replace(/[&<>"]/g, (c) =>
-    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
-  return `<${tag} class="sb-bi"><span class="sb-zh">${esc(t.zh)}</span>` +
-         `<span class="sb-en">${esc(t.en)}</span></${tag}>`;
-}
-
-/** 写进 DOM 元素（比 innerHTML 安全，且不用自己转义） */
 /**
  * 这一段文字里有没有汉字。用来决定要不要补那 0.06em 的左边距（type.css）。
  *
@@ -50,16 +41,32 @@ export function cjkClass(text: string): string {
   return CJK.test(text) ? ' sb-cjk' : '';
 }
 
+/** 渲染成并置的 HTML 片段。中文为主、英文为辅 */
+export function biHtml(t: BiText, tag = 'span'): string {
+  const esc = (s: string) => s.replace(/[&<>"]/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
+  // **两条构建路径必须给出一样的 DOM。** 这一条（HTML 字符串）和 `setBi`
+  // （逐个建节点）长期各写各的，于是补偿只在其中一条上生效 ——
+  // 走这条路的那几页（/about、谱系、做的过程、护照的大标题）一点补偿都没有。
+  // 谁改了其中一条就必须改另一条，下面那条单测就是为此立的。
+  return `<${tag} class="sb-bi"><span class="sb-zh${cjkClass(t.zh)}">${esc(t.zh)}</span>` +
+         `<span class="sb-en${cjkClass(t.en)}">${esc(t.en)}</span></${tag}>`;
+}
+
+/** 写进 DOM 元素（比 innerHTML 安全，且不用自己转义） */
 export function setBi(el: Element | null, t: BiText): void {
   if (!el) return;
   el.textContent = '';
   el.classList.add('sb-bi');
-  const zh = document.createElement('span'); zh.className = 'sb-zh'; zh.textContent = t.zh;
-  const en = document.createElement('span'); en.className = 'sb-en'; en.textContent = t.en;
-  // 谁是汉字谁补。两半各判各的 —— 倒置的那一对因此自动是对的，
-  // 而且以后再出现第二对倒置也不需要有人记得回来改这里。
-  if (CJK.test(t.zh)) zh.classList.add('sb-cjk');
-  if (CJK.test(t.en)) en.classList.add('sb-cjk');
+  // 类名用**和 `biHtml` 逐字相同的表达式**算出来，不用 classList.add ——
+  // 两条路径共用一个 `cjkClass()`，于是"它们会不会长出分歧"这个问题不存在，
+  // 而不是靠谁记得两边一起改。`test/bilingual.test.ts` 还是钉住了结果。
+  const zh = document.createElement('span');
+  zh.className = `sb-zh${cjkClass(t.zh)}`;
+  zh.textContent = t.zh;
+  const en = document.createElement('span');
+  en.className = `sb-en${cjkClass(t.en)}`;
+  en.textContent = t.en;
   el.append(zh, en);
 }
 

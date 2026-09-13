@@ -23,7 +23,7 @@
 // 不能指望每个宿主 HTML 都记得 <link> 它（主程序的 index.html 就没有）。
 import '../ui/type.css';
 import { mulberry32 } from '../../../core/src/rng.ts';
-import { COPY, setBi } from '../ui/i18n.ts';
+import { cjkClass, COPY, setBi } from '../ui/i18n.ts';
 import type { PartLibraryIndex, Rng, ThemeDef } from '../../../core/src/types.ts';
 import { acquireRingField, type RingField } from './ring/field.ts';
 import { holdFirstScreen } from './ring/first-screen.ts';
@@ -258,8 +258,12 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
     if (!card) return;
     if (shown >= 0 && index !== shown) onPass();
     shown = index;
+    // 补偿按**字**打不按槽位打（i18n.ts 的 cjkClass）：物种名大多是汉字，
+    // 但名单里也有本来就是拉丁的（`guest.*` 一类），不能一律补。
     ui.name.textContent = card.theme.name;
+    ui.name.className = `sb-zh${cjkClass(card.theme.name)}`;
     ui.nameEn.textContent = card.theme.nameEn;
+    ui.nameEn.className = `sb-en${cjkClass(card.theme.nameEn)}`;
     // 中英并置，不切换（ui/i18n.ts 的设计说明）—— 名字那一行早就是并置的，
     // tagline 原来只有中文，是漏的那一半
     setBi(ui.tag, { zh: card.theme.tagline, en: card.theme.taglineEn ?? '' });
@@ -609,7 +613,7 @@ function buildDom(mount: HTMLElement): Ui {
   root.innerHTML = `
     <div class="sb-list" hidden></div>
     <div class="sb-hud">
-      <div class="sb-name"><span class="sb-cn"></span><span class="sb-en"></span></div>
+      <div class="sb-name sb-bi"><span class="sb-zh"></span><span class="sb-en"></span></div>
       <div class="sb-tag"></div>
       <div class="sb-kind"></div>
     </div>
@@ -623,8 +627,13 @@ function buildDom(mount: HTMLElement): Ui {
   return {
     root,
     list: root.querySelector<HTMLElement>('.sb-list')!,
-    name: root.querySelector<HTMLElement>('.sb-cn')!,
-    nameEn: root.querySelector<HTMLElement>('.sb-en')!,
+    // 名字这一行**必须走并置系统的类名**（sb-bi / sb-zh / sb-en）。
+    // 原来它用的是 sb-cn，一个全站别处都不存在的类 —— 于是 type.css 里那条
+    // 给汉字补 0.06em 左边距的规则对它不生效，而它正下方的 tagline 走 setBi、
+    // 补到了。结果是同一块名牌里**两行中文自己都不对齐**，英文看起来像缩进半格。
+    // 类名不一致不是风格问题，是排版规则的漏网。
+    name: root.querySelector<HTMLElement>('.sb-name > .sb-zh')!,
+    nameEn: root.querySelector<HTMLElement>('.sb-name > .sb-en')!,
     tag: root.querySelector<HTMLElement>('.sb-tag')!,
     kind: root.querySelector<HTMLElement>('.sb-kind')!,
     idle: root.querySelector<HTMLElement>('.sb-idle')!,
