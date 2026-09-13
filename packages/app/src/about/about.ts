@@ -128,7 +128,7 @@ function head(): HTMLElement {
  *
  * 三处排版决定，理由都在 `about.css` 的 `.about-statement`：
  * 中文立意句走楷书（叙事性中文），那一行英文原句走 grotesk 且**不配中文**，
- * 五个概念的中文注是**术语**不是叙事，所以留在 grotesk 里（`Iansui/NOTICE.md` 的边界）。
+ * 五个概念的中文注是**术语**不是叙事，所以留在 grotesk 里（`LXGWWenKai/NOTICE.md` 的边界）。
  */
 function statementSection(): HTMLElement {
   const call = el('p', 'about-statement__call');

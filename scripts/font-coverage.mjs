@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * 楷书覆盖面核对 —— 「今天这个站真的会用芫荽渲染哪些汉字」与「子集里真的有哪些」的对账。
+ * 楷书覆盖面核对 —— 「今天这个站真的会用楷书渲染哪些汉字」与「子集里真的有哪些」的对账。
  *
  * ## 为什么要有这个脚本
  *
- * `assets/fonts/Iansui/NOTICE.md` 曾经写着子集里有 1,321 个汉字。实测是 **958**。
+ * 楷书那张 `NOTICE.md` 曾经写着子集里有 1,321 个汉字。实测是 **958**。
  * 没有人说谎 —— 是**子集化那一次的字表没有和文案一起长**，而那句数字被当成事实抄了半年。
  * 一个只在脑子里跑过一次的分析会过期；一个能重跑的脚本不会。
  * 所以这里的交付物是**脚本**，不是一张字表：下一个人重跑它，而不是重做这次分析。
@@ -28,27 +28,32 @@
  *    为什么把整本文案都放进来：楷书的用法边界是"叙事性中文"，而叙事性中文以后
  *    只会从 `i18n.ts` 里长出来。改一句文案就要重跑子集化的字体是没人会维护的字体。
  *
- * ## 一个 upstream 的硬边界（2026-09-13 实测，别再踩一次）
+ * ## 一个 upstream 的硬边界（2026-09-13 实测两次，别再踩一次）
  *
- * 芫荽是**台湾的字体，字身是繁体**。站里的文案是简体。上游 v1.020 的 cmap 有 12,666 个码位，
- * 但「关 观 对 实 验 选 过 们」这类**简体专用字**根本不在里面 —— 它们不是子集化漏掉的，
- * 是**上游没有**。子集化救不了这些字，重跑一百遍也救不了。
- * 传 `--upstream=<Iansui-Regular.ttf>` 会把这一类单独列出来，不要把它们算进"漏了"。
+ * 楷体的字身有繁简之别，而站里的文案是**简体**。上一版用的芫荽 Iansui 是台湾的字体，
+ * 上游 v1.020 的 cmap 有 12,666 个码位，但「关 观 对 实 验 选 过 们」这类**简体专用字**
+ * 根本不在里面 —— 它们不是子集化漏掉的，**是上游没有**，重跑一百遍子集化也救不了。
+ * 严格层 354 个字里它给不出 81 个。所以 2026-09-13 换成了**霞鹜文楷 LXGW WenKai**
+ * （同样改自 Klee One，同为 SIL OFL 1.1，但补的是 GB 简体），严格层 354/354。
+ *
+ * 换字之后这个参数没有过期：任何一支候选字体在换进来**之前**都该先过这一关。
+ * 传 `--upstream=<某个候选 TTF>` 就会把"上游根本没有"的那一类单列出来 ——
+ * 严格层不是 0 的字体，不要换进来。
  *
  * ## 用法
  *
  *   node scripts/font-coverage.mjs                      对账：打印字表与差集
- *   node scripts/font-coverage.mjs --upstream=/tmp/Iansui-Regular.ttf
+ *   node scripts/font-coverage.mjs --upstream=/tmp/LXGWWenKaiLite-Regular.ttf
  *   node scripts/font-coverage.mjs --write=/tmp/chars.txt   写出子集化用的字表
  *   node scripts/font-coverage.mjs --print-set             只打印严格层字表
  *
- * 重新子集化（9.2 MB 的上游 TTF **不进仓库**，用完即弃）：
+ * 重新子集化（13.8 MB 的上游 TTF **不进仓库**，用完即弃）：
  *
- *   curl -L -o /tmp/iansui.zip https://github.com/ButTaiwan/iansui/releases/download/v1.020/iansui.zip
- *   unzip -o /tmp/iansui.zip -d /tmp/iansui
- *   node scripts/font-coverage.mjs --upstream=/tmp/iansui/Iansui-Regular.ttf --write=/tmp/kai-chars.txt
- *   pyftsubset /tmp/iansui/Iansui-Regular.ttf --text-file=/tmp/kai-chars.txt \
- *     --output-file=assets/fonts/Iansui/Iansui-subset.woff --flavor=woff \
+ *   curl -L -o /tmp/LXGWWenKaiLite-Regular.ttf \
+ *     https://github.com/lxgw/LxgwWenKai-Lite/releases/download/v1.522/LXGWWenKaiLite-Regular.ttf
+ *   node scripts/font-coverage.mjs --upstream=/tmp/LXGWWenKaiLite-Regular.ttf --write=/tmp/kai-chars.txt
+ *   pyftsubset /tmp/LXGWWenKaiLite-Regular.ttf --text-file=/tmp/kai-chars.txt \
+ *     --output-file=assets/fonts/LXGWWenKai/LXGWWenKai-subset.woff --flavor=woff \
  *     --layout-features= --no-hinting --desubroutinize --drop-tables+=DSIG
  */
 import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
@@ -58,7 +63,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const APP = resolve(ROOT, 'packages/app/src');
-const SUBSET = resolve(ROOT, 'assets/fonts/Iansui/Iansui-subset.woff');
+const SUBSET = resolve(ROOT, 'assets/fonts/LXGWWenKai/LXGWWenKai-subset.woff');
 
 const arg = (k) => process.argv.find((a) => a.startsWith(`--${k}=`))?.split('=').slice(1).join('=');
 const has = (k) => process.argv.includes(`--${k}`);
