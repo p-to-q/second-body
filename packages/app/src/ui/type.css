@@ -23,7 +23,7 @@
                 "Suisse Int'l", Univers, Helvetica, Arial, "Segoe UI", system-ui, sans-serif;
   --sb-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   /* 叙事性中文用它。**不要**把它加进 --sb-grotesk 栈：那会让标签和数字也变成楷书 */
-  --sb-kai: "Iansui", var(--sb-grotesk);
+  --sb-kai: "LXGW WenKai", var(--sb-grotesk);
 
   /**
    * ── 字号级差 ──────────────────────────────────────────────────────────
@@ -220,20 +220,25 @@ a:hover { border-bottom-color: var(--sb-accent); }
  * 所以不会有回流跳动 —— 度量才是这套风格的来源，字形是锦上添花。
  */
 /**
- * 芫荽 Iansui（SIL OFL 1.1，子集化 312 KB）—— **只给叙事性的中文**。
+ * 霞鹜文楷 LXGW WenKai（SIL OFL 1.1，子集化 227 KB）—— **只给叙事性的中文**。
  *
  * 站里原来的中文落在系统字体上，意味着同一页中文在不同机器上长得不一样，
  * 而这件作品的排版立场是"味道来自度量和留白" —— 度量一旦随机，那句话就不成立。
  *
  * 但它是楷书，配 neo-grotesque 的拉丁是个**很强**的搭配，正因为强，不能全站铺开：
  * 楷书有手的温度，适合"一个人说的话"；标签、数字、id 要的是中性和等宽感，
- * 上了楷书会变得像在抒情。用法边界写在 `assets/fonts/Iansui/NOTICE.md`。
+ * 上了楷书会变得像在抒情。用法边界写在 `assets/fonts/LXGWWenKai/NOTICE.md`。
  *
  * 所以它**不进 `--sb-grotesk` 栈**，只作为 `--sb-kai` 存在，由用到的地方显式取。
+ *
+ * 这里原来挂的是**芫荽 Iansui**，2026-09-13 换掉：它是繁体字身（改自日文 Klee One），
+ * 站里的文案是简体，严格层 354 个字里它给不出 81 个（「关 观 对 实 验 …」），
+ * 而且**是上游 cmap 里就没有，子集化救不了**。原委记在 `LXGWWenKai/NOTICE.md`，
+ * 别再换回去。换字前先跑 `node scripts/font-coverage.mjs --upstream=<候选 TTF>`。
  */
 @font-face {
-  font-family: "Iansui";
-  src: url("/fonts/Iansui/Iansui-subset.woff") format("woff");
+  font-family: "LXGW WenKai";
+  src: url("/fonts/LXGWWenKai/LXGWWenKai-subset.woff") format("woff");
   font-weight: 400; font-style: normal; font-display: swap;
   /* 只声明中文区间：拉丁仍然走 grotesk，不让楷书接管英文 */
   unicode-range: U+2E80-9FFF, U+3000-303F, U+FF00-FFEF;
