@@ -10,7 +10,7 @@
  *
  * ## 四条不能破的规矩
  *
- * 1. **预解码，事件时只 `start()`。** 开场把四个文件 fetch + decode 完，
+ * 1. **预解码，事件时只 `start()`。** 开场把 `CUE_IDS` 那几个文件 fetch + decode 完，
  *    之后每一记就是建一个 source 再 start。解码是几十毫秒的事，
  *    放在点击那一刻做，观众听到的就是一记**迟到的**确认音 —— 那比没有还糟。
  *
@@ -28,10 +28,11 @@
  *
  * 原来的四记（`enter` / `pass` / `commit` / `idle`）的理由写在 `tuning.ts` 的
  * `SOUND.cues` 头上，升档与到货**故意**不在名单里。
- * 这一轮加了两记观众侧的（`reveal` / `ground`）和第六层的三个变体
+ * 后来加了两记观众侧的（`reveal` / `ground`）和第六层的三个变体
  * （`work-a/b/c`，排程在 `work.ts`）—— 加与不加的理由都在 `docs/29` §2.6 / §2.7，
- * 那张"没有的，以及为什么没有"表这一轮又长了三行。
- * 这个文件仍然只负责**怎么放**。
+ * 那张"没有的，以及为什么没有"表又长了三行。
+ * 这个文件仍然只负责**怎么放**：`reveal` / `ground` 在哪一帧被调用是
+ * `main.ts` 与 `ground.ts` 的事（docs/29 §2.8），`work-*` 是 `sound.ts` 的排程。
  */
 import { SOUND } from '../../../core/src/tuning.ts';
 import { WORK, WORK_IDS, type WorkCueId } from './work.ts';
@@ -60,28 +61,17 @@ export const CUE_LABELS: Record<CueId, string> = {
 };
 
 /**
- * ⚠️ **暂居的旋钮**，理由与移交办法同 `work.ts` 的 `WORK`：
- * `packages/core/src/tuning.ts` 这一轮归另一条 lane。
- * 把这三个数按键名贴进 `SOUND.cues`，再删掉这个对象和 `cueGain()` 里那一行回退，
- * 这个文件的其余部分一个字都不用改。移交清单在 `docs/29-SOUND.md` §2.6。
+ * 每记的增益。**唯一的来源是 `SOUND.cues`**（第六层那三个变体共用 `SOUND.work.gain`）。
  *
- * 相对关系就是设计（和原来那四个数同一条规矩，改之前先读 docs/29 §2.5 / §2.7）：
- * `enter` 0.85 > `commit` 0.58 > **`reveal` 0.40** > `idle` 0.32 > `pass` 0.26 >
- * **`ground` 0.22** ≈ **`work` 0.22**。
+ * 这里曾经有一块 `CUES_PENDING` 和一行回退，那是 `reveal` / `ground` 还没搬进
+ * `tuning.ts` 时的暂居处（docs/29 §2.9 的移交清单）。搬完就删了 ——
+ * 留着一条永远走不到的回退，下一个人会以为这里有两个真相。
  */
-const CUES_PENDING = {
-  /** 选择页落定。低于 commit（你的决定重于机器的邀请），高于 idle（它毕竟是一次登场） */
-  reveal: 0.40,
-  /** 触地。它会**反复**发生，所以必须落在"质感"那一档，不能落在"通知"那一档 */
-  ground: 0.22,
-} as const;
-
-/** 每记的增益。先问 `SOUND.cues`，没有才回退到暂居的那一块 —— 移交之后这里自动改道 */
 export function cueGain(id: CueId): number {
-  const tuned = (SOUND.cues as Record<string, unknown>)[id];
-  if (typeof tuned === 'number') return tuned;
-  if (id in CUES_PENDING) return CUES_PENDING[id as keyof typeof CUES_PENDING];
-  return WORK.gain;   // 三个 work 变体共用一个基准，逐记的抖动由 work.ts 排
+  if ((WORK_IDS as readonly string[]).includes(id)) return WORK.gain;
+  // 不走 Record<string, number> 那种宽转换：这样写的话，`SOUND.cues` 里少一个键
+  // 会在**运行时**变成 undefined（一记没有声音而不报错），这里则是编译期就红
+  return SOUND.cues[id as Exclude<CueId, WorkCueId>];
 }
 
 /**

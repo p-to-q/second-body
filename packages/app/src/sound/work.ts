@@ -36,6 +36,7 @@
  * （`event.graftGain`，docs/23 §S6），再补一记就是同一件事响两次 ——
  * 和 `docs/29 §2.5` 那张"没有的，以及为什么没有"表里拒绝升档离散音同一条理由。
  */
+import { SOUND } from '../../../core/src/tuning.ts';
 import type { Rng } from '../../../core/src/types.ts';
 
 /** 三个变体。id 同时就是文件名（`assets/sound/<id>.webm`）—— 和 CueId 同一条规矩 */
@@ -44,33 +45,12 @@ export type WorkCueId = 'work-a' | 'work-b' | 'work-c';
 export const WORK_IDS: readonly WorkCueId[] = ['work-a', 'work-b', 'work-c'];
 
 /**
- * ⚠️ **这一块是暂居的。** 按 AGENTS.md，每一个可调的数都该住在
- * `packages/core/src/tuning.ts`。这一轮那个文件归另一条 lane，动不得，
- * 所以它先放在这里，并且**刻意长成可以整块粘过去的样子**：
- * 把下面这个对象原样贴进 `SOUND` 里（键名 `work`），再把这里改成
- * `import { SOUND }` 读 `SOUND.work`，这一层的代码一行都不用动。
- * 移交清单写在 `docs/29-SOUND.md` §2.6。
+ * 这一层的旋钮。**它就是 `SOUND.work` 本身，不是抄的一份** ——
+ * 别名留在这里只是为了让这个文件读起来不必每行 `SOUND.work.`；
+ * 现场调 `tuning.ts` 会直接改到这里（`test/sound.test.ts` 的「旋钮的移交」
+ * 钉着这条同一性）。这三条设计约束见文件头，值的理由写在 `tuning.ts` 那一侧。
  */
-export const WORK = {
-  /** 每记的基准增益。它在 `SOUND.cues.gain` 那条总线上，不经过 `master` */
-  gain: 0.22,
-  /** 第一记之前的空白（秒）。见文件头第 3 条 */
-  leadIn: 2.2,
-  /** 两记之间的平均间隔（秒）。3.1 秒 ≈ 一段 60 秒的等待里十几记 —— 有人在，但不吵 */
-  gap: 3.1,
-  /** 间隔的抖动（秒，±）。**不是**为了好听，是为了不读成钟表（第 2 条） */
-  gapJitter: 1.6,
-  /** 每记的增益抖动（±比例）。同一个动作每次使的劲不会一样 */
-  gainJitter: 0.28,
-  /** 每记的播放速率抖动（±比例）。同一个采样连放十次会读成机械 */
-  detune: 0.09,
-  /**
-   * "在隔壁"的低通（Hz）。和 `SOUND.cues.idleTilt` 同一条道理：
-   * **远靠低通，不靠音量** —— 小声的近处声音仍然是近处声音。
-   * 900 比 idle 的 600 高一档：那一记要"更远"，这一层只要"不在这间屋子里"。
-   */
-  tilt: 900,
-} as const;
+export const WORK = SOUND.work;
 
 /** 排出来的一记。`cues.ts` 拿它去建 source，不需要知道它是怎么排出来的 */
 export interface WorkTick {

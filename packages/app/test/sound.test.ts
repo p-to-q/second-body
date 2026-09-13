@@ -17,6 +17,9 @@ import { makeNoiseBuffer } from '../src/sound/noise.ts';
 import { SCENARIOS } from '../src/sound/render.ts';
 import { CUE_IDS, CUE_LABELS, CUE_SHEET, cueGain, cueTilt } from '../src/sound/cues.ts';
 import { WORK, WORK_IDS, createWorkSchedule, type WorkCueId } from '../src/sound/work.ts';
+import { createGroundSense } from '../src/sound/ground.ts';
+import { contactPoints } from '../src/stage/framing.ts';
+import { REFERENCE_POSE } from '../src/stage/framing.ts';
 import type { ThemeDef } from '../../core/src/types.ts';
 
 const theme = (humanLike: number, lifeLike: number): ThemeDef => ({
@@ -338,18 +341,27 @@ test('工作声：它在"隔壁"—— 远靠低通，不靠音量', () => {
   assert.ok(cueTilt('work-a') > SOUND.cues.idleTilt);
 });
 
-test('旋钮的移交：暂居的那两块随时可以被 tuning.ts 接手，接手之后代码不用改', () => {
-  // 这一条守的是一个**会被悄悄留下的半成品**：`WORK` 和 `CUES_PENDING` 是
-  // 因为 tuning.ts 这一轮动不得才暂居在 sound/ 下的（AGENTS.md：每个可调的数
-  // 都该住在 tuning.ts）。`cueGain` 先问 SOUND.cues、没有才回退 ——
-  // 所以搬过去的那一天，这条测试会自己换到新的那一边，一行都不用改。
+test('旋钮的移交：这一层的每一个数都已经住进 tuning.ts，`sound/` 下没有留下一个暂居的', () => {
+  // 这一条守的是一个**会被悄悄留下的半成品**：`WORK` 和 `CUES_PENDING` 曾经
+  // 因为 tuning.ts 归另一条 lane 才暂居在 sound/ 下（AGENTS.md：每个可调的数
+  // 都该住在 tuning.ts）。移交之后 `cueGain` 只有一条路：问 `SOUND`。
+  // 所以这条测试现在钉的是**结果**，不再是"随时可以搬"。
   for (const k of ['gain', 'leadIn', 'gap', 'gapJitter', 'gainJitter', 'detune', 'tilt'] as const) {
     assert.equal(typeof WORK[k], 'number', `WORK.${k} 不见了，移交清单就对不上了`);
     assert.ok(Number.isFinite(WORK[k]) && WORK[k] > 0);
+    // 同一个数，不是抄了一份 —— 抄一份的话现场调 tuning.ts 会调了个寂寞
+    assert.equal(WORK[k], SOUND.work[k], `WORK.${k} 和 SOUND.work.${k} 不是同一个数`);
   }
-  // 原来那四记仍然由 tuning.ts 说了算（回退只对新加的那几个生效）
-  for (const id of ['enter', 'pass', 'commit', 'idle'] as const) {
+  assert.equal(WORK as unknown, SOUND.work as unknown, 'work.ts 的 WORK 该就是 SOUND.work 本身');
+  // **六记全部**由 tuning.ts 说了算。这一轮加的 reveal / ground 也在里面 ——
+  // 回退那一行连同 CUES_PENDING 已经删掉了，漏一个这里就会红
+  for (const id of ['enter', 'pass', 'commit', 'idle', 'reveal', 'ground'] as const) {
     assert.equal(cueGain(id), SOUND.cues[id], `${id} 的增益没有走 SOUND.cues`);
+  }
+  // 第六层三个变体共用 SOUND.work.gain，它们**不**在 SOUND.cues 里各占一行
+  for (const id of WORK_IDS) {
+    assert.equal(cueGain(id), SOUND.work.gain, `${id} 的增益没有走 SOUND.work.gain`);
+    assert.ok(!(id in SOUND.cues), `${id} 不该在 SOUND.cues 里再写一遍`);
   }
 });
 
@@ -368,4 +380,127 @@ test('离散音：取证时间线每一记都在名单上、按时间排好、�
   assert.ok(pass.length >= 3, '取证里至少要三记连着的 pass，才看得出逐次变轻');
   assert.ok((pass[pass.length - 1].at - pass[0].at) * 1000 < SOUND.cues.passResetMs,
     '取证里那几记 pass 间隔超过了 passResetMs，连打计数会被清零 —— 图上就看不出渐远');
+});
+
+// ── `ground` 那一记的触发判据（docs/29 §2.8） ───────────────────────────────
+//
+// 这一块守的是这一轮最容易做错的一件事：**从 `speed` / `energy` 去猜触地**。
+// 那样出来的不是触地，是"动得快就响" —— 观众一听就知道和画面对不上（P21）。
+// 所以判据吃的是画接触阴影用的**同一批落点**（`stage/framing.ts` 的 `contactPoints`），
+// 而这一层在 node 里测得了：输入就是几个 `[x, z, lift]`。
+
+/** 一个站着不动的身体：两只脚贴地 */
+const PLANTED: Array<[number, number, number]> = [[0.1, 0, 0.01], [-0.1, 0, 0.01]];
+/** 抬起左脚之后只剩一个落点 */
+const ONE_FOOT: Array<[number, number, number]> = [[-0.1, 0, 0.01]];
+const FRAME = 1 / 60;
+
+/** 跑 n 帧同一组落点，返回响了几记 */
+function run(
+  g: ReturnType<typeof createGroundSense>,
+  pts: Array<[number, number, number]>, n: number, dt = FRAME,
+): number {
+  let fired = 0;
+  for (let i = 0; i < n; i++) if (g.update(pts, dt)) fired++;
+  return fired;
+}
+
+test('触地：站着不动一记都不响 —— 它绑的是接触，不是"有人在那儿"', () => {
+  const g = createGroundSense();
+  assert.equal(run(g, PLANTED, 300), 0, '站了 5 秒响了');
+});
+
+test('触地：身体一出现在画面里不该砸一下 —— 第一次观测只立基准', () => {
+  // 站姿的两只脚一上来就是贴地的。没有"只立基准"这一条，进场那一帧
+  // 会从 0 跳到 2，观众在卡片刚溶解的那一刻听到一记闷响，而他什么都没做
+  const g = createGroundSense();
+  assert.equal(g.update(PLANTED, FRAME), false);
+  assert.equal(run(g, PLANTED, 60), 0);
+});
+
+test('触地：抬脚不响，落脚响一记', () => {
+  const g = createGroundSense();
+  run(g, PLANTED, 10);
+  assert.equal(run(g, ONE_FOOT, 30), 0, '抬起一只脚不该有声音 —— 失去不发声');
+  let fired = 0;
+  for (let i = 0; i < 30; i++) if (g.update(PLANTED, FRAME)) fired++;
+  assert.equal(fired, 1, `落一次脚响了 ${fired} 记`);
+});
+
+test('触地：≥120ms 的防抖 —— 阈值上下抖一帧不会变成一串搓衣板', () => {
+  const g = createGroundSense();
+  run(g, PLANTED, 10);
+  // 在阈值上下来回抖 60 帧（每帧 1/60 s = 16.7ms，远短于 120ms）。
+  // 不防抖的话这一秒里有 30 次"多出一个落点"，听起来就是一把搓衣板。
+  // 防抖之后上限是 1000ms / minGapMs —— 这条测试钉的是**那个上限**，
+  // 不是一个恰好数：写成"响 1 记"会在改 minGapMs 的那天红得毫无道理。
+  const JITTER = 60;
+  let fired = 0;
+  for (let i = 0; i < JITTER; i++) fired += g.update(i % 2 ? ONE_FOOT : PLANTED, FRAME) ? 1 : 0;
+  const cap = Math.ceil((JITTER * FRAME * 1000) / SOUND.ground.minGapMs);
+  assert.ok(fired <= cap, `抖了 ${JITTER} 帧响了 ${fired} 记，上限是 ${cap}`);
+  assert.ok(fired < JITTER / 2 / 2, `响了 ${fired} 记，和不防抖的 ${JITTER / 2} 记比几乎没拦住`);
+});
+
+test('触地：两步之间隔得够开就是两记', () => {
+  const g = createGroundSense();
+  run(g, PLANTED, 10);
+  let fired = 0;
+  for (let step = 0; step < 2; step++) {
+    fired += run(g, ONE_FOOT, 18);          // 0.3s 抬着
+    for (let i = 0; i < 18; i++) if (g.update(PLANTED, FRAME)) fired++;
+  }
+  assert.equal(fired, 2, `两步响了 ${fired} 记`);
+});
+
+test('触地：整具身体悬在空中时，动得再猛也不响 —— 这一条就是"不拿 speed 去猜"', () => {
+  // `contactPoints` 对跳在空中的身体返回空数组（test/scenes.test.ts 钉着这一条）。
+  // 一个从 speed 推出来的判据在这一段会疯狂发声，这里必须是 0
+  const g = createGroundSense();
+  run(g, PLANTED, 10);
+  assert.equal(run(g, [], 120), 0, '悬空的 2 秒里响了');
+});
+
+test('触地：落点还在名单里但离地太高不算着地', () => {
+  // `contactPoints` 的名额上限是 STAGE.contactLiftRange（0.22m），
+  // 所以一只抬到 0.15m 的脚**仍然在返回值里**，只是 lift 大。
+  // 判据必须自己再夹一道，否则"抬脚"和"落脚"根本分不开
+  const g = createGroundSense();
+  const HIGH: Array<[number, number, number]> = [[0.1, 0, 0.15], [-0.1, 0, 0.15]];
+  run(g, HIGH, 10);
+  assert.equal(run(g, HIGH, 60), 0);
+  let fired = 0;
+  for (let i = 0; i < 30; i++) if (g.update(PLANTED, FRAME)) fired++;
+  assert.equal(fired, 1, '从 0.15m 落到贴地该响一记');
+});
+
+test('触地：reset() 之后重新立基准 —— 换了一个人不该先砸一下', () => {
+  const g = createGroundSense();
+  run(g, PLANTED, 10);
+  run(g, [], 10);
+  g.reset();
+  assert.equal(run(g, PLANTED, 60), 0, 'reset 之后第一次观测又响了');
+});
+
+test('触地：阈值夹在"站姿贴地"和"落点名额上限"之间，防抖不低于规格的 120ms', () => {
+  // 下界：参考站姿脚尖离地 0.03m（scenes.test.ts 钉着 lift < 0.05）。
+  // 比它小的话，站着的人算作没着地，追踪每抖一下就重新"落"一次
+  const feet = contactPoints(REFERENCE_POSE, 4, STAGE.contactLiftRange);
+  assert.equal(feet.length, 2);
+  for (const [, , lift] of feet) {
+    assert.ok(lift < SOUND.ground.threshold,
+      `站姿的脚 lift=${lift} 没被 threshold ${SOUND.ground.threshold} 算作着地`);
+  }
+  // 上界：超过 contactLiftRange 的落点 contactPoints 根本不返回，写得比它大等于没判据
+  assert.ok(SOUND.ground.threshold < STAGE.contactLiftRange,
+    `threshold ${SOUND.ground.threshold} ≥ contactLiftRange ${STAGE.contactLiftRange}，判据形同虚设`);
+  assert.ok(SOUND.ground.minGapMs >= 120,
+    `minGapMs ${SOUND.ground.minGapMs} 低于 docs/29 §2.8 要求的 120ms`);
+});
+
+test('触地：它比任何一记一次性的确认音都轻 —— 反复发生的不能读成通知', () => {
+  for (const id of ['enter', 'commit', 'reveal', 'idle', 'pass'] as const) {
+    assert.ok(cueGain('ground') <= cueGain(id),
+      `ground ${cueGain('ground')} 压过了一次性的 ${id} ${cueGain(id)}`);
+  }
 });
