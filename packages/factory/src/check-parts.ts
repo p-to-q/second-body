@@ -54,7 +54,34 @@ export async function checkParts(): Promise<number> {
   const cur = loadCuration();
   const rejected = Object.entries(cur).filter(([, e]) => e.verdict === 'reject').map(([id]) => id);
   const stillIndexed = rejected.filter((id) => index.parts.some((p) => p.id === id));
-  if (stillIndexed.length) warns.push(`${stillIndexed.length} 件已标 reject 但仍在 parts.json 里（genome 会排除它们，文件保留是故意的）`);
+  if (stillIndexed.length) {
+    // 这句话以前是假的：它写着「genome 会排除它们」，而当时**没有任何调用者**把
+    // rejected 传进 makeGenome。检查每次都绿，问的却是让人舒服的那个问题（docs/02 P21）。
+    // 现在排除是真的发生的：app 层 `createPartLibrary` 拉 /parts/curation.json，
+    // 把 reject 的 id 传给 `makeGenome({ rejected })`。文件保留仍然是故意的（curation.ts 规则 2）。
+    warns.push(`${stillIndexed.length} 件已标 reject 但仍在 parts.json 里：`
+      + `运行时由 curation.json → makeGenome({ rejected }) 排除，文件保留是故意的（${stillIndexed.join(', ')}）`);
+
+    // 这一条才是「坏掉时会变样」的那个仪表：某个物种的自有件被 reject 光了。
+    // 它不会消失（名单只看 tier，不看策展），但它整具都要沿 base 链借件 ——
+    // 借不到就只剩占位几何，那是一个物种事实上的死亡，必须当场看见。
+    const rejectedSet = new Set(rejected);
+    const own = (fam: string, curated: boolean) =>
+      index.parts.filter((p) => p.family === fam && (!curated || !rejectedSet.has(p.id))).length;
+    for (const t of index.themes ?? []) {
+      if (!own(t.id, false) || own(t.id, true)) continue;      // 本来就没自有件 / 还剩自有件
+      // 沿整条 base 链找第一个还供得上件的祖先（genome.ts 的 baseChain 就是这么走的）
+      let cur = t.base, donor: string | undefined, seen = new Set([t.id]);
+      while (cur && !seen.has(cur)) {
+        seen.add(cur);
+        if (own(cur, true)) { donor = cur; break; }
+        cur = (index.themes ?? []).find((x) => x.id === cur)?.base;
+      }
+      const msg = `${t.id}: 自有件已被 reject 光，整具沿 base 链借件`;
+      if (donor) warns.push(`${msg}（← ${donor}）`);
+      else errs.push(`${msg}，但 base 链上没有一层供得上件 —— 这个物种只会出占位几何`);
+    }
+  }
   console.log(`  策展: ${summary(cur)}`);
 
   for (const w of warns) console.warn('  ⚠ ' + w);

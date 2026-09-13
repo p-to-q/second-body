@@ -6,6 +6,8 @@
  *  - 任何输入都返回**槽位齐全**的 Genome；缺件用占位 id（`placeholder:<slot>`），
  *    运行时据此走程序化几何（ADR-4：没有资产也要能跑）。
  *  - 随机只来自传入 seed 派生的 Rng，绝无 Math.random（P1）。
+ *  - `opt.rejected` 里的 id 绝不会出现在任何槽位上；但它**不改变可选物种名单** ——
+ *    策展否掉的是「这一件」，不是「这个物种」。见下面两个池子 inTier / usable。
  */
 import type { Genome, MaterialRole, PartLibraryIndex, PartMeta, SlotKey, Tier } from './types.ts';
 import { mulberry32 } from './rng.ts';
@@ -24,7 +26,15 @@ function roleOf(key: SlotKey): MaterialRole {
 
 const slotOfKey = (key: SlotKey) => (key === 'joint' ? 'joint' : SLOT_OF_BONE[key]);
 
-/** 某个 theme 在该 tier 下有没有可用部件 —— 用来决定 theme 是否可选 */
+/**
+ * 某个 theme 在该 tier 下**有没有自有件** —— 用来决定它出不出现在名单里。
+ *
+ * 注意它**故意不看策展**（`GenomeOptions.rejected`）：
+ * 「这个 theme 有没有自有件」是名单问题，「这具身体的某个槽位该用哪件」是选件问题。
+ * 把后者喂给前者，一个物种就会因为它唯一的那件被人否掉而整个消失
+ * —— `wheelleg` 只有 `spine.wheelleg.a` 一件，而它已被标 reject。
+ * 缺的件沿 `base` 链借（wheelleg → porcelain），物种本身留在名单上。
+ */
 export function themeIsUsable(index: PartLibraryIndex, theme: string, tier: Tier): boolean {
   return index.parts.some((p) => p.family === theme && p.tier <= tier);
 }
@@ -32,7 +42,10 @@ export function themeIsUsable(index: PartLibraryIndex, theme: string, tier: Tier
 export interface GenomeOptions {
   /** 观众选的主题。缺省时按 seed 抽一个可用的 */
   theme?: string;
-  /** 被人工判定为 reject 的部件 id，不进候选池（docs/14 素材策展） */
+  /**
+   * 被人工判定为 reject 的部件 id，不进**选件**池（docs/14 素材策展）。
+   * 不传 = 不做策展过滤（core 不读文件，集合由 app 层从 `/parts/curation.json` 取）。
+   */
   rejected?: ReadonlySet<string>;
 }
 
@@ -45,12 +58,17 @@ export function makeGenome(
   const rng = mulberry32((seed ^ (tier * 0x9e3779b9)) >>> 0);
   const rejected = opt.rejected;
 
-  const usable = (index.parts ?? []).filter(
-    (p) => p.tier <= tier && !(rejected?.has(p.id) ?? false),
-  );
+  // 两个池子，刻意分开（这正是本次 bug 的要害）：
+  //  - inTier：只过 tier 闸门。**名单**从它来 —— 有哪些物种，是策展管不着的事。
+  //  - usable：再过一遍策展。**选件**从它来 —— 哪一件能上身，才是策展的事。
+  // 合成一个池子的代价是具体的：`wheelleg` 只有 `spine.wheelleg.a` 一件且已被 reject，
+  // 合并后它会整个从名单里消失，`{ theme: 'wheelleg' }` 会静默变成别的物种。
+  // 一个物种不该因为它的某一件不好看就不存在；那一件不好看，借 base 链上的就是了。
+  const inTier = (index.parts ?? []).filter((p) => p.tier <= tier);
+  const usable = rejected ? inTier.filter((p) => !rejected.has(p.id)) : inTier;
 
-  // 1. 主题
-  const themes = [...new Set(usable.map((p) => p.family))].sort();
+  // 1. 主题（名单 = inTier，所以加不加 rejected，可选物种集合一模一样）
+  const themes = [...new Set(inTier.map((p) => p.family))].sort();
   const theme = opt.theme && themes.includes(opt.theme)
     ? opt.theme
     : (themes.length ? rng.pick(themes) : (opt.theme ?? 'placeholder'));

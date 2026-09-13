@@ -156,7 +156,7 @@ const asInt = (v: string | null, fallback: number) => {
 let seed = asInt(qs.get('seed'), 1) >>> 0;
 let tier = Math.min(3, Math.max(0, asInt(qs.get('tier'), 2))) as Tier;
 let themeIdx = Math.max(0, themes.indexOf(qs.get('theme') ?? themes[0]));
-let genome: Genome = makeGenome(seed, tier, library.index, { theme: themes[themeIdx] });
+let genome: Genome = makeGenome(seed, tier, library.index, { theme: themes[themeIdx], rejected: library.rejected });
 
 /**
  * 身体方案优先级：`?plan=` 覆盖 > 条目自己声明的 > 'rig'。
@@ -180,7 +180,7 @@ function applyPlan(themeId: string) {
 
 async function rebuild() {
     applyPlan(themes[themeIdx]);
-  genome = makeGenome(seed, tier, library.index, { theme: themes[themeIdx] });
+  genome = makeGenome(seed, tier, library.index, { theme: themes[themeIdx], rejected: library.rejected });
   // 预取后再 remorph → 截图不会拍到占位体。
   // 但**时间不许被资产绑架**（P3）：preload 的契约是"永不 reject"，
   // 它没承诺"一定 resolve" —— 真挂住过一次，整页停在 loading 且不报错。
