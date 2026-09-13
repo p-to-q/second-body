@@ -16,10 +16,27 @@
  */
 import './mark.css';
 
-/** 两行字标。`tag` 默认 `div`，需要参与某个 flex 行时调用方可以换成 `span`。 */
-export function markNode(tag: keyof HTMLElementTagNameMap = 'div'): HTMLElement {
+/**
+ * 靠哪一边。**它说的是这个块落在哪个角，不是谁挂了它。**
+ *
+ * 原来这件事写成 `.sb-entry .sb-mark`（一条宿主选择器）。那条规则在
+ * 2026-09-13 走查时已经**指不到任何东西** —— `.sb-entry` 里根本没有字标，
+ * 而字标真正的第二个落点（选择页的左上角）来了之后，照那个写法只会再抄一条
+ * `.sb-choose .sb-mark`，第三个角再抄第三条。对齐是**位置的属性**：
+ * 右上角的块右对齐，左上角的块左对齐，和哪一页挂的它无关。
+ */
+export type MarkAlign = 'end' | 'start';
+
+/**
+ * 两行字标。`tag` 默认 `div`，需要参与某个 flex 行时调用方可以换成 `span`。
+ * `align` 默认 `end`（右对齐，落在右上角）；落在左上角的那一份传 `start`。
+ */
+export function markNode(
+  tag: keyof HTMLElementTagNameMap = 'div',
+  align: MarkAlign = 'end',
+): HTMLElement {
   const root = document.createElement(tag);
-  root.className = 'sb-mark';
+  root.className = align === 'start' ? 'sb-mark sb-mark--start' : 'sb-mark';
   root.setAttribute('aria-label', 'SEE-ME SEE-U');
   for (const line of ['SEE-ME', 'SEE-U']) {
     const row = document.createElement('span');

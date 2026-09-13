@@ -24,6 +24,7 @@
 import '../ui/type.css';
 import { mulberry32 } from '../../../core/src/rng.ts';
 import { cjkClass, COPY, setBi } from '../ui/i18n.ts';
+import { markNode } from '../ui/mark.ts';
 import type { PartLibraryIndex, RawPose, Rng, ThemeDef } from '../../../core/src/types.ts';
 import { acquireRingField, type RingField } from './ring/field.ts';
 import { holdFirstScreen } from './ring/first-screen.ts';
@@ -579,6 +580,25 @@ const CSS = `
   font-family:var(--sb-grotesk);font-size:var(--sb-size-body);line-height:var(--sb-lh-body);overflow:hidden}
 /* 降级到列表时反过来：没有环，这一层就是这一页的全部 */
 .sb-choose.is-fallback{pointer-events:auto;background:var(--sb-paper)}
+/* 字标（ui/mark.ts）。**左上角，贴安全区。**
+
+   ⚠️ 这一段在一个模板字符串里面。**反引号会就地把字符串结束掉**，
+   后面整块 CSS 会被当成 TypeScript 解析（Vite 报的是 choose.ts 上一个
+   莫名其妙的 "Expected a semicolon"）。同一个坑这个文件已经绊倒过两个人 ——
+   所以这里的文件名一律裸写，不加反引号。
+
+   这一页的左上角此前是空的 —— 2026-09-13 在 514×869 上逐个量过这一层的
+   每一件东西：名牌 y=652、提示 y=721、按键条 y=805、倒计时线 y=743，
+   全都在下三分之一；右上角是目录（x=360，z=11）。y<300 这一带一个元素都没有。
+   摄像头小屏幕（ui/preview.css 的 .sb-see，同样占左上角）在这一页上
+   **不存在**：它挂在观众选完物种之后（main.ts 的第 4b 节，理由是"开始之前
+   一次权限都不问"），量的时候 document.querySelector('.sb-see') 是 null。
+   所以这两块从来不同框，不需要为对方让位 —— 它们是同一个角上**先后**的两件东西。
+   也因此这里不写任何跟着小屏幕尺寸走的偏移：那个高度现在是 --sb-see-h
+   （clamp，会随视口变），而一条为不同框的邻居留的位置，量的时候就是错的。
+   颜色走 --sb-on-stage：首屏把它翻成深色（ring/first-screen.css 里那条
+   注释点名了字标），所以白底上它自己就是黑的。 */
+.sb-brand{position:absolute;left:var(--sb-safe);top:var(--sb-safe);pointer-events:none}
 .sb-hud{position:absolute;left:0;right:0;bottom:0;padding:var(--sb-safe);pointer-events:none;
   background:linear-gradient(to top,color-mix(in srgb,var(--sb-paper) 82%,transparent),transparent)}
 .sb-name{font-size:var(--sb-size-h1);font-weight:var(--sb-weight-head);
@@ -606,7 +626,8 @@ const CSS = `
   color:var(--sb-ink-dim);opacity:.55}
 
 .sb-choose.is-leaving .sb-hud,.sb-choose.is-leaving .sb-hint,
-.sb-choose.is-leaving .sb-keys,.sb-choose.is-leaving .sb-idle{opacity:0;transition:opacity .5s}
+.sb-choose.is-leaving .sb-keys,.sb-choose.is-leaving .sb-idle,
+.sb-choose.is-leaving .sb-brand{opacity:0;transition:opacity .5s}
 
 /* 自动选择的倒计时（docs/23 §S2）：最后 5 秒，中心卡下方**一条极细的线**走完。
    规格明确不要百分比、不要数字 —— 一条正在走完的线已经说清楚"还有一会儿"，
@@ -653,6 +674,7 @@ function buildDom(mount: HTMLElement): Ui {
   const root = document.createElement('div');
   root.className = 'sb-choose';
   root.innerHTML = `
+    <div class="sb-brand"></div>
     <div class="sb-list" hidden></div>
     <div class="sb-hud">
       <div class="sb-name sb-bi"><span class="sb-zh"></span><span class="sb-en"></span></div>
@@ -663,6 +685,8 @@ function buildDom(mount: HTMLElement): Ui {
     <div class="sb-hint"></div>
     <div class="sb-keys"></div>`;
   mount.appendChild(root);
+  // 左对齐的那一份：`start` 说的是它落在左上角，不是"选择页的字标长这样"
+  root.querySelector<HTMLElement>('.sb-brand')!.append(markNode('div', 'start'));
   const hint = root.querySelector<HTMLElement>('.sb-hint')!;
   setBi(hint, COPY.choose.hint);
   root.querySelector<HTMLElement>('.sb-keys')!.textContent = COPY.choose.keys;
