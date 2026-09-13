@@ -1,22 +1,22 @@
 /* 由 build-data.mjs 生成，不要手改。跑 `node packages/app/poster/build-data.mjs` 重出。 */
 window.SB_POSTER = {
-  "generatedAt": "2026-09-13T01:29:07.422Z",
+  "generatedAt": "2026-09-13T11:20:37.938Z",
   "source": {
     "parts": "assets/parts/parts.json",
     "curation": "assets/parts/curation.json",
-    "partsGeneratedAt": "2026-09-12T22:49:28.225Z",
+    "partsGeneratedAt": "2026-09-13T09:11:19.182Z",
     "partsVersion": 1
   },
   "counts": {
     "entries": 29,
     "parts": 208,
-    "partsRejected": 10,
-    "partsLive": 205,
+    "partsRejected": 11,
+    "partsLive": 204,
     "partsReal": 30,
     "slots": 10,
     "boneKeys": 18,
     "materials": 9,
-    "plans": 8,
+    "plans": 9,
     "triangles": 613597,
     "entriesWithAnchor": 22,
     "vacancies": 4,
@@ -35,13 +35,14 @@ window.SB_POSTER = {
     "upperArm": 27
   },
   "byPlan": {
-    "rig": 12,
+    "rig": 11,
     "quadruped": 4,
     "inverted": 1,
     "mass": 3,
     "stub": 3,
     "radial": 2,
     "column": 2,
+    "swarm": 1,
     "towering": 2
   },
   "byKind": {
@@ -824,7 +825,7 @@ window.SB_POSTER = {
       "nameEn": "Field",
       "tagline": "身体消失，只剩运动",
       "taglineEn": "The body disappears. Only motion remains.",
-      "plan": "rig",
+      "plan": "swarm",
       "coverage": "light",
       "base": null,
       "axes": {
@@ -1140,7 +1141,7 @@ window.SB_POSTER = {
         "paint.hazard"
       ],
       "ownParts": 6,
-      "ownRejected": 0,
+      "ownRejected": 1,
       "fullyBorrowed": false,
       "bodies": 256,
       "perSlot": {
@@ -1286,6 +1287,10 @@ window.SB_POSTER = {
     {
       "id": "foot.digitigrade.a",
       "note": "互不相连的多物体，散成几根细棍"
+    },
+    {
+      "id": "head.char.line.a",
+      "note": "金属丝格栅，配方要的是「极简圆形、无表面细节」。PBR 着色一直盖着它；描边一上就糊成一团黑 —— 描边没制造这个问题，只是掀开了它。同 head.softwear.a 一类"
     },
     {
       "id": "head.digitigrade.a",

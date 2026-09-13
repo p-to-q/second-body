@@ -67,7 +67,6 @@ the repo's front door.
   capability, or fifty local lines, would be worse.
 - Every tunable number lives in `packages/core/src/tuning.ts`. A constant tuned
   anywhere else is in the wrong place.
-- `docs/archive/` is a trace of what happened, not a current instruction.
 
 ## Change discipline
 
