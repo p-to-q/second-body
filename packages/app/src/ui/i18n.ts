@@ -31,12 +31,35 @@ export function biHtml(t: BiText, tag = 'span'): string {
 }
 
 /** 写进 DOM 元素（比 innerHTML 安全，且不用自己转义） */
+/**
+ * 这一段文字里有没有汉字。用来决定要不要补那 0.06em 的左边距（type.css）。
+ *
+ * **按字判断，不按槽位判断。** `.sb-zh` 是"承重的那一行"，不是"中文那一行" ——
+ * 作品名那一对是倒置的（见下面 `COPY.title`），承重行里装的是
+ * `SEE-ME SEE-U`。补偿如果跟着 class 走，就会补在拉丁字母上、
+ * 而真正需要补的汉字反而不补：实测 54px 的巨题因此比底下所有东西
+ * 往左凸出 3.3px，读起来就是"英文缩进了半格"。
+ */
+const CJK = /[\u2E80-\u9FFF\u3000-\u303F\uFF00-\uFFEF]/;
+
+/**
+ * 这一段文字要不要补那 0.06em。手搭 DOM 的地方（`shell/entry.ts` 的巨题把
+ * 名字按空格拆成两行，绕过了 `setBi`）用它，**这样规则只有一条**。
+ */
+export function cjkClass(text: string): string {
+  return CJK.test(text) ? ' sb-cjk' : '';
+}
+
 export function setBi(el: Element | null, t: BiText): void {
   if (!el) return;
   el.textContent = '';
   el.classList.add('sb-bi');
   const zh = document.createElement('span'); zh.className = 'sb-zh'; zh.textContent = t.zh;
   const en = document.createElement('span'); en.className = 'sb-en'; en.textContent = t.en;
+  // 谁是汉字谁补。两半各判各的 —— 倒置的那一对因此自动是对的，
+  // 而且以后再出现第二对倒置也不需要有人记得回来改这里。
+  if (CJK.test(t.zh)) zh.classList.add('sb-cjk');
+  if (CJK.test(t.en)) en.classList.add('sb-cjk');
   el.append(zh, en);
 }
 

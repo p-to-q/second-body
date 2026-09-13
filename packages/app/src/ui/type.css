@@ -274,7 +274,10 @@ html.font-system { --sb-grotesk: "Helvetica Neue", Helvetica, Arial, system-ui, 
  * 只在**块级并置**上补。行内并置（`.sb-bi-inline`）中英在同一行、之间还有一条竖线，
  * 谈不上左对齐，补了反而让那条线歪掉。
  */
-.sb-zh { display: block; color: var(--sb-ink); margin-left: -0.06em; }
+.sb-zh { display: block; color: var(--sb-ink); }
+/* 补在**汉字**上，不是补在"中文那一行"上。`sb-cjk` 由 `setBi()` 按内容打，
+   理由写在那个函数的注释里：作品名那一对是倒置的，承重行里装的是拉丁字母。 */
+.sb-cjk { margin-left: -0.06em; }
 .sb-en {
   display: block;
   color: var(--sb-ink-dim);
@@ -286,7 +289,7 @@ html.font-system { --sb-grotesk: "Helvetica Neue", Helvetica, Arial, system-ui, 
 /* 行内并置：短标签用这个，中英之间一条细竖线 */
 .sb-bi-inline { display: inline-flex; align-items: baseline; gap: 0.5em; }
 .sb-bi-inline .sb-zh, .sb-bi-inline .sb-en { display: inline; }
-.sb-bi-inline .sb-zh { margin-left: 0; }   /* 行内并置不补，见上面 .sb-zh 的注释 */
+.sb-bi-inline .sb-cjk { margin-left: 0; }  /* 行内并置不补，见上面 .sb-cjk 的注释 */
 .sb-bi-inline .sb-en::before {
   content: '';
   display: inline-block;

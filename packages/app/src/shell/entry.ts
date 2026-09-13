@@ -33,7 +33,7 @@
  *
  * 场起不来（没有 WebGPU）时这一层原样退回纯色底 —— 展签本身不依赖它。
  */
-import { COPY, setBi } from '../ui/i18n.ts';
+import { COPY, setBi, cjkClass } from '../ui/i18n.ts';
 import { acquireRingField } from '../choose/ring/field.ts';
 import { holdFirstScreen } from '../choose/ring/first-screen.ts';
 import type { Flags } from './kiosk.ts';
@@ -106,14 +106,16 @@ function titleNode(): HTMLElement {
   const h1 = document.createElement('h1');
   h1.className = 'sb-entry-title';
   const zh = document.createElement('span');
-  zh.className = 'sb-zh';
+  // 补偿按**字**打，不按槽位打（i18n.ts 的 cjkClass）。这一对是全站唯一倒置的：
+  // 承重行里装的是 `SEE-ME SEE-U`，辅助行里才是汉字。
+  zh.className = `sb-zh${cjkClass(COPY.title.zh)}`;
   for (const word of COPY.title.zh.split(' ')) {
     const line = document.createElement('span');
     line.textContent = word;
     zh.append(line);
   }
   const en = document.createElement('span');
-  en.className = 'sb-en';
+  en.className = `sb-en${cjkClass(COPY.title.en)}`;
   en.textContent = COPY.title.en;
   h1.className = 'sb-entry-title sb-bi';
   h1.append(zh, en);
