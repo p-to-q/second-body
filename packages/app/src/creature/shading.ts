@@ -39,13 +39,44 @@ export type ShadingId = 'physical' | 'toon';
 export const SHADING_IDS: readonly ShadingId[] = ['physical', 'toon'];
 
 /**
- * 物种 → 着色语言。**没有写在这里的物种一律 `physical`，一个像素都不变。**
- * 这是这次改动最重要的一条：描边是 opt-in 的，不是新的默认。
+ * 缺省的着色语言。**2026-09-13 由 `physical` 翻成 `toon`**（作品负责人：
+ * 「描边要普遍开着」）。
+ *
+ * 这个文件原来写着"描边是 opt-in 的，不是新的默认"，而那句话当时是对的：
+ * 它防的是**没有人量过就把描边铺开**。翻这个默认之前先量了，数在下面，
+ * 那句话因此不是被推翻的，是被满足的。
+ *
+ * 量到的（`test/outline-budget.test.ts` 现在守着它，29 个物种 × tier 1–3
+ * × 8 个 seed）：**每一个物种都是 18 个桶**。桶数是槽位拓扑定的，不随
+ * 抽中的件变 —— 各档抽中的件从 10 到 16 种不等，桶数一直是 18。
+ * 于是描边之后一律 36 draw，`BUDGET.maxDrawCalls` 是 40，全数通过，
+ * 余量 4 次提交（10%）。
+ *
+ * 余量小是真的，所以那条测试从"只测已声明的物种"改成了**测全部 29 个**：
+ * 以后是哪一个物种先顶到 40，它会在这里红，不在现场红。
+ *
+ * 不用付这笔钱的两类身体：`bodyPlan` 为 `mass` 的（`creature/mass.ts`）和
+ * `swarm` 的（`creature/swarm.ts`，例如「场」）**一件槽位件都不实例化**，
+ * 外壳无处可套，它们的描边成本是 0。上面那 29 行里它们的 18 是按刚体装配
+ * 算出来的，偏保守 —— 真实开销只会更低。
  */
-export const SHADING_OF_THEME: Readonly<Record<string, ShadingId>> = {
-  // 线 —— 它是被画出来的，不是被造出来的。见 `factory/recipes/invited.ts` 的那一条
-  'char.line': 'toon',
-};
+export const DEFAULT_SHADING: ShadingId = 'toon';
+
+/**
+ * 物种 → 着色语言的**例外表**。写在这里的物种**覆盖** `DEFAULT_SHADING`。
+ *
+ * 翻了默认之后它的角色也翻了：它原来是"谁要描边"，现在是"谁不要"。
+ * 目前是空的 —— 29 个物种全部走默认。留着它不是占位：
+ * 一个物种的辨识度如果**恰恰**建立在连续的高光上（瓷、金属那一类），
+ * 平涂会把它抹平，那时该在这里给它写一行 `'physical'`，
+ * 而不是回去把默认翻回来、把另外二十八个一起带走。
+ *
+ * > **contract change needed** 仍然成立：`ThemeDef` 少一个
+ * > `shading?: 'physical' | 'toon'` 字段。契约主人加上它、`index-parts.ts`
+ * > 从 `RosterEntry` 抄过去之后，这张表和上面那个默认就该一起被删掉，
+ * > `resolveShading()` 改读 `themeDef.shading ?? DEFAULT_SHADING`。
+ */
+export const SHADING_OF_THEME: Readonly<Record<string, ShadingId>> = {};
 
 export function isShadingId(v: unknown): v is ShadingId {
   return typeof v === 'string' && (SHADING_IDS as readonly string[]).includes(v);
@@ -53,11 +84,14 @@ export function isShadingId(v: unknown): v is ShadingId {
 
 /**
  * 这一具身体用哪种着色语言。
- * @param override 控件条 / `?shading=` 给的强制值；`null` = 按物种自己的声明走。
+ * @param override 控件条 / `?shading=` 给的强制值；`null` = 按默认与例外表走。
+ *
+ * 没有物种（开场还没选）也必须有答案 —— 帧循环里不许有洞，所以这里的
+ * 兜底是 `DEFAULT_SHADING`，不是 `undefined`。
  */
 export function resolveShading(themeId: string | null | undefined, override?: ShadingId | null): ShadingId {
   if (override) return override;
-  return (themeId && SHADING_OF_THEME[themeId]) || 'physical';
+  return (themeId && SHADING_OF_THEME[themeId]) || DEFAULT_SHADING;
 }
 
 /** 一块材质要长什么样。从 `MaterialDef` 调和之后的结果，两条着色路径读同一份 */

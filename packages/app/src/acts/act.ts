@@ -7,6 +7,7 @@
 import type {
   EvolutionState, Genome, MotionFeatures, Presence, Rng, Skeleton, Tier,
 } from '../../../core/src/types.ts';
+import type { ArcState } from '../../../core/src/arc.ts';
 import type { Capture } from '../capture/capture.ts';
 import type { PartLibrary } from '../assets/library.ts';
 import type { BodyInstance } from '../creature/body.ts';
@@ -16,6 +17,12 @@ import type { Flags } from '../shell/kiosk.ts';
 export interface World {
   readonly t: number;
   readonly presence: Presence;
+  /**
+   * 这一场走到哪儿了（`core/src/arc.ts`）。**导演按它排座次，不再摇骰子**：
+   * 四个乐章依次是 follow / echo / resist / facing（docs/40 §1）。
+   * 玩法自己也读得到它 —— 但读了就要想清楚，它是整件作品唯一的时间轴。
+   */
+  readonly arc: ArcState;
   readonly skeleton: Skeleton | null;
   readonly features: MotionFeatures | null;
   readonly evolution: EvolutionState;
@@ -57,8 +64,15 @@ export interface Director {
   readonly currentId: string | null;
   /** 被禁用的 act id 和原因，给 HUD / 日志看 */
   readonly disabled: ReadonlyMap<string, string>;
-  /** 强制切到某个 act（?act=<id> 与调试用） */
+  /** 强制切到某个 act（?act=<id> 与调试用）。强制之后弧线不再插手，直到 `release()` */
   force(id: string, w: World): boolean;
+  /**
+   * 交回给弧线。右下角那一行「把身体拿回来」走这条 ——
+   * 观众拿回身体之后应该回到**这一场此刻的**乐章，而不是永远停在 follow。
+   */
+  release(w: World): void;
+  /** 现在是不是被强制按住了（HUD / 出口那一列要知道） */
+  readonly forced: boolean;
 }
 
 export function createDirector(acts: readonly Act[], fallbackId = 'follow'): Director {
@@ -69,7 +83,6 @@ export function createDirector(acts: readonly Act[], fallbackId = 'follow'): Dir
   const disabled = new Map<string, string>();
   const strikes = new Map<string, number>();
   let current: Act | null = null;
-  let elapsed = 0;
   let forced = false;
 
   /** 把 Act 的任何异常挡在帧循环之外（docs/16 §5 规则 2） */
@@ -92,17 +105,15 @@ export function createDirector(acts: readonly Act[], fallbackId = 'follow'): Dir
     }
   }
 
-  function enterable(w: World): Act[] {
-    return body.filter((a) =>
-      !disabled.has(a.id) &&
-      a !== current &&
-      (a.canEnter ? guard(a, 'canEnter', () => a.canEnter!(w)) === true : true));
+  /** 弧线此刻点的那个玩法。被禁用（连续出错 3 次）时回落到兜底的 `follow` */
+  function arcPick(w: World): Act | null {
+    const want = body.find((a) => a.id === w.arc?.actId);
+    return want && !disabled.has(want.id) ? want : fallback ?? null;
   }
 
   function switchTo(act: Act | null, w: World): void {
     if (current && current !== act) guard(current, 'exit', () => current!.exit?.(w));
     current = act;
-    elapsed = 0;
     if (act) {
       guard(act, 'enter', () => act.enter?.(w));
       if (w.flags.debug) console.info(`[act] → ${act.id}`);
@@ -111,23 +122,17 @@ export function createDirector(acts: readonly Act[], fallbackId = 'follow'): Dir
 
   return {
     update(w, dt) {
-      elapsed += dt;
-
-      // 选角。只在 ALIVE 时换场 —— 进场/离场那几秒不该同时在换玩法
-      if (!current || (!forced && w.presence.state === 'ALIVE')) {
-        const min = current?.minSeconds ?? 0;
-        const max = current?.maxSeconds ?? Infinity;
-        const mustLeave = elapsed >= max;
-        const mayLeave = elapsed >= min;
-        if (!current || mustLeave || (mayLeave && !current)) {
-          const pool = enterable(w);
-          if (mustLeave && pool.length) {
-            const weights = pool.map((a) => Math.max(0, a.weight ?? 1));
-            switchTo(w.rng.weighted(pool, weights), w);
-          } else if (!current) {
-            switchTo(pool.length ? w.rng.weighted(pool, pool.map((a) => Math.max(0, a.weight ?? 1))) : fallback ?? null, w);
-          }
-        }
+      // 选角。**按弧线排，不摇骰子**（docs/40 §0：此前是随机加权，同一个人两次
+      // 站上去顺序不同，而且可能一次都轮不到「抵抗」）。
+      //
+      // `canEnter` / `weight` 在这条路上不再参与 body 玩法的选择：弧线说了算，
+      // 它们留着是因为 ambient 玩法和 docs/16 的契约都还在用（而且 `untether`
+      // 的 `canEnter: false` 仍然是它排不进来的那道锁 —— 弧线根本不叫它的名字）。
+      // `minSeconds` / `maxSeconds` 同理：段长由 `ARC.beats` 定，两套时长说了不算数的话
+      // 就会打架，而打架的时候观众看到的是一条不按文档走的弧线。
+      if (!forced) {
+        const next = arcPick(w);
+        if (next && next !== current) switchTo(next, w);
       }
       if (!current && fallback && !disabled.has(fallback.id)) switchTo(fallback, w);
 
@@ -147,5 +152,11 @@ export function createDirector(acts: readonly Act[], fallbackId = 'follow'): Dir
       switchTo(act, w);
       return true;
     },
+    release(w) {
+      forced = false;
+      const next = arcPick(w);
+      if (next && next !== current) switchTo(next, w);
+    },
+    get forced() { return forced; },
   };
 }

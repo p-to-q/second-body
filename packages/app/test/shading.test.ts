@@ -3,34 +3,47 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three/webgpu';
 import { TOON } from '../../core/src/tuning.ts';
 import {
-  SHADING_OF_THEME, createFillMaterial, createOutlineMaterial, isShadingId, resolveShading,
+  DEFAULT_SHADING, SHADING_OF_THEME, createFillMaterial, createOutlineMaterial,
+  isShadingId, resolveShading,
 } from '../src/creature/shading.ts';
 
 /**
- * 描边这条路径最容易坏的**不是**它自己，而是它悄悄影响到别人：
- * 一个 `Record` 查错了键、一个默认值写成 `'toon'`、一次"顺手统一材质"，
- * 都会让另外二十几个物种一起变成卡通 —— 而那是一个**没有人会报告的 bug**，
- * 因为它看起来只是"今天的渲染好像不太一样"。
- * 所以这一组断言里有一半是在守"别人没变"。
+ * 描边这条路径最容易坏的**不是**它自己，而是它悄悄影响到别人。
+ *
+ * 2026-09-13 之前这里守的是"只有 `char.line` 走 toon"，因为那时描边是 opt-in。
+ * 默认翻过来之后（`DEFAULT_SHADING = 'toon'`，作品负责人的决定，预算数见
+ * `test/outline-budget.test.ts`），要守的那件事**方向反了但性质没变**：
+ * 现在最容易悄悄发生的是**某个物种被漏掉**（例外表被人加了一行、或者默认被
+ * 翻回去），症状同样是"今天的渲染好像不太一样"，同样没有人会报告。
+ * 所以这一组断言仍然有一半是在守"没有谁被静悄悄改掉"。
  */
 
-test('只有声明过的物种走 toon，其余一律 physical', () => {
-  assert.equal(resolveShading('char.line'), 'toon');
-  // 这一串是当天 roster 里各 kind 的代表。它们一个都不该被描边碰到
-  for (const id of ['porcelain', 'xeno', 'industrial', 'char.inflate', 'char.diva',
-    'guest.keynote', 'char.tokusatsu', 'char.painting', 'field']) {
-    assert.equal(resolveShading(id), 'physical', `${id} 不该被描边碰到`);
+test('默认走 toon；只有例外表点名的才回到 physical', () => {
+  assert.equal(DEFAULT_SHADING, 'toon');
+  // 这一串是当天 roster 里各 kind 的代表。没有一个在例外表里，所以全部走默认
+  for (const id of ['char.line', 'porcelain', 'xeno', 'industrial', 'char.inflate',
+    'char.diva', 'guest.keynote', 'char.tokusatsu', 'char.painting', 'field']) {
+    assert.equal(resolveShading(id), 'toon', `${id} 该走默认的描边`);
   }
-  // 没有物种（开场还没选）也必须有答案，不能是 undefined —— 帧循环里不许有洞
-  assert.equal(resolveShading(null), 'physical');
-  assert.equal(resolveShading(undefined), 'physical');
-  // 表里只该有真正需要它的那些；多一条就是多一个物种被改了长相
-  assert.deepEqual(Object.keys(SHADING_OF_THEME), ['char.line']);
+  // 没有物种（开场还没选）也必须有答案，不能是 undefined —— 帧循环里不许有洞。
+  // 而且**开场那一具也得有描边**：它和选完物种之后是同一具身体，
+  // 中途长出一圈线会读成"它刚才坏了"。
+  assert.equal(resolveShading(null), 'toon');
+  assert.equal(resolveShading(undefined), 'toon');
+  // 例外表现在是空的。它不为空的时候，每一条都必须是 physical ——
+  // 往里写 'toon' 是没有意义的（默认已经是了），而一条没有意义的例外
+  // 下一个人读到会以为默认是 physical。
+  for (const [id, s] of Object.entries(SHADING_OF_THEME)) {
+    assert.equal(s, 'physical', `${id}：例外表只该用来把物种拉回 physical`);
+  }
 });
 
 test('?shading= 覆盖物种自己的声明，认不出来的值不生效', () => {
   assert.equal(resolveShading('porcelain', 'toon'), 'toon');
+  // `?shading=physical` 是现在唯一能当场把描边关掉的写法 —— 描边翻成默认之后，
+  // 这个开关承担的正是它当初被留下来的那个理由：「它到底该不该有这圈线」要能当场 A/B
   assert.equal(resolveShading('char.line', 'physical'), 'physical');
+  assert.equal(resolveShading('porcelain', 'physical'), 'physical');
   assert.equal(resolveShading('char.line', null), 'toon');
   assert.equal(isShadingId('toon'), true);
   assert.equal(isShadingId('cartoon'), false);   // 手滑写错不该静默退回默认
