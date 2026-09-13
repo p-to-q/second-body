@@ -1,0 +1,16 @@
+# 授权存证 · ground.webm
+
+抓取时间（UTC）：2026-09-13T09:26:22Z
+抓取方式：`curl -A "Mozilla/5.0" <条目页>`（HTTP 200，正文见下）
+条目页：https://freesound.org/people/VizAion/sounds/795634/
+页面 <title>：Freesound - Wood, Hit, Inside Piano, Very Low by VizAion
+页面上出现的授权 URL：creativecommons.org/publicdomain/zero/1.0/
+我们取用的预览件：https://cdn.freesound.org/previews/795/795634_17061405-lq.ogg
+
+## 条目页正文里「License」附近的原文（未编辑）
+
+ Closely recorded gentle hits inside the piano with loads of resonance. Sound illegal or offensive? Flag it! bang boomy box close closed creak door foley gentle-hit hit hits impact industrial instrument knock mechanisms metal open percussive piano piano-strings resonance slam soft soft-hit squeak squeaky tap wood wooden Type Wave (.wav) Duration 0:07.416 File size 1.9 MB Sample rate 44100.0 Hz Bit depth 24 bit Channels Stereo Comments Please log in to comment Stilma 1 year, 1 month ago Thank you-perfect! V VizAion 1 year, 5 months ago Yep, love using IRs for interesting sound design ;) Timbre 1 year, 5 months ago The start could be used as an Impulse Response, (IR). 176 downloads 3 comments Creative Commons 0 You can copy, modify, distribute and perform the sound, even for commercial purposes, all without the need of asking permission to the author. Get attribution text... Login to download Share url: 920 x 245 481 x 86 375 x 30 About Freesound Terms of use Privacy Cookies Developers Help Donations Blog Freesound Labs Get your t-shirt! © 2026 Universitat Pompeu Fabra
+
+> 这是一份**文本**存证，不是 `.png` 截图 —— 这一轮跑在没有浏览器的 lane 上。
+> 它比截图少一件事（页面长什么样），多一件事（原文可被 grep 和 diff）。
+> 抓的是同一个 URL 的同一份 HTML，授权那一行逐字在上面。

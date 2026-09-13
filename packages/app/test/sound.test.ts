@@ -15,7 +15,8 @@ import { mulberry32 } from '../../core/src/rng.ts';
 import { voiceOf } from '../src/sound/voice.ts';
 import { makeNoiseBuffer } from '../src/sound/noise.ts';
 import { SCENARIOS } from '../src/sound/render.ts';
-import { CUE_IDS, CUE_LABELS, CUE_SHEET } from '../src/sound/cues.ts';
+import { CUE_IDS, CUE_LABELS, CUE_SHEET, cueGain, cueTilt } from '../src/sound/cues.ts';
+import { WORK, WORK_IDS, createWorkSchedule, type WorkCueId } from '../src/sound/work.ts';
 import type { ThemeDef } from '../../core/src/types.ts';
 
 const theme = (humanLike: number, lifeLike: number): ThemeDef => ({
@@ -129,11 +130,14 @@ test('取证场景：每个场景都有名字、有它证明的那句话、时�
 // 名单、素材是否真的在仓库里、以及几条"各自看都对、合起来才是错的"设计约定。
 // 听感那一半走 `/dev/sound.html` 和 `scratch/evidence/sound-cues.png`。
 
-test('离散音：四记的名单与它们的增益一一对上，一个都不多一个都不少', () => {
-  assert.deepEqual([...CUE_IDS], ['enter', 'pass', 'commit', 'idle']);
+test('离散音：名单与它们的增益一一对上，一个都不多一个都不少', () => {
+  assert.deepEqual([...CUE_IDS], [
+    'enter', 'pass', 'commit', 'idle', 'reveal', 'ground', 'work-a', 'work-b', 'work-c',
+  ]);
   for (const id of CUE_IDS) {
-    assert.equal(typeof SOUND.cues[id], 'number', `SOUND.cues.${id} 不见了`);
-    assert.ok(SOUND.cues[id] > 0 && SOUND.cues[id] <= 1, `${id} 的增益 ${SOUND.cues[id]} 不在 (0,1]`);
+    const g = cueGain(id);
+    assert.equal(typeof g, 'number', `${id} 没有增益`);
+    assert.ok(g > 0 && g <= 1, `${id} 的增益 ${g} 不在 (0,1]`);
     assert.ok(CUE_LABELS[id].length > 4, `${id} 没写清楚它是哪个动作`);
   }
 });
@@ -146,6 +150,15 @@ test('离散音：素材真的在仓库里，而且短、而且不是 wav', () =
     const size = statSync(file).size;
     assert.ok(size > 400 && size < 24_000, `${id}.webm 大小 ${size}B 不像一记接触音`);
   }
+});
+
+test('离散音：整层素材加起来仍然是"几十 KB"那一档', () => {
+  // `assets/sound/README.md` 立的是 3MB 的上限。这条测试守的不是那个上限
+  // （离它还有两个数量级），守的是**量级本身**：这一层一旦开始按分钟计，
+  // 它就不再是接触音了，而没有人会因为总量从 19KB 涨到 800KB 而察觉。
+  let total = 0;
+  for (const id of CUE_IDS) total += statSync(new URL(`../../../assets/sound/${id}.webm`, import.meta.url)).size;
+  assert.ok(total < 64_000, `离散音素材共 ${total}B，已经不是"几十 KB"了`);
 });
 
 test('离散音：S5 升档与 S6 到货没有被"顺手补全"回来', () => {
@@ -173,7 +186,174 @@ test('离散音：经过那一记比确认轻得多 —— 它是导航的触觉
     `passMinGapMs ${SOUND.cues.passMinGapMs} 要么防不住糊，要么把正常滑动也吃掉`);
 });
 
-test('离散音：取证时间线每一记都在名单上、按时间排好、且盖满四记', () => {
+// ── 这一轮加的两记（观众侧） ────────────────────────────────────────────────
+
+test('离散音：选择页落定比确认轻、比自动选择重 —— 邀请不该压过决定', () => {
+  // 三个数的**相对**关系就是设计（docs/29 §2.7）：
+  // 你的决定（commit）> 机器的邀请（reveal）> 机器替你决定（idle）。
+  // 任何一处翻过来，观众读到的因果就反了。
+  assert.ok(cueGain('reveal') < cueGain('commit'),
+    `reveal ${cueGain('reveal')} 压过了 commit ${cueGain('commit')}`);
+  assert.ok(cueGain('reveal') > cueGain('idle'),
+    `reveal ${cueGain('reveal')} 比 idle ${cueGain('idle')} 还轻，那它就不是一次登场`);
+  // 入口那一下仍然是最实的一记：它是"系统醒了"的唯一回执
+  assert.ok(cueGain('enter') > cueGain('reveal'));
+});
+
+test('离散音：触地落在"质感"那一档，不是"通知"那一档', () => {
+  // 触地会**反复**发生（每一步一次）。凡是会反复发生的，都必须比任何一记
+  // 一次性的确认音轻 —— 否则一段走动就变成一串提示音。
+  assert.ok(cueGain('ground') < cueGain('commit'));
+  assert.ok(cueGain('ground') < cueGain('idle'));
+  assert.ok(cueGain('ground') <= cueGain('pass'),
+    `ground ${cueGain('ground')} 比导航的触觉反馈 pass ${cueGain('pass')} 还响`);
+  // 触地**不过**低通：它就发生在这间屋子里，正下方。远靠低通，近就不该有
+  assert.equal(cueTilt('ground'), 0);
+});
+
+// ── 第六层 · 工作声（排程是纯的，所以这一半在 node 里守得住） ──────────────
+
+test('工作声：慢回路没在跑的时候一记都不发', () => {
+  const s = createWorkSchedule(mulberry32(11));
+  for (let i = 0; i < 600; i++) assert.equal(s.update(false, 1 / 30), null);
+});
+
+test('工作声：开头空一段 —— 第一记落在 leadIn 之后', () => {
+  // 写成"第一记在哪"而不是"leadIn 之前没有"：后者在 leadIn=0 时是一句废话
+  // （循环一次都不跑），也就测不出有人把这段空白删掉（P21：坏了的时候仪表要变）
+  for (const seed of [11, 12, 13]) {
+    const s = createWorkSchedule(mulberry32(seed));
+    let first: number | null = null;
+    for (let t = 0; t < 20 && first === null; t += 1 / 30) {
+      if (s.update(true, 1 / 30)) first = t;
+    }
+    assert.notEqual(first, null, `seed=${seed}：20 秒里一记都没有`);
+    assert.ok(first! >= WORK.leadIn - 1 / 30,
+      `seed=${seed}：第一记在 ${first!.toFixed(2)}s，早于 leadIn ${WORK.leadIn}s`);
+    assert.ok(first! < WORK.leadIn + WORK.gap + WORK.gapJitter + 0.1,
+      `seed=${seed}：第一记拖到 ${first!.toFixed(2)}s，那段等待开头是空的`);
+  }
+});
+
+/** 跑 `seconds` 秒的等待，把每一记的时刻与内容收集起来 */
+function runWork(seed: number, seconds: number, dt = 1 / 30): { at: number; id: WorkCueId; gain: number; rate: number }[] {
+  const s = createWorkSchedule(mulberry32(seed));
+  const out: { at: number; id: WorkCueId; gain: number; rate: number }[] = [];
+  for (let t = 0; t < seconds; t += dt) {
+    const tick = s.update(true, dt);
+    if (tick) out.push({ at: t, ...tick });
+  }
+  return out;
+}
+
+test('工作声：90 秒的等待里响得住、又不吵 —— 密度落在设计的量级上', () => {
+  // 慢回路是 30–90 秒（docs/00 §3）。这一条守的是"那段等待不是空的"，
+  // 同时守住另一头：一分半里几十记就不是"隔壁有人"，是"隔壁在拆房子"。
+  const ticks = runWork(5, 90);
+  assert.ok(ticks.length >= 20 && ticks.length <= 40,
+    `90 秒里 ${ticks.length} 记，不在 [20,40] 这个量级上`);
+  for (const k of ticks) {
+    assert.ok((WORK_IDS as readonly string[]).includes(k.id), `排出了名单外的 ${k.id}`);
+    assert.ok(Number.isFinite(k.gain) && k.gain > 0 && k.gain < 1, `增益 ${k.gain} 不合法`);
+    assert.ok(k.rate > 0.8 && k.rate < 1.2, `播放速率 ${k.rate} 抖得太远，会听成另一个东西`);
+  }
+});
+
+test('工作声：不许加速 —— 越来越密就是一条会撒谎的进度条', () => {
+  // 这是这一层最重要的一条（work.ts 文件头第 1 条 / P21）：
+  // 慢回路什么时候回来我们并不知道，任何"快好了"的暗示都是在骗人。
+  for (const seed of [1, 7, 99, 2026]) {
+    const ticks = runWork(seed, 120);
+    const half = Math.floor(ticks.length / 2);
+    const gapOf = (a: typeof ticks): number =>
+      (a[a.length - 1].at - a[0].at) / Math.max(1, a.length - 1);
+    const first = gapOf(ticks.slice(0, half));
+    const second = gapOf(ticks.slice(half));
+    // 后半段的平均间隔不该系统性地小于前半段。±35% 是随机抖动的余量，
+    // 真有趋势的话（比如线性收紧）这个比值会稳定地掉到 0.5 以下
+    assert.ok(second > first * 0.65,
+      `seed=${seed}：前半 ${first.toFixed(2)}s → 后半 ${second.toFixed(2)}s，听起来在加速`);
+  }
+});
+
+test('工作声：不许规律 —— 等间隔读作钟表', () => {
+  const ticks = runWork(3, 180);
+  const gaps = ticks.slice(1).map((k, i) => k.at - ticks[i].at);
+  const mean = gaps.reduce((a, b) => a + b, 0) / gaps.length;
+  const sd = Math.sqrt(gaps.reduce((a, g) => a + (g - mean) ** 2, 0) / gaps.length);
+  assert.ok(sd / mean > 0.15, `间隔的变异系数只有 ${(sd / mean).toFixed(3)}，这是节拍器不是干活`);
+  assert.ok(Math.abs(mean - WORK.gap) < WORK.gapJitter * 0.5,
+    `平均间隔 ${mean.toFixed(2)}s 离设计的 ${WORK.gap}s 太远`);
+});
+
+test('工作声：连着两记不会是同一个采样 —— 那是这一层最容易被听出的破绽', () => {
+  const ticks = runWork(42, 240);
+  assert.ok(ticks.length > 40, '样本太少，这条测了等于没测');
+  for (let i = 1; i < ticks.length; i++) {
+    assert.notEqual(ticks[i].id, ticks[i - 1].id, `第 ${i} 记和上一记都是 ${ticks[i].id}`);
+  }
+  // 三个变体都要真的被用上：只在两个之间来回也满足上面那条，但听起来还是两个东西
+  const used = new Set(ticks.map((k) => k.id));
+  assert.equal(used.size, WORK_IDS.length, `只用上了 ${[...used].join('/')}`);
+});
+
+test('工作声：同一个 seed 两次得到同一串 —— 随机全部来自传入的 Rng', () => {
+  assert.deepEqual(runWork(8, 60), runWork(8, 60));
+  assert.notDeepEqual(runWork(8, 60), runWork(9, 60));
+});
+
+test('工作声：等待一结束就停，而且不补一记"做完了"', () => {
+  // 到货那一声已经是 event.graftGain（docs/23 §S6）。再补一记就是同一件事响两次 ——
+  // 和名单里拒绝升档离散音同一条理由。
+  const s = createWorkSchedule(mulberry32(4));
+  for (let t = 0; t < 30; t += 1 / 30) s.update(true, 1 / 30);
+  for (let i = 0; i < 300; i++) assert.equal(s.update(false, 1 / 30), null);
+  // 再次进入等待要重新等一遍 leadIn（不是接着上一次的计时往下走）
+  let t = 0;
+  while (t < WORK.leadIn - 0.05) {
+    assert.equal(s.update(true, 1 / 30), null, '第二段等待没有重新空开头那一段');
+    t += 1 / 30;
+  }
+});
+
+test('工作声：掉帧不会把攒下的时间变成一串连发', () => {
+  // 一帧 2 秒（真实现场见过：切标签页回来）。补间隔而不是清零，所以最多一记
+  const s = createWorkSchedule(mulberry32(6));
+  for (let t = 0; t < WORK.leadIn + 0.2; t += 1 / 30) s.update(true, 1 / 30);
+  let fired = 0;
+  for (let i = 0; i < 3; i++) if (s.update(true, 2.0)) fired++;
+  assert.ok(fired <= 3, `一帧 2 秒发了 ${fired} 记`);
+  const s2 = createWorkSchedule(mulberry32(6));
+  s2.update(true, 1 / 30);
+  assert.ok(s2.update(true, 60) !== null, '停了一分钟之后第一记要照常发');
+  assert.equal(typeof s2.update(true, 0)?.id, 'undefined', 'dt=0 不该凭空再发一记');
+});
+
+test('工作声：它在"隔壁"—— 远靠低通，不靠音量', () => {
+  for (const id of WORK_IDS) {
+    assert.ok(cueTilt(id) > 400 && cueTilt(id) < 4000,
+      `${id} 的低通 ${cueTilt(id)}Hz 要么等于没滤，要么把这一记滤没了`);
+  }
+  // 比 idle 那一记更远一档，但不能更远到听不出是什么材料
+  assert.ok(cueTilt('work-a') > SOUND.cues.idleTilt);
+});
+
+test('旋钮的移交：暂居的那两块随时可以被 tuning.ts 接手，接手之后代码不用改', () => {
+  // 这一条守的是一个**会被悄悄留下的半成品**：`WORK` 和 `CUES_PENDING` 是
+  // 因为 tuning.ts 这一轮动不得才暂居在 sound/ 下的（AGENTS.md：每个可调的数
+  // 都该住在 tuning.ts）。`cueGain` 先问 SOUND.cues、没有才回退 ——
+  // 所以搬过去的那一天，这条测试会自己换到新的那一边，一行都不用改。
+  for (const k of ['gain', 'leadIn', 'gap', 'gapJitter', 'gainJitter', 'detune', 'tilt'] as const) {
+    assert.equal(typeof WORK[k], 'number', `WORK.${k} 不见了，移交清单就对不上了`);
+    assert.ok(Number.isFinite(WORK[k]) && WORK[k] > 0);
+  }
+  // 原来那四记仍然由 tuning.ts 说了算（回退只对新加的那几个生效）
+  for (const id of ['enter', 'pass', 'commit', 'idle'] as const) {
+    assert.equal(cueGain(id), SOUND.cues[id], `${id} 的增益没有走 SOUND.cues`);
+  }
+});
+
+test('离散音：取证时间线每一记都在名单上、按时间排好、且盖满每一记', () => {
   let prev = -Infinity;
   for (const c of CUE_SHEET) {
     assert.ok((CUE_IDS as readonly string[]).includes(c.id), `取证里出现了名单外的 ${c.id}`);

@@ -27,7 +27,8 @@ import { buildSoundGraph, type LayerId, type SoundGraph } from './graph.ts';
 // AudioContext 归 cues.ts 所有，不归这里：离散音**先被需要**（入口那一下点击和
 // 整个选择页都发生在 createSound() 之前），所以 context 的生命周期必须比这里长。
 // 两个 context 就是两条音频线程，而且按 `m` 只关得掉一个。
-import { releaseSharedAudioContext, setCuesMuted, sharedAudioContext } from './cues.ts';
+import { activeCues, releaseSharedAudioContext, setCuesMuted, sharedAudioContext } from './cues.ts';
+import { createWorkSchedule } from './work.ts';
 import type { SoundSignal } from './signal.ts';
 import { voiceOf } from './voice.ts';
 
@@ -78,6 +79,10 @@ export function createSound(opts: SoundOptions): Sound {
   let acc = 0;
   let pending: ThemeDef | null | undefined = opts.theme;
   const cleanups: (() => void)[] = [];
+  // 第六层的排程。种子从会话种子派生（+1）而不是复用：底噪和工作声用同一串
+  // 随机数的话，换一个 seed 两者会**一起**变，那就看不出哪一半在动了。
+  // 它住在这里是因为它要 `dt` —— 而 `dt` 只有 `update()` 有（work.ts 的文件头）。
+  const work = createWorkSchedule(mulberry32((opts.seed + 1) >>> 0));
 
   /** 第一次出错就永久闭嘴。不重试 —— 一个每帧重试的坏音频比没有音频更糟 */
   function die(where: string, err: unknown): void {
@@ -155,6 +160,14 @@ export function createSound(opts: SoundOptions): Sound {
       const elapsed = acc;
       acc = 0;
       guard('control', () => graph!.control(s, elapsed, ctx!.currentTime));
+      // 第六层。它**不经过** graph：工作声是离散接触音，走 cues 那条总线
+      //（于是 `m` 和 `?mute=1` 一起管得着它，而 `master` 管不着 —— 和第五层一致）。
+      // 排程是纯的、可测的；这里只是把排出来的那一记递给 cues.play。
+      // 排程抛异常不该拖垮四层，所以它自己一个 guard。
+      guard('work', () => {
+        const tick = work.update(s.waiting, elapsed);
+        if (tick) activeCues()?.play(tick.id, { gain: tick.gain, rate: tick.rate });
+      });
     },
     tierUp(tier) {
       if (!graph || !ctx || state !== 'running') return;

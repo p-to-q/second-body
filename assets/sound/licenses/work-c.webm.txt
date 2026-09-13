@@ -1,0 +1,16 @@
+# 授权存证 · work-c.webm
+
+抓取时间（UTC）：2026-09-13T09:26:22Z
+抓取方式：`curl -A "Mozilla/5.0" <条目页>`（HTTP 200，正文见下）
+条目页：https://freesound.org/people/Kleber_KGF/sounds/360300/
+页面 <title>：Freesound - Drawer Open and Close by KLEBER KG by Kleber_KGF
+页面上出现的授权 URL：creativecommons.org/publicdomain/zero/1.0/
+我们取用的预览件：https://cdn.freesound.org/previews/360/360300_6567189-lq.ogg
+
+## 条目页正文里「License」附近的原文（未编辑）
+
+ Log in Join Drawer Open and Close by KLEBER KG Not enough ratings Kleber_KGF September 18th, 2016 Follow Sound effects > Objects / House appliances Sound Effects Sound effect of a drawer opening then closing. You can use this sound in any way you want. Just make sure to credit 'Kleber KGF' Good luck with your projects! "Who edits the editors?" Sound illegal or offensive? Flag it! close closing door drawer furniture open opening sound-effect squeaky wood wooden Type Wave (.wav) Duration 0:06.782 File size 212.3 KB Sample rate 16000.0 Hz Bit depth 16 bit Channels Mono Comments This sound has not been commented on yet, be the first to comment! Please log in to comment 185 downloads 0 comments Creative Commons 0 You can copy, modify, distribute and perform the sound, even for commercial purposes, all without the need of asking permission to the author. Get attribution text... Login to download Share url: 920 x 245 481 x 86 375 x 30 About Freesound Terms of use Privacy Cookies Developers Help Donations Blog Freesound Labs Get your t-shirt! © 2026 Universitat Pompeu Fabra
+
+> 这是一份**文本**存证，不是 `.png` 截图 —— 这一轮跑在没有浏览器的 lane 上。
+> 它比截图少一件事（页面长什么样），多一件事（原文可被 grep 和 diff）。
+> 抓的是同一个 URL 的同一份 HTML，授权那一行逐字在上面。
