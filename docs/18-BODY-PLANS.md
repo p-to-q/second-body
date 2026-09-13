@@ -156,25 +156,51 @@ coral / xeno / dumpling 三个条目从"手办"变成"物质"。
 
 副作用是 tier 0 从 30 实例 / 15k 面 / 11 draw 降到 **0 实例 / 2k 面 / 1 draw**。
 
-> ⚠️ **这一条现在是关着的**（`NASCENT.enabled = false`），因为它撞上了下面这件事。
+> ✅ **这一条现在是开着的**（`NASCENT.enabled = true`）。它曾经因为下面那件事被迫关掉，
+> 那件事已经修了。
 
-#### 团块方案从来没有跑到过帧率
+#### 团块方案曾经从来没有跑到过帧率（已修，2026-09-13）
 
-同一台机器、同一分钟内的对照（主程序 `?demo=1&tier=0&debug=1`）：
-兜底刚体件 **76–100 fps**（30 实例 / 15k 面 / 11 draw），团块 **12 fps**（0 实例 / 2k 面 / 1 draw）。
-面数和 draw 都少一个量级，帧率反而只有八分之一。
+**根因一句话：`Mesh.count` 是 three 自己的实例数字段，而 `MarchingCubes` 这个 addon
+把同一个字段当"这一帧写了多少顶点"在用；`three/webgpu` 取实例数时只认字段名，
+于是整具团块每帧被实例化了几千份。**
 
-CPU 采样：主线程 **93% 空闲**，JS 每帧 1.2–2.4ms。**瓶颈在 GPU 提交那一侧。**
+- `RenderObject.getDrawParameters()`：`else if (object.count !== undefined)
+  instanceCount = Math.max(0, object.count)` —— 它不问这个 Mesh 是不是 `InstancedMesh`。
+- `WebGLRenderer` 走的是 `object.isInstancedMesh` 分支，所以同一个 addon 在 WebGL 上没事。
+  **这是 WebGPU 后端独有的字段名冲突**，不是 addon 到处都坏。
+- 症状因此长得很反直觉：1 个 draw call、2k 面，而 `renderer.info` 里一帧 **1200 万面**。
 
-它不是新问题，是一直没被看见的问题：
+修法（`app/src/creature/mass.ts`）：`MarchingCubes` 只当**几何发生器**用，**不进场景图**；
+场景图里放一个共用它 `geometry` 的普通 `Mesh`，那个 Mesh 的 `count` 老老实实是 1。
+一行改动，不加依赖，不碰 res。
 
-- `/dev/mass.html?res=36` 自报 `frame 2.42ms`，实测只有 16 fps；
-  `res` 降到下限 16 也只到 32 fps —— 这个方案唯一的降级旋钮救不回来。
-- 主程序 `?plan=mass`（coral / xeno / char.dumpling）同样是 10 fps。
+实测对照，同一台机器、同一分钟，`?demo=1&theme=<id>&tier=2&debug=1`，
+rAF 计数 4 秒 × 3 轮（方法见 §7）：
 
-**为什么一直没被发现**：团块的 HUD 报的是毫秒，而毫秒一直很好看；只有 fps 那一行
-会说实话。而上面 §7 的取证配方拍的是**静帧** —— 静帧里看不出帧率。
-以后给 B 档方案取证，截图里必须带上 fps。
+| 物种 | 修前 rAF fps | 修后 rAF fps | 面 / draw |
+|---|---|---|---|
+| `coral` | 5.5 | **42–46** | 2.3k / 1 |
+| `char.dumpling` | 6.0 | **43–50** | 2.3k / 1 |
+| `char.ghost` | 7.6 | **48–51** | 2.2k / 1 |
+| `porcelain`（刚体对照） | 37–39 | 37–39 | 87k / 30 实例 / 18 draw |
+
+`/dev/mass.html?res=36`：**8.7 → 99.2 fps**，`renderer.info` 提交面数 12,600k → 2.0k。
+
+**为什么它在眼皮底下待了这么久**：团块的 HUD 报的是毫秒，而毫秒一直很好看
+（JS 每帧 1.2–2.4ms，主线程 93% 空闲 —— 时间全在 GPU 提交那一侧）。
+只有 fps 那一行会说实话，而 dev 页的 fps 当时**没有颜色**；§7 的取证配方拍的又是
+**静帧**，静帧里看不出帧率。三件事凑齐，一个 8 倍的帧率洞就是看不见的。
+
+现在钉住它的有三样，缺一不可：
+
+1. `BUDGET.minFps`（55）+ 两个 HUD 都把低于它的 fps **整行标红**
+   （`shell/hud.ts`、`dev/mass.ts`）。
+2. `dev/mass.html` 的 HUD 多报一行 **`提交 Xk 面/帧`**（`renderer.info.render.triangles`）。
+   它和团块自报的 `三角 N` 对不上，就是有人在偷偷实例化 —— 这次的根因一眼可见。
+3. `packages/app/test/mass-instancing.test.ts`：断言场景图里可画对象的 `count === 1`、
+   且没有 `isMarchingCubes`。**故意不断言帧率** —— 帧率断言在 CI 上必然不稳，
+   而"实例数是不是 1"是同一件事的确定性表述。
 
 ## 3. 接口
 
@@ -258,6 +284,45 @@ A 档条目只填一个字段就换了物种；B 档条目需要一个新模块�
   `?still=N` 是 headless 取证必须的（永不停的 rAF 会把 `--virtual-time-budget` 吊住）。
   **headless 要走 Metal 上的 WebGPU**：`--enable-unsafe-webgpu`，
   不要加 `--use-angle=swiftshader`（swiftshader 下 WebGPU 起不来，截出来是空白页）。
+
+### 帧率怎么量（**静帧不会告诉你它多久才出一帧**）
+
+上面那套拍的是静帧。静帧看不出帧率，而 B 档方案最容易坏的恰恰是帧率 ——
+`mass` 曾经以 1 个 draw call、2k 面的成绩跑在 6 fps 上（见 §2「团块方案曾经……」）。
+**给任何 B 档方案取证，必须另外做这一条。**
+
+1. **用 rAF 计数，不要看 HUD 的毫秒。** 毫秒说的是"我们的 JS 花了多久"，
+   帧率说的是"画面多久换一次"。GPU 那一侧停住的时候，两者可以差一个量级。
+   开 `?debug=1`，在控制台跑：
+
+   ```js
+   // 量 4 秒里真正出了多少帧。跑 3 轮取范围，不要只跑一轮 ——
+   // 开发机上同一配置轮次之间能差 1.5 倍。
+   const fps = (ms = 4000) => new Promise((res) => {
+     let n = 0; const t0 = performance.now();
+     const tick = () => { n++; const d = performance.now() - t0;
+       d < ms ? requestAnimationFrame(tick) : res(+(n / (d / 1000)).toFixed(1)); };
+     requestAnimationFrame(tick);
+   });
+   await fps();   // 先让页面跑满 ~9 秒再量：EMA 要收敛，demo 片段也要进入稳态
+   ```
+
+2. **对照组是刚体路径，不是"感觉还行"。** 同一台机器、同一分钟内量
+   `?demo=1&theme=porcelain&tier=2&debug=1`。团块比它低一个量级就是 bug ——
+   团块的面数和 draw 都少一个量级，**它没有理由更慢**。
+
+3. **看 `renderer.info.render.triangles`，不要只看我们自报的三角数。**
+   `/dev/mass.html` 的 HUD 已经把它报成 `提交 Xk 面/帧`。两个数对不上，
+   说明有人在偷偷实例化或者 `drawRange` 没收住 —— 自报的那个数是我们算的，
+   提交的那个数是真的。
+
+4. **fps 低于 `BUDGET.minFps`（55）时两个 HUD 都会整行标红。**
+   截图取证时**必须把 HUD 一起拍进去**，红的那一行就是结论。
+   见 `scratch/evidence/mass-hud-red-before.png` / `mass-hud-green-after.png`。
+
+5. headless（`--virtual-time-budget`）下的 fps 和毫秒都**不是**真实读数 ——
+   虚拟时钟会把它们拉平。headless 只用来拍 HUD 的**颜色**和**提交面数**，
+   帧率数字一律以交互式 rAF 计数为准。
 
 ## 8. 优先级建议
 

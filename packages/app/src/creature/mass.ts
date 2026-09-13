@@ -22,12 +22,17 @@
  * 按 `tuning.ts` 的规矩本该住在 `tuning.ts`。`tuning.ts` 是冻结契约，我没有自行修改，
  * 所以它们暂时是本模块常量 + `MassOptions` 覆盖。见收尾报告「需要变更契约」。
  *
- * 两个必须知道的实现细节：
+ * 三个必须知道的实现细节：
  *  1. **不要每帧重建对象。** 每帧的开销就是 `reset()` + N 次 `addBall()` + `update()`，
  *     三者都在同一个常驻的 MarchingCubes 上就地做。
  *  2. MarchingCubes 默认整块上传 position/normal 缓冲区（按 `maxPolyCount` 开的，几 MB），
  *     它没设 updateRange。WebGPU 后端是尊重 `addUpdateRange` 的
  *     （`WebGPUAttributeUtils.js:223`），所以这里每帧补上实际用到的那一段。
+ *  3. **MarchingCubes 这个 Mesh 本身绝不能进场景图**（下面 `blob` 那一段）。
+ *     `Mesh.count` 是 three 自己的**实例数**字段（默认 1），而 MarchingCubes 这个
+ *     addon 把它当成"这一帧的顶点数"来写。WebGPU 后端照字段名取实例数
+ *     （`RenderObject.js:623`），于是团块被实例化几千份：2k 面的身体一帧提交 1200 万面。
+ *     这就是团块方案从落地那天起从没跑到过帧率的原因。
  */
 import * as THREE from 'three/webgpu';
 import { MarchingCubes } from 'three/addons/objects/MarchingCubes.js';
@@ -127,12 +132,27 @@ export function createMassBody(opt: MassOptions = {}): MassBody {
   const radiusScale = Number.isFinite(opt.radiusScale) ? opt.radiusScale! : MASS.radiusScale;
   const slotScale: Partial<Record<string, number>> = { ...MASS.slotScale, ...(opt.slotScale ?? {}) };
 
-  // 常驻对象：每帧只 reset + addBall + update，绝不重建（见文件头 §2）。
+  // 常驻对象：每帧只 reset + addBall + update，绝不重建（见文件头 §1）。
   // MarchingCubes 来自 `three` 主构建，我们的场景是 `three/webgpu`——
   // 两份构建里的 Object3D 是不同的类，但运行时全靠 `isMesh` 之类的鸭子类型，
   // 所以这里只需要在类型上过一道桥，运行时没有转换。
+  //
+  // ⚠️ `mc` 在这里只当**几何发生器**用，**不进场景图**（见文件头 §3）。**根因就在这一段。**
+  // `Mesh.count` 在 three 里是实例数（`Mesh.js:104`，默认 1），而 MarchingCubes 这个
+  // addon 把同一个字段当成"这一帧写了多少顶点"在用。`three/webgpu` 取实例数时是：
+  //     else if (object.count !== undefined) instanceCount = Math.max(0, object.count);
+  // （`RenderObject.js:623`）—— 它只看字段，不问这个 Mesh 是不是 InstancedMesh。
+  // 于是整块团块被画了 `count`（res=36 时 ≈6000）遍：1 个 draw call、2k 面的身体，
+  // 一帧真正提交 1200 万面，~100ms。JS 侧只有 1~2ms，所以 HUD 的毫秒数一直是好看的。
+  // （WebGLRenderer 走 `object.isInstancedMesh` 分支，同一个 addon 在 WebGL 上没事 ——
+  //  这是 WebGPU 后端独有的字段名冲突，不是 addon 在所有后端都坏。）
   const mc = new MarchingCubes(res, material as unknown as THREE.Material, false, false, MASS.maxPolyCount);
-  const blob = mc as unknown as THREE.Object3D;
+
+  // 真正进场景图的是这个干净的 Mesh：**共用 mc 的 geometry**（mc.update() 写的就是它，
+  // 连 setDrawRange 也是），但身上没有 `count` 这个属性，所以实例数老老实实是 1。
+  // 世界变换（位置/缩放）也挂在它身上；mc 自己的 transform 不参与渲染。
+  const blob = new THREE.Mesh(mc.geometry as unknown as THREE.BufferGeometry, material);
+  blob.name = 'mass';
   blob.frustumCulled = false;        // 包围球跟着骨架跑，交给 three 算只会误剔
   blob.castShadow = true;
   blob.receiveShadow = true;
@@ -195,6 +215,8 @@ export function createMassBody(opt: MassOptions = {}): MassBody {
     res = r;
     mc.init(res);                  // 重开 field / normal_cache / position / normal 缓冲区
     mc.isolation = MASS.isolation; // init() 会把 isolation 重置回 80，这里重新贴上
+    // init() 是在**同一个** BufferGeometry 上换 attribute，不是换 geometry 对象，
+    // 所以共用它的 blob 不需要重新挂 —— 这一行注释是为了让人别去"修"它。
     stats.resolution = res;
   }
   mc.isolation = MASS.isolation;
