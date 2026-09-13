@@ -51,7 +51,17 @@ function tsFiles(dir: string, out: string[] = []): string[] {
 }
 
 const FILES = cssFiles(UI);
-const stripComments = (s: string): string => s.replace(/\/\*[\s\S]*?\*\//g, '');
+/** 块注释（CSS 与 TS 通用）+ TS 的行注释。
+ *
+ * 行注释这一半是后补的：`stage/scenes.ts` 里有两行 `// …#fafafa…`，
+ * 是在解释色调映射为什么不能直接喂那个值 —— **一句讨论颜色的话不是一处颜色**。
+ * 守卫把它算成违规，等于逼着文档绕开自己要说的那个词。
+ *
+ * `[^:]` 那一段是为了不把 `https://` 的后半行吃掉：URL 里的 `//` 不是注释，
+ * 而把它当注释会让守卫在那一行之后变瞎 —— 一个看不见的漏洞比一条假警报更贵。
+ */
+const stripComments = (s: string): string =>
+  s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
 
 test('CSS：`:root` 不许出现在任何块里面，且括号必须平衡', () => {
   // 断言写得很窄，是故意的。@media 套 @supports 是合法的，按"嵌套深度不超过 2"
@@ -143,6 +153,12 @@ const HEX_ALLOWED: Array<{ file: string; why: string }> = [
   { file: 'stage/look.ts', why: 'STAGE_INK：舞台两侧墨色三元组的定义点，由 publishStageInk 按场景亮度选一侧' },
   { file: 'ui/preview.css', why: '摄像头小屏的底。**一块没有信号的屏幕就是黑的** —— 物理事实，不是主题色' },
   { file: 'slow/slow.ts', why: '剪影遮罩的画布填充。它不是 UI，是喂给生成模型的一张图' },
+  { file: 'shell/boot-error.ts', why: '**起不来时的那一屏。** 它存在的前提就是样式表没加载成功，所以它不能依赖任何令牌 —— 这一处是全仓最不该用 var() 的地方' },
+  { file: 'shell/hud.ts', why: '`?debug=1` 的 HUD，行内样式，观众永远看不到。它是仪表不是画面，用固定色是为了在任何场景下都一眼可读' },
+  { file: 'choose/ring/field.ts', why: 'readVar() 的兜底值。CSS 变量取不到时才用，而取不到正是"样式没加载"那一种情况' },
+  { file: 'choose/cards.ts', why: '卡片是画在 canvas 上的，不是 DOM —— 它拿不到 CSS 变量，颜色只能是具体值' },
+  { file: 'ui/chrome.css', why: 'dev HUD 的警告琥珀色。它是 `--sb-warn` 之外的第二档，只在 `?debug=1` 出现' },
+  { file: 'shell/selftest.ts', why: '开场前自检页。和 boot-error 同一类：它要在"东西可能是坏的"的前提下也能读，所以不依赖样式表' },
 ];
 
 test('CSS/TS：UI 颜色不写十六进制，除非它是令牌的定义点', () => {
