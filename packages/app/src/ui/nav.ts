@@ -152,6 +152,11 @@ export function mountNav(options: NavOptions = {}): Nav | null {
 
   toggle.addEventListener('click', () => setOpen(!open));
 
+  // **默认展开。** 这件作品只有六个面，把它们一次摆出来，观众第一眼就知道这里有什么；
+  // 一个要先点开才看得见的目录，等于赌观众会去点。
+  // 但**点外面仍然收得掉** —— 他要看作品的时候，目录得让开。
+  setOpen(true);
+
   // 点别处收起来。捕获阶段：展开的面板压在 canvas 上，
   // 而 canvas 自己会吞掉 pointerdown（选择页的拖动）
   const onAway = (e: Event): void => {
@@ -164,6 +169,8 @@ export function mountNav(options: NavOptions = {}): Nav | null {
   };
   addEventListener('keydown', onKey);
 
+  // 展开着就不淡出（setOpen(true) 已经把 is-faded 摘掉了）。
+  // 这个定时器只在观众自己收起来之后才有意义。
   if (overlay) {
     setTimeout(() => { if (!open) root.classList.add('is-faded'); }, FADE_AFTER_MS);
   }

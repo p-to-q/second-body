@@ -160,6 +160,28 @@ export const COPY = {
     credit: bi('实时交互装置 · 2026', 'Real-time interactive installation · 2026'),
     enter: bi('开始', 'Enter'),
     learn: bi('了解这件作品', 'About this work'),
+
+    /**
+     * 入口层的那一句。取自作品陈述，是其中**唯一一个问句** ——
+     * 一个问句比一句描述更适合放在观众还没开始之前：它要他先想一下，
+     * 而不是先知道我们做了什么。
+     */
+    question: bi(
+      '一个"我"，究竟可以栖居于多少种身体？',
+      'What kinds of bodies can a self inhabit?',
+    ),
+
+    /**
+     * 展签上的元数据。照美术馆作品标签的写法：标签 + 值，纵向排。
+     * 不写"支持 A、B、C" —— 那是功能清单；这些是**这件作品是什么**的事实。
+     */
+    metaYear: bi('年份', 'Year'),
+    metaYearV: bi('2026', '2026'),
+    metaForm: bi('形式', 'Medium'),
+    metaFormV: bi('实时交互装置 · 姿态捕捉 · 实时生成', 'Real-time interactive installation · pose capture · generative'),
+    metaSpecies: bi('物种', 'Species'),
+    metaDuration: bi('单次时长', 'Duration'),
+    metaDurationV: bi('约 90 秒', 'about 90 seconds'),
   },
 
   /** 作品陈述页 `/about` —— 面向观众和评委，不是面向开发者 */

@@ -64,6 +64,23 @@ function wantsEntry(flags: Flags): boolean {
  * 注意它**不阻塞 boot 的其余部分**：渲染器、资产、模型都在展签后面照常加载，
  * 所以按下「开始」时身体通常已经准备好了。await 的只有 `started`。
  */
+/**
+ * 物种数是现读的。写死一个数迟早会漂 —— 海报那边已经因为这件事出过第 4 版
+ * （`assets/brand/README.md` 的版次表）。读不到就不显示这一行：
+ * 少一行元数据没人会注意，一个错的数字会。
+ */
+let themeCount: number | null = null;
+fetch('/parts/parts.json')
+  .then((r) => (r.ok ? r.json() : null))
+  .then((j: { themes?: unknown[] } | null) => {
+    const n = Array.isArray(j?.themes) ? j.themes.length : 0;
+    if (!n) return;
+    themeCount = n;
+    const dd = document.querySelector('.sb-entry-meta [data-species]');
+    if (dd) dd.textContent = String(n);
+  })
+  .catch(() => { /* 拿不到就是不显示，不是错误 */ });
+
 export function mountEntry(flags: Flags): Entry | null {
   if (!wantsEntry(flags)) return null;
 
@@ -87,10 +104,41 @@ export function mountEntry(flags: Flags): Entry | null {
   foot.className = 'sb-entry-foot';
   foot.append(biNode('p', COPY.privacy.short, 'sb-label'));
 
+  /**
+   * 版面照**美术馆作品标签**排（参照 zkm.de 的作品页）：
+   * 巨题 → 大留白 → 标签化的元数据（标签 + 值，纵向） → 一句问句 → 动作。
+   *
+   * 为什么是这个结构：这件作品就是一件装置，而装置在展厅里就是这样被介绍的。
+   * 它比"标题 + 一句卖点 + 两个按钮"更接近作品应有的语域，
+   * 而且元数据把"这是什么"说清楚了，不用再写一句概括的话去凑。
+   */
+  const meta = document.createElement('dl');
+  meta.className = 'sb-entry-meta';
+  const rows: [{ zh: string; en: string }, { zh: string; en: string } | 'species'][] = [
+    [COPY.entry.metaYear, COPY.entry.metaYearV],
+    [COPY.entry.metaForm, COPY.entry.metaFormV],
+    [COPY.entry.metaSpecies, 'species'],
+    [COPY.entry.metaDuration, COPY.entry.metaDurationV],
+  ];
+  for (const [k, v] of rows) {
+    meta.append(biNode('dt', k, 'sb-label'));
+    if (v === 'species') {
+      // 先占位，parts.json 到货再填（见文件顶部的 fetch）。
+      // 占位是一条短横而不是 0 —— 0 是一个**错的数**，短横是"还不知道"。
+      const dd = document.createElement('dd');
+      dd.dataset.species = '';
+      dd.textContent = themeCount === null ? '—' : String(themeCount);
+      meta.append(dd);
+    } else {
+      meta.append(biNode('dd', v));
+    }
+  }
+
   layer.append(
     biNode('p', COPY.entry.credit, 'sb-label'),
-    biNode('h1', COPY.title),
-    biNode('p', COPY.subtitle, 'sb-entry-lede'),
+    biNode('h1', COPY.title, 'sb-entry-title'),
+    biNode('p', COPY.entry.question, 'sb-entry-lede'),
+    meta,
     actions,
     foot,
   );

@@ -53,13 +53,15 @@
   transition: border-color 180ms;
 }
 /**
- * 焦点态：那条细线亮成强调色，**不用浏览器的方框**。
- * 方框是圆角的、是蓝色的、是系统的语言 —— 在这一屏上它比没有焦点提示更糟。
- * 换掉不等于取消：线本身就是可见的焦点指示，键盘用户照样看得见自己在哪。
+ * 悬停 / 焦点：**只提亮**，不上色。
+ * 强调色是留给"作品自评里的成立／不成立"那一处的（docs/26 §F），
+ * 一个按钮的悬停不是那一处 —— 而且蓝线在这一屏上看着就是脏的。
+ * 线本身仍然是可见的焦点指示，键盘用户照样看得见自己在哪。
  */
 .sb-act:hover, .sb-act:focus-visible {
   outline: none;
-  border-bottom-color: var(--sb-accent);
+  border-bottom-color: var(--sb-ink);
+  color: #fff;
 }
 .sb-act .sb-en { color: var(--sb-ink-dim); }
 
@@ -83,4 +85,82 @@
   pointer-events: none; opacity: 0;
   transition: opacity 180ms cubic-bezier(.4, 0, 1, 1);
   animation: none;
+}
+
+/* ── 作品标签（参照 zkm.de 的作品页）──────────────────────────────────────
+ *
+ * 极简不是"少放东西"，是**层级干净**：一个巨题、一个问句、一组事实、两个动作。
+ * 四层各自有明确的字号与留白，中间不插任何装饰。
+ */
+.sb-entry-title { margin-bottom: 0.15em; }
+
+/* 问句比正文大一档、比标题小很多 —— 它是这一屏唯一需要被"读进去"的一句 */
+.sb-entry-lede {
+  max-width: 34ch;              /* 中文的行长上限比拉丁短，34 个汉字约等于 68 个字母 */
+  margin: 1.6rem 0 0;
+  font-size: var(--sb-size-h2);
+  line-height: 1.4;
+}
+.sb-entry-lede .sb-zh { font-family: var(--sb-kai); letter-spacing: 0; }
+.sb-entry-lede .sb-en { font-size: 0.62em; margin-top: 0.45em; }
+
+/* 元数据：标签 + 值，两列。标签窄且全大写，值左对齐 —— 展签的写法。
+   grid 而不是 flex：两列要对齐，而 dt/dd 是成对出现的。 */
+.sb-entry-meta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.35rem var(--sb-gutter);
+  margin: 2.4rem 0 0;
+  max-width: 34rem;
+}
+.sb-entry-meta dt { margin: 0; align-self: baseline; }
+.sb-entry-meta dd {
+  margin: 0;
+  color: var(--sb-ink);
+  font-size: var(--sb-size-small);
+  line-height: 1.4;
+}
+.sb-entry-meta dd .sb-en { color: var(--sb-ink-dim); }
+
+@media (max-width: 560px) {
+  /* 窄屏两列会挤成两个字一行，改成上下 */
+  .sb-entry-meta { grid-template-columns: 1fr; gap: 0.1rem; }
+  .sb-entry-meta dd { margin-bottom: 0.6rem; }
+}
+
+/* ── 给右上角的目录让位 ──────────────────────────────────────────────────
+ *
+ * 目录默认是展开的（`ui/nav.ts`），面板宽 `min(30rem, 100vw - safe)`。
+ * 展签是满屏的一层，不让位的话巨题会从面板底下穿过去被切掉 —— 实测就是这样。
+ *
+ * 让位的办法是**限内容宽度**，不是给整层加 padding：
+ * 展签的内容本来就该有行长上限（`--sb-measure`），顺着这条限就够了，
+ * 而 padding 会把左下角的留白一起挤掉，那是这一屏的构图。
+ */
+html.sb-has-nav .sb-entry > * { max-width: min(34rem, calc(100vw - 24rem - var(--sb-safe) * 2)); }
+@media (max-width: 900px) {
+  /* 窄屏上目录自己会收（面板宽度跟着视口走），内容不必再让 */
+  html.sb-has-nav .sb-entry > * { max-width: none; }
+}
+
+/* 巨题：展签上最大的字，也是这一屏的锚点。
+ *
+ * **断成两行**（SEE-ME / SEE-U）。一行 nowrap 会从右上角那个面板底下穿过去 ——
+ * `max-width` 拦不住 nowrap 的文字，这是实测出来的。
+ * 而两行本来就是这个字标的样子：行距压到 0.92，两行读成一块。
+ * `width: min-content` 让它在空格处断，不用在 DOM 里插 <br>。 */
+.sb-entry-title {
+  font-size: clamp(2.4rem, 6vw, 5.5rem);
+  letter-spacing: -0.045em;
+}
+.sb-entry-title .sb-zh {
+  display: block;
+  width: min-content;
+  line-height: 0.92;
+}
+.sb-entry-title .sb-en {
+  font-size: 0.22em;
+  letter-spacing: 0;
+  margin-top: 1.1em;
+  line-height: 1.3;
 }

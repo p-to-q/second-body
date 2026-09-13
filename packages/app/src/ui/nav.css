@@ -62,7 +62,9 @@
 /* 展开的那张表。右对齐落在收起态那个词的下面 */
 .sb-nav-panel {
   margin-top: calc(var(--sb-gutter) * 0.6);
-  width: min(30rem, calc(100vw - var(--sb-safe)));
+  /* 22rem 不是 30rem：它是**六条链接**，不是一篇内容。
+     默认展开之后它长期占着画面，宽一寸就多挡一寸作品。 */
+  width: min(22rem, calc(100vw - var(--sb-safe)));
   text-align: left;
   /* 半透明 + 背后虚化：面板盖住作品的时候，作品还在背后。
      这比一块实底更贴这件作品 —— 观众没有"离开画面去看菜单"。 */
@@ -78,7 +80,8 @@
   display: block;
   border: 0;
   border-top: 1px solid var(--sb-rule);
-  padding: 0.7rem 0;
+  /* 0.55 不是 0.7：六条 × 四行，纵向长度是这个面板最占地方的维度 */
+  padding: 0.55rem 0;
   color: inherit;
 }
 .sb-nav-item:first-child { border-top: 0; }
@@ -109,48 +112,24 @@
   background: var(--sb-ink);
 }
 
-/* ── 悬停：**让那句话浮出来**，而不是把这一行点亮 ──────────────────────────
+/* ── 悬停：**只提亮**，不位移、不长线 ────────────────────────────────────
  *
- * 每一条底下都有一句"它能回答什么问题"。平时它退在暗处，悬停时整句亮起来、
- * 并且**往右让开一点** —— 像一页纸被指尖压住之后微微翻起。
- *
- * 为什么不是加高亮或加底色：那是"你选中了它"，而观众此刻还没选，
- * 他在**读**。悬停该回答"这一页是干什么的"，不是确认点击。
- * 这也是 docs/26 §F 反面清单的落点：不加卡片、不加底色、不上色。
+ * 上一版让那句话往右让开 0.45rem、名字左边长出一条线。两个动效单看都不难看，
+ * 合起来是"有东西在动"，而这一屏要的是**平**。
+ * 极简的悬停只需要回答一件事：这一条是活的。亮度足够说这件事。
  */
-.sb-nav-answer {
-  margin-top: 0.25rem;
-  transform: translateX(0);
-  transition: transform 220ms cubic-bezier(.2,.8,.2,1);
-}
+.sb-nav-answer { margin-top: 0.25rem; }
 .sb-nav-answer .sb-zh,
 .sb-nav-answer .sb-en {
   color: var(--sb-ink-dim);
-  font-size: 0.92em;
-  transition: color 220ms;
+  font-size: 0.84em;
+  line-height: 1.35;
+  transition: color 160ms linear;
 }
-.sb-nav-item:hover .sb-nav-answer,
-.sb-nav-item:focus-visible .sb-nav-answer { transform: translateX(0.45rem); }
+/* 默认展开之后这个面板常驻，英文那一行让它更安静一档 —— 并置仍在，只是退后 */
+.sb-nav-answer .sb-en { opacity: 0.62; }
 .sb-nav-item:hover .sb-nav-answer .sb-zh,
 .sb-nav-item:focus-visible .sb-nav-answer .sb-zh { color: var(--sb-ink); }
-
-/* 名字左边一条会长出来的线 —— 悬停时从 0 拉到 0.5rem，和"当前页"那条同宽。
-   于是"我在看哪一条"和"我在哪一页"用的是同一个记号，只是一个会动。 */
-.sb-nav-item:not(.is-here) { position: relative; }
-.sb-nav-item:not(.is-here)::before {
-  content: '';
-  position: absolute;
-  left: -0.85rem; top: 1.05em;
-  width: 0; height: 1px;
-  background: var(--sb-ink-dim);
-  transition: width 220ms cubic-bezier(.2,.8,.2,1);
-}
-.sb-nav-item:not(.is-here):hover::before,
-.sb-nav-item:not(.is-here):focus-visible::before { width: 0.5rem; }
-
-@media (prefers-reduced-motion: reduce) {
-  .sb-nav-answer, .sb-nav-item::before { transition: none; }
-}
 
 /* ── 浮在画布上的那一份 ────────────────────────────────────────────────────
  * 满屏 canvas 的页面上，目录 4 秒后淡下去 —— 和 `ui/page.ts` 的浮层页头

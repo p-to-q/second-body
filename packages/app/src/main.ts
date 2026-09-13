@@ -40,7 +40,6 @@ import { showNotice } from './shell/notice.ts';
 import { mountNav } from './ui/nav.ts';
 import { mountControls, type Controls } from './ui/controls.ts';
 import { createHud } from './shell/hud.ts';
-import { mountWordmark } from './ui/wordmark.ts';
 import { createSound } from './sound/sound.ts';
 import { createCues } from './sound/cues.ts';
 import { COPY } from './ui/i18n.ts';
@@ -122,8 +121,6 @@ async function boot(): Promise<void> {
   });
 
   enterKiosk(renderer.domElement, flags);
-  // 左上角常驻字标。满屏画布页 4 秒后淡下去，但不消失 —— 它是说明牌。
-  mountWordmark({ fade: true });
   const hud = flags.debug ? createHud() : null;
 
   // ── 3. 等资产（上面早就在跑了）──────────────────────────────────────────
