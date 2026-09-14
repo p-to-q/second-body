@@ -43,6 +43,29 @@ export interface SlotRender {
   scale?: number;
   /** 沿骨头轴（关节盖片沿"离开骨盆"方向）外移多少米，用于组装动画 */
   offset?: number;
+  /**
+   * 沿骨头轴再挪**骨长的几分之几**（关节盖片没有骨长，忽略）。
+   * 忒修斯替换的墨屑用它沿骨头摆开（`replace-event.ts`）
+   */
+  along?: number;
+  /** 垂直于轴向外挪多少米，方向由 `angle`（绕轴的弧度）定。墨屑用它散开 */
+  lateral?: number;
+  angle?: number;
+}
+
+/** 垂直于 `dir` 的一个方向，绕轴转 `angle`。退化（dir 贴着 Z）时换一根参考轴 */
+function lateralInPlace(m: Mat4, dir: Vec3, dist: number, angle: number): void {
+  if (!dist) return;
+  const ref: Vec3 = Math.abs(dir[2]) > 0.9 ? [1, 0, 0] : [0, 0, 1];
+  let u: Vec3 = [dir[1] * ref[2] - dir[2] * ref[1], dir[2] * ref[0] - dir[0] * ref[2], dir[0] * ref[1] - dir[1] * ref[0]];
+  const l = Math.hypot(u[0], u[1], u[2]) || 1;
+  u = [u[0] / l, u[1] / l, u[2] / l];
+  const v: Vec3 = [dir[1] * u[2] - dir[2] * u[1], dir[2] * u[0] - dir[0] * u[2], dir[0] * u[1] - dir[1] * u[0]];
+  const c = Math.cos(angle) * dist;
+  const s = Math.sin(angle) * dist;
+  m[12] += u[0] * c + v[0] * s;
+  m[13] += u[1] * c + v[1] * s;
+  m[14] += u[2] * c + v[2] * s;
 }
 
 export interface AssembleOptions {
@@ -230,7 +253,8 @@ function place(
         axisLength: isFoot ? footLength(bone.length, bodyScale) * s : undefined,
         anchor: isFoot ? FOOT.anchor : 0,
       });
-      translateInPlace(matrix, dir, finite(r.offset ?? 0, 0));
+      translateInPlace(matrix, dir, finite(r.offset ?? 0, 0) + finite(r.along ?? 0, 0) * finite(bone.length, 0));
+      lateralInPlace(matrix, dir, finite(r.lateral ?? 0, 0), finite(r.angle ?? 0, 0));
 
       out.push({
         key: bone.id,
@@ -276,6 +300,7 @@ function place(
       const matrix: Mat4 = new Array(16).fill(0);
       jointMatrix(p, (radiusMeters * s) / Math.max(1e-4, meta.localGirth), matrix);
       translateInPlace(matrix, dir, finite(r.offset ?? 0, 0));
+      lateralInPlace(matrix, dir, finite(r.lateral ?? 0, 0), finite(r.angle ?? 0, 0));
 
       out.push({
         key: `joint:${capDef.joint}`,

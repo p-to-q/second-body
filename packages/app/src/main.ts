@@ -708,7 +708,10 @@ async function boot(): Promise<void> {
       // 借不到就是这一件不发生 —— 不抛、不等、不退化成"换了个一模一样的"（P3）。
       if (g) {
         swapped.set(step.fired.slot, g.slots[step.fired.slot]);
-        creature.remorph(getDegradeState().placeholder ? toPlaceholderGenome(g) : g);
+        // 不是交叉淡入：旧件碎开、新件装上、描边不断（docs/44 §7，形状在 `creature/replace-event.ts`）。
+        // 这一下当帧开始，所以下面那一声和画面上的碎开是同一帧
+        const shown = getDegradeState().placeholder ? toPlaceholderGenome(g) : g;
+        creature.replace(step.fired.slot, shown.slots[step.fired.slot]);
         // docs/40 §5 第 3 条（2026-09-14 改的挂点）+ docs/44 §7：
         // 升档音原来挂在四个乐章的交接上，而 docs/44 §6 之后那四个点不再是事件 ——
         // 一个挂在不再发生的东西上的声音等于没有声音。挪到**每一次替换**上：
