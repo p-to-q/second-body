@@ -332,7 +332,7 @@ URL 都是 `/?demo=1&debug=1&theme=porcelain&seed=7&theseus=off&arc=900&nopost=1
 
 | 症状 | 根因 | 证据 |
 |---|---|---|
-| S1 | `stepCrop()` 第一行 `if (input.snap) return CROP_FULL;`（autoframe.ts:468）。`snap = seen.state !== 'ok'`（preview.ts:232）。而**最常见的缩小正好走这条**：上半身 → `stepping-back` 那一帧 `upperIsIntended` 变 false（`decide()`），`outOfFrame()` 开始数画面下边的腿 → 0.45 秒后 `partial` → snap | 放大到 1.299 之后 snap 一帧：**zoom 1.299 → 1.000** |
+| S1 | `stepCrop()` 第一行 `if (input.snap) return CROP_FULL;`（autoframe.ts:468）。`snap = seen.state !== 'ok'`（preview.ts:232）。**放大着的时候来了任何一句告警**就走这条：典型是光线塌了 —— 分类器在坏光下保持上半身（`active` 仍然是 true），小屏 0.45 秒后说「站到亮一点的地方」→ 当帧退回整幅。（本节初稿写的是"退后这条最常见的缩小走它"，**取证推翻了**：退后时 `active` 先变 false，弹簧先把放大收回去，等告警到时已经没剩多少，见 6.6） | 放大到 1.299 之后 snap 一帧：**zoom 1.299 → 1.000**；合成时间线 `light` 上逐帧量：**0.288 / 16ms** |
 | S2 | `stepShot()` 里 `if (input.hold) return { progress: target, … }`（autoframe.ts:410），`hold = degraded ∥ throttled ∥ governor.sheds('post')`（main.ts:1062）。§5.4 当时的裁定是"画面不动比卡着动好"，但它把"跟随冻结"和"景别直接切"绑在了一起 | `hold` 下一帧 **progress 0 → 1** |
 | S3 | `mediapipeToWorld()` 只读 `raw.world`（skeleton.ts:111），而 MediaPipe 的 world 坐标**以胯中点为原点** —— 人在画面里站哪儿，胯永远在 0。单人时 `lineup()` 返回 0（people.ts:473），main.ts 只在多人时平移骨架。中景跟随的目标是那具身体头胸的 x（stage.ts:926），也就只剩前倾 | 胯中点在画面 cx = 0.2 与 0.8 时，骨架 `pelvis` 都是 **[0, 0, 0]** |
 | S4 | `outOfFrame()` 只数**可信**点（preview-state.ts:128）。MediaPipe 对画外的点给低可见度（autoframe.ts:116 那段注释说的正是头出上边时的同一件事），于是半个人出了左右边时画外点根本不可信，数不出 3 个。分类器那边肩不可信 → `upper = false` → `abnormal` → 全景，**舞台缩了，却没有一句话** | 全身站在 cx = 0.1 / 0.03 / −0.02 / −0.08：`outOfFrame` 全是 **0**，`seeState` 全是 **ok**；后三个 `frameEvidence().upper = false` |
@@ -376,3 +376,58 @@ URL 都是 `/?demo=1&debug=1&theme=porcelain&seed=7&theseus=off&arc=900&nopost=1
 - 只要摄像头**已知在取景**（`getSettings().faceFraming === true`，每秒读一次），分类器把"腿不在"当成预期：进上半身走快档、不用"尺度在缩"判退后（摄像头自己在缩放）；引导与 WRN12 不为画面下边说话。HUD 的 `cam` 行写上它；小屏只挂一个 `title`，**不加常驻字**（作品负责人不喜欢冗余提示）。
 - "检测到"只指 `getSettings()` 报的：网页侧没有别的办法知道系统在裁（§1.3），本轮不做画面启发式。
 - **不进控件条。** docs/23 §S4.1 的规矩是面板上每一项按下去当场看得见，而今天的稳定版 Chrome 不暴露 `faceFraming` —— 大多数观众按下去什么都不会发生；控件表的 `available()` 只知道开机时的身体方案，不知道摄像头的能力。所以只做 URL 开关。
+
+### 6.4 落地
+
+**一个控制器，不是一堆特例。** 小屏裁切、中景跟随、身体的横向根偏移都走 `core/src/autoframe.ts` 的 `stepFollow()`：
+目标去抖（One Euro，`filter.ts` 的 `oneEuroStep`，和精化器同一份数学）→ 速度前馈（有上限）→ 夹住范围 → 稳定延迟（漏桶）→ 死区 + 二次过渡带 → 闭式临界阻尼弹簧 → 限速。
+6.5 对照表里每一条"采纳 / 改造"都是这里的一个参数；参数缺省时整条退回原来那个弹簧。数全在 `tuning.ts` 的 `AUTOFRAME`。
+
+| 做什么 | 在哪 | 测试 |
+|---|---|---|
+| 降级 hold 不再切景别（只冻结跟随）；小屏告警 0.2 秒**限速**退回整幅 | `autoframe.ts` 的 `stepShot` / `stepCrop` | `core/test/autoframe-continuity.test.ts`（随机决策序列，每 16ms 上限）；`autoframe.test.ts` 两条改写 |
+| 控制器的四个新参数：稳定延迟、限速、前馈、去抖 | `stepFollow`；`filter.ts` 的 `oneEuroStep` | `autoframe-controller.test.ts` 4 条 |
+| 小屏：放大比平移慢、眼睛在窗口上三分之一、量不到时先停 1 秒再放、分辨率下限；减少动态 / 画里有别的有身体的人时不裁 | `stepCrop` / `cropTarget` / `cropZoomLimit`；`ui/preview-state.ts` 的 `cropActive`；`ui/preview.ts` | `autoframe-controller.test.ts` 4 条；`app/test/framing-lateral.test.ts` |
+| 横向证据（躯干坐标，按边外比例报侧边）与横向根偏移（停在边上 / 跟丢 1 秒回中线 / 换人停住 / 坏光冻结 / 多人让位） | `lateralEvidence` / `stepLateral`；躯干尺度与"画面 x → 米"抽成 `torsoScale` / `imageToStageX`，`people.ts` 改用它们（全仓库只有一份） | `autoframe-lateral.test.ts` 15 条（6.3 二那张表每一行一条） |
+| 舞台相机的几何抽成纯函数；横向余量；中景跟随改成头胸**相对骨盆**；天幕的晕跟着身体横向走（多人时留中线） | `stage/framing.ts` 的 `shotCamera` / `lateralRoom`；`stage/stage.ts` | `framing-lateral.test.ts`：t = 0 逐字等于全景、任意景别序列下视角与移轴每 16ms 有上限 |
+| 帧循环：横向根偏移叠在多人站位上；跟丢时没有新骨架也重新平移（身体和接触阴影一起挪）；HUD `framing` 行多一段"侧" | `main.ts`、`shell/hud.ts` | `framing-lateral.test.ts` HUD 一条 |
+| 引导：侧边排在「往后退一点」前面；那一侧一条细边；WRN12 同一把尺子；两句新文案 | `preview-state.ts` / `preview.ts` / `preview.css` / `readout-state.ts` / `i18n.ts`（`outLeft` / `outRight`） | `framing-lateral.test.ts` 5 条 |
+| `?camframing=auto\|on\|off`；分类器与 `decide()` 接 `cameraFraming` | `capture/cam-framing.ts`（纯）、`capture/webcam.ts`（开机请求一次、约每秒重读）、`shell/kiosk.ts` | `app/test/cam-framing.test.ts` 6 条（假 track：被拒、同步抛、永不 resolve、方法本身抛） |
+| 工作台：目标窗口、死区、实际窗口、横向余量 / 目标 / 死区、20 秒曲线；逐帧读数挂在 `window.__framingTrace` | `dev/framing.{html,ts}`、`dev/framing-sim.ts`（照抄 main.ts 取景那几行的纯模拟）、`scripts/framing/trace.ts` | 取证见 6.6 |
+
+### 6.5 对照：成熟实现做对了、我们原来没做的（作品负责人追加要求）
+
+"他们"一栏的来源见 §1.2 / §2.2（obs-face-tracker、obs-detect、ChromiumOS `auto_framing_client`、Zoom、Meet、Center Stage、Studio Effects、NVIDIA Broadcast）。GPL 的几份**只读思路、没抄码**，所有实现按行为重新推导。
+
+| 他们的行为 | 我们原来 | 裁定 |
+|---|---|---|
+| 小动不重新取景：死区 + 滞回（obs-face-tracker 的死区 + 二次过渡带） | 有：`stepFollow` 死区 + 过渡带，分类器漏桶 | **保留**；推广到横向根偏移（5cm） |
+| 人停稳之后才重新取景（ChromiumOS 1 秒稳定期；Meet 不用虚拟背景时只框一次） | 没有：死区外每帧追 | **改造**：`settle` 漏桶 —— 中景 0.3 秒、小屏 0.25 秒。横向根偏移**不用**：镜子的因果不能等 |
+| 速度 / 加速度有上限，缓入缓出、不过冲（PID、临界阻尼） | 临界阻尼有；速度上限没有（大距离时峰值 ≈ 0.37·ω·距离） | **采纳**：`maxSpeed`（中景 0.4 m/s、小屏平移 0.6/s、放大 0.8/s、横向 1.5 m/s） |
+| 放大有上限，裁切窗口不低于分辨率下限 | 上限 1.3× 有；下限没有 | **采纳**：`cropZoomLimit`（源像素 / 显示像素 ≥ 1，480p 摄像头上不放大） |
+| 裁切窗口不出源画面；人贴边时平移而不是切掉人 | 有：窗口中心夹在画面内 | **保留**；舞台上的对应物是新加的横向余量 `lateralRoom` |
+| 头顶留白：眼睛在上三分之一；运动方向留空 | 固定偏移（肩与鼻子中点 + 0.08） | **采纳**眼线（`previewEyeLine` = 1/3）；**改造**运动方向留空 = 小屏前馈（≤ 0.04 画面宽）；舞台相机不跟，不适用 |
+| 跟丢：先停，超时后慢慢放回全景，不是一下子弹回去 | 小屏：头肩量不到时当帧开始缩；横向：没有 | **采纳**：小屏停 1 秒再放；横向停 1 秒再回中线；分类器 4 秒回全身（原有） |
+| 重新找到：从停着的地方接着走，没有跳 | 弹簧从当前值起步，本来就连续 | **保留**，加了两条测试（小屏、横向） |
+| 多人：框整组或保持主角，两者之间有滞回（Zoom Group / Individual） | 舞台：有伴随身体一律全景（docs/50）；小屏只看主身体；`numPoses = 1` 时 MediaPipe 来回跳没人管 | **改造**：小屏在画里有别的有身体的人时不裁（= 整组 = 整幅）；`numPoses = 1` 的来回跳当成换人（停住，新位置稳定 0.5 秒才跟） |
+| 有人进 / 出组 | docs/50 的进出场曲线 + 站位弹簧 | **不适用**（已有）；横向根偏移让位给站位，两个弹簧叠加连续 |
+| 检测抖动先低通（One Euro）再进控制器 | 没有，全靠死区 | **采纳**：`jitter` 参数 |
+| 快速横穿：速度前馈 / 预判，有上限 | 没有 | **采纳（有上限）**：小屏 0.25 秒 ≤ 0.04；横向 0.12 秒 ≤ 0.1 m（停下时最多冲过 0.1 m，测试钉住）；中景 ±12cm 里用不上 |
+| 坐下 / 站起 | 分类器上半身 ↔ 全身、腿站姿 | **不适用**（已有）；连续性守卫与 `sitstand` 时间线覆盖 |
+| 身后的人被认成主角 | 分类器：尺度一帧跳 > 35% 清空趋势窗口 | **采纳到横向**：位置或尺度一帧跳 → 停住 |
+| 光线 / 置信度塌了：冻结取景，不漂 | 分类器保持模式；小屏说「站到亮一点的地方」并退回整幅 | 横向**采纳**（冻结）；小屏**不冻结**，照旧诚实退回 —— 它是指示灯，不是会议摄像头 |
+| 减少动态 | 景别 0.15 秒、中景不跟随 | **采纳**：小屏不裁切；横向照跟（观众自己的动作，6.3 一） |
+| 关掉时平滑回到全景 | 策略 full 有 1 秒过渡；降级时一帧切 | **采纳**：降级也按时间走完；`?camframing=off` 撤掉系统取景 |
+| 放大比平移慢（obs-face-tracker 的 z 轴衰减） | 同一个 ω | **采纳**：`previewZoomOmega` 2.5 < `previewOmega` 4 |
+| 对准脸取景（Center Stage、Studio Effects、NVIDIA、`faceFraming`） | 不知道它开没开 | **不适用于我们的取景**（要全身）；改成**读它**：`?camframing=` |
+| 云台 PTZ 真转 | — | **不适用**：只读能力，不动云台（§3.2 固定机位 + 地面站位线） |
+
+### 6.8 仍然没做的、可能还不对的
+
+1. **景别走到一半反向时速度一帧翻转**（6.2 末尾，3.0/s）。位置连续、在守卫之内，读起来像顿一下；要改得把景别进度换成二阶的，本轮不做。
+2. **没接过真人摄像头。** 全部证据来自合成的"画面里的人"（node 与无头 Chrome 工作台）。`faceFraming` 在稳定版 Chrome 上拿不到，`on` / `off` 只在假 track 上跑过。
+3. **横向折算用"一个躯干长 = 0.5 米"**（和 docs/50 同一个数），离得远近、弯腰、侧身都会让尺度偏；死区吃掉小误差，大误差没在现场量过。
+4. **横向前馈停下时最多冲过 0.1 米**，和"不过冲"有张力。现场如果读成"身体比我多走了一步"，把 `lateralLead` 调成 0。
+5. **小屏的 `title` 看不见**：这一块指针穿透（`pointer-events: none`），悬停不出字。它只给无障碍与检查用；看得见的说明在 HUD。
+6. **`dev/framing-sim.ts` 手抄了 main.ts 的接线顺序。** main.ts 改了，模拟不会自动跟；取证数字只对当前这一版成立。
+7. **回放录制仍然没有 `screen`**（§5.7 第 4 条）：`?demo=1` 上横向与侧边话都演示不了。
