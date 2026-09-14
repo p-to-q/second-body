@@ -142,8 +142,13 @@ if (mode === 'swap') {
     if (process.env.BYTES_ONLY === '1') { ws.close(); kill(); process.exit(0); }
   }
   // 读数默认收着、收着时不写 DOM —— 打开它，is-present 才是首个姿态的证据
+  // STEPS=1 → 每一步打一行（排查"卡在哪一步"：截图要等页面出一帧，页面不出帧时它永远不返回）
+  const step = (s: string) => { if (process.env.STEPS === '1') console.log(`step ${((Date.now() - tNav) / 1000).toFixed(1)}s ${s}`); };
+  step('before readout click');
   await evalJs(`document.querySelector('.sb-readout-bar')?.click()`);
+  step('after readout click');
   await sleep(6000);   // replay settles
+  step(`raf count ${await evalJs('window.__probe.raf.length')}`);
 } else {
   await send('Page.navigate', { url: `${base}/?theme=porcelain&debug=1` });
 }
