@@ -1889,18 +1889,18 @@
     "tier": 1,
     "file": "foreArm.wheelleg.limx.glb",
     "family": "wheelleg",
-    "localGirth": 0.8498,
-    "triCount": 5000,
+    "localGirth": 0.8495,
+    "triCount": 4000,
     "aabb": {
       "min": [
         -0.08398693807794427,
         0,
-        -0.42492446668904693
+        -0.4247413556321909
       ],
       "max": [
         0.08398693807794427,
         1,
-        0.42492446668904693
+        0.4247413556321909
       ]
     },
     "symmetry": "mirror",

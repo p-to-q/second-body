@@ -366,7 +366,8 @@ const ADOPTED = [
   { id: 'head.wheelleg.limx',     slot: 'head',     family: 'wheelleg', origin: 'wl_p311d', asset: 'LF_hip.STL',    why: '头（代）。这台机器没有头，用前左髋 HAA 执行器座当 sensor pod；girth 0.848 ≈ head 中位数的 0.90×' },
   { id: 'clavicle.wheelleg.limx', slot: 'clavicle', family: 'wheelleg', origin: 'wl_p311d', asset: 'RF_hip.STL',    why: '肩座。前右髋座 —— 腿从机身伸出去的那一节' },
   { id: 'upperArm.wheelleg.limx', slot: 'upperArm', family: 'wheelleg', origin: 'wl_p311d', asset: 'LF_thigh.STL',  why: '前腿大腿' },
-  { id: 'foreArm.wheelleg.limx',  slot: 'foreArm',  family: 'wheelleg', origin: 'wl_p311d', asset: 'LF_calf.STL',   why: '前腿小腿' },
+  // maxTris：交接那一帧 foreArmL 替换 + foreArmR 交叉淡入同时在画，两件 ~5000 面让描边后到 250,840（swap-budget.test.ts）
+  { id: 'foreArm.wheelleg.limx',  slot: 'foreArm',  family: 'wheelleg', origin: 'wl_p311d', asset: 'LF_calf.STL',   maxTris: 4000, why: '前腿小腿' },
   { id: 'hand.wheelleg.limx',     slot: 'hand',     family: 'wheelleg', origin: 'wl_p311d', asset: 'LF_wheel.STL',  why: '前轮。四足里前腿的末端就是手 —— 这台机器的手是轮子。girth 0.999 超出 hand 带（≈1.6×），只给自己用、不外借' },
   { id: 'thigh.wheelleg.limx',    slot: 'thigh',    family: 'wheelleg', origin: 'wl_p311d', asset: 'LH_thigh.STL',  why: '后腿大腿' },
   { id: 'shin.wheelleg.limx',     slot: 'shin',     family: 'wheelleg', origin: 'wl_p311d', asset: 'LH_calf.STL',   why: '后腿小腿' },
