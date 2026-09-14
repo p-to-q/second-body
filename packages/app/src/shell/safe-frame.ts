@@ -21,6 +21,8 @@ export interface FrameStats {
   degraded: DegradeStage | null;
   /** 正在无人降帧（见 shell/idle.ts） */
   throttled: boolean;
+  /** stub（先红） */
+  frameMs: number;
 }
 
 export interface SafeFrameOptions {
@@ -55,7 +57,7 @@ export function createFrameLoop(
   const degradeAfter = opt.degradeAfter ?? 30;
   const stats: FrameStats = {
     fps: 0, cpuMs: 0, frames: 0, errors: 0, lastError: null,
-    consecutiveErrors: 0, degraded: null, throttled: false,
+    consecutiveErrors: 0, degraded: null, throttled: false, frameMs: 0,
   };
   const seen = new Set<string>();
   let raf = 0;

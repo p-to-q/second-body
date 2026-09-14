@@ -72,6 +72,23 @@ export interface Governor {
   reset(): void;
 }
 
+export interface Deferral<T> {
+  offer(item: T, now: number, shed: boolean): T[];
+  tick(now: number, shed: boolean): T[];
+  readonly pending: number;
+  reset(): void;
+}
+
+/** stub（先红） */
+export function createDeferral<T>(_maxSeconds: number): Deferral<T> {
+  return {
+    offer(item) { return [item]; },
+    tick() { return []; },
+    get pending() { return 0; },
+    reset() {},
+  };
+}
+
 const CAP = 4096;
 const LT_CAP = 128;
 
