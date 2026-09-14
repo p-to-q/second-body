@@ -21,6 +21,7 @@
  */
 import './archive.css';
 import { mountPageHead } from '../src/ui/page.ts';
+import { withFrom } from '../src/ui/return-to.ts';
 
 interface Item {
   href: string;
@@ -103,7 +104,10 @@ for (const group of GROUPS) {
 
   for (const item of group.items) {
     const row = document.createElement('a');
-    row.href = item.href;
+    // 不在工作台里、也不是舞台（`/`、`/?…`）的目标带上来处：侧室和文档页的横带据此指回这一页。
+    // 舞台不读 from，工作台里的仪器页有 devnav，二者都不带
+    row.href = item.href.startsWith('/dev/') || item.href === '/' || item.href.startsWith('/?')
+      ? item.href : withFrom(item.href, location.pathname);
     // 一行一条：左边名字 + 路径，右边那句话。行与行之间只有一条细线
     row.style.cssText =
       'display:grid;grid-template-columns:16rem 1fr;gap:var(--sb-gutter);' +

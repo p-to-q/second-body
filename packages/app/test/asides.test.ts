@@ -48,7 +48,7 @@ test('from 拒掉站外地址、javascript: 和白名单外的路径，拒掉之
   const bad = [
     'https://evil.example/about', '//evil.example', '/\\evil.example', '\\\\evil.example',
     'javascript:alert(1)', 'JavaScript:alert(1)', ' /about', '/about ', '/about\n',
-    '/about?x=1', '/about#top', 'about', '/', '/dev/', '/dev/figure.html', '/unknown',
+    '/about?x=1', '/about#top', 'about', '/', '/dev/figure.html', '/dev/index.html/x', '/unknown',
     '/%2F%2Fevil.example', '/..//evil.example', 'data:text/html,hi', '',
   ];
   for (const raw of bad) {

@@ -316,7 +316,9 @@ export const COPY = {
    * 「回到作品」和 `about.back` 同一句话：出口说的是同一件事，不另起一个词
    */
   devnav: {
-    workbench: bi('返回工作台', 'Workbench'),
+    workbench: bi('返回工作台', 'Back to the workbench'),
+    /** 作为「返回〈来处〉」里的那个名字（`ui/return-to.ts` 的 RETURN_PAGES）。和上一行拼出来是同一句话 */
+    home: bi('工作台', 'the workbench'),
     exit: bi('退出 · 回到作品', 'Back to the work'),
   },
 

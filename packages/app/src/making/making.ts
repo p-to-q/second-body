@@ -27,6 +27,7 @@ import { COPY, setBi, type BiText } from '../ui/i18n.ts';
 import { markNode } from '../ui/mark.ts';
 import { mountNav } from '../ui/nav.ts';
 import { heroMeta } from '../ui/hero.ts';
+import { fromSearch } from '../ui/return-to.ts';
 import { setBiLinked } from '../ui/aside.ts';
 import { MAKING_TIMELINE_ASIDES } from '../ui/asides.ts';
 
@@ -80,7 +81,7 @@ function section(root: Element, id: string, heading: BiText, note?: BiText): HTM
 function renderHeader(root: Element): void {
   const head = el('header', 'ed-hero', root);
 
-  head.append(heroMeta('/about'));
+  head.append(heroMeta('/about', fromSearch(location.search)));
 
   el('hr', 'ed-rule ed-rule--heavy', head);
 
