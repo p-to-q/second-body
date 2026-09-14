@@ -72,6 +72,11 @@ export interface ReadoutInput {
    * 录像的每一帧 score 都过线，而录像里的人不在现场 —— 读数只替摄像头说话。缺省 = 摄像头。
    */
   live?: boolean;
+  /**
+   * 上半身是正当取景（docs/49 §落地）。WRN12 用的是小屏同一把尺子 `outOfFrame()`，
+   * 这个开关也原样递过去：从画面下边出去的腿不是"部分出画"，头被切照样是。缺省 false
+   */
+  upperIsIntended?: boolean;
 }
 
 export interface Readout {
@@ -311,7 +316,7 @@ export function assess(input: ReadoutInput, inferred = true): Assessment {
     const total = (pose!.screen?.length ? pose!.screen : pose!.world)?.length ?? 0;
     if (seen !== null && total > 0 && seen < total / 2) {
       levels.joints = 'alarm'; hit.add('ALM01');
-    } else if (pose!.screen?.length && outOfFrame(pose!.screen) >= PREVIEW.outOfFramePoints) {
+    } else if (pose!.screen?.length && outOfFrame(pose!.screen, input.upperIsIntended) >= PREVIEW.outOfFramePoints) {
       // **出画不给「关节」那一行上色。** 出画的点照样是看得见的点：截图上 33/33 被涂成琥珀，
       // 读起来是"全都看见了，但有问题"—— 一行数和它的颜色自相矛盾。出画这件事没有哪一行在量，
       // 所以它只出现在最底下那一行的代码里。

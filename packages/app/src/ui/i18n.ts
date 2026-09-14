@@ -601,6 +601,7 @@ export const COPY = {
     groups: {
       form: bi('形体', 'Form'),
       scene: bi('画面', 'Scene'),
+      framing: bi('取景', 'Framing'),
       act: bi('玩法', 'Act'),
       look: bi('看起来', 'Look'),
       species: bi('身体', 'Species'),
@@ -611,6 +612,7 @@ export const COPY = {
     groupNotes: {
       form: bi('同一个你，换一具身体的骨架', 'Same you, a different skeleton'),
       scene: bi('它站在什么地方', 'Where it is standing'),
+      framing: bi('只露上半身也行。自动会跟着你切', 'Upper body is fine. Auto follows you'),
       act: bi('它和你是什么关系。弧线会自己走完四段', 'What it is to you. The arc walks all four itself'),
       look: bi('它为什么看起来像活的', 'Why it reads as alive'),
       species: bi('它是什么物种。换物种要重新建身体', 'Which species. Changing this rebuilds the body'),
@@ -675,6 +677,16 @@ export const COPY = {
       backlit: { name: bi('逆光', 'Backlit'), note: bi('只剩一圈轮廓光', 'Only a rim of light left') },
     },
 
+    /**
+     * 取景策略（`core/src/autoframe.ts`，docs/49 §落地）。说明写的是**画面上会看到什么**，
+     * 不是"分类器"—— 观众不需要知道有一个分类器，他需要知道坐着也行、退后会看见全身。
+     */
+    framing: {
+      auto: { name: bi('自动', 'Auto'), note: bi('坐近看上半身，退后看全身', 'Close: upper body. Step back: all of it') },
+      full: { name: bi('全身', 'Full'), note: bi('一直是等身的整个人', 'Always the whole body, life-size') },
+      upper: { name: bi('上半身', 'Upper'), note: bi('一直是中景，腿站着不动', 'Always a medium shot; legs stand still') },
+    },
+
     /** 四个玩法（docs/16） */
     act: {
       follow: { name: bi('跟随', 'Follow'), note: bi('它就是你', 'It is you') },
@@ -723,6 +735,7 @@ export const COPY = {
       toggle: bi('显示 / 藏起这条', 'Show / hide this bar'),
       form: bi('下一个形体 · 回到弧线', 'Next form · back to arc'),
       scene: bi('下一套画面', 'Next scene'),
+      framing: bi('取景：自动 · 全身 · 上半身', 'Framing: auto · full · upper'),
       act: bi('下一个玩法 · 回到弧线', 'Next act · back to arc'),
       vitality: bi('跟随延迟', 'Lag'),
       refine: bi('时域精化', 'Smoothing'),

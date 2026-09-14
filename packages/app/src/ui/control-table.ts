@@ -31,6 +31,7 @@
  * 没有插件机制、没有注册表：只有一个数组和几个从它推出来的函数。
  */
 import { ARC_ACTS } from '../../../core/src/arc.ts';
+import { FRAMING_POLICIES, isFramingPolicy, type FramingPolicy } from '../../../core/src/autoframe.ts';
 import { BODY_PLANS, PLANS_WITHOUT_PARTS } from '../../../core/src/bodyplan.ts';
 import { SCENE_IDS } from '../stage/scenes.ts';
 import { intentFromFlags } from '../shell/intent.ts';
@@ -49,6 +50,8 @@ export interface ControlValues {
   species: string | null;
   refine: boolean;
   post: boolean;
+  /** 取景策略（`core/src/autoframe.ts`）。`auto` = 听分类器 */
+  framing: FramingPolicy;
 }
 export type ValueId = keyof ControlValues;
 export type ControlId = ValueId | 'roll';
@@ -58,7 +61,7 @@ export type ControlKind = 'toggle' | 'overlay' | 'choice' | 'action';
  * 组，也就是面板从上到下的顺序。
  * `look` 是观众会选的（「看起来」）；`ab` 是工程对照，排最后、字更轻。
  */
-export const GROUPS = ['form', 'scene', 'act', 'look', 'species', 'random', 'ab'] as const;
+export const GROUPS = ['form', 'scene', 'framing', 'act', 'look', 'species', 'random', 'ab'] as const;
 export type GroupId = (typeof GROUPS)[number];
 
 /** 面板要知道的、会影响"哪些项在、要不要重载"的开机事实 */
@@ -125,6 +128,14 @@ export const CONTROLS: readonly ControlDef[] = [
     fromFlags: (f) => f.scene,
     url: { param: 'scene', write: (v) => v as string },
     roll: { slot: 2, param: 'scene', options: SCENE_IDS },
+  },
+  {
+    // 取景（docs/49 §落地）。**第一项 auto 就是"交回分类器"**：full / upper 是叠在分类器上的一条，
+    // 再选 auto 就撤掉 —— 没有一个按钮能锁住系统（docs/23 §S4.1）。热切，不重载：
+    // 景别、腿、小屏裁切、引导都在帧循环里每帧读它。随机不抽它：它是给看的人选的，不是长相
+    id: 'framing', kind: 'choice', group: 'framing', key: 'C', options: FRAMING_POLICIES, default: 'auto',
+    fromFlags: (f) => f.framing,
+    url: { param: 'framing', write: (v) => (v === 'auto' || !isFramingPolicy(v) ? null : v) },
   },
   {
     id: 'act', kind: 'overlay', group: 'act', key: 'A', options: ARC_ACTS, default: null,

@@ -37,6 +37,7 @@
  * - 不做关闭按钮、不做拖动、不做设置。它不是一个组件，是一个指示灯。
  */
 import type { RawPose } from '../../../core/src/types.ts';
+import { stepCrop, CROP_FULL, type Crop } from '../../../core/src/autoframe.ts';
 import type { Flags } from '../shell/kiosk.ts';
 import { COPY, setBi } from './i18n.ts';
 import { createSeeWatch, wantsPreview, type SeeReading } from './preview-state.ts';
@@ -116,6 +117,8 @@ export function mountPreview(opts: {
   mount?: HTMLElement;
   video: () => HTMLVideoElement | null;
   cameraOn: () => boolean;
+  /** 上半身是正当取景（docs/49 §落地）。缺省 false = 这一版之前的行为：不裁切、腿出画照样说话 */
+  framing?: () => boolean;
 }): Preview | null {
   if (!wantsPreview(opts.flags)) return null;
 
@@ -204,11 +207,33 @@ export function mountPreview(opts: {
     );
   }
 
+  /**
+   * 上半身取景时的数字裁切（docs/49 §落地 · 用法 B）。**只作用于显示**：
+   * video 和骨架画布一起挪，推理照旧看整幅。任何一句话在说（出画 / 光不够 / 没人）→ 当帧退回整幅，
+   * 让画框的边重新可见 —— 这块屏幕的职责是说实话，裁切不许替一个半个人出画的观众把他摆回正中。
+   * 每帧由状态写成 transform，不用 CSS transition（静止态不许等一段动画走完）。
+   */
+  let crop: Crop = CROP_FULL;
+  function applyCrop(upper: boolean, seen: SeeReading, pose: RawPose | null, dt: number): void {
+    crop = stepCrop(crop, { active: upper, snap: seen.state !== 'ok', screen: pose?.screen }, dt);
+    // transform-origin 0 0：先平移让窗口中心落到 (0.5/zoom)，再放大
+    const t = crop.zoom === 1 ? ''
+      : `scale(${crop.zoom.toFixed(4)}) translate(${((0.5 / crop.zoom - crop.cx.x) * 100).toFixed(3)}%, ${((0.5 / crop.zoom - crop.cy.x) * 100).toFixed(3)}%)`;
+    for (const el of [attached, canvas]) {
+      if (!el || el.style.transform === t) continue;
+      el.style.transformOrigin = '0 0';
+      el.style.transform = t;
+    }
+  }
+
   return {
     update(pose, dt) {
       const camera = opts.cameraOn();
       attach(camera ? opts.video() : null);
-      say(watch.update({ camera, pose }, dt));
+      const upper = opts.framing?.() ?? false;
+      const seen = watch.update({ camera, pose, upperIsIntended: upper }, dt);
+      say(seen);
+      applyCrop(upper, seen, pose, dt);
       // 只在采集端真的给了新一帧的时候重画。`pose.t` 是 `performance.now()`
       // 打的推理时间戳（`capture/webcam.ts`），严格递增。
       const t = pose?.t ?? -1;

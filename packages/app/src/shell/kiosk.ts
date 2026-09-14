@@ -3,6 +3,7 @@
  * P10 现场优先 —— 启动 = 打开一个 URL，不需要在终端敲第二条命令。
  */
 import { BODY_PLANS, type BodyPlanId } from '../../../core/src/bodyplan.ts';
+import { FRAMING_POLICIES, isFramingPolicy, type FramingPolicy } from '../../../core/src/autoframe.ts';
 import { ACTS } from '../acts/index.ts';
 import { isCamFlag } from '../capture/camera-select.ts';
 import { isShadingId, type ShadingId } from '../creature/shading.ts';
@@ -160,6 +161,31 @@ export interface Flags {
    * 以及主线程那条路必须**跑得到**，否则它就只是一段没人验过的代码（P3，docs/48 §3）。
    */
   worker: boolean;
+  /**
+   * ?framing=auto|full|upper 取景策略（`core/src/autoframe.ts`，docs/49 §落地）。默认 auto。
+   *
+   * - `auto`  听分类器：只露上半身 → 中景 + 腿换成站姿；退后 → 全景（等身）。
+   * - `full`  永远是等身全景（腿照样听分类器，不给选了全景的人一双坏腿）。
+   * - `upper` 永远是中景（桌面演示）。
+   *
+   * 三个值都是**叠加**，不是锁：控件条上再选 auto 就交回分类器。
+   * 现场（`?kiosk=1`）也默认 auto，但分类器走"全身优先"那一档（进中景要憋 3 秒，
+   * 网页 1 秒）—— 理由写在 docs/49 §落地 的原则一节。
+   * 认不出来的值（`?framing=half`）按没写过处理并喊一声 —— 规矩和 `?exits=` / `?gl=` 一样。
+   */
+  framing: FramingPolicy;
+}
+
+/** 同一个坏值只喊一次 —— `readFlags()` 一次启动会被调好几处 */
+const warnedFraming = new Set<string>();
+
+function resolveFraming(raw: string | null): FramingPolicy {
+  if (isFramingPolicy(raw)) return raw;
+  if (raw !== null && !warnedFraming.has(raw)) {
+    warnedFraming.add(raw);
+    console.warn(`[kiosk] ?framing=${raw} 认不出来，只认 ${FRAMING_POLICIES.join(' / ')} —— 按没写过处理（auto）`);
+  }
+  return 'auto';
 }
 
 /** `?gl=` 认的两个值。别的一律当没写过 */
@@ -449,6 +475,7 @@ export function readFlags(search = location.search): Flags {
     // `chooseTheme({ forceFallback: !flags.gl })`。
     gl: resolveGl(q.get('gl')),
     worker: q.get('worker') !== 'off',
+    framing: resolveFraming(q.get('framing')),
   };
 }
 

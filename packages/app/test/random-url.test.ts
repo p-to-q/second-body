@@ -110,7 +110,7 @@ test('抽到的那一屏回大厅之后，seed 还在', () => {
   const search = `?theme=${p.theme}&plan=${p.plan}&seed=${p.seed}&shading=${p.shading}`;
   const back = new URLSearchParams(hallSearch(search, {
     species: p.theme!, form: p.plan!, scene: p.scene!, act: null,
-    outline: false, vitality: true, sound: true, refine: true, post: true,
+    outline: false, vitality: true, sound: true, refine: true, post: true, framing: 'auto',
   }));
   assert.equal(back.get('theme'), null, '大厅要重新选物种');
   assert.equal(back.get('plan'), null, '形体叠加是这一个人按的，不该带给下一个');

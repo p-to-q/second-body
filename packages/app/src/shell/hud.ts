@@ -2,7 +2,8 @@
  * 性能读数。docs/02 P5：超预算的数字标红 —— **红了就是 bug，不是"以后再优化"**。
  * 只在 ?debug=1 时挂上去。
  */
-import { BUDGET } from '../../../core/src/tuning.ts';
+import { AUTOFRAME, BUDGET } from '../../../core/src/tuning.ts';
+import type { FramingDecision, FramingReading } from '../../../core/src/autoframe.ts';
 import { MOVEMENT_LABELS, MOVEMENT_NUMERALS, type ArcState } from '../../../core/src/arc.ts';
 import type { TheseusState } from '../../../core/src/theseus.ts';
 import { label } from './degrade.ts';
@@ -37,6 +38,42 @@ export interface HudCounts {
    * 一条在功能关掉之后还照常显示的仪表比没有仪表更坏（P21）。
    */
   theseus?: TheseusState;
+  /**
+   * 取景模式（`core/src/autoframe.ts`，docs/49 §落地）。**切换要实时看得见**：
+   * 模式、为什么、在这个模式里待了多久，以及分类器量到的数和它们各自的门限。
+   */
+  framing?: FramingHud;
+}
+
+export interface FramingHud {
+  reading: FramingReading;
+  decision: FramingDecision;
+  /** 腿混向站姿的权重 0..1 */
+  legHold: number;
+  /** 舞台景别进度 0（全景）… 1（中景） */
+  shot: number;
+}
+
+/**
+ * `framing` 那两行的文本。纯函数（和 `formatArcRow` 同一条路数，`test/hud-framing.test.ts`）。
+ *
+ * 读法：
+ *   `upper ← legs-out 3.2s · 策略 auto · 景 100% · 腿 1.00`
+ *   `膝踝 0/4 (≥3 全 ≤1 半) · 尺度 0.94 (≤0.88 退) · 头肩出画 0 · 冷却 0.0`
+ * 数和门限写在一起：现场的人要看的不是"它判了什么"，是"它离另一个判断还差多少"。
+ */
+export function formatFramingRows(f: FramingHud): [string, string] {
+  const r = f.reading;
+  const forced = f.decision.policy === 'auto' ? '' : `  [策略 ${f.decision.policy}]`;
+  const head = `${r.mode} ← ${r.why} ${r.inMode.toFixed(1)}s · 景 ${Math.round(f.shot * 100)}% · 腿 ${f.legHold.toFixed(2)}${forced}`;
+  const e = r.evidence;
+  if (!e) return [head, '无人'];
+  const trend = Number.isFinite(r.trend) ? r.trend.toFixed(2) : '—';
+  const legs = `膝踝 ${e.legs}/4 (≥${AUTOFRAME.legsInMin} 全 ≤${AUTOFRAME.legsOutMax} 半)`;
+  const scale = e.screen ? `尺度 ${trend} (≤${(1 - AUTOFRAME.stepBackShrink).toFixed(2)} 退)` : '尺度 — (回放没有 screen)';
+  const cut = `头肩出画 ${e.upperOut}${e.upper ? '' : ' ⚠'}`;
+  const q = e.quality ? '' : ' · 光不够：保持';
+  return [head, `${legs} · ${scale} · ${cut} · 冷却 ${r.cooldown.toFixed(1)}${q}`];
 }
 
 /**
@@ -112,6 +149,9 @@ export function createHud(opts: { top?: number } = {}): { update(s: FrameStats, 
         // 停住的弧线长得一样，这一行就不是仪表了（P21）。
         c.arc ? `<span style="color:${c.arc.running ? '#7fb3d5' : '#e8a33d'}">arc        ${formatArcRow(c.arc, c.arcForced)}</span>` : '',
         c.theseus ? `<span style="color:#7fb3d5">theseus    ${formatTheseusRow(c.theseus)}</span>` : '',
+        // 取景：非全身的时候换色 —— 一眼看得出"现在不是等身"
+        ...(c.framing ? formatFramingRows(c.framing).map((line, i) =>
+          `<span style="color:${c.framing!.reading.mode === 'full' ? '#9aa' : '#e8a33d'}">${i ? '           ' : 'framing    '}${line}</span>`) : []),
         s.throttled ? '<span style="color:#e8a33d">idle       无人降帧中</span>' : '',
         s.degraded ? `<span style="color:#e0455a">degraded   ${label(s.degraded)}</span>` : '',
         s.errors ? `<span style="color:#e0455a">errors ${s.errors}  ${s.lastError ?? ''}</span>` : '',

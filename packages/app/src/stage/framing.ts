@@ -26,7 +26,7 @@
  * 换句话说：**人形严格等身，非人形按同一条曲线连续地偏离，偏离量有上限。**
  */
 import { remapSkeleton, type BodyPlan } from '../../../core/src/bodyplan.ts';
-import { SKELETON , FRAMING as FRAMING_TUNING } from '../../../core/src/tuning.ts';
+import { SKELETON , FRAMING as FRAMING_TUNING, AUTOFRAME } from '../../../core/src/tuning.ts';
 import type { Bone, BoneId, Skeleton, Vec3 } from '../../../core/src/types.ts';
 
 /** 一具身体在世界里占的那个盒子。x 始终假设左右对称，所以只记宽度 */
@@ -237,6 +237,55 @@ export function contactPoints(
     out.push([p[0], p[2], Math.max(0, p[1] - floor)]);
   }
   return out;
+}
+
+// ── 中景：上半身取景（docs/49 §落地）────────────────────────────────────────
+
+/**
+ * **「等身」的一处登记在案的例外。**
+ *
+ * 文件头那条主张（人形严格等身、相机距离不动）写的是**全景**。笔记本前的观众只露头、肩、胯，
+ * 把他框成一个 1:1 的整个人，屏幕上是一具小小的、下半截没有依据的身体 —— 等身在那一刻
+ * 保住的只是一个数，丢掉的是"那是我"。所以取景模式判成上半身（或有人选了上半身）时，
+ * 画面收成中景：同一个机位、同一个距离，**只收窄视野**（fov 变小，不推相机），
+ * 画面高 ≈ 身高 × 0.64，人形约放大 2.2 倍。
+ *
+ * 例外的边界：
+ *  - 只在人形上成立（`main.ts` 在身体方案漂移开始后一律给全景 —— 四足的"上半身"不是一个取景）；
+ *  - 人一退后、腿进画，回到全景，等身原样恢复（`test/framing.test.ts` 钉住 t=0 时和全景逐字相同）；
+ *  - 现场（`?kiosk=1`）全身优先：进中景要憋 3 秒。
+ * 作品负责人 2026-09-14 裁定，记录在 docs/49 §落地。
+ */
+export function upperFit(bodyHeight: number, width: number): FrameFit {
+  const H = Number.isFinite(bodyHeight) && bodyHeight > 0.3 ? bodyHeight : DEFAULT_BOUNDS.height + SKELETON_TOP_PAD;
+  const T = AUTOFRAME;
+  return {
+    frameHeight: H * T.upperHeightFactor,
+    frameWidth: Math.max(T.upperMinWidth, (Number.isFinite(width) ? width : DEFAULT_BOUNDS.width) * 0.9),
+    centerY: H * T.upperCenterFactor,
+    // 灯不跟着景别走：灯照的是身体，不是画面
+    aimY: NaN,
+  };
+}
+
+/** 骨架盒顶（头中心）到颅顶的那一段。只用于 `upperFit` 拿不到身高时的退路 */
+const SKELETON_TOP_PAD = 0.14;
+
+/**
+ * 全景与中景之间插值。`t` 已经是缓动过的（0 = 全景，1 = 中景）。
+ * **t = 0 时逐字返回 `full`**：等身那条测试不许因为多了一个中景而偏一毫米。
+ */
+export function blendFit(full: FrameFit, upper: FrameFit, t: number): FrameFit {
+  if (!(t > 0)) return full;
+  const k = Math.min(1, t);
+  // 在"画面高度"上线性插值读起来像推镜；在 1/高度（放大倍数）上插值读起来匀速。取后者
+  const inv = (1 - k) / full.frameHeight + k / upper.frameHeight;
+  return {
+    frameHeight: 1 / inv,
+    frameWidth: full.frameWidth + (upper.frameWidth - full.frameWidth) * k,
+    centerY: full.centerY + (upper.centerY - full.centerY) * k,
+    aimY: full.aimY,
+  };
 }
 
 /** 两个包围盒之间插值。换条目时相机要平滑过渡（docs/23 §S3：进场必须无缝） */

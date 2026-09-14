@@ -112,6 +112,8 @@ export interface ReadoutOptions {
   mount?: HTMLElement;
   /** 此刻喂进来的是不是摄像头（`main.ts` 的 `cameraOn`）。缺省当作摄像头 */
   live?: () => boolean;
+  /** 上半身是正当取景（`main.ts` 的取景模式）。WRN12 不为画面下边的腿报警。缺省 false */
+  upperIsIntended?: () => boolean;
 }
 
 export function mountReadout(options: ReadoutOptions): Readout | null {
@@ -225,7 +227,10 @@ export function mountReadout(options: ReadoutOptions): Readout | null {
       const elapsed = since;
       since = 0;
 
-      const input = { pose, features, inferenceHz, live: options.live?.() ?? true };
+      const input = {
+        pose, features, inferenceHz, live: options.live?.() ?? true,
+        upperIsIntended: options.upperIsIntended?.() ?? false,
+      };
       const r = readOut(input);
       // 告警憋过才换（readout-state.ts 的 createAlarmWatch），所以喂进去的是这两次采样之间真实过去的时间
       const a = watch.update(input, elapsed);
