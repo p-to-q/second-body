@@ -40,11 +40,16 @@ const GROUPS: Group[] = [
     ],
   },
   {
-    title: '档案',
-    note: '可以直接给人看的东西 —— 不需要解释就能读。',
+    title: '侧室',
+    note:
+      '已经展出的房间。**不在目录（/about 右上角那个）里** —— 门开在 /about 的正文里，'
+      + '一个可以被穷举的数通向它的穷举（docs/23 §S9、src/ui/clue.ts）。'
+      + '这里列出来是因为这一页是后台的地图，给我们自己看；线索仍然是观众那一条路。',
     items: [
-      { href: '/dev/parts.html', name: '部件档案', answers: '这件作品到现在为止长出了什么？谁是谁？哪些被留下了？' },
-      { href: '/dev/choose.html?roster=1', name: '形态空间', answers: '可以变成的身体有哪些？它们在形态图上怎么分布？' },
+      { href: '/parts', name: '部件档案', answers: '这件作品到现在为止长出了什么？谁是谁？哪些被留下了？' },
+      { href: '/roster', name: '物种接触表', answers: '可以变成的身体一共有哪些？一版摆完。' },
+      { href: '/marks', name: '九枚记号', answers: '九种身体方案凭什么算九种？它们各自是什么形状？' },
+      { href: '/lag', name: '慢半拍', answers: '一堆互不相连的刚体，凭什么看起来是活的？' },
     ],
   },
   {

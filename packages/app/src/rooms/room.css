@@ -117,6 +117,20 @@
   color: var(--sb-ink-dim);
 }
 
+/* ── 记号的画笔 ────────────────────────────────────────────────────────────
+ *
+ * 记号的**形状**是一份共享的数据表（`ui/marks.ts`，另一条线的产物，
+ * 见 `rooms/marks.ts` 的文件头）。那个模块刻意不 import CSS —— 不碰样式表
+ * 它才能在 node 里被测 —— 所以画笔留在用它的人这边。
+ *
+ * ⚠️ 同样这两条也写在 `about/about.css` 里（作用域 `.about-plot`）。
+ * 那是**暂时的两份**：九枚记号那条线落地时，`/about` 的图例和这里画的是
+ * 同一批形状，届时这两条画笔应当合到一处去。合并的人看到这段注释就知道了。
+ */
+.sb-plan-mark .plot-mark { fill: none; stroke: var(--sb-ink); stroke-width: 1.75; }
+.sb-plan-mark .plot-mark-fill { fill: var(--sb-ink); stroke: none; }
+.sb-plan-mark { display: block; flex: none; }
+
 /* ── 空状态 ────────────────────────────────────────────────────────────────
  * `parts.json` 读不到的时候这几个房间要说人话，而不是白屏（docs/02 §craft）。
  */

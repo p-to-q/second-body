@@ -1,9 +1,15 @@
 /**
- * 部件档案 —— `/dev/parts.html`。
+ * 侧室 `/parts` —— 部件档案。
  *
- * 它以前是一张调试用的接触表（正交相机 + 平铺网格），回答"哪件比例崩了"。
- * 现在它要多回答一个问题：**这件作品到现在为止长出了什么？**
- * 所以它变成一份可以直接给人看的档案：
+ * 它以前是一张调试用的接触表（正交相机 + 平铺网格），回答"哪件比例崩了"，
+ * 住在 `/dev/parts.html`。现在它要多回答一个问题：**这件作品到现在为止长出了什么？**
+ * 那个问题**观众也有**，所以它被展出：换了 URL（`/parts`，和 `/about` 平级，
+ * 不再是后台的一条路），换了页头（`rooms/room.ts` 的横带，带一条回去的路），
+ * 其余一个像素都没动 —— 它好看是因为它穷尽且不动声色，
+ * 而不是因为有人给它配了一段说明。给它配一段解释"这张表为什么好看"的说明，
+ * 恰恰会毁掉它。
+ *
+ * 它是一份可以直接给人看的档案：
  *
  *   左边一列目录  kind → 条目 → 槽位，点哪跳哪
  *   右边一份档案  每个条目一栏（anchor 图 / 名字 / tagline / 形态空间 / 身体方案 / 件数），
@@ -23,16 +29,26 @@
  * 3. **空状态是被设计的。** parts.json 缺失 / 解析不出来 / 一件都没有，
  *    这一页要显示一段说得通的话，而不是白屏或一行红色异常（docs/02 §craft）。
  *
+ * ── 它搬进了 `src/rooms/`，`archive.css` 和 `thumbs.ts` 还留在 `dev/` ──
+ *
+ * 那两个文件里有写死的十六进制色（策展的绿框红框、socket 的红蓝两端）。
+ * 搬进 `src/` 就撞上 `test/css-tokens.test.ts` 那条「UI 颜色不写十六进制」的守卫，
+ * 而过那道守卫只有两条路：改成令牌，或者连同理由写进白名单。
+ * 两条都是在**重新裁定这一页用不用颜色承担语义**（docs/26 §F 说全站只有一处），
+ * 那是一次策展判断，不是搬家的副作用 —— 所以这次不碰，写进报告。
+ * `/lineage` 早就反向 import `dev/thumbs.ts`，这条边界不是这次新开的。
+ *
  * ── 保留下来的东西 ──
  * 策展的绿框/红框、点一下循环 未评→keep→reject 的手势、可疑比例的标注 ——
  * 这一页原来的全部工作价值都在这三样里，一样没删。
  */
-import './archive.css';
-import { mountPageHead } from '../src/ui/page.ts';
-import { setBi } from '../src/ui/i18n.ts';
-import { loadImage } from '../src/choose/cards.ts';
-import { createThumb, createThumbObserver, thumbsUseGl } from './thumbs.ts';
-import type { PartLibraryIndex, PartMeta, ThemeDef } from '../../core/src/types.ts';
+import '../../dev/archive.css';
+import { COPY, setBi } from '../ui/i18n.ts';
+import { loadImage } from '../choose/cards.ts';
+import { createThumb, createThumbObserver, thumbsUseGl } from '../../dev/thumbs.ts';
+import { themeAnchor } from '../ui/species.ts';
+import { mountRoom } from './room.ts';
+import type { PartLibraryIndex, PartMeta, ThemeDef } from '../../../core/src/types.ts';
 
 const PARTS_URL = '/parts/parts.json';
 const PARTS_BASE = '/parts';
@@ -153,16 +169,16 @@ const canCurate = await probeCurateWriteback();
 const themes = index?.themes ?? [];
 const parts = index?.parts ?? [];
 
-const head = mountPageHead({
-  title: '部件档案',
-  titleEn: 'Parts Archive',
-  note: '这件作品到现在为止长出来的每一件东西：谁是谁、由什么组成、哪些被留下了。',
-  state: canCurate ? '可评级' : '只读',
+const R = COPY.rooms.parts;
+const head = mountRoom({
+  title: R.title,
+  lede: R.lede,
+  state: canCurate ? R.curatable : R.readOnly,
 });
 
 const root = document.createElement('div');
 root.className = canCurate ? 'sb-archive can-curate' : 'sb-archive';
-document.body.appendChild(root);
+head.body.appendChild(root);
 
 // parts.json 读不到 / 是空的：这一页仍然要说人话（docs/02 §craft）
 if (!index || (!themes.length && !parts.length)) {
@@ -289,15 +305,15 @@ function buildArchive(): void {
   for (const el of entryEls.values()) spy.observe(el);
 
   head.setState(canCurate
-    ? (thumbsUseGl() ? '可评级' : '可评级 · 无 WebGL，缩略图为比例剪影')
-    : (thumbsUseGl() ? '只读' : '只读 · 无 WebGL，缩略图为比例剪影'));
+    ? (thumbsUseGl() ? R.curatable : R.curatableNoGl)
+    : (thumbsUseGl() ? R.readOnly : R.readOnlyNoGl));
 
   // ── 目录条目 ────────────────────────────────────────────────────────────
   function buildTocEntry(theme: ThemeDef, mine: PartMeta[]): HTMLElement {
     const wrap = document.createElement('div');
     wrap.className = 'sb-toc__entry';
     const a = document.createElement('a');
-    a.href = `#t-${cssId(theme.id)}`;
+    a.href = `#${themeAnchor(theme.id)}`;
     const label = document.createElement('span');
     label.textContent = theme.name === theme.id ? theme.id : `${theme.name} ${theme.nameEn}`;
     const n = document.createElement('span');
@@ -326,7 +342,7 @@ function buildArchive(): void {
   function buildEntry(theme: ThemeDef, mine: PartMeta[], obs: IntersectionObserver): HTMLElement {
     const section = document.createElement('section');
     section.className = 'sb-entry';
-    section.id = `t-${cssId(theme.id)}`;
+    section.id = themeAnchor(theme.id);
     section.dataset.theme = theme.id;
     entryEls.set(theme.id, section);
 
@@ -505,7 +521,7 @@ function buildArchive(): void {
     li.dataset.verdict = before?.verdict ?? '';
     paintSummary();
     root.classList.remove('can-curate');
-    head.setState('只读 · 评级写回不可用');
+    head.setState(R.writeFailed);
     console.warn('[archive] /__curate 写回失败，转为只读');
   }
 }
@@ -523,7 +539,14 @@ function slotsOf(metas: PartMeta[]): string[] {
   return [...new Set(metas.map((m) => m.slot))].sort((a, b) => slotRank(a) - slotRank(b));
 }
 
-/** id 里有点（char.dumpling），直接当 CSS 选择器/锚点会炸 */
+/**
+ * id 里有点（char.dumpling），直接当 CSS 选择器/锚点会炸。
+ *
+ * 「条目」那一个锚点的规则**搬到了 `ui/species.ts` 的 `themeAnchor()`** ——
+ * `/about` 的编号对照表每一个号都链到 `/parts#t-<id>`，两边各写一份 replace
+ * 的话，字符集只要有一天不一致，那些链接就会静静落空（见那个函数的注释）。
+ * 槽位那一层（`s-<id>-<slot>`）只在这一页内部用，仍然留在这里。
+ */
 function cssId(id: string): string {
   return id.replace(/[^a-z0-9_-]/gi, '_');
 }

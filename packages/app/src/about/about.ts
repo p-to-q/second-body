@@ -23,9 +23,9 @@
  */
 import type { PartLibraryIndex } from '../../../core/src/types.ts';
 import { COPY, setBi, type BiText } from '../ui/i18n.ts';
-import { PLAN_LABEL, orderThemes, planKind, speciesNumber } from '../ui/species.ts';
+import { PLAN_LABEL, orderThemes, planKind, speciesNumber, themeAnchor } from '../ui/species.ts';
+import { clue, type ClueOptions } from '../ui/clue.ts';
 import { markNode } from '../ui/mark.ts';
-import { planMark } from '../ui/plan-mark.ts';
 import '../ui/type.css';
 import '../ui/editorial.css';
 import './about.css';
@@ -260,16 +260,29 @@ function howSection(index: PartLibraryIndex | null): HTMLElement {
   if (index) {
     const slots = new Set(index.parts.map((p) => p.slot));
     const plans = new Set(index.themes.map(planKind));
-    const counts: [BiText, number][] = [
-      [COPY.about.counts.species, index.themes.length],
-      [COPY.about.counts.plans, plans.size],
-      [COPY.about.counts.parts, index.parts.length],
-      [COPY.about.counts.slots, slots.size],
-      [COPY.about.counts.materials, index.materials.length],
+    /**
+     * 第三项是**门**（`ui/clue.ts`）：一个可以被穷举的数，通向它的穷举。
+     * 「物种 28」→ 二十八张卡摆在一版上；「身体方案 9」→ 那九枚记号；
+     * 「部件 208」→ 那 208 件本身。
+     *
+     * 「槽位」和「材质」**没有门**，这一条重要：不是每个数字都通向什么，
+     * 所以这不是"把数字都做成链接"这个手势，是那三个数各自真的有一个房间。
+     * 静止态四个数和三个数长得一模一样，所以没有门的那两个也不会读作"坏了"。
+     */
+    const counts: [BiText, number, ClueOptions | null][] = [
+      [COPY.about.counts.species, index.themes.length,
+        { href: '/roster', where: COPY.rooms.doors.roster }],
+      [COPY.about.counts.plans, plans.size,
+        { href: '/marks', where: COPY.rooms.doors.marks }],
+      [COPY.about.counts.parts, index.parts.length,
+        { href: '/parts', where: COPY.rooms.doors.parts }],
+      [COPY.about.counts.slots, slots.size, null],
+      [COPY.about.counts.materials, index.materials.length, null],
     ];
     const strip = el('div', 'about-counts');
-    for (const [label, n] of counts) {
-      strip.append(el('div', undefined, num(n), biInline(label, 'sb-label')));
+    for (const [label, n, door] of counts) {
+      const figure = door ? clue(door, num(n)) : num(n);
+      strip.append(el('div', undefined, figure, biInline(label, 'sb-label')));
     }
     body.push(strip);
   }
@@ -289,10 +302,22 @@ function svg<K extends keyof SVGElementTagNameMap>(
 }
 
 /**
- * 记号（形状 = 身体方案）住在 `ui/plan-mark.ts`，不住在这一页。
- * 第三个消费者来了：侧室 `/marks` 把九个方案一字排开当标本看，
- * 而三处画同一套记号就必须只有一处画得出它们 —— 见那个文件的文件头。
+ * 标记的**形状**编码身体方案，位置编码形态空间坐标。
+ * 为什么不用颜色区分：§0 的强调色是跟着当前物种走的，不是一套分类色板；
+ * 而且形状在黑白印刷和投影上都活得下来，颜色不一定。
  */
+function planMark(kind: string, x: number, y: number): SVGElement {
+  switch (kind) {
+    case 'quadruped':   // 横的、矮的 —— 和它在场上的剪影一致
+      return svg('rect', { class: 'plot-mark', x: x - 7, y: y - 3.5, width: 14, height: 7, rx: 3.5 });
+    case 'mass':        // 实心：团块没有槽位件，是一整坨
+      return svg('circle', { class: 'plot-mark-fill', cx: x, cy: y, r: 5 });
+    case 'stub':        // 方的、墩的
+      return svg('rect', { class: 'plot-mark', x: x - 4.5, y: y - 4.5, width: 9, height: 9 });
+    default:            // rig：空心圆
+      return svg('circle', { class: 'plot-mark', cx: x, cy: y, r: 5 });
+  }
+}
 
 function speciesSection(index: PartLibraryIndex): HTMLElement {
   const themes = orderThemes(index.themes);
@@ -343,14 +368,25 @@ function speciesSection(index: PartLibraryIndex): HTMLElement {
       label ? biInline(label, 'sb-label') : el('span', 'sb-label', kind)));
   }
 
-  // 编号对照表 —— 散点上只有号，名字在这里。号码和 /dev/poster.html 上的是同一套
+  /**
+   * 编号对照表 —— 散点上只有号，名字在这里。号码和 `/dev/poster.html` 上的是同一套。
+   *
+   * **每一个号是一扇门**，通向那个物种在部件档案里的那一格
+   * （`/parts#t-<id>`，锚点由 `rooms/parts.ts` 的 `cssId()` 打，两边用同一条规则）。
+   * 名字不是门 —— 编号才是：档案里找一件东西靠的是登记号，不是名字，
+   * 而这一整页的档案感有一半来自那一列对齐的数字。
+   */
   const list = el('ul', 'about-species');
   themes.forEach((t, i) => {
     const n = el('span', 'sb-label sb-num');
     n.textContent = speciesNumber(i);
     const name = el('span');
     setBi(name, { zh: t.name, en: t.nameEn });
-    list.append(el('li', undefined, n, name));
+    const door = clue(
+      { href: `/parts#${themeAnchor(t.id)}`, where: COPY.rooms.doors.partsOfSpecies },
+      n,
+    );
+    list.append(el('li', undefined, door, name));
   });
 
   // 这一节**不走两栏**：散点图是这一页的关键视觉，它要横着占满一整幅。

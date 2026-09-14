@@ -41,3 +41,20 @@ export function orderThemes(themes: readonly ThemeDef[]): ThemeDef[] {
 export function speciesNumber(i: number): string {
   return String(i + 1).padStart(2, '0');
 }
+
+/**
+ * 一个条目在部件档案（侧室 `/parts`）里的锚点 id。
+ *
+ * 住在这里，理由和上面那两个函数逐字相同：**两处必须是同一套**。
+ * `/about` 的编号对照表上每一个号都链到 `/parts#t-<这个>`，
+ * 而那个锚点是 `rooms/parts.ts` 打上去的 —— 两边各写一份 `replace`，
+ * 只要有一天有人放宽或收紧了那个字符集，链接就会静静地落空：
+ * 浏览器对一个不存在的锚点不报错，它只是**停在页首**，
+ * 看起来像"这一页就是从头开始的"。没有任何仪表会红（docs/02 P21）。
+ *
+ * id 里可以有点（`char.dumpling`）—— 点在 CSS 选择器和 `getElementById`
+ * 之外的场合都会惹事，所以一律换成下划线。
+ */
+export function themeAnchor(id: string): string {
+  return `t-${id.replace(/[^a-z0-9_-]/gi, '_')}`;
+}
