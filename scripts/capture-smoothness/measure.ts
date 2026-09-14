@@ -153,7 +153,23 @@ if (tracing) await send('Tracing.start', {
     includedCategories: ['devtools.timeline', 'toplevel', 'blink.user_timing'],
   },
 });
+// PROFILE=1 → CDP 采样 profiler（200µs）从按下那一刻起：比 trace 小两个数量级，
+// 帧循环里每一段长任务能拆到函数（`attribute.ts`）。和 TRACE 一样是负载，数字不进结论
+const profiling = process.env.PROFILE === '1';
+if (profiling) {
+  await send('Profiler.enable');
+  await send('Profiler.setSamplingInterval', { interval: 200 });
+  await send('Profiler.start');
+}
 const clickPerf = await evalJs(`(performance.mark('probe:click'), performance.now())`);
+// GOV_AT="20:4,32:0" → 按下后第 20 秒把调速器拨到 L4、第 32 秒拨回 L0（`?debug=1` 的 `__governorProbe`）。
+// 拨开关本身是不是一次长任务，要在没有别的负载的时候单独看（docs/48 §8 第 3 条）
+for (const spec of (process.env.GOV_AT ?? '').split(',').filter(Boolean)) {
+  const [sec, lvl] = spec.split(':').map(Number);
+  setTimeout(() => {
+    void evalJs(`(window.__probe.gov = window.__probe.gov || [], window.__probe.gov.push([Math.round(performance.now()), ${lvl}]), window.__governorProbe?.apply(${lvl}))`);
+  }, sec * 1000);
+}
 if (mode === 'swap') {
   // HOVER=1 → 观众先把手移到「摄像头」那一行上（悬停预取），停 HOVER_MS 再按
   if (process.env.HOVER === '1') {
@@ -194,6 +210,11 @@ if (tracing) {
   }
   fh.end();
   await send('IO.close', { handle: stream });
+}
+
+if (profiling) {
+  const r = await send('Profiler.stop');
+  writeFileSync(`${out}/profile.json`, JSON.stringify(r.result.profile));
 }
 
 const probe = await evalJs(`JSON.stringify(window.__probe)`);
