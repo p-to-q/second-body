@@ -63,6 +63,10 @@ const GROUPS: Group[] = [
       { href: '/dev/stage.html', name: '舞台', answers: '这一帧像不像一件作品？灯光、地面、影子、取景对不对？' },
       { href: '/dev/figure.html', name: '装配', answers: '部件挂到骨架上，比例和朝向对不对？' },
       { href: '/dev/mass.html', name: '团块身体', answers: '不走刚体挂载的那种身体（mass）长什么样？' },
+      // 这两页从 /about 正文里有链接（docs/23 §S9.2），工作台自己的地图却一直没列它们 ——
+      // 一个从外面进得来、从后台地图上找不到的页面，下一个维护的人会以为它不存在。
+      { href: '/dev/lineup.html', name: '身体方案并排', answers: '同一副骨架重映射成九种形体，放在一排里看，差别在哪？' },
+      { href: '/dev/vitality.html', name: '生命力 A/B', answers: '一堆刚体凭什么看起来是活的？延迟只落在末端，骨盆真的实时吗？' },
       { href: '/dev/sound.html', name: '声音', answers: '四层声音各自在响吗？它们真的跟着信号走吗？' },
       { href: '/dev/choose.html', name: '选择页', answers: '观众在这一屏选的是"变成什么"，还是"点哪一个"？' },
       { href: '/dev/capture.html', name: '采集', answers: '摄像头认到人了吗？坐标和量程对不对？' },
