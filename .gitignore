@@ -39,3 +39,4 @@ assets/parts/harvest/
 # 不进仓库：体积大，各来源授权不同 —— 只留 SOURCES.md，照着能重新取一遍。
 # 进仓库的是跑出来的 assets/demo/pose-*.json，那才是"录制"。
 assets/capture-src/
+archive/
