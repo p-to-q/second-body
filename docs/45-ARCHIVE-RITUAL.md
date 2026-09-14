@@ -17,7 +17,7 @@
 | | 在哪 | 需要什么 | 谁能做 | 今天能不能做 |
 |---|---|---|---|---|
 | **甲 · 装置** | 现场那台电脑的硬盘 | **什么都不需要** | 开机的人 | **能** |
-| **乙 · 网站** | Vercel 上的一个键值库 | 一个有 Vercel 权限的人 | 只有他 | 等他 |
+| **乙 · 网站** | 作品负责人自己 Cloudflare 账号里的一个 Worker + D1 | 一个 Cloudflare 账号（免费档），**不需要任何 Vercel 权限** | 作品负责人 | **能**：登录、部署、把地址提交进仓库（见乙） |
 
 **先做甲。** 理由不是"甲比较容易"，是**甲才是这件作品真正发生的地方** ——
 观众是站在装置前面的，网站是他事后或事前看的。
@@ -93,9 +93,111 @@ npm run archive:read
 
 ---
 
-## 乙 · 网站（等一个有 Vercel 权限的人）
+## 乙 · 网站（作品负责人自己的 Cloudflare 账号，不需要任何 Vercel 权限）
 
-### 他要做的
+> 2026-09-14 改写。原来这一节要「一个有 Vercel 权限的人」，而这个人不存在：
+> 项目没有人拿钱、Vercel 留在 Hobby、作品负责人没有 Vercel 项目和组织仓库设置的权限。
+> 为什么因此改成 Cloudflare，裁定在 `docs/43 §9.3` 重裁那一条。原来的 Vercel 步骤没有删，
+> 挪到了本节末尾「休眠的备选」。
+
+### 他要做的：三步
+
+**一、登录并部署。** 在仓库根目录：
+
+```bash
+cd packages/archive-worker
+npx wrangler@4 login     # 开一个浏览器页面，登录他自己的 Cloudflare 账号（免费档就够）
+npx wrangler@4 deploy    # 建 Worker；D1 库 smu-archive 在这一步自动建出来
+```
+
+- 账号第一次用 `workers.dev` 的话，deploy 可能先问一个子域名 —— 随便起一个，它会成为地址的一部分。
+- **不用跑迁移。** 表在 Worker 第一次被访问时自己建（`CREATE TABLE IF NOT EXISTS`，`src/d1.ts`）。
+- **不用设任何变量、不用粘任何 token。** 凭证只在 `wrangler login` 之后存在他自己的机器上。
+
+**如果 D1 库没有自动建出来**（deploy 报 `DB` 这个绑定缺 `database_id`）：
+自动开通在 wrangler 4.131.1 的源码里是默认开的，但这条线**没有真跑过 deploy**，所以备着这一步：
+
+```bash
+npx wrangler@4 d1 create smu-archive --binding DB --update-config
+npx wrangler@4 deploy
+```
+
+`--update-config` 会把 `database_id` 写回 `wrangler.toml`。那一行不是秘密，可以提交。
+
+**二、把地址写进仓库。** deploy 最后几行打印出 `https://smu-archive.<子域>.workers.dev`。
+网站没有别的办法知道它（没有人能设 Vercel 环境变量），所以它进代码 ——
+它不是秘密，写权限由 Worker 自己管，不由「别人不知道地址」管：
+
+```ts
+// packages/app/src/archive/endpoint.ts
+export const ARCHIVE_WORKER_URL: string | null = 'https://smu-archive.<子域>.workers.dev';
+```
+
+**三、提交、合进 main。** Vercel 照常自己部署，不需要谁去点什么。
+
+### 回执
+
+```bash
+curl -s https://smu-archive.<子域>.workers.dev/visits
+```
+
+- `{"ok":true,"total":0,"entries":[]}` —— Worker 活着，D1 接上了。
+- `{"ok":false,"code":"DISABLED"}`（404）—— Worker 活着，**D1 没接上**。回到第一步的备用那两行。
+
+第二步合进 main、Vercel 部署完之后，打开 `https://useeme.ptoq.io/about`：
+那一句「每一次到访只在服务端留下一行」**会自己出现** —— 它先问存档在不在再决定印不印。
+然后自己打开摄像头走完一次弧线，`/lineage` 上出现「第 1 位」，仪式才算成。
+
+**不要用 `curl` 往 `/visit` 写一行试试。** 这份存档是永久的、只增不减：
+那一行会永远是「第 1 位」，而它不是一个人。写的回执只能是一次真的到访。
+
+### 为什么是 Cloudflare
+
+- **不需要任何 Vercel 权限**，而这正是今天缺的那一样。
+- **Cloudflare 本来就在这套架构里**（`docs/43 §3.4` 第 3 条），不是引入一个新厂商。
+- **原子序号**：`INTEGER PRIMARY KEY AUTOINCREMENT` + 一条 `INSERT … RETURNING`，
+  发号和落行是同一条语句。测试里 40 个并发 POST 拿到 1..40（`archive-worker.test.ts`）。
+- **免费档对这件事富余几个数量级。** 一行 46 字节；一次到访一条写，打开一次 `/lineage` 读约 65 行
+  （总数用 `MAX(n)` 走主键读一行，不用 `COUNT(*)` 扫整张表）。具体额度以开通当天面板为准。
+- **免费档超额是停，不是扣钱。** 没有绑卡的账号收不到账单。
+
+### 限流、来源、IP —— 实话
+
+**我们的代码手里有什么。** Worker 只读请求的**一个** header：`Origin`（CORS 要知道是谁的页面在问）。
+不读 `CF-Connecting-IP`、`X-Forwarded-For`、`User-Agent`、cookie，不碰 Cloudflare 挂在请求上的
+地理信息对象（`request.cf`，里面有城市和经纬度），不打日志，`wrangler.toml` 显式关掉了调用日志。
+这些都有测试扫源码钉着。表只有三列，没有一列能装 IP。
+
+**限流是全局一个桶，不按人分。** 按 IP 限流就得把 IP 当键交给限流器 —— 不落盘也是在处理 IP。
+所以键是一个常量：整份存档每分钟最多收 20 条（每个 Cloudflare 节点各自计数，
+数住在 `tuning.ts` 的 `ARCHIVE_WORKER`，和 `wrangler.toml` 有测试对齐）。
+**代价**：有人刷的时候，同一分钟里真实的观众也写不进去 —— 前端静默，那一场就没记上。
+**被刷穿的最坏后果**：垃圾行留在永久存档里（它们装不下个人数据 —— 物种是闭集、日期只到天），
+以及当天的免费额度用完、写入停到 UTC 零点。不会有账单。
+
+**写只认正式地址**（`useeme.ptoq.io`、`u-see.me`、`second-body-one.vercel.app`）。
+Vercel 预览和本机 dev 只能读：永久存档里不该留下一次调试走完的弧线。
+**这不是鉴权**：`curl` 可以伪造 `Origin`。它挡的是别人的网页借观众的浏览器往这里写，
+和我们自己的预览部署写进永久存档 —— 挡不住一个故意写脚本的人，那个人由限流管。
+
+**IP 在网络层躲不开，这一句不能省。** 任何 HTTP 请求都带着来源地址到达服务器，
+Cloudflare 的边缘节点必须经手它才能把回包送回去 —— 和网站本身经过 Vercel 的边缘是同一回事。
+我们的代码不读、不存、不当键；**Cloudflare 这个平台在传输中处理它**，那一部分由它的条款管，
+不是这个仓库能保证的。`/about` 上那句「没有……IP」说的是**那一行**，那一行里确实没有。
+
+### 那三步没做之前，线上是什么样
+
+| 地方 | 样子 |
+|---|---|
+| `/api/visit` `/api/visits` | 404 + 结构化 JSON，不是崩溃 |
+| `ARCHIVE_WORKER_URL` | `null` —— 网站根本不去问 Worker |
+| `/lineage` | 说它那句「这条回路在这个版本里不存在」 |
+| `/about` 的隐私段 | **少一句**。不会有「存档暂未开启」这种占位话 —— 观众不需要知道我们的部署顺序 |
+| 装置 | 照记不误。甲和乙互不依赖 |
+
+### 休眠的备选：给哪天有 Vercel 权限的人
+
+这一套 09-14 之前是主路，**它不是错的，只是没有人能做**。代码（`store.ts` 的 `restStore`）原样留着：
 
 ```bash
 vercel link                       # 如果还没连上这个项目
@@ -104,40 +206,13 @@ vercel --prod                     # 函数只在重新部署之后才读得到�
 ```
 
 或者不用命令行：项目 → Storage → Browse Marketplace → Upstash for Redis → Create。
+环境变量集成自己注进去，代码两套名字都认
+（`KV_REST_API_URL`/`KV_REST_API_TOKEN` 和 `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN`）。
+选它的理由：`INCR` 一条命令就是原子序号，HTTP 端点不用装依赖，没有冷启动。
 
-**环境变量不用手打**，集成自己注进去。代码两套名字都认
-（`KV_REST_API_URL`/`KV_REST_API_TOKEN` 和 `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN`），
-所以"装哪一家"这个决定不用回到代码里改。
-
-### 为什么是这一家
-
-`INCR` 一条命令就给出 `n` 要的那个**原子序号**（`docs/43 §4.2`）；
-它有 HTTP 端点，所以一个依赖都不用装；
-而这一页是**几天才被打开一次**的，Neon 那种五分钟冷启动在这里是纯亏。
-选型是当天在 `vercel integration discover --category storage` 上现查的，
-不是抄 `docs/43` 里那份调研快照 —— 那份快照会过期。
-
-### 回执
-
-```bash
-curl -s https://useeme.ptoq.io/api/visits
-```
-
-- 还没装：`{"ok":false,"code":"DISABLED"}`（404）—— **这是正常的，不是坏了**。
-- 装好了：`{"ok":true,"total":…,"entries":[…]}`。
-
-然后打开 `/about`：那一句「每一次到访只在服务端留下一行」
-**会自己出现** —— 它是先问 `/api/visits` 再决定印不印的，不用改代码、不用有人记得。
-这就是为什么乙可以晚一点做：页面在那之前不会说一句假话。
-
-### 那一步没做之前，线上是什么样
-
-| 地方 | 样子 |
-|---|---|
-| `/api/visit` `/api/visits` | 404 + 结构化 JSON，不是崩溃 |
-| `/lineage` | 说它那句「这条回路在这个版本里不存在」 |
-| `/about` 的隐私段 | **少一句**。不会有「存档暂未开启」这种占位话 —— 观众不需要知道我们的部署顺序 |
-| 装置 | 照记不误。甲和乙互不依赖 |
+**做了这一步会发生什么，要先想清楚。** 网站问存档是同源 `/api` 在前，
+所以 Vercel 上的存储一旦答了，**Worker 就不再被问** —— 那是两份各自从 1 数起的存档，
+不是一份。如果 Worker 那边已经记了人，先决定要不要把行搬过去，再开这一步。
 
 ---
 
