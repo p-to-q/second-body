@@ -609,7 +609,11 @@ const CSS = `
    （clamp，会随视口变），而一条为不同框的邻居留的位置，量的时候就是错的。
    颜色走 --sb-on-stage：首屏把它翻成深色（ring/first-screen.css 里那条
    注释点名了字标），所以白底上它自己就是黑的。 */
-.sb-brand{position:absolute;left:var(--sb-safe);top:var(--sb-safe);pointer-events:none}
+/* 字标取和物种名同一档（--sb-size-h1）。这一屏讲的是两件事：这是什么作品、
+   你在看哪一个物种 —— 一个是容器一个是条目，同字号让它们读成一副构图的两极
+   （都压在左边那条 --sb-safe 线上，一上一下）。再大就开始和入口屏抢，
+   再小就是现在这样：作品的名字比它目录里的一条还轻。 */
+.sb-brand{position:absolute;left:var(--sb-safe);top:var(--sb-safe);pointer-events:none;--sb-mark-size:var(--sb-size-h1)}
 .sb-hud{position:absolute;left:0;right:0;bottom:0;padding:var(--sb-safe);pointer-events:none;
   background:linear-gradient(to top,color-mix(in srgb,var(--sb-paper) 82%,transparent),transparent)}
 .sb-name{font-size:var(--sb-size-h1);font-weight:var(--sb-weight-head);

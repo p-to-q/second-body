@@ -29,6 +29,16 @@ export interface Flags {
    * 他会以为是弧线错了，而不是参数错了（P21）。
    */
   arc: number | null;
+  /**
+   * ?theseus=off 关掉整条"一件一件换掉"（docs/44 §9 的现场兜底）；
+   * ?theseus=<倍率> 当场调快慢（`2` = 快一倍）。默认开、倍率 1。
+   *
+   * 关掉之后身体只跟着 `ARC` 的四档走，也就是**这一版之前的行为**——
+   * 现场的 plan B 必须是真的，这一条由 `test/theseus-flag.test.ts` 钉住。
+   * 认不出来的值（`?theseus=fast` / `?theseus=0` / `?theseus=-1`）按没写过处理
+   * 并喊一声 —— 和 `?arc=` / `?scene=` / `?cam=` 同一条规矩。
+   */
+  theseus: TheseusFlag;
   plan: BodyPlanId | null;  // ?plan=quadruped 覆盖身体方案（docs/18）
   /** ?scene=void 覆盖舞台场景（app/src/stage/scenes.ts）。null = 按物种自动挑 */
   scene: string | null;
@@ -203,6 +213,38 @@ function resolveArc(raw: string | null): number | null {
   return null;
 }
 
+/** `?theseus=` 解析出来的两件事：开不开、多快 */
+export interface TheseusFlag { on: boolean; rate: number }
+
+/**
+ * `?theseus=` 的解析。`off` = 关掉整条；一个大于 0 的数 = 速率倍率；
+ * 没写 = 开、倍率 1。`null` 的返回值表示"写了但认不出来"，由调用方喊一声。
+ *
+ * 单独拎出来（和 `parseExits` / `parseArcSeconds` 同一条路数）是为了能被单测直接钉住：
+ * 「写了一个坏值」和「没写」要走同一条路，但前者必须说话。
+ */
+export function parseTheseus(raw: string | null): TheseusFlag | null {
+  if (raw === null || raw.trim() === '') return { on: true, rate: 1 };
+  const v = raw.trim();
+  if (v === 'off') return { on: false, rate: 1 };
+  if (v === 'on') return { on: true, rate: 1 };
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? { on: true, rate: n } : null;
+}
+
+/** 同一个坏值只喊一次 —— `readFlags()` 一次启动会被调好几处 */
+const warnedTheseus = new Set<string>();
+
+function resolveTheseus(raw: string | null): TheseusFlag {
+  const parsed = parseTheseus(raw);
+  if (parsed !== null) return parsed;
+  if (raw !== null && !warnedTheseus.has(raw)) {
+    warnedTheseus.add(raw);
+    console.warn(`[kiosk] ?theseus=${raw} 认不出来，只认 off / on / 大于 0 的倍率 —— 按没写过处理（照常一件一件换）`);
+  }
+  return { on: true, rate: 1 };
+}
+
 /**
  * `?plan=`。认不出来就是 null = 当没写过，而且**喊一声**（和 `?model=` / `?shading=`
  * / `?scene=` / `?cam=` 同一条规矩）。
@@ -247,6 +289,7 @@ export function readFlags(search = location.search): Flags {
     kiosk: q.get('kiosk') === '1',
     act: q.get('act'),
     arc: resolveArc(q.get('arc')),
+    theseus: resolveTheseus(q.get('theseus')),
     plan: resolvePlan(q.get('plan')),
     scene: q.get('scene'),
     selftest: q.get('selftest') === '1',

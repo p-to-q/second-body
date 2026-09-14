@@ -248,6 +248,32 @@ verifying it on its own side**. From now on, every task card opens like this:
 `git ls-files <path>` 有没有输出。没有输出 = 它不在工作树里。
 `ls` 会骗你，因为你是在主检出里 `ls` 的。
 
+### 6.8 一条线被额度掐断时，**它没提交的东西会静静消失**
+
+2026-09-14 清理工作树时数出来的：**六条线各自留着没提交的工作**，
+其中一条是整整一个 `packages/archive`（store / http / visit + 320 行测试），
+另一条是九个身体方案记号那份已经被作品负责人看过并认可的 `ui/marks.ts`。
+两条都是撞上会话额度上限（rate limit）当场终止的，终止点在"写完了、还没 commit"。
+
+**这不是子代理的错，是派活的人的错。** 派活时写的是"跑完 `npm run check` 再提交"，
+于是一条线在跑到那一步之前死掉，就什么都不留。而工作树列表看上去一切正常 ——
+`git log` 干干净净，分支没有新提交，**没有任何迹象表明那里躺着两百行没人要的代码**。
+最危险的一点是：重新派同一件事的时候，新的一条线会**从零重做**，
+而它很可能做出一个不一样的设计 —— 原来那个已经被认可过的设计就这样被悄悄替换了。
+
+**规矩两条：**
+
+1. **每张任务卡都要写：阶段性成果先 commit，再继续。** 提交信息随便写、标 `wip:` 都行，
+   **但不许把第一次 commit 推迟到验证之后**。一个未验证的提交可以被review、可以被丢掉；
+   一个不存在的提交什么都不是。
+2. **清理工作树之前，先逐个查 `git status --porcelain`，脏的一律就地 commit。**
+   `git worktree remove --force` 不会警告你正在删掉什么。分支会留下，工作树不会。
+
+**重新派活之前先问一句：这件事上一条线做到哪儿了？** 那两百行可能就在那儿等着，
+而且它可能比第二次做出来的更好 —— 至少它是已经被看过的那一个。
+
+---
+
 ## First, one thing: confirm the baseline
 <three to five executable checks covering the paths, exports and symbols the card names>
 **If any one of them fails, stop and report immediately. Do not start work.**

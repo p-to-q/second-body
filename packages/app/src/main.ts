@@ -13,7 +13,7 @@ import { buildSkeleton, mediapipeToWorld } from '../../core/src/skeleton.ts';
 import { createStabilizer } from '../../core/src/stabilize.ts';
 import { clampFold, createRefiner } from '../../core/src/refine.ts';
 import { createVitality } from '../../core/src/vitality.ts';
-import { createMotion } from '../../core/src/motion.ts';
+import { createBoneEnergy, createMotion } from '../../core/src/motion.ts';
 import { createEvolution } from '../../core/src/evolution.ts';
 import { createPresence } from '../../core/src/presence.ts';
 import { arcPresent, createArc, type ArcState } from '../../core/src/arc.ts';
@@ -21,11 +21,12 @@ import { makeGenome, toPlaceholderGenome } from '../../core/src/genome.ts';
 import { blendSkeletons, remapSkeleton, type BodyPlan } from '../../core/src/bodyplan.ts';
 import { mulberry32 } from '../../core/src/rng.ts';
 import { CAPTURE, NASCENT, REFINE, STAGE } from '../../core/src/tuning.ts';
-import type { MotionFeatures, Presence, Skeleton, Tier } from '../../core/src/types.ts';
+import type { Genome, MotionFeatures, Presence, Skeleton, SlotKey, SlotPick, Tier } from '../../core/src/types.ts';
 
 import { createCapture, type Capture } from './capture/capture.ts';
 import { createPartLibrary } from './assets/library.ts';
 import { createCreature } from './creature/creature.ts';
+import { makeTheseus, swapOneSlot } from './creature/theseus-wire.ts';
 import { resolveShading, type ShadingId } from './creature/shading.ts';
 import { createMassBody } from './creature/mass.ts';
 import { createNascent } from './creature/nascent.ts';
@@ -360,6 +361,9 @@ async function boot(): Promise<void> {
   const vitality = createVitality();
   let vitalityOn = flags.vitality;
   const motion = createMotion();
+  // 逐骨运动能量：`motion` 给的是整具的一个数，回答不了"他现在在用哪根肢体"，
+  // 而 docs/44 §3 的 `motionBias`（"它拿走你正在用的那一部分"）只关心这个。
+  const boneEnergy = createBoneEnergy();
   const evolution = createEvolution();
   // 身体方案决定用哪种**表达**：刚体挂载（手办式）还是团块（物质式）。
   // 两者都满足 BodyInstance，帧循环不关心是哪一种（docs/18 §2）。
@@ -497,6 +501,31 @@ async function boot(): Promise<void> {
     },
   });
 
+  /**
+   * ── 忒修斯之船（`docs/44-THESEUS.md`）──────────────────────────────────────
+   *
+   * 排期器住在 `core`（纯的，测得起 200 个种子 × 180 秒），这里只接三件事：
+   * 喂它时间和运动量、拿它给的那一件去 `remorph`、人一走把槽位收回来。
+   * **没有第二套换装机制** —— docs/44 §1：升档那套一行都不浪费，只是粒度改细。
+   *
+   * `?theseus=off` 时 `theseus` 是 null，下面每一处都是 `?.`：
+   * 关掉之后这条线上一个对象都不存在，身体退回这一版之前那条四档跳的路。
+   */
+  const theseus = makeTheseus(flags, seed, arc.total);
+  /**
+   * 已经被换掉的那些槽位。**升档重建 genome 时必须盖回去** ——
+   * `morph()` 是拿 `seed` 从头抽一具身体，不盖的话每一次乐章交接都会把
+   * 前面换掉的件悄悄变回原件，于是"一件都不剩"永远走不到头，
+   * 而画面上看不出发生过什么（它只是又换了一批）。
+   */
+  const swapped = new Map<SlotKey, SlotPick>();
+  const withSwapped = (g: Genome): Genome => {
+    if (!swapped.size) return g;
+    const slots = { ...g.slots };
+    for (const [k, v] of swapped) slots[k] = v;
+    return { ...g, slots };
+  };
+
   const morph = (t?: Tier) => {
     if (t !== undefined) tier = t;
     // 团块没有槽位件可换 —— 它的"演化"由 tier 驱动的表面参数表达，不是换装。
@@ -505,7 +534,7 @@ async function boot(): Promise<void> {
     // tier 0 一件部件都没有（parts.json 里 tier 0 的件数是 0），有开场形态接着的时候
     // remorph 只会白建 30 个占位实例然后被团块盖住 —— 那 30 个实例正是这次要拿掉的东西。
     if (!nascent || tier >= 1) {
-      const g = makeGenome(seed, tier, library.index, { theme: theme ?? undefined, rejected: library.rejected });
+      const g = withSwapped(makeGenome(seed, tier, library.index, { theme: theme ?? undefined, rejected: library.rejected }));
       // 已经降到第 2 级之后，升档不许把真几何再装回来 —— 那会让降级**自己撤销自己**，
       // 而画面上看不出发生过什么（docs/36 D4）。降级是单向的，只有重载能回头。
       creature.remorph(getDegradeState().placeholder ? toPlaceholderGenome(g) : g);
@@ -572,6 +601,9 @@ async function boot(): Promise<void> {
       // 而骨长要等滚动中位数定下来才可信（放前面就是拿噪声当尺子）。
       if (refiner && refineOn) clampFold(humanSk);
       lastFeatures = motion.update(humanSk, dt);
+      // 逐骨能量也算在**人的**骨架上，和 `motion` 同一条理由：
+      // docs/44 §3 那条机制说的是"他刚才在用哪根肢体"，不是"那具身体哪根动得多"。
+      boneEnergy.update(humanSk, dt);
       // 拓扑漂移（docs/40 §1：**"逐渐"是这条线的全部技术要求**）。
       // 第 I / II 乐章 drift = 0，人形；第 III 乐章开头那 `ARC.crossfade` 秒里
       // 从人形漂到物种自己的方案；之后 drift = 1，一次 remap 就够，零额外开销。
@@ -599,6 +631,29 @@ async function boot(): Promise<void> {
       massBody?.setEnergy(lastFeatures.energy);
       nascent?.setEnergy(lastFeatures.energy);
       evoTier = evo.tier;
+    }
+
+    // ── 忒修斯之船：这一帧要不要换一件（docs/44 §2 / §3）────────────────────
+    //
+    // 时间喂的是 `arcState.elapsed`（人不在就停表），在不在场喂的是同一个
+    // `arcPresent(p)` —— 不发明第二套检测（docs/44 §8）。
+    // 借件的种子由会话种子和第几件推出来，**不摇裸骰子**（P1）：
+    // 同一个 seed 的同一场，第 7 件换成谁，每次都一样。
+    const step = theseus?.update(
+      { elapsed: arcState.elapsed, present: arcPresent(p), energy: boneEnergy.current },
+      dt,
+    );
+    if (step?.fired && !isMass && !isSwarm) {
+      const g = swapOneSlot(
+        creature.genome, step.fired.slot,
+        (seed ^ Math.imul(step.fired.index, 0x9e3779b9)) >>> 0,
+        { tier, index: library.index, rejected: library.rejected },
+      );
+      // 借不到就是这一件不发生 —— 不抛、不等、不退化成"换了个一模一样的"（P3）。
+      if (g) {
+        swapped.set(step.fired.slot, g.slots[step.fired.slot]);
+        creature.remorph(getDegradeState().placeholder ? toPlaceholderGenome(g) : g);
+      }
     }
 
     // ── 分档：**跟着弧线走，运动量只是加速项**（docs/40 §4 最后一段）───────────
@@ -653,6 +708,12 @@ async function boot(): Promise<void> {
     if (arcState.justReset) {
       seed = (Math.random() * 0xffffffff) >>> 0;
       motion.reset();
+      boneEnergy.reset();
+      // docs/44 §8：人一走，18 个槽位全部回到原件。下面那句 `morph(tier)` 是拿
+      // **新的 seed** 从头抽一具身体，所以清空这张表就等于归零 —— 不归零的话
+      // 第二个观众看到的是一具已经被换了一半的身体，而他没见过原件：
+      // 对他来说忒修斯之船从来没发生过，而且失效得看不出来（画面照常在动）。
+      swapped.clear();
       evolution.reset();
       stabilizer.reset();
       refiner?.reset();
@@ -666,6 +727,7 @@ async function boot(): Promise<void> {
       lastSkeleton = null;
       evoTier = 0;
       tier = (flags.tier ?? 0) as Tier;
+      theseus?.reset(seed);
       morph(tier);
       // 上一个人可能把身体还回去了（右下角那一行）。下一个人站上去必须被跟随，
       // 否则他看到的是一具从第一秒就不理他的身体 —— docs/40 §3 点名的那个 bug。
@@ -698,6 +760,8 @@ async function boot(): Promise<void> {
         // 现场调时长的人靠这一行，不靠掐表（docs/40 §5 第 2 条）
         arc: arcState,
         arcForced: director.forced,
+        // docs/44 §7 最后一段：现场调速率的人靠这一行，不靠掐表
+        theseus: theseus?.state,
         // `camera` 只有 `WebcamCapture` 有（回放没有摄像头可选），所以按可选字段读 ——
         // 和上面 `instances` 同一个写法，不为一个显示字段去动 `Capture` 契约。
         cam: (capture as { camera?: { hud: string } | null }).camera?.hud,
@@ -826,7 +890,8 @@ async function boot(): Promise<void> {
   console.info(
     `[main] running · theme=${theme} · seed=${seed} · ` +
     `plan=${planKind}${planOverride === null && planKind !== 'rig' ? '(第 III 乐章到场)' : ''} · ` +
-    `arc=${arc.total}s · capture=${entry || flags.demo ? 'replay' : 'webcam'} · ` +
+    `arc=${arc.total}s · theseus=${theseus ? (flags.theseus.rate === 1 ? 'on' : `×${flags.theseus.rate}`) : 'off'} · ` +
+    `capture=${entry || flags.demo ? 'replay' : 'webcam'} · ` +
     `acts=${ACTS.map((a) => a.id).join(',')} · sound=${sound.state}`,
   );
 }
