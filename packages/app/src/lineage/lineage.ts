@@ -36,6 +36,7 @@ import type { PartLibraryIndex, PartMeta, ThemeDef } from '../../../core/src/typ
 import { COPY, setBi, type BiText } from '../ui/i18n.ts';
 import { markNode } from '../ui/mark.ts';
 import { mountNav } from '../ui/nav.ts';
+import { mountFooterMark } from '../ui/footer-mark.ts';
 // 缩略图方案只有一份。它住在 dev/ 是因为 `/dev/parts.html` 先用上它，
 // 但它本身没有任何 dev-only 的东西：一个纯模块，照用。
 import { createThumb, createThumbObserver } from '../../dev/thumbs.ts';
@@ -434,5 +435,6 @@ async function render(root: HTMLElement): Promise<void> {
 }
 
 const mount = document.querySelector<HTMLElement>('#lineage');
-if (mount) void render(mount);
+// 页脚标记挂在渲染**之后**：render 有三个提前 return（存档 / 空 / 离线），每一条路都要落到它
+if (mount) void render(mount).finally(() => mountFooterMark(mount));
 mountNav();

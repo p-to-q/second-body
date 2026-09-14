@@ -34,6 +34,7 @@ import '../ui/editorial.css';
 import './about.css';
 import { heroMeta } from '../ui/hero.ts';
 import { fromSearch } from '../ui/return-to.ts';
+import { mountFooterMark } from '../ui/footer-mark.ts';
 import { findVisits } from '../archive/endpoint.ts';
 
 const REPO = 'https://github.com/p-to-q/see-me-see-u';
@@ -487,4 +488,5 @@ export async function renderAbout(root: HTMLElement = document.body): Promise<vo
   page.append(howSection(index));
   if (index) page.append(speciesSection(index));
   page.append(privacySection(), creditsSection());
+  mountFooterMark(page);
 }

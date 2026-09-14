@@ -22,6 +22,7 @@
 import './archive.css';
 import { mountPageHead } from '../src/ui/page.ts';
 import { withFrom } from '../src/ui/return-to.ts';
+import { mountFooterMark } from '../src/ui/footer-mark.ts';
 
 interface Item {
   href: string;
@@ -140,3 +141,4 @@ foot.textContent =
   '排版系统 packages/app/src/ui/type.css · 场景规格 docs/23-SPEC-ui.md · ' +
   '「什么真的跑通了」以 docs/10-SURFACES.md 为准';
 page.appendChild(foot);
+mountFooterMark(page);

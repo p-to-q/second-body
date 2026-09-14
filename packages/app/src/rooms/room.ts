@@ -39,6 +39,7 @@ import { COPY, setBi, type BiText } from '../ui/i18n.ts';
 import { markShape } from '../ui/marks.ts';
 import { heroMeta } from '../ui/hero.ts';
 import { mountNav } from '../ui/nav.ts';
+import { mountFooterMark } from '../ui/footer-mark.ts';
 import { fromSearch } from '../ui/return-to.ts';
 import { setBiLinked, type AsidePhrase } from '../ui/aside.ts';
 import '../ui/type.css';
@@ -105,7 +106,9 @@ export function mountRoom(options: RoomOptions): Room {
   const body = document.createElement('div');
   body.className = 'room-body';
 
+  // 页脚标记跟在 body 后面：房间的内容全部进 body，异步填进来也不会跑到标记下面
   page.append(head, body);
+  mountFooterMark(page);
   mount.append(page);
 
   const setStateImpl = (text: BiText | null): void => {

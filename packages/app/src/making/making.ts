@@ -26,6 +26,7 @@
 import { COPY, setBi, type BiText } from '../ui/i18n.ts';
 import { markNode } from '../ui/mark.ts';
 import { mountNav } from '../ui/nav.ts';
+import { mountFooterMark } from '../ui/footer-mark.ts';
 import { heroMeta } from '../ui/hero.ts';
 import { fromSearch } from '../ui/return-to.ts';
 import { setBiLinked } from '../ui/aside.ts';
@@ -194,6 +195,7 @@ export function renderMaking(root: Element): void {
   renderPrinciples(root);
   renderGaps(root);
   renderFooter(root);
+  mountFooterMark(root);
 }
 
 const mount = document.querySelector('#mk');

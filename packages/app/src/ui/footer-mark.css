@@ -1,0 +1,42 @@
+/**
+ * 页脚标记的皮肤。形状来自 SVG（蒙版），颜色来自那一页的墨（`--sb-ink`）。
+ *
+ * - 宽度吃满内容那一栏：像产品网站最底下那枚大字标，不是一个角落里的小徽章。
+ *   上限 72rem，超宽屏上不至于比正文栏还宽出一截。
+ * - `aspect-ratio` 就是裁过的 viewBox（633.8 × 98.1）：图还没到时位置已经占好，页面不跳。
+ * - 上面留三倍栏距、下面留一个安全区：它是一页的收尾，不贴着上一段正文，也不贴着屏幕下沿（投影会切边）。
+ * - 没有入场动效（docs/23 §0：入场动效不许决定看不看得见）。
+ */
+
+.sb-footmark {
+  display: block;
+  margin: calc(var(--sb-gutter) * 3) 0 0;
+  padding: 0 0 var(--sb-safe);
+  color: var(--sb-ink);
+  /* 页面自己的边距已经给过了，这里不再加左右内边距 */
+}
+
+/* 不支持蒙版的浏览器：不画。否则那一格会是一整块实心的墨色矩形 */
+.sb-footmark__mark { display: none; }
+
+@supports (mask-image: url("")) or (-webkit-mask-image: url("")) {
+  .sb-footmark__mark {
+    display: block;
+    width: 100%;
+    max-width: 72rem;
+    aspect-ratio: 633.8 / 98.1;
+    background-color: currentColor;
+    -webkit-mask-image: var(--sb-footmark-src);
+    mask-image: var(--sb-footmark-src);
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-position: left bottom;
+    mask-position: left bottom;
+  }
+}
+
+@media print {
+  .sb-footmark { break-inside: avoid; }
+}

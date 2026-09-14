@@ -54,6 +54,7 @@ import './passport.css';
 import { COPY, bi, type BiText, setBi } from '../ui/i18n.ts';
 import { markNode } from '../ui/mark.ts';
 import { mountNav } from '../ui/nav.ts';
+import { mountFooterMark } from '../ui/footer-mark.ts';
 import { heroMeta } from '../ui/hero.ts';
 import { fromSearch } from '../ui/return-to.ts';
 import { setBiLinked, type AsidePhrase } from '../ui/aside.ts';
@@ -364,6 +365,7 @@ for (const s of STAMPS) root.append(stampBlock(s));
 const foot = el('footer', 'sb-foot');
 foot.append(biBlock(COPY.passport.foot, 'p'));
 root.append(el('hr', 'sb-rule'), foot);
+mountFooterMark(root);
 
 // 这一页原本是条死路：读完之后走不回作品，也走不到别的房间
 mountNav();
