@@ -16,7 +16,7 @@ import { readFlags } from '../src/shell/kiosk.ts';
 const OVER: ControlValues = {
   form: 'quadruped', scene: 'tide', act: 'resist',
   outline: true, vitality: false, sound: false,
-  species: 'xeno', refine: true, post: false, framing: 'upper',
+  species: 'xeno', refine: true, post: false, framing: 'upper', people: '2',
 };
 const ARC: ControlValues = { ...OVER, form: null, act: null, vitality: true, post: true, sound: true };
 const LINKS = CONTROLS.flatMap((c) => c.links ?? []);

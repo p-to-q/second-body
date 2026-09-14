@@ -88,7 +88,7 @@ test('?framing=：三个值读得回来，默认 auto；认不出来喊一声、
     const back = readFlags(w === null || w === undefined ? '' : `?framing=${w}`);
     assert.equal(c.fromFlags!(back), v);
   }
-  assert.equal(stagePatch({ form: null, scene: 'void', act: null, outline: false, vitality: true, sound: true, species: null, refine: true, post: true, framing: 'auto' }).framing, null,
+  assert.equal(stagePatch({ form: null, scene: 'void', act: null, outline: false, vitality: true, sound: true, species: null, refine: true, post: true, framing: 'auto', people: '1' }).framing, null,
     'auto 应该写成删除：地址栏里不留一个默认值');
 });
 

@@ -25,6 +25,7 @@ const STATE: ControlValues = {
   refine: true,
   post: false,
   framing: 'auto',
+  people: '1',
   sound: false,
 };
 
