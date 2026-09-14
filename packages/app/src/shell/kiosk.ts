@@ -174,6 +174,11 @@ export interface Flags {
    * 认不出来的值（`?framing=half`）按没写过处理并喊一声 —— 规矩和 `?exits=` / `?gl=` 一样。
    */
   framing: FramingPolicy;
+  /**
+   * ?hall=1  从舞台「回到大厅」回来：直接进选择页，不再立展签（`shell/entry.ts`）。
+   * 仍然用回放起步、不问摄像头 —— 和按过「开始」一模一样，只是不用再按一次。
+   */
+  hall: boolean;
 }
 
 /** 同一个坏值只喊一次 —— `readFlags()` 一次启动会被调好几处 */
@@ -476,6 +481,7 @@ export function readFlags(search = location.search): Flags {
     gl: resolveGl(q.get('gl')),
     worker: q.get('worker') !== 'off',
     framing: resolveFraming(q.get('framing')),
+    hall: q.get('hall') === '1',
   };
 }
 

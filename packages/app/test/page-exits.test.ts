@@ -90,3 +90,40 @@ test('四个文档页的横带都读 ?from=（和侧室同一条规矩）', () =
     assert.match(strip(read(page)), /heroMeta\('[^']*', fromSearch\(location\.search\)\)/, `${page} 的横带不认来处`);
   }
 });
+
+// ── 2026-09-14 作品负责人「你自己做」之后落地的那几条（docs/47 §5）─────────────────
+
+test('侧室挂目录：从正文一个数字点进来的人，也看得见这个站有哪几面', () => {
+  const room = strip(read('src/rooms/room.ts'));
+  assert.match(room, /mountNav\(\)/, 'rooms/room.ts 没有挂目录');
+});
+
+test('目录的当前页对读屏也是「当前页」', () => {
+  assert.match(strip(read('src/ui/nav.ts')), /setAttribute\('aria-current', 'page'\)/);
+});
+
+test('横带回 /about 时写「返回作品陈述」，不写「回到作品」—— 作品在 /，不在 /about', () => {
+  const hero = strip(read('src/ui/hero.ts'));
+  assert.match(hero, /returnLabel\(backHref\)/, 'ui/hero.ts 的默认回程没有按目的地起名');
+  assert.equal(returnLabel('/about')?.zh, '返回作品陈述');
+});
+
+test('回到大厅落在选择页，不是展签；仍然不问摄像头（回放起步）', async () => {
+  const { hallSearch } = await import('../src/ui/exits-url.ts');
+  const q = new URLSearchParams(hallSearch('?theme=xeno&scene=tide', {
+    species: 'xeno', form: null, scene: 'tide', act: null, outline: false, vitality: true, refine: true, post: true, sound: true,
+  }));
+  assert.equal(q.get('hall'), '1');
+  assert.equal(q.get('theme'), null);
+  const { readFlags } = await import('../src/shell/kiosk.ts');
+  assert.equal(readFlags('?hall=1').hall, true);
+  assert.equal(readFlags('').hall, false);
+  const entry = strip(read('src/shell/entry.ts'));
+  // 大厅：不立展签，但 entry 仍然返回（main.ts 据此用回放起步，不弹权限）
+  assert.match(entry, /if \(flags\.hall\)/);
+  assert.match(entry, /shown: false/);
+  const main = strip(read('src/main.ts'));
+  assert.match(main, /startOpen: entry\?\.shown === true/, '大厅没有展签那一栏，目录不该铺开');
+  // 选定之后 hall 从地址栏里拿掉，分享出去的舞台地址不带它
+  assert.match(strip(read('src/choose/choose.ts')), /searchParams\.delete\('hall'\)/);
+});

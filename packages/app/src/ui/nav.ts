@@ -148,6 +148,8 @@ export function mountNav(options: NavOptions = {}): Nav | null {
     // 比没有链接更让人怀疑是不是坏了
     const row = document.createElement(here ? 'span' : 'a');
     row.className = here ? 'sb-nav-item is-here' : 'sb-nav-item';
+    // 排版上的退一档读屏看不见；这一句让它也知道「就是这一页」
+    if (here) row.setAttribute('aria-current', 'page');
     if (!here) (row as HTMLAnchorElement).href = item.href;
 
     const nameRow = document.createElement('div');

@@ -52,7 +52,10 @@ export function heroMeta(backHref: string, from: string | null = null): HTMLDivE
   const back = document.createElement('a');
   back.className = 'ed-hero__back';
   back.setAttribute('href', origin && label ? origin : backHref);
-  setBi(back, origin && label ? label : COPY.about.back);
+  // 默认回程按目的地起名：回 `/` 叫「回到作品」，回 `/about` 叫「返回作品陈述」——
+  // 原来三页都写「回到作品」却指向 /about，字说的和点下去发生的不是一件事（docs/47 §5）
+  const fallback = backHref === '/' ? COPY.about.back : returnLabel(backHref) ?? COPY.about.back;
+  setBi(back, origin && label ? label : fallback);
 
   meta.append(back, markNode('span'));
   return meta;

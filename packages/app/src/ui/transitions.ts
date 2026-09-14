@@ -152,9 +152,11 @@ export const TRANSITIONS: ReadonlyMap<Pair, Transition> = new Map<Pair, Transiti
   ...both('workbench', 'selftest', xfade()),
   ...both('selftest', 'kiosk', xfade()),
   ...both('selftest', 'label', xfade()),
-  ...both('missing', 'label', xfade()),
-  ...both('missing', 'doc', xfade()),
-  ...both('missing', 'workbench', xfade()),
+  // 404 那一页（HTTP 404 回来的文档）离开时，无头 Chrome 截到过整张纯白的旧页（docs/47 §4.3）。
+  // 一个没人会停留的页不值得冒一帧白闪的险：不过渡
+  ...both('missing', 'label', NONE),
+  ...both('missing', 'doc', NONE),
+  ...both('missing', 'workbench', NONE),
   // 原地：展签 → 选择页是同一个场进入下一阶段（shell/entry.ts 的文件头），不需要平台再叠一层
   ['label>label', NONE],
   // 原地：选择页 → 舞台。卡片涨满屏幕之后，等舞台画出第一帧，再淡过去

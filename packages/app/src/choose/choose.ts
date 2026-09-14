@@ -124,6 +124,8 @@ export function themeFromUrl(search: string = location.search): string | null {
 export function writeThemeToUrl(id: string): void {
   const url = new URL(location.href);
   url.searchParams.set('theme', id);
+  // 大厅那个标记只管"这一次别立展签"。选定之后它没有意义，分享出去的地址不该带着它
+  url.searchParams.delete('hall');
   history.replaceState(null, '', url);
 }
 

@@ -27,15 +27,18 @@
  * 左边「回到作品」，右边字标，**中间什么都没有**。房间名不进这条带子 ——
  * 它在下面那条重线底下自己有一行。
  *
- * ## 目录**不挂**
+ * ## 目录**挂**（2026-09-14 改，docs/47 §5）
  *
- * 挂上目录，房间就会看着像一个"没被列进去的页面"：七条里没有它。
- * 一张写着"这里有七个房间"的地图，挂在第八个房间的墙上，
- * 只会让人觉得自己走错了。出口由横带给，地图在 `/about` 上等着。
+ * 原来不挂，理由是"一张写着七个房间的地图挂在第八个房间的墙上，只会让人以为自己走错了"。
+ * 那条理由成立的前提是人从 `/about` 的正文里进来 —— 而无头 Chrome 从 `/dev/` 逐条点过去，
+ * 侧室上唯一的出路是「回到作品 → /about」，一个他没去过的地方；作品负责人读到的是「去不了别的页面」。
+ * 地图挂在侧室墙上**并不说侧室是第八面**：目录里没有它，当前页那一条也就不亮 ——
+ * 这恰好是它该有的样子。目录仍然收起（`startOpen` 缺省 false），不压正文。
  */
 import { COPY, setBi, type BiText } from '../ui/i18n.ts';
 import { markShape } from '../ui/marks.ts';
 import { heroMeta } from '../ui/hero.ts';
+import { mountNav } from '../ui/nav.ts';
 import { fromSearch } from '../ui/return-to.ts';
 import { setBiLinked, type AsidePhrase } from '../ui/aside.ts';
 import '../ui/type.css';
@@ -111,6 +114,7 @@ export function mountRoom(options: RoomOptions): Room {
     setBi(stateEl, text);
   };
   setStateImpl(state);
+  mountNav();
 
   return { body, setState: setStateImpl };
 }

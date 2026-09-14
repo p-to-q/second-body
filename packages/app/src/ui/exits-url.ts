@@ -41,5 +41,7 @@ export function hallSearch(search: string, v: ControlValues): string {
   // 这两条是这个函数存在的理由，放最后写，免得被上面任何一行覆盖回去
   q.delete('theme');
   q.delete('plan');
+  // 大厅 = 选择页，不是展签（docs/47 §5）。没有它，重载回来的人得再按一次「开始」
+  q.set('hall', '1');
   return q.toString();
 }

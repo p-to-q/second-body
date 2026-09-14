@@ -66,6 +66,15 @@ function hideGpuCanvases(): void {
   }
 }
 
+/**
+ * 摄像头开着的舞台。藏掉画面和小屏之后，无头 Chrome 仍然在 2/2 次里把这种页截成纯白
+ * （docs/47 §4.3），而同一个舞台用回放驱动时 3/3 次截得对。原因没查到，所以不赌：
+ * 摄像头开着就不过渡，退回原来的一刀切 —— 一刀切至少不会先白一下。
+ */
+function cameraLive(): boolean {
+  return [...document.querySelectorAll('video')].some((v) => (v.srcObject as MediaStream | null)?.getVideoTracks?.().some((t) => t.readyState === 'live'));
+}
+
 function unname(): void {
   for (const c of hidden.splice(0)) c.style.visibility = '';
   for (const el of named.splice(0)) el.style.removeProperty('view-transition-name');
@@ -95,7 +104,7 @@ export function installPageTransitions(): void {
     if (!vt) return;
     const url = e.activation?.entry?.url;
     const t: Transition | null = url ? transitionFor(here(), surfaceOfUrl(url)) : null;
-    if (!t || t.kind === 'none' || reduced()) { vt.skipTransition(); return; }
+    if (!t || t.kind === 'none' || reduced() || cameraLive()) { vt.skipTransition(); return; }
     hideGpuCanvases();
     nameShared(t.shared);
   });

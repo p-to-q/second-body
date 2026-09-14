@@ -118,7 +118,7 @@ async function boot(): Promise<void> {
     mount: corner,
     // 铺开是**展签版式的一部分** —— `shell/entry.css` 为它让出了右边一栏。
     // 深链和现场没有展签，也就没有那一栏：那时候铺开的目录是整片压在作品上的。
-    startOpen: entry !== null,
+    startOpen: entry?.shown === true,
     enabled: flags.nav, overlay: true,
   });
 
@@ -214,7 +214,7 @@ async function boot(): Promise<void> {
   // 放在 await 之后而不是塞进 entry.ts：`started` 是在 click 处理里 resolve 的，
   // 紧接着的这一个微任务仍在同一次用户手势内，浏览器照样放行。
   // 深链与现场（entry === null）没有这一下点击，也就没有这一声 —— 那是对的。
-  if (entry) cues.play('enter');
+  if (entry?.shown) cues.play('enter');
 
   let theme = flags.theme ?? themeFromUrl();
   // 写法由 `readFlags()` 判过了（`?theme=` 与 `?plan=` 同一条规矩），**在不在**只能在
