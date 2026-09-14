@@ -720,9 +720,16 @@ export const COPY = {
     // 「不离开你的浏览器」是一句技术保证，读起来像条款。
     // 同样的事实换一种说法就有画面，而且更准：摄像头的画面从来没被送出去，
     // 送出去的只有关节坐标 —— 它认得的一直只是一副骨头。
+    // §6.2 的最小版。原句是「它只认得你的骨头」—— **没有换一个新句子，是把它续了一截**：
+    // 前半句说的是「我们没拿走你的样子」，续上的半句说「留下的你也只是一个号码」，
+    // 两半是同一件事的两面，读起来是一句话不是两条条款。
+    //
+    // 为什么必须续这一截：从 `docs/43 §8` 起，一次走完的相遇会在服务端留下一行。
+    // 留下东西这件事必须在观众按下那个按钮**之前**就说了 —— `§0.1` 裁的是「声明，
+    // 不是默许」。而它只有一行的篇幅（入口层展签的左下角），所以只能是一句。
     short: bi(
-      '它只认得你的骨头',
-      'It only ever sees your bones',
+      '它只认得你的骨头。留下的是一个号码。',
+      'It only ever sees your bones. What it keeps is a number.',
     ),
     // 这句话原来写的是「你**主动触发**的那一张剪影」。那是假的：
     // 慢回路在人待满 `SLOW_LOOP.armAfter`（20 秒）之后**自己**就武装了，
@@ -732,12 +739,38 @@ export const COPY = {
     // 唯一一处必须逐字为真的文案。改成实际发生的事：**站着不走就是那个触发**。
     // 而这句话因此也更准：它说的正是这件作品的题目 —— 你什么都没做，
     // 只是待在那儿，而那已经足够让一具身体从你身上长出来。
+    //
+    // ── 第三句是「不参与」（`§9.5`）──────────────────────────────────────────
+    //
+    // `docs/13 §5` 要求页面上有一行说明**加一个「不参与」开关**，而
+    // `COPY.privacy.optOut` 这个常量一直存在、全仓没有任何一处渲染它。
+    // 裁定是：**不新做一个开关，把已经存在的那条路说出来。**
+    // 网页版的入口层本来就不要求授权也能看见东西（`docs/13 §1`、`PRD §8`）——
+    // 不按那个按钮，摄像头就不开，作品照样在放 demo 回放。
+    // 「不参与」在网页版上**已经实现了，只是没有被命名**。加一个勾选框是
+    // `docs/26 §F` 的反面清单；说出来才是这件作品的做法。
+    //
+    // ── 第二句是存档（`§8` / `§9.4`）────────────────────────────────────────
+    //
+    // 逐字列出那一行里有什么，是因为「永久保留」这条裁定**不是靠匿名化站住的，
+    // 是靠那一行里根本没有个人数据站住的**。说不清有什么，那条裁定就没有基础。
+    // 字段清单在 `packages/archive/src/visit.ts`，那边有测试钉着它。
+    //
+    // 现场那一句（二十秒）留着：它此前写的是「你**主动触发**的那一张剪影」，
+    // 而慢回路是人待满 `SLOW_LOOP.armAfter`（20 秒）之后**自己**武装的，
+    // 观众一个键都没按（`docs/38 §8`）。一句写在隐私说明里的假话比没有隐私说明更糟。
     long: bi(
-      '姿态识别全部在本地运行。站够二十秒，它会拿这一刻的剪影去长出一件新的部件 —— '
-      + '上传的只有那一张剪影，不保存、不关联身份。',
-      'Pose estimation runs entirely on your device. Stay about twenty seconds and it takes a single '
-      + 'silhouette of that moment to grow a new part — only that silhouette is ever uploaded, '
-      + 'not stored, not linked to you.',
+      '姿态识别全部在本地运行，摄像头的画面一帧都不离开你的设备。'
+      + '每一次到访只在服务端留下一行：一个序号、你选的物种、一个粗到天的日期 —— '
+      + '没有影像，没有动作，没有姓名、账号或 IP。'
+      + '不按那个按钮，摄像头就不会打开，作品照样在放。'
+      + '装置上的那一张剪影在你连续站够二十秒之后自动送出一次，用来生成那件长在你身上的东西。',
+      'Pose estimation runs entirely on your device; no camera frame ever leaves it. '
+      + 'Each visit leaves a single line on the server: a number, the species you chose, and a date '
+      + 'no finer than the day — no imagery, no movement, no name, account or IP address. '
+      + 'If you never press the button, the camera never opens and the piece plays anyway. '
+      + 'On the installation, one silhouette is sent once, automatically, after you have stood there '
+      + 'for twenty seconds, to generate the part that grows on you.',
     ),
     optOut: bi('不参与', 'Opt out'),
   },
@@ -790,6 +823,14 @@ export const COPY = {
 
     /** 两个巨大的数。数字自己承担句子，所以标签里不留待填的空 */
     countParts: bi('件留在池子里', 'pieces in the pool'),
+    /**
+     * 网页版那一个数（`docs/43 §8` 的存档）。
+     *
+     * 它和 `countParts` **不是同一件事**，所以不能共用一个标签：
+     * 装置上数的是留下来的件，网页版上数的是走完一整条弧线的人。
+     * 一个标签套两种数，那个数就不再说明任何事情。
+     */
+    countVisits: bi('个人走完过这条弧线', 'people have walked the whole arc'),
     countChance: bi('下一个站上去的人，穿上这里某一件的机会',
                     'the chance that the next person to step up wears one of these'),
 
@@ -798,6 +839,32 @@ export const COPY = {
                'One layer per piece, the oldest at the bottom. This stack never gets thinner.'),
     strataOlder: bi('底下这一段是更早的人，超出了这一页一次能取回的范围。',
                     'The band below is earlier visitors, beyond what this page can fetch at once.'),
+    /** 网页版：一层是一个人，不是一件。厚度的读法不变，被数的东西变了 */
+    strataVisits: bi('一人一层，最早的在最底下。这一叠不会变薄。',
+                     'One layer per person, the earliest at the bottom. This stack never gets thinner.'),
+    /**
+     * 网页版这一叠底下那一句。
+     *
+     * 装置那一版（`lede`）说的是「你在这一页上看到的厚度，就是在你之前站上去过的人」，
+     * 网页版逐字成立，但它必须补上**留下来的是什么**：只有位次和日期，没有件。
+     * 不补这一句，观众会以为这些层里各有一个看不见的东西。
+     */
+    visitsNote: bi(
+      '这里每一层只有三样东西：第几位、选的哪一个物种、哪一天。没有影像，没有动作，也没有一件可以看的东西 —— 网页版长不出件，那一半只在装置现场发生。',
+      'Each layer here holds three things only: a position, the species chosen, and a day. No imagery, no movement, and nothing to look at — the web version grows no parts; that half only happens at the installation.',
+    ),
+    /**
+     * `docs/43 §9.8` 裁的那一句（代 `docs/23` 裁，登记在 `docs/23 §S6`）。
+     *
+     * 一个循存档链接回来的人看到的是：作品在动，而摄像头没亮。不说明，他会以为坏了；
+     * 说明得太重，就变成一个 UI 控件 —— 裁定写明**不做角标、不做「回放中」的常驻标记**，
+     * 「那是播放器的语言，而这件作品不是播放器」。所以它是这一页正文里的一句话，
+     * 位置在画面之外、和这一页其它文字同一列。
+     */
+    replay: bi(
+      '循一条存档链接回到作品，画面会自己动起来，摄像头不亮 —— 那不是坏了，是有人先来过。',
+      'Follow an archive link back into the piece and it moves on its own, with the camera dark. Nothing is broken: somebody was here before you.',
+    ),
 
     /** 记录区 */
     sec: bi('每一件，和留下它的人', 'Each piece, and who left it'),

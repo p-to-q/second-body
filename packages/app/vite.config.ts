@@ -1,5 +1,6 @@
 import { defineConfig, type Plugin } from 'vite';
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import { resolve } from 'node:path';
 
 const ROOT = resolve(__dirname, '../..');
@@ -78,6 +79,40 @@ function demoIndex(): Plugin {
     },
   };
 }
+
+/**
+ * 存档（`docs/43 §8`）：`POST /api/visit` / `GET /api/visits?limit=`。
+ *
+ * **和 `/__slow` 正好相反的一条：这条回路在线上是存在的。** 慢回路是
+ * `apply:'serve'` 的中间件，生产构建里根本没有它，preview 那边还要显式判 404
+ * 才能让「不存在」读起来像不存在。存档不是：线上它是 Vercel 的两个函数
+ * （`api/visit.ts` / `api/visits.ts`），所以本机的 dev **和** preview 两边都要挂，
+ * 否则 `npm run build && preview` 跑的就不是线上那件事。
+ *
+ * 三个宿主共用 `packages/archive/src/http.ts` 里那一个 handler，
+ * 这里只负责把它接上 connect 的中间件链（逻辑不写在 vite.config 里，
+ * 理由和慢回路逐字相同：这个文件没法被测试打到）。
+ */
+type Mw = (req: IncomingMessage, res: ServerResponse) => void;
+function mountArchive(middlewares: { use: (path: string, fn: Mw) => unknown }): void {
+  middlewares.use('/api', (req, res) => {
+    void (async () => {
+      try {
+        const { createArchiveHandler } = await import('../archive/src/http.ts');
+        const { createVisitStore } = await import('../archive/src/store.ts');
+        archive ??= createArchiveHandler(createVisitStore());
+        await archive(req, res);
+      } catch (e) {
+        // 连模块都没加载起来也不能把本机的 server 拖下水 —— 和 `/__slow` 同一条
+        res.statusCode = 503;
+        res.setHeader('content-type', 'application/json');
+        res.end(JSON.stringify({ ok: false, code: 'DISABLED', error: String((e as Error)?.message ?? e) }));
+      }
+    })();
+  });
+}
+/** 一个进程一个 store。默认是内存实现，所以它必须是同一份，否则 POST 和 GET 各数各的 */
+let archive: ((req: IncomingMessage, res: ServerResponse) => Promise<void>) | undefined;
 
 function anchorWriter(): Plugin {
   return {
@@ -177,6 +212,8 @@ function anchorWriter(): Plugin {
         }
       });
 
+      mountArchive(server.middlewares);
+
       // 手动丢进 assets/demo/ 的文件也要被认到：每次起 dev server 重扫一遍
       try { writeDemoIndex(); } catch (e) { console.warn('[sb] /demo/index.json 生成失败：', e); }
     },
@@ -190,6 +227,9 @@ function anchorWriter(): Plugin {
      * （Vercel 上不需要它：vercel.json 没有 catch-all rewrite，静态托管本来就回真 404。）
      */
     configurePreviewServer(server) {
+      // 存档在 preview 上**存在**，这一点和 `/__slow` 正好相反 —— 理由见 mountArchive()
+      mountArchive(server.middlewares);
+
       server.middlewares.use('/__slow', (_req, res) => {
         res.statusCode = 404;
         res.setHeader('content-type', 'application/json');

@@ -65,6 +65,15 @@ interface LineagePayload {
   entries: LineageTrace[];
 }
 
+/**
+ * 第二个数据源：`GET /api/visits`（`docs/43 §8`）。
+ *
+ * 一条 A 档记录只有三样东西 —— 序号、物种、粗到天的日期。
+ * 字段清单和它为什么只能是这三个，写在 `packages/archive/src/visit.ts`。
+ */
+interface VisitRow { n: number; species: string; at: string }
+interface VisitsPayload { total: number; entries: VisitRow[] }
+
 // ─────────────────────────── DOM 小工具 ───────────────────────────
 
 function el<K extends keyof HTMLElementTagNameMap>(
@@ -101,6 +110,27 @@ async function loadLineage(): Promise<LineagePayload | null> {
       parts: j.parts,
       entries: j.entries,
     };
+  } catch { return null; }
+}
+
+/**
+ * 拿存档（`docs/43 §8`）。**先问它，再问血统池** —— §8 第 4 条。
+ *
+ * 返回形状是照抄 `GET /__slow/lineage` 的（`{ok, total, entries}`），
+ * 所以这里和上面那个函数长得几乎一样，那是故意的。
+ *
+ * **总数为 0 也当作"没有"**：装置那台机器上两条回路都在，存档默认是内存实现、
+ * 每次开机从头数，而血统池是盘上的。空的存档如果算数，它会把那台机器上
+ * 真正有内容的那一半挡在后面。空和缺席在这一页上本来就是同一句话
+ * （`renderState` 那两句是两个构型、同一个位置），所以这里合并没有代价。
+ */
+async function loadVisits(): Promise<VisitsPayload | null> {
+  try {
+    const res = await fetch('/api/visits');
+    if (!res.ok) return null;
+    const j = (await res.json()) as Partial<VisitsPayload>;
+    if (!Array.isArray(j.entries) || typeof j.total !== 'number' || j.total <= 0) return null;
+    return { total: j.total, entries: j.entries };
   } catch { return null; }
 }
 
@@ -195,7 +225,22 @@ function renderCounts(root: Element, data: LineagePayload): void {
  * 窗口取不回来的更早那一段照样画，只是画得暗：不知道不等于不存在，
  * 而这一页的全部意义就是让"厚度"说话 —— 少画的那几十层会把厚度说小。
  */
-function renderStrata(root: Element, data: LineagePayload): void {
+interface StrataOpts {
+  total: number;
+  /** 每一层的剖面。存档那一边是空的 —— 一条 A 档记录没有一个可以量的东西 */
+  parts: PartMeta[];
+  note: BiText;
+  /**
+   * 每一层都是**已知**的吗。
+   *
+   * 血统池那一边，窗口取不回来的更早那一段画得暗（不知道不等于不存在）。
+   * 存档那一边不一样：每一层都确实是一个走完过弧线的人，只是没有厚度可量。
+   * 把它们画成"更早的、取不回来的"会说错一件事，所以给一个恒定宽度、不加暗。
+   */
+  uniform?: number;
+}
+
+function renderStrata(root: Element, data: StrataOpts): void {
   const box = el('div', 'ln-strata');
   const stack = el('div', 'ln-strata__stack');
 
@@ -207,7 +252,10 @@ function renderStrata(root: Element, data: LineagePayload): void {
   for (let i = 0; i < data.total; i++) {
     const meta = data.parts[i] as PartMeta | undefined;
     const layer = el('div', 'ln-layer');
-    if (meta) {
+    if (data.uniform !== undefined) {
+      layer.style.setProperty('--w', `${Math.round(data.uniform * 100)}%`);
+      if (i === 0) layer.classList.add('ln-layer--newest');
+    } else if (meta) {
       // localGirth ∈ (0,1]，映到 22%–100%：最细的那件也要看得见是一层
       const w = Math.max(0.22, Math.min(1, meta.localGirth || 0.3));
       layer.style.setProperty('--w', `${Math.round(w * 100)}%`);
@@ -219,8 +267,10 @@ function renderStrata(root: Element, data: LineagePayload): void {
     stack.append(layer);
   }
 
-  box.append(stack, biEl('p', L.strata, 'ln-note'));
-  if (data.total > data.parts.length) box.append(biEl('p', L.strataOlder, 'ln-note'));
+  box.append(stack, biEl('p', data.note, 'ln-note'));
+  if (data.uniform === undefined && data.total > data.parts.length) {
+    box.append(biEl('p', L.strataOlder, 'ln-note'));
+  }
   root.append(box);
 }
 
@@ -298,6 +348,53 @@ function renderList(root: Element, data: LineagePayload, names: Map<string, BiTe
   root.append(sec);
 }
 
+/**
+ * 存档那一边的整页（`docs/43 §8`）。
+ *
+ * **只有两块：一个数，和那一叠沉积。** 没有逐条列表 —— 这不是省事，
+ * 是 `§2.1` 自己写的：A 档买到的是「有多少人来过」和「`/lineage` 的那叠沉积剖面，
+ * 第一次对网页版成立」。一条 A 档记录没有件可以看，把它排成一行一行、
+ * 每行一个空的缩略图框，画出来的正是这一页的代码注释里点名不许出现的那种"破图"。
+ *
+ * 血统池那一边一行都没动 —— 版面不许改（`§8` 末尾的不做清单）。
+ */
+function renderVisits(root: Element, data: VisitsPayload, names: Map<string, BiText>): void {
+  const box = el('div', 'ln-counts');
+  box.append(el('div', 'ln-count',
+    el('div', 'ln-count__n', String(data.total)),
+    biEl('div', L.countVisits, 'ln-count__label')));
+  root.append(box);
+
+  renderStrata(root, { total: data.total, parts: [], note: L.strataVisits, uniform: 0.34 });
+
+  root.append(el('hr', 'ed-rule'));
+  const sec = el('section', 'ed-section');
+  sec.append(biEl('h2', L.sec, 'ed-section__tag'));
+  const bodyCol = el('div', 'ed-section__body');
+  bodyCol.append(biEl('p', L.visitsNote, 'ln-note'));
+
+  // 物种那一栏。存下来却不显示，等于没存 —— 这一页的论点就是
+  // `docs/26 §C3`「后果不可见 = 后果不存在」，它对自己也适用。
+  // 用已有的 `ln-facts` 语域（一行一对），不新造版面。
+  const tally = new Map<string, number>();
+  for (const row of data.entries) tally.set(row.species, (tally.get(row.species) ?? 0) + 1);
+  if (tally.size) {
+    const facts = el('dl', 'ln-facts sb-data');
+    for (const [species, n] of [...tally].sort((a, b) => b[1] - a[1])) {
+      const pair = el('div');
+      pair.append(biEl('dt', names.get(species) ?? { zh: species, en: species }, 'sb-label'));
+      pair.append(el('dd', 'sb-num', String(n)));
+      facts.append(pair);
+    }
+    bodyCol.append(facts);
+  }
+
+  // `docs/43 §9.8` 的那一句。位置在画面之外、和这一页其它文字同一列，不做角标
+  bodyCol.append(biEl('p', L.replay, 'ln-note'));
+  sec.append(bodyCol);
+  root.append(sec);
+}
+
 /** 空池 / 生产构建下的 404 —— 同一个构型，两句不同的话 */
 function renderState(root: Element, title: BiText, body: BiText): void {
   const box = el('div', 'ln-state');
@@ -312,16 +409,25 @@ async function render(root: HTMLElement): Promise<void> {
   document.title = `${L.title.zh} · ${L.title.en} — ${COPY.title.zh}`;
   renderHeader(root);
 
+  // **两个数据源，先问存档再问血统池**（`docs/43 §8` 第 4 条）。
+  // 在这之前，线上的 `useeme.ptoq.io/lineage` 永远是那句 404 的话 ——
+  // 机制在，但线上的观众一次都看不到。
+  const visits = await loadVisits();
+  if (visits) {
+    renderVisits(root, visits, await loadThemeNames());
+    return;
+  }
+
   const data = await loadLineage();
 
-  // 生产构建 / 线上版：这条回路根本不存在。如实说它在哪，然后停
+  // 两条回路都不在。如实说它在哪，然后停
   if (!data) return renderState(root, L.offTitle, L.offBody);
 
   // 装置刚开机。不是错误，是这件作品每一次的起点
   if (!data.total) return renderState(root, L.emptyTitle, L.emptyBody);
 
   renderCounts(root, data);
-  renderStrata(root, data);
+  renderStrata(root, { total: data.total, parts: data.parts, note: L.strata });
   renderList(root, data, await loadThemeNames());
 
   root.append(el('hr', 'ed-rule'), biEl('footer', L.foot, 'ln-foot'));
