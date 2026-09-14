@@ -80,7 +80,7 @@
 import type { MotionFeatures, RawPose } from '../../../core/src/types.ts';
 import type { Flags } from '../shell/kiosk.ts';
 import { COPY, setBi } from './i18n.ts';
-import { readOut, READOUT_KEYS, wantsReadout, type ReadoutKey } from './readout-state.ts';
+import { alignDecimals, readOut, READOUT_KEYS, splitUnit, wantsReadout, type ReadoutKey } from './readout-state.ts';
 import './type.css';
 import './readout.css';
 
@@ -91,6 +91,12 @@ export { wantsReadout } from './readout-state.ts';
 
 /** 多久重画一次。见文件头最后一节 */
 const SAMPLE_SECONDS = 0.25;
+
+/**
+ * 面板的高度写到根上的这个变量里，左下角的名牌据此抬到读数上面（`shell/notice.css`）。
+ * 名牌只说 4 秒，读数一直在 —— **常驻的几何不给 4 秒的东西让位**，反过来让。
+ */
+const HEIGHT_VAR = '--sb-readout-h';
 
 export interface Readout {
   /** 每帧调一次。`pose` / `features` 是帧循环手上那一份，不另算 */
@@ -109,10 +115,14 @@ export function mountReadout(options: ReadoutOptions): Readout | null {
   const root = document.createElement('aside');
   root.className = 'sb-readout';
 
+  // ── 读数本体：状态行 · 一条线 · 五行三栏 ─────────────────────────────────
+  const body = document.createElement('div');
+  body.className = 'sb-readout-body';
+  body.id = 'sb-readout-body';
+
   const state = document.createElement('p');
   state.className = 'sb-readout-state';
-  // 中英并置一律走 setBi：`sb-cjk` 由它按**内容**打，手搭 DOM 会漏掉那 0.045em
-  // 补偿（/passport 这周刚修掉的就是这个形状的 bug）。
+  // 中英并置一律走 setBi：`sb-cjk` 由它按**内容**打，手搭 DOM 会漏掉那 0.045em 补偿
   setBi(state, COPY.readout.absent);
 
   const rule = document.createElement('hr');
@@ -121,43 +131,94 @@ export function mountReadout(options: ReadoutOptions): Readout | null {
   const rows = document.createElement('div');
   rows.className = 'sb-readout-rows';
 
-  const cells = new Map<ReadoutKey, HTMLElement>();
+  const cells = new Map<ReadoutKey, { value: HTMLElement; unit: HTMLElement }>();
   for (const key of READOUT_KEYS) {
     const name = document.createElement('span');
     name.className = 'sb-readout-name';
     setBi(name, COPY.readout[key]);
     const value = document.createElement('span');
     value.className = 'sb-readout-value';
-    value.textContent = '';
-    rows.append(name, value);
-    cells.set(key, value);
+    const unit = document.createElement('span');
+    unit.className = 'sb-readout-unit';
+    rows.append(name, value, unit);
+    cells.set(key, { value, unit });
   }
+  body.append(state, rule, rows);
 
-  root.append(state, rule, rows);
+  // ── 最底下那一条：题 + 显示 / 收起 ───────────────────────────────────────
+  const bar = document.createElement('button');
+  bar.type = 'button';
+  bar.className = 'sb-readout-bar';
+  bar.setAttribute('aria-controls', body.id);
+  const title = document.createElement('span');
+  title.className = 'sb-readout-title';
+  setBi(title, COPY.readout.title);
+  const action = document.createElement('span');
+  action.className = 'sb-readout-action';
+  bar.append(title, action);
+
+  // **顺序是版式的一部分**：开合键最后 append，面板贴底 ——
+  // 于是展开 / 收起时上面那一截长出来或缩回去，那个键一个像素都不动。
+  root.append(body, bar);
   (options.mount ?? document.body).append(root);
 
   let since = SAMPLE_SECONDS;      // 第一帧就画一次，别让面板空着出现
   let shownPresent: boolean | null = null;
+  let open = true;
+
+  // 收起**不写进任何存储**：刷新就回到展开（docs/40 §3，跨观众的状态当 bug）
+  const setOpen = (next: boolean): void => {
+    open = next;
+    body.hidden = !next;
+    root.classList.toggle('is-collapsed', !next);
+    bar.setAttribute('aria-expanded', String(next));
+    setBi(action, next ? COPY.readout.hide : COPY.readout.show);
+    // 重新展开的那一刻立刻画一次，不让观众看见一屏半秒前的旧数
+    if (next) since = SAMPLE_SECONDS;
+  };
+  setOpen(true);
+  bar.addEventListener('click', () => setOpen(!open));
+
+  // **矮视口里两块仪表会撞**：左上角那块屏幕往下长，这块往上长（实测 385px 高的窗口里
+  // 读数的顶压到了屏幕中间）。挂载时量一次，撞了就先收着，只剩底边那一条。
+  // 只在挂载时判 —— resize 时替观众自动开合，等于在他手底下换开关的状态。
+  const see = document.querySelector('.sb-see');
+  if (see && see.getBoundingClientRect().bottom + 12 > root.getBoundingClientRect().top) setOpen(false);
+
+  const html = document.documentElement;
+  const publishHeight = (): void => {
+    html.style.setProperty(HEIGHT_VAR, `${root.offsetHeight}px`);
+  };
+  publishHeight();
+  const resize = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(publishHeight);
+  resize?.observe(root);
 
   return {
     update(pose, features, inferenceHz, dt) {
       since += Number.isFinite(dt) && dt > 0 ? dt : 0;
-      if (since < SAMPLE_SECONDS) return;
+      // 收着的时候不写 DOM：看不见的数不值得一次样式重算
+      if (!open || since < SAMPLE_SECONDS) return;
       since = 0;
 
       const r = readOut({ pose, features, inferenceHz });
       if (r.present !== shownPresent) {
         shownPresent = r.present;
+        root.classList.toggle('is-present', r.present);
         setBi(state, r.present ? COPY.readout.present : COPY.readout.absent);
       }
       for (const key of READOUT_KEYS) {
         const cell = cells.get(key)!;
-        const next = r.values[key];
-        // 值没变就不写 DOM。4Hz 下大部分行大部分时候是不变的（推理频率、破折号），
-        // 少一次写入就少一次不必要的样式重算。
-        if (cell.textContent !== next) cell.textContent = next;
+        const [raw, unit] = splitUnit(r.values[key]);
+        const value = alignDecimals(raw);   // 小数点竖成一条线（readout-state.ts）
+        // 值没变就不写 DOM。4Hz 下大部分行大部分时候是不变的
+        if (cell.value.textContent !== value) cell.value.textContent = value;
+        if (cell.unit.textContent !== unit) cell.unit.textContent = unit;
       }
     },
-    dispose() { root.remove(); },
+    dispose() {
+      resize?.disconnect();
+      html.style.removeProperty(HEIGHT_VAR);
+      root.remove();
+    },
   };
 }

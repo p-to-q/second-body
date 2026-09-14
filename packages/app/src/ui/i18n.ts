@@ -212,15 +212,21 @@ export const COPY = {
     present: bi('有人', 'Someone'),
     absent: bi('无人', 'No one'),
     /** 整体置信度（`RawPose.score`）—— 整条链都压在这一个数上 */
-    confidence: bi('置信', 'Confidence'),
+    // 英文是**读数屏的通道代号**，不是句子（`CONF` 而不是 `Confidence`）：
+    // 这块屏和左上角那块同宽，最窄 200px；整词放不下，而代号本来就是数控的语汇。
+    confidence: bi('置信', 'Conf'),
     /** 模型报"看得见"的点数 / 总点数。半个人出画时置信度还很高，这一行不会 */
     joints: bi('关节', 'Joints'),
     /** **不是帧率**：每秒重新看你几次（`Capture.fps`） */
-    inference: bi('推理', 'Inference'),
+    inference: bi('推理', 'Infer'),
     /** 无量纲的运动能量。推动整件作品往前走的就是它 */
     energy: bi('动能', 'Energy'),
     /** 四肢离骨盆多远。这一块唯一一个形状的量，其余都是速率 */
     extent: bi('舒展', 'Extent'),
+    /** 最底下那一条的题，和它右边那个开合键的两种说法 */
+    title: bi('读数', 'Readout'),
+    show: bi('显示', 'Show'),
+    hide: bi('收起', 'Hide'),
   },
 
   /** S7 离场 / 留念 */

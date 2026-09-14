@@ -19,12 +19,9 @@
  * **例外只到 `.sb-see-screen` 这一个选择器为止。**
  */
 
-/* 屏幕的高只在这里定义一次。宽从 4:3 推，`ui/preview.ts` 的 `previewReservedTop()`
-   也从这里读 —— 三个地方一个来源，改这一行三处一起动。 */
-:root {
-  --sb-see-h: clamp(150px, 20vh, 280px);
-  --sb-see-w: calc(var(--sb-see-h) * 4 / 3);
-}
+/* `--sb-see-h` / `--sb-see-w` 定义在 `type.css`（原来在这里）。
+   左下角那块读数和这块屏幕同宽，而读数不能依赖这份样式表恰好被加载 ——
+   理由写在 type.css 那两行上面。`ui/preview.ts` 的 `previewReservedTop()` 照旧读它。 */
 
 .sb-see {
   position: fixed;
@@ -69,7 +66,7 @@
   /* 一圈极细的边，让黑底的屏幕在黑底的舞台上仍然是"一块东西"。
      用 --sb-rule 而不是发光/阴影：阴影同样在 §F 的反面清单上，
      而且这里根本不需要——一条线就够把它和背景分开。 */
-  box-shadow: inset 0 0 0 1px var(--sb-rule);
+  box-shadow: inset 0 0 0 1px var(--sb-screen-edge);
 }
 
 .sb-see-screen.is-mirrored { transform: scaleX(-1); }

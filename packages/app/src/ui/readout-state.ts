@@ -141,6 +141,39 @@ function scaled(v: number | undefined): string {
 }
 
 /**
+ * `31 Hz` → `['31', 'Hz']`；没有单位的原样返回、单位为空。
+ *
+ * 数控的读数屏把**单位单独放一栏**：数字右对齐成一条竖线，单位在它右边另起一列。
+ * 单位和数字挤在同一格里，`31 Hz` 和 `0.878` 的个位就对不齐 ——
+ * 一块读数屏上最该对齐的那条线恰恰断在那儿。
+ * 拆在这里（纯函数、能测）而不是在 DOM 里临时切字符串：`readOut()` 的输出格式
+ * 已经被一整组测试钉着，改它等于把那组保证重写一遍。
+ */
+export function splitUnit(s: string): readonly [string, string] {
+  const m = /^(.*\S)\s+([A-Za-z]+)$/.exec(s);
+  return m ? [m[1], m[2]] : [s, ''];
+}
+
+/** 数字宽的空格（U+2007）。等宽字里它和一个数字一样宽，用来垫齐小数点 */
+export const FIGURE_SPACE = '\u2007';
+
+/**
+ * 小数点竖成一条线：位数少的小数在右边垫数字宽的空格。`0.96` → `0.96 `，`0.878` 不动。
+ *
+ * 读数屏上人扫的是一列数，而一列数的结构线是小数点。置信写两位（`readOut` 钉死的格式）、
+ * 动能和舒展写三位，右对齐之后三个小数点错开一格 —— 每一行都对，整列是乱的。
+ * **只垫显示，不改格式**：`readOut()` 的位数被一整组测试钉着，那些保证不该为排版重写。
+ * 整数（`31`）和比值（`33/33`）不是小数，不垫，照旧右对齐。垫完不超过 `width`，
+ * 不撑破那一栏（数值极大时少垫，宁可那一行的小数点错开，也不回流）。
+ */
+export function alignDecimals(v: string, digits = 3, width = 6): string {
+  const m = /^-?\d+\.(\d+)$/.exec(v);
+  if (!m) return v;
+  const pad = Math.max(0, Math.min(digits - m[1].length, width - v.length));
+  return v + FIGURE_SPACE.repeat(pad);
+}
+
+/**
  * 一帧 → 屏幕上那几行。**没有时间、没有随机、没有 DOM**（P1）。
  */
 export function readOut(input: ReadoutInput): Readout {
