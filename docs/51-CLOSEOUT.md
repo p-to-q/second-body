@@ -40,8 +40,8 @@
 | C6 | 页脚那枚 SEE-ME SEE-U 示意图，统一放在页面最下面 | `ui/footer-mark.{ts,css,svg}`：陈述 / 谱系 / 做的过程 / 护照 / 工作台目录 + 三个侧室；viewBox 贴墨裁、四边匀 1.5；蒙版 + `--sb-ink` 着色；不支持蒙版不画 | `test/footer-mark.test.ts`（先红）；8 页无头截图：每页一枚、是最后一个元素、宽 1267、墨色与正文同 | ✅ |
 | C7 | 同组几页右上角按钮：中英挨得太近、按钮间距不好看；「退出 · 回到作品」太笼统 | `dev/devnav.css`：中英 0.55em（原 0px —— 链接被 `.sb-bi` 算回 block，flex gap 失效）、出口之间 2.4em；文案改「回到作品」 | 逐页量 zh↔en 间距（无头 CDP）；`test/devnav-spacing.test.ts`（先红）；/dev、/dev/figure、/dev/lineup 截图 | ✅ |
 | C8 | /dev 目录：整页太紧、和「作品」挨着；正文里露出 `**`；logo 没放大、不是那枚字体 | 页头与第一组之间 2.5 栏距；侧室那句去掉 markdown 星号与已失效的「不在目录里」；左上换成两行字标（h1 档） | 截图 | ✅ |
-| C9 | 页脚示意图再大、基本撑满；离底更近、离上面的字更远 | 挂 `document.body`，左右各留半个安全区；上八倍栏距、下半个安全区 | 8 页截图 | ✅ |
-| C10 | /about 巨题 SEE-ME SEE-U 换成这张 SVG，「看我看你」保留，墨左对齐，进场动效保留 | `about.ts` `head()`：`diagramNode(null)` + `.sb-diagram--flush`（左移 viewBox 墨留白 1.55/633.8）；名字视觉隐藏留在 h1；`.ed-rise` 照旧 | `test/footer-mark.test.ts`；截图：图的 S 左缘与「看」左缘同在 x≈60 | ✅ |
+| C9 | 页脚示意图：三轮调整后由维护者定稿（负责人："自己做完决定就执行"） | 挂回**页面那一栏**（不是 body）、吃满栏宽、墨用 `.sb-diagram--flush` 和正文字左对齐；上五倍栏距、下半个安全区 | 8 页截图：墨左缘 /about x≈60、/dev x≈48，与各页正文同线；每页一枚、是最后一个元素；`test/footer-mark.test.ts` 防挂回 body | ✅ |
+| C10 | /about 巨题换成示意图 | 试过后负责人**撤回**：巨题回到原来的字形、字体和 `ed-rise` 动效 | 截图；测试钉住巨题仍是 `sb-display ed-rise`、不含示意图 | ⛔ 撤回（负责人决定） |
 | C5 | 导航审计、轻量改；大决策自己做 | docs/47 审计表；改了哪些主页面列在 docs/47 | 同上 | ✅ |
 
 ## D · 流畅度与防护
