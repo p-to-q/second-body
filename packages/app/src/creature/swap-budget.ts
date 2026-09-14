@@ -79,15 +79,33 @@ export function clearEventExtraMemo(): void { extraMemo.clear(); }
 const slotOfKey = (key: SlotKey): Slot => (key === 'joint' ? 'joint' : SLOT_OF_BONE[key]);
 
 /**
- * 这个物种自己的件里，每个槽位类型最重的一件（所有 tier）。
- * 升档会把没被换过的格子换成本物种更高 tier 的件，所以没被借过的格子按这个数算上界。
+ * 升档时 `makeGenome` 能给每个槽位类型装上的最重一件（所有 tier）。
+ *
+ * **不是"本物种 family 的件"，是 base 链上第一个有货的那一层**（和 `makeGenome` 逐槽位
+ * 找件的规则一致）。light 条目只自己生成六个标志性槽位，其余沿 base 链借 ——
+ * 只数本 family 的话，athlete 那几格的上界是 0，最坏帧少算约 48k 面，
+ * 而升档正是绕过借件门、直接往身上装件的那条路（2026-09-14 追到的）。
+ *
+ * ⚠️ 不含 tier 3 的跨主题杂交（`MORPH.hybridSlotsAtTier3`）：那两格可以装索引里任何一件，
+ * 落在关节那一格上就是 13 × 最重的关节件。这一条这里挡不住，记在 docs/44 §10.5。
  */
 export function ownMaxTris(index: PartLibraryIndex, theme: string, rejected?: ReadonlySet<string>): Partial<Record<Slot, number>> {
-  const out: Partial<Record<Slot, number>> = {};
+  const declared = new Map((index.themes ?? []).map((t) => [t.id, t]));
+  const chain: string[] = [];
+  for (let c: string | undefined = theme; c && !chain.includes(c); c = declared.get(c)?.base) chain.push(c);
+  const byLevel = chain.map(() => ({} as Partial<Record<Slot, number>>));
   for (const p of index.parts ?? []) {
-    if (!p || p.family !== theme || rejected?.has(p.id) || p.id.startsWith(PLACEHOLDER_PREFIX)) continue;
+    if (!p || rejected?.has(p.id) || p.id.startsWith(PLACEHOLDER_PREFIX)) continue;
+    const level = chain.indexOf(p.family);
+    if (level < 0) continue;
     const tris = Number.isFinite(p.triCount) ? p.triCount : BUDGET.maxPartTris;
-    out[p.slot] = Math.max(out[p.slot] ?? 0, tris);
+    byLevel[level][p.slot] = Math.max(byLevel[level][p.slot] ?? 0, tris);
+  }
+  const out: Partial<Record<Slot, number>> = {};
+  for (const level of byLevel) {
+    for (const [slot, tris] of Object.entries(level) as [Slot, number][]) {
+      if (out[slot] === undefined) out[slot] = tris;       // 第一个有货的那一层说了算
+    }
   }
   return out;
 }

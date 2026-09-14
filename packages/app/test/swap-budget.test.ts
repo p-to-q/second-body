@@ -129,11 +129,20 @@ function worstFill(bound: Record<SlotKey, number>, sk: Skeleton, ceiling: number
   return { ...worst, steady };
 }
 
+/**
+ * 升档时每个槽位类型能装上的最重一件：沿 base 链找**第一个有货的那一层**，取那一层里最重的。
+ * 照着 `makeGenome` 的逐槽位规则重写，不 import `swap-budget.ts` 的 `ownMaxTris`。
+ */
 const ownMax = (theme: string): Partial<Record<Slot, number>> => {
+  const byTheme = new Map(index!.themes.map((t) => [t.id, t]));
+  const chain: string[] = [];
+  for (let c: string | undefined = theme; c && !chain.includes(c); c = byTheme.get(c)?.base) chain.push(c);
   const out: Partial<Record<Slot, number>> = {};
-  for (const p of index!.parts) {
-    if (p.family !== theme || rejected.has(p.id)) continue;
-    out[p.slot] = Math.max(out[p.slot] ?? 0, p.triCount);
+  for (const slot of new Set(index!.parts.map((p) => p.slot))) {
+    for (const fam of chain) {
+      const here = index!.parts.filter((p) => p.slot === slot && p.family === fam && !rejected.has(p.id));
+      if (here.length) { out[slot] = Math.max(...here.map((p) => p.triCount)); break; }
+    }
   }
   return out;
 };
