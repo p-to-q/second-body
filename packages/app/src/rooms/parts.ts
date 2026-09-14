@@ -186,12 +186,21 @@ if (!index || (!themes.length && !parts.length)) {
   const empty = document.createElement('div');
   empty.className = 'sb-empty';
   empty.style.padding = 'var(--sb-safe)';
-  empty.innerHTML =
-    '<h2>档案还是空的</h2>' +
-    '<p>没有读到 <code>/parts/parts.json</code>，或者它里面还没有条目。' +
-    '这不是故障：应用在没有部件库的时候用程序化占位几何照常运行。</p>' +
-    '<p>要把档案填起来，先跑一次资产流水线（<code>npm run factory:generate</code> → ' +
-    '<code>npm run factory:index</code>），再刷新这一页。</p>';
+  // 中英并置走 setBi（这一页现在是展出页，文案理由写在 `COPY.rooms.parts.emptyTitle` 上）。
+  // 命令不进 COPY：它在两种语言里是同一串字，用 <code> 单独排。
+  const title = document.createElement('h2');
+  setBi(title, COPY.rooms.parts.emptyTitle);
+  const why = document.createElement('p');
+  setBi(why, COPY.rooms.parts.emptyWhy);
+  const how = document.createElement('p');
+  setBi(how, COPY.rooms.parts.emptyHow);
+  const cmds = document.createElement('p');
+  for (const c of ['npm run factory:generate', 'npm run factory:index']) {
+    const code = document.createElement('code');
+    code.textContent = c;
+    cmds.append(code, ' ');
+  }
+  empty.append(title, why, how, cmds);
   root.appendChild(empty);
 } else {
   buildArchive();

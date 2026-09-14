@@ -182,8 +182,23 @@ export function isPreviewMode(v: unknown): v is PreviewMode {
 }
 
 /**
+ * `?preview=` 认字，**认不出来的时候喊一声**。
+ *
+ * 这一条原来是默默退回默认的：`?preview=1` 写错了，小屏幕照常按默认挂或不挂，
+ * 而现场的人分不出"参数没生效"和"参数本来就是这个意思"。`?readout=` 一出生就会喊，
+ * 它的注释里还点名说 `?preview=` 至今不会 —— 同一套词汇（on / off）的两个开关，
+ * 一个出错会说、一个出错不说，这本身就是一处要修的不一致。
+ */
+export function resolvePreview(raw: string | null): PreviewMode | null {
+  if (raw === null) return null;
+  if (isPreviewMode(raw)) return raw as PreviewMode;
+  console.warn(`[kiosk] ?preview=${raw} 认不出来，只认 on / off —— 按没写过处理（网页版挂、现场不挂、回放永远不挂）`);
+  return null;
+}
+
+/**
  * `?readout=` 的两个合法值。和 `?preview=` 同一套词汇（on / off），
- * 但**认不出来的时候要喊一声** —— `?preview=` 那一条至今是默默退回默认的，
+ * 但**认不出来的时候要喊一声** —— `?preview=` 那一条原来是默默退回默认的（2026-09-14 已补上同样的一声），
  * 而 docs/06 §6 给新开关定的规矩是"写错的值当没写过**并打一条 warn**"。
  * 两者不一致时照规矩走，不照隔壁走。
  */
@@ -414,7 +429,7 @@ export function readFlags(search = location.search): Flags {
     // `?preview=1` 手滑写成数字**不该**被猜成 'on'，那样"我写了参数"和
     // "参数没生效"就分不开了。挂不挂的默认判断在 `ui/preview.ts` 的 `wantsPreview()`，
     // 不在这里 —— 这里只负责认字。
-    preview: isPreviewMode(q.get('preview')) ? (q.get('preview') as PreviewMode) : null,
+    preview: resolvePreview(q.get('preview')),
     // 认不出来就是 null = 当没写过，**而且喊一声**（见 `resolveReadout` 的注释）。
     // 挂不挂的默认判断在 `ui/readout-state.ts` 的 `wantsReadout()`，不在这里 ——
     // 这里只负责认字，和 `?preview=` 同一条分工。

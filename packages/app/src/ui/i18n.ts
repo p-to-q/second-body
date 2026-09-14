@@ -256,21 +256,6 @@ export const COPY = {
     column: bi('单柱', 'Column'),
   },
 
-  /** 档案页 */
-  archive: {
-    title: bi('档案', 'Archive'),
-    species: bi('物种谱系', 'Species'),
-    parts: bi('部件', 'Parts'),
-    slot: bi('槽位', 'Slot'),
-    tier: bi('阶段', 'Tier'),
-    bodyPlan: bi('身体方案', 'Body plan'),
-    count: bi('件数', 'Count'),
-    curation: bi('策展', 'Curation'),
-    keep: bi('保留', 'Keep'),
-    reject: bi('剔除', 'Reject'),
-    unrated: bi('未评', 'Unrated'),
-  },
-
   /**
    * 入口层（网页版）—— 展签，不是落地页。
    * `docs/23 §S0 网页分支` + `docs/PRD §8`：**不要求授权也能看见东西**。
@@ -768,6 +753,19 @@ export const COPY = {
         'Everything this work has grown so far, laid out by species and by socket, '
         + 'each part carrying its own attachment marks.',
       ),
+      /**
+       * `parts.json` 读不到或是空的时候，这一页说的话。**原来是 `parts.ts` 里一段手写的中文 HTML**
+       * —— 它在 `/dev/` 里是给我们看的，搬成侧室之后它就站在展出页上了，而展出页的文案一律中英并置、
+       * 一律走 `setBi`。线上构建里这一段不会出现（`parts.json` 一定在），但"不会出现"不是它可以只说一种语言的理由。
+       * 命令本身不翻译：`npm run factory:index` 在两种语言里是同一串字。
+       */
+      emptyTitle: bi('档案还是空的', 'The archive is still empty'),
+      emptyWhy: bi(
+        '没有读到 /parts/parts.json，或者它里面还没有条目。这不是故障：没有部件库的时候，作品用程序化占位几何照常运行。',
+        'No /parts/parts.json was found, or it has no entries yet. This is not a fault: '
+        + 'without a parts library the work runs on procedural placeholder geometry.',
+      ),
+      emptyHow: bi('要把它填起来，先跑一次资产流水线，再刷新这一页：', 'To fill it, run the asset pipeline once, then reload this page:'),
       readOnly: bi('只读', 'Read-only'),
       curatable: bi('可评级', 'Ratable'),
       readOnlyNoGl: bi('只读 · 无 WebGL，缩略图是比例剪影', 'Read-only · no WebGL, thumbnails are proportion silhouettes'),
