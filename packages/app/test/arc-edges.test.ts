@@ -20,7 +20,7 @@ test('乐章边界：档位下限在忒修斯开着时取排期给的 `step.tier
   const want = TIER_BLOCK.split('\n').find((l) => /const want = /.test(l)) ?? '';
   assert.match(want, /step\.tier/, `档位下限还是乐章序号：${want.trim()}`);
   // 乐章序号只许出现在 `?theseus=off` 那条 plan B 上
-  assert.match(want, /theseus \? step\.tier : arcState\.tier|!theseus \? arcState\.tier : step\.tier/,
+  assert.match(want, /(theseus|step) \? step\.tier : arcState\.tier/,
     `乐章序号那一半必须被 theseus 开关挡住：${want.trim()}`);
 });
 

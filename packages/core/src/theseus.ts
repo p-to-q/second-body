@@ -29,7 +29,7 @@ import { ARC, MORPH, THESEUS as T } from './tuning.ts';
 import { movementBounds } from './arc.ts';
 import { ALL_SLOT_KEYS, SLOT_OF_BONE } from './slots.ts';
 import { mulberry32 } from './rng.ts';
-import type { BoneId, Rng, SlotKey } from './types.ts';
+import type { BoneId, Rng, SlotKey, Tier } from './types.ts';
 
 export { T as THESEUS_TUNING };
 
@@ -68,6 +68,12 @@ export interface TheseusState {
    * 幅度随 `arc.overall` 从 0 长到 `THESEUS.scaleDrift`。
    */
   scale: number;
+  /**
+   * 这一刻的档位下限 0..3（`main.ts` 拿它和运动量那一档取大）。原来是 `ArcState.tier`，也就是乐章序号 ——
+   * 升档因此恰好落在乐章边界上。现在第 k 档在它那一段第一件替换之前 `tierLead` 秒升上去，
+   * 并且离任何一条乐章边界至少 `edgeMargin` 秒（`tierAnchors` / `core/test/theseus-tier.test.ts`）。
+   */
+  tier: Tier;
   /** 还在开场那 `graceSeconds` 秒里（§2） */
   inGrace: boolean;
   /** 这一帧归零了：所有槽位回到原件（§8） */
@@ -271,6 +277,23 @@ export function movementOfEvent(index: number, perBeat: readonly number[] = T.pe
   return Math.max(0, perBeat.length - 1);
 }
 
+/**
+ * 第 1..3 档各自跟着排期里的哪一件走（事件序号，从 0 起）。
+ *
+ * 第 1 档跟着**这一场的第一件**：开场那一团（`creature/nascent.ts`）要在第一件碎开之前化开，
+ * 否则第 I 乐章那两件替换换的是一具没画出来的刚体。
+ * 第 k 档（k ≥ 2）跟着**第 k 乐章的第一件**：档位和乐章的对应照旧（III 是 tier 2、IV 是 tier 3），
+ * 只是升档的那一刻不再是乐章边界，而是那一段里第一件替换之前。
+ */
+export function tierAnchors(perBeat: readonly number[] = T.perBeat): number[] {
+  const n = perBeat.map((x) => Math.max(0, Math.round(fin(x))));
+  const out: number[] = [];
+  for (let k = 1; k < n.length; k++) {
+    out.push(k === 1 ? 0 : n.slice(0, k).reduce((a, b) => a + b, 0));
+  }
+  return out;
+}
+
 export function createTheseus(opt: TheseusOptions): TheseusMachine {
   const total = Number.isFinite(opt.total) && (opt.total as number) > 0
     ? (opt.total as number) : ARC.total;
@@ -292,6 +315,16 @@ export function createTheseus(opt: TheseusOptions): TheseusMachine {
    * （§10.5 第 3 条就是被这个配置挖穿的），而宽限是 §2 里最硬的那条线。
    */
   const floorOf = (k: number): number => Math.max(graceNow(), movementStart(k));
+
+  const anchors = tierAnchors();
+  const maxTier = anchors.length as Tier;
+  /** 三条乐章边界（最后那个是这一场的终点，不是边界） */
+  const edges = bounds.slice(0, -1);
+  const tierLead = (): number => Math.max(0, fin(T.tierLead));
+  const nearEdge = (t: number): boolean => {
+    const m = Math.max(0, fin(T.edgeMargin));
+    return edges.some((b) => Math.abs(t - b) < m);
+  };
 
   let rng: Rng = mulberry32(0);
   let schedule: number[] = [];
@@ -315,6 +348,9 @@ export function createTheseus(opt: TheseusOptions): TheseusMachine {
    * 而不是"第二乐章什么时候开始"。
    */
   let lead: number[] = [];
+  /** 档位下限，和它第 k 档是在第几秒升上去的 */
+  let tier: Tier = 0;
+  let tierAt: number[] = [];
 
   function hardReset(seed?: number): void {
     rng = mulberry32(seed === undefined ? 0 : seed >>> 0);
@@ -326,6 +362,8 @@ export function createTheseus(opt: TheseusOptions): TheseusMachine {
     inFlight = [];
     lastFiredAt = -Infinity;
     lead = bounds.map(() => 0);
+    tier = 0;
+    tierAt = [];
     events = 0;
     fired = null;
     away = 0;
@@ -354,6 +392,26 @@ export function createTheseus(opt: TheseusOptions): TheseusMachine {
     return Math.max(t - Math.max(0, lead[k] ?? 0), floor);
   }
 
+  /**
+   * 第 k 档该在第几秒升（还要再避开乐章边界，见 `update`）。
+   * 它跟着的那一件被 `?arc=` 推出这一场之外时，退到第 k 乐章开头之后 `edgeMargin` 秒 ——
+   * 档位不能因为排期被截短就永远不来。
+   */
+  function tierDue(k: number): number {
+    const i = anchors[k - 1];
+    if (i === undefined) return Infinity;
+    const base = i < schedule.length ? dueAt(i) - tierLead() : movementStart(k) + Math.max(0, fin(T.edgeMargin));
+    return k === 1 ? Math.max(graceNow(), base) : base;
+  }
+
+  /** 第 `i` 件最早什么时候能碎：到点，并且如果它是某一档跟着的那一件，要等那一档升上去满 `tierLead` 秒 */
+  function readyAt(i: number): number {
+    const due = dueAt(i);
+    const k = anchors.indexOf(i) + 1;
+    if (k <= 0) return due;
+    return tier >= k ? Math.max(due, tierAt[k] + tierLead()) : Infinity;
+  }
+
   function replacedCount(): number {
     let n = 0;
     for (const key of ALL_SLOT_KEYS) if (nth[key] > 0) n++;
@@ -363,7 +421,9 @@ export function createTheseus(opt: TheseusOptions): TheseusMachine {
   function snapshot(now: number): TheseusState {
     // HUD 的"下一件 ~3.4s"读的是**加速之后**的到点时刻。读基准时刻的话，
     // 现场调速率的那个人手里的表会和他眼睛看到的对不上（§7 最后那一段）
-    const next = cursor < schedule.length ? dueAt(cursor) : Infinity;
+    let next = cursor < schedule.length ? readyAt(cursor) : Infinity;
+    // 在等升档的那一件：HUD 上报它自己的到点时刻加上 tierLead，而不是 Infinity
+    if (next === Infinity && cursor < schedule.length) next = Math.max(dueAt(cursor), tierDue(tier + 1) + tierLead());
     return {
       fired,
       replaced: replacedCount(),
@@ -373,6 +433,7 @@ export function createTheseus(opt: TheseusOptions): TheseusMachine {
       nextIn: next === Infinity ? Infinity : Math.max(0, next - now),
       borrowDistance: borrowDistance(now / Math.max(1e-6, total)),
       scale: scaleDrift(now / Math.max(1e-6, total), scaleDir),
+      tier,
       inGrace: now < Math.max(0, fin(T.graceSeconds)),
       justReset,
     };
@@ -443,9 +504,16 @@ export function createTheseus(opt: TheseusOptions): TheseusMachine {
         if (now >= floorOf(k)) lead[k] = (lead[k] ?? 0) + rateGain * overall * step;
       }
 
+      // ── 升档（docs/44 §6）：跟着排期，不跟着乐章序号 ──────────────────────
+      // 到点了还要避开乐章边界：落在边界 ±edgeMargin 里就等到边界之后。一帧最多升一档。
+      if (tier < maxTier && now >= tierDue(tier + 1) && !nearEdge(now)) {
+        tier = (tier + 1) as Tier;
+        tierAt[tier] = now;
+      }
+
       // 一帧最多发一件。`minGap ≥ MORPH.crossfade` 时这两道闸其实只有一道会响，
       // 但两道都要在：`minGap` 是可调的，而"整个人炸开"那条老规矩不可调（docs/05 §3）
-      while (cursor < schedule.length && dueAt(cursor) <= now) {
+      while (cursor < schedule.length && readyAt(cursor) <= now) {
         if (now - lastFiredAt < Math.max(0, fin(T.minGap))) break;      // 太密：等下一帧
         if (inFlight.length >= Math.max(1, Math.floor(fin(T.maxConcurrent, 3)))) break;
         const slot = pick(now);
