@@ -369,7 +369,7 @@ function renderVisits(root: Element, data: VisitsPayload, names: Map<string, BiT
 
   root.append(el('hr', 'ed-rule'));
   const sec = el('section', 'ed-section');
-  sec.append(biEl('h2', L.sec, 'ed-section__tag'));
+  sec.append(biEl('h2', L.secVisits, 'ed-section__tag'));
   const bodyCol = el('div', 'ed-section__body');
   bodyCol.append(biEl('p', L.visitsNote, 'ln-note'));
 

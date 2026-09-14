@@ -772,6 +772,18 @@ export const COPY = {
       + 'On the installation, one silhouette is sent once, automatically, after you have stood there '
       + 'for twenty seconds, to generate the part that grows on you.',
     ),
+    /**
+     * **这一条故意没有任何一处渲染它，而且从今天起是有裁定的。**
+     *
+     * `docs/13 §5` 当初要求页面上有一个「不参与」开关，于是这个常量被写了出来，
+     * 然后全仓没人用它 —— 一笔悬着的账（`docs/38 §4` 如实记过）。
+     * `docs/43 §9.5` 把它裁掉了：网页版的「不参与」**已经实现了，只是没有被命名** ——
+     * 不按那个按钮，摄像头就不开，这一场也不会被记进存档（`archive/visit.ts` 的 `live()`）。
+     * 做法是让上面那一段把它说出来，不是加一个勾选框（`docs/26 §F` 的反面清单）。
+     *
+     * 留着这个词是因为现场那一半还欠着（画出来的采集区 + 一条绕开它的路，`§1.5`），
+     * 那是布展决定，装台那天在房间里定。**在那之前，网页上不许出现这个控件。**
+     */
     optOut: bi('不参与', 'Opt out'),
   },
 
@@ -868,6 +880,14 @@ export const COPY = {
 
     /** 记录区 */
     sec: bi('每一件，和留下它的人', 'Each piece, and who left it'),
+    /**
+     * 存档那一支的同一个位置。**不能共用上面那一句。**
+     *
+     * 上面写的是「每一件」，而存档那一边一件都没有 —— 它自己底下那一句正说着
+     * 「没有一件可以看的东西」。两句话隔着三行互相拆台，读到的人只会认为
+     * 这一页哪里坏了。被数的东西变了，题也得变。
+     */
+    secVisits: bi('每一个走完的人', 'Everyone who walked it through'),
     secNote: bi('左边那个数是留下它的人 —— 按先后排的第几位。不是时间，是位次：谁在谁之后。',
                 'The number on the left is the person who left it — their place in the order of arrival. Not a time; a position: who came after whom.'),
     where: bi('长在哪', 'Where it grew'),
