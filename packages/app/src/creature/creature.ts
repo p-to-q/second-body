@@ -36,6 +36,7 @@ import {
 } from './shading.ts';
 import { ARC_OFF, arcWeights, rgbToHsl, type ArcWeights } from '../stage/look.ts';
 import { surfaceFor, type SurfaceSpec } from './surface.ts';
+import { graftCurve, REPLACE_SECONDS, replaceRenders } from './replace-event.ts';
 
 export interface CreatureStats {
   instances: number;
@@ -57,6 +58,12 @@ export interface Creature {
   pose(sk: Skeleton, p: Presence, dt: number): void;
   /** 慢回路产物到货：把某个槽位热插拔成新部件，带组装动画 */
   graft(slot: SlotKey, meta: PartMeta, geometry: THREE.BufferGeometry): void;
+  /**
+   * 忒修斯的一次替换（docs/44 §7）：旧件碎成墨屑、新件用 graft 的组装动画装上、描边不断。
+   * **当帧就开始**，不排队 —— 替换音在同一帧响，排进队列就对不上了。
+   * 形状全在 `replace-event.ts`，这里只管把它接进帧循环。
+   */
+  replace(slot: SlotKey, pick: SlotPick): void;
   /**
    * 换着色语言。控件条的「描边」那一项走这里 —— 它要重建全部材质与桶，
    * 所以只该被一次按键调用，不该每帧调。相同值是 no-op。
@@ -98,6 +105,8 @@ interface Swap {
   to: SlotPick;
   /** 0..1 */
   t: number;
+  /** 'replace' = 忒修斯那一下（碎开 + 组装），缺省 = 交叉淡入 */
+  kind?: 'replace';
 }
 
 interface MeshEntry {
@@ -378,9 +387,9 @@ export function createCreature(opt: CreatureOptions): Creature {
         dirtyParts.clear();
       }
 
-      // 1. 推进换装动画
+      // 1. 推进换装动画（替换那一下的长度 `REPLACE_SECONDS` 就是 `MORPH.crossfade`）
       for (const [key, s] of [...active]) {
-        s.t += step / Math.max(1e-3, MORPH.crossfade);
+        s.t += step / Math.max(1e-3, s.kind === 'replace' ? REPLACE_SECONDS : MORPH.crossfade);
         if (s.t >= 1) active.delete(key);
       }
       pumpQueue();
@@ -395,14 +404,18 @@ export function createCreature(opt: CreatureOptions): Creature {
       for (const key of ALL_SLOT_KEYS) {
         const pick = genome.slots?.[key];
         const s = active.get(key);
-        if (s) {
+        if (s?.kind === 'replace') {
+          render[key] = replaceRenders(key, s.from, s.to, s.t, pres);
+        } else if (s) {
           const u = smoothstep(s.t);
           const list: SlotRender[] = [];
           if (s.from) list.push({ partId: s.from.partId, materialRole: s.from.materialRole, scale: (1 - u) * pres });
+          // 新件那一半就是 graft 的组装动画 —— 忒修斯替换用的是同一条（`graftCurve`）
+          const g = graftCurve(s.t);
           list.push({
             partId: s.to.partId, materialRole: s.to.materialRole,
-            scale: u * pres,
-            offset: (1 - u) * MORPH.assembleOffset,     // 从轴向外 0.15m 吸附回位
+            scale: g.scale * pres,
+            offset: g.offset,     // 从轴向外 0.15m 吸附回位
           });
           render[key] = list;
         } else if (pick) {
@@ -490,6 +503,21 @@ export function createCreature(opt: CreatureOptions): Creature {
       genome.slots[slot] = pick;
       // 慢回路的产物是一个叙事时刻，插队到最前面
       enqueue({ key: slot, from: prev, to: pick, t: 0 }, true);
+    },
+
+    replace(slot, pick) {
+      if (!genome?.slots || !pick?.partId) return;
+      const running = active.get(slot);
+      // 这一格正在交接：从**正在装上的那一件**碎起，不是从更早那一件
+      const from = running ? running.to : genome.slots[slot] ?? null;
+      if (from?.partId === pick.partId) return;
+      genome = { ...genome, slots: { ...genome.slots, [slot]: pick } };
+      const i = queued.findIndex((q) => q.key === slot);
+      if (i >= 0) queued.splice(i, 1);
+      // 不走 `enqueue`：队列满（升档那一批正在交叉淡入）时它会等，而替换音不等。
+      // 越过 `maxConcurrentSwaps` 最多一件 —— 排期器的 `minGap` 保证替换之间不叠
+      active.set(slot, { key: slot, from, to: pick, t: 0, kind: 'replace' });
+      void library.preload([pick.partId]);
     },
 
     setShading(id) {

@@ -22,7 +22,7 @@ import { makeGenome, toPlaceholderGenome } from '../../core/src/genome.ts';
 import { blendSkeletons, remapSkeleton, type BodyPlan } from '../../core/src/bodyplan.ts';
 import { mulberry32 } from '../../core/src/rng.ts';
 import { CAPTURE, NASCENT, REFINE, STAGE } from '../../core/src/tuning.ts';
-import type { Genome, MotionFeatures, Presence, Skeleton, SlotKey, SlotPick, Tier } from '../../core/src/types.ts';
+import type { Genome, MotionFeatures, PartMeta, Presence, Skeleton, SlotKey, SlotPick, Tier } from '../../core/src/types.ts';
 
 import { createCapture, type Capture } from './capture/capture.ts';
 import { createPartLibrary } from './assets/library.ts';
@@ -258,13 +258,20 @@ async function boot(): Promise<void> {
   // 这是「模型会被改变、会留下后果」的那一半 —— 没有它，慢回路只是一次性的礼物；
   // 有了它，这台机器上的物种池是被历任观众改写过的。
   // 生产构建下这个端点是 404，`lineage()` 返回空数组，开场一点都不受影响。
+  /**
+   * 慢回路为**这一个观众**生成、已经到货的件 —— 忒修斯借件的 d4 池（docs/44 §4）。
+   * 空着就是没到货，d4 退回 d3。人一走清空（它属于这个人，不属于下一个）。
+   */
+  const grown: PartMeta[] = [];
   const slow = createSlowLoop({
     mask: () => capture.latestMask(),
     species: () => theme ?? '',
     loadGeometry: (url) => library.loadUrl(url),
     // 团块身体没有槽位，也就没有"接一个零件上去"这回事 —— 它的表达是连续的。
     // 这不是缺陷，是 docs/18 里两种表达的分界；慢回路对它静默跳过。
-    body: () => (massBody ? null : creature),
+    body: () => (massBody ? null : {
+      graft: (slot, meta, geometry) => { grown.push(meta); creature.graft(slot, meta, geometry); },
+    }),
   });
   for (const p of await slow.lineage(theme ?? '')) {
     if (!library.index.parts.some((q) => q.id === p.id)) library.index.parts.push(p);
@@ -692,15 +699,25 @@ async function boot(): Promise<void> {
     bodyRoot.scale.setScalar(step?.scale ?? 1);
 
     if (step?.fired && !isMass && !isSwarm) {
+      // 借件距离按弧线张开（docs/44 §4）；d4 只在慢回路那一件真的到货之后才有得借
       const g = swapOneSlot(
         creature.genome, step.fired.slot,
         (seed ^ Math.imul(step.fired.index, 0x9e3779b9)) >>> 0,
-        { tier, index: library.index, rejected: library.rejected },
+        {
+          tier, index: library.index, rejected: library.rejected, overall: arcState.overall, grown,
+          // 给操作员（`?debug=1`），不给观众：换的是哪一格、从哪一圈借的（docs/44 §7 最后一段）
+          onChoice: hud ? (c) => console.info(
+            `[theseus] #${step.fired!.index} ${step.fired!.slot} ← d${c.ring} ${c.pick.partId}`,
+          ) : undefined,
+        },
       );
       // 借不到就是这一件不发生 —— 不抛、不等、不退化成"换了个一模一样的"（P3）。
       if (g) {
         swapped.set(step.fired.slot, g.slots[step.fired.slot]);
-        creature.remorph(getDegradeState().placeholder ? toPlaceholderGenome(g) : g);
+        // 不是交叉淡入：旧件碎开、新件装上、描边不断（docs/44 §7，形状在 `creature/replace-event.ts`）。
+        // 这一下当帧开始，所以下面那一声和画面上的碎开是同一帧
+        const shown = getDegradeState().placeholder ? toPlaceholderGenome(g) : g;
+        creature.replace(step.fired.slot, shown.slots[step.fired.slot]);
         // docs/40 §5 第 3 条（2026-09-14 改的挂点）+ docs/44 §7：
         // 升档音原来挂在四个乐章的交接上，而 docs/44 §6 之后那四个点不再是事件 ——
         // 一个挂在不再发生的东西上的声音等于没有声音。挪到**每一次替换**上：
@@ -774,6 +791,7 @@ async function boot(): Promise<void> {
       // 第二个观众看到的是一具已经被换了一半的身体，而他没见过原件：
       // 对他来说忒修斯之船从来没发生过，而且失效得看不出来（画面照常在动）。
       swapped.clear();
+      grown.length = 0;
       evolution.reset();
       stabilizer.reset();
       refiner?.reset();
