@@ -254,6 +254,14 @@ test('readout: 小数点竖成一条线 —— 只垫显示，不撑破那一栏
   assert.equal(r.values.confidence, '0.96', 'readOut 的位数被改了 —— 该垫的是显示层');
 });
 
+test('readout: 单位不大写 —— 赫兹是 Hz，不是 HZ', () => {
+  const unit = block(CSS, '.sb-readout-unit');
+  assert.doesNotMatch(unit, /text-transform/, '单位被改了大小写');
+  // 大写那一组（通道代号）里不许混进单位
+  const upper = CSS.match(/([^{}]*)\{[^}]*text-transform:\s*uppercase/g) ?? [];
+  assert.ok(!upper.some((r) => r.includes('.sb-readout-unit')), '单位混进了全大写的那一组 —— 截图上会印成 HZ');
+});
+
 test('readout: 单位单独一栏，数的个位才对得齐', () => {
   assert.deepEqual(splitUnit('31 Hz'), ['31', 'Hz']);
   assert.deepEqual(splitUnit('120 Hz'), ['120', 'Hz']);

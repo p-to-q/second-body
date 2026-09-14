@@ -87,11 +87,16 @@
 .sb-readout-state .sb-en,
 .sb-readout-name .sb-en,
 .sb-readout-title .sb-en,
-.sb-readout-action .sb-en,
-.sb-readout-unit {
+.sb-readout-action .sb-en {
   font-size: var(--sb-size-micro);
   letter-spacing: var(--sb-tracking-label);
   text-transform: uppercase;
+}
+/* 单位小一号，但**不许大写**：通道代号全大写是数控的语汇，单位不是 ——
+   赫兹写作 Hz，不是 HZ（上一版把单位并进了代号那一组，截图上印成了 HZ）。 */
+.sb-readout-unit {
+  font-size: var(--sb-size-micro);
+  letter-spacing: var(--sb-tracking-label);
 }
 .sb-readout-state .sb-en,
 .sb-readout-name .sb-en,
