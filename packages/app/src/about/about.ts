@@ -375,9 +375,29 @@ function speciesSection(index: PartLibraryIndex): HTMLElement {
 
 function privacySection(): HTMLElement {
   // 网页版必须在页面上有这一段（docs/13 §5）。放在署名之前，不折叠、不藏。
-  return section(COPY.about.privacyTitle,
+  const sec = section(COPY.about.privacyTitle,
     biEl('p', COPY.privacy.short, 'about-lede'),
     biEl('p', COPY.privacy.long));
+
+  // 存档那一句**先问再说**。理由整段写在 `i18n.ts` 的 `privacy.archiveRow` 上，
+  // 一句话是：存储要作品负责人本人去开，网站会先于它上线，
+  // 而这一句是 docs/26 §G 三处「诚实集中」之一 —— 那三处的要求是**逐字为真**，
+  // 不是"发布那天记得改文案"。
+  //
+  // 敲不通就什么都不印：**少一句话，不少一句真话。** 没有"存档暂未开启"这种
+  // 占位文案 —— 观众不需要知道我们的部署顺序，他只需要页面上写的每一句都成立。
+  // 失败路径和 `/lineage` 的 `loadVisits()` 逐字同一条（try/catch + !res.ok）。
+  void (async () => {
+    try {
+      const res = await fetch('/api/visits');
+      if (!res.ok) return;
+      const j = (await res.json()) as { total?: unknown };
+      if (typeof j.total !== 'number') return;
+      sec.append(biEl('p', COPY.privacy.archiveRow));
+    } catch { /* 没有存档就没有这一句 */ }
+  })();
+
+  return sec;
 }
 
 function creditsSection(): HTMLElement {

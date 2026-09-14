@@ -40,6 +40,7 @@ import { wireDegrade } from './shell/degrade-wire.ts';
 import { getDegradeState } from './shell/degrade.ts';
 import { showBootError } from './shell/boot-error.ts';
 import { createSlowLoop } from './slow/slow.ts';
+import { createVisitReporter } from './archive/visit.ts';
 import { enterKiosk, readFlags } from './shell/kiosk.ts';
 import { mountCameraButton, mountEntry } from './shell/entry.ts';
 import { mountLoading } from './shell/loading.ts';
@@ -332,6 +333,30 @@ async function boot(): Promise<void> {
    */
   const arc = createArc({ total: flags.arc });
   let arcState: ArcState = arc.state;
+  /**
+   * 现在是不是摄像头在驱动。开场那一份由 `capturePromise` 决定，两处判断必须一致。
+   *
+   * **声明在这里，不在下面那一列旁边**（它原来在 `mountExits` 上面）：存档要在
+   * 弧线走完的那一刻读它，而弧线和帧循环都建在这一行之前 —— `let` 有 TDZ，
+   * 一个建得更早、调得更晚的闭包会在第一帧上炸，而那正是绝不许炸的地方（P2）。
+   */
+  let cameraOn = !entry && !flags.demo;
+
+  /**
+   * 存档（`docs/43 §8`）—— 一次走完的相遇往 `/api/visit` 写一行。
+   *
+   * 挂在弧线旁边而不是慢回路旁边：它记的是**这一场**，不是那一件生成物。
+   * 帧循环里只有 `visits.note(arcState.held)` 一次 boolean 比较，网络在空闲里。
+   *
+   * `live` 是一个 getter，读的是**此刻**是不是摄像头在驱动：
+   * 网页版开场用的是回放，摄像头要等观众按下「用我的摄像头」才打开。
+   * 一段录像走完弧线不是一次相遇（那是给厚度掺水），而不按那个按钮就什么都
+   * 不会被留下 —— 那正是 `§9.5` 那条「不参与」，`/about` 说出来的就是它。
+   */
+  const visits = createVisitReporter({
+    species: theme ?? null,
+    live: () => cameraOn,
+  });
   const stabilizer = createStabilizer();
   // 时域精化在**原始 landmark 上**做，在 buildSkeleton 之前 ——
   // 骨架是从 landmark 推出来的，先抖后建等于把抖动烘进骨长和朝向里，
@@ -555,6 +580,8 @@ async function boot(): Promise<void> {
     // 升档那 0.15 秒是给身体的顿挫，不是给时间轴的）。在不在场用已有的 `Presence`
     // 折一下，不发明第二套检测（docs/40 §3）。
     arcState = arc.update(arcPresent(p), dt);
+    // 一次走完的相遇，写一行。这里只有一次 boolean 比较（`docs/43 §7.1` 第 2 条）
+    visits.note(arcState.held);
 
     // 把弧线交给**表面和光**（`docs/41-MATERIAL.md`）。
     //
@@ -702,6 +729,10 @@ async function boot(): Promise<void> {
       refiner?.reset();
       vitality.reset();
       slow.reset();
+      // 存档也要收回来。装置那台机器一开就是一整天，不收等于把这一页数的东西
+      // 从「人」偷偷换成「开机次数」—— 正是这一段注释说的那种跨观众留存的状态。
+      // 和 `slow.reset()` 一样，它不解除写失败之后那道会话级的闸
+      visits.reset();
       groundSense.reset();   // 换了一个人：下一次观测重新立基准，不在进场那一帧砸一下
       lastSkeleton = null;
       evoTier = 0;
@@ -751,6 +782,8 @@ async function boot(): Promise<void> {
           note,
           refiner && `hold=${refiner.stats.held} drop=${refiner.stats.dropped} q=${refiner.stats.cutoffScale.toFixed(2)}`,
           slow.phase !== 'idle' && `slow:${slow.phase}${slow.note ? `(${slow.note})` : ''}`,
+          // 存档写成没写成只在这一行说（`docs/43 §7.1` 第 5 条：降级必须静默）
+          visits.phase !== 'idle' && `visit:${visits.phase}${visits.n === null ? '' : `(#${visits.n})`}`,
         ].filter(Boolean).join(' · '),
       });
     }
@@ -808,8 +841,7 @@ async function boot(): Promise<void> {
   // 摄像头 = 和下面那个按钮完全相同的一次 capture 替换。
   // `?kiosk=1` 下 `flags.exits` 为 false，这一整列不挂（见 shell/kiosk.ts 的那条注释）。
 
-  /** 现在是不是摄像头在驱动。开场那一份由 `capturePromise` 决定，两处判断必须一致 */
-  let cameraOn = !entry && !flags.demo;
+  // `cameraOn` 声明在弧线那一段（存档要读它，而它有 TDZ）—— 这里只有用它的人
 
   /** 换一个 Capture。失败时**原来那一个继续跑** —— 画面不许因为切换而停（P3） */
   const swapCapture = async (kind: 'webcam' | 'replay'): Promise<boolean> => {

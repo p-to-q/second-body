@@ -25,6 +25,7 @@
 |---|---|
 | 2026-09-14 | `/about` 的九个身体方案各有各的记号（此前六个共用同一个空心圆，在图上断言它们是同一类）；`?theme=` / `?act=` 按 `?plan=` 的规矩判值并 warn；改动史里七行未来日期按 blame 落回 2026-09-13 |
 | 2026-09-13 | `BodyPlanId` 补齐成真实的九个、`bodyPlan` 不再是裸 string、未知方案在 `check:parts` 判**错**；`stub`/`towering` 的条目自带比例不再被预设吞掉 |
+| 2026-09-14 | 存档 A 档落地（docs/43 §8）：一次走完的相遇留下一行（序号 / 物种 / 粗到天的日期），`/lineage` 多一个数据源，`/about` 把「不参与」说出来。存储只到接口为止 —— 开通是作品负责人的动作（docs/13 §5.1） |
 | 2026-09-13 | 五个展陈面逐条核对：过期数字改掉、弧线与物质进 `/about`、两份审计与那次浸泡进 `/making`、护照多一枚章 |
 | 2026-09-13 | 会话弧线落地：四个乐章一条时间轴，导演不再摇骰子（docs/40） |
 | 2026-09-13 | 两份审计的落地：物种不再被静默替换、`?gl=off` 接上正式程序、降级阶梯前两级真的有人接（docs/36 D2/D4、docs/39 §2.1） |
@@ -175,6 +176,16 @@
 | **血统（前人的件进下一个人的候选池）** | `experimental` | `lineage.json` 记 session（匿名）/ 时间 / 物种 / 槽位；`GET /__slow/lineage` 连跑两次分别返回 1 件、2 件 |
 | **一次真实的 Rodin 调用** | `spec-only` | **从没打过。** 离线端到端验的是**回路**，不是**生成**。"把实时 AI 3D 生成放进交互回路"这句主张里，被验证的是"回路"那半。docs/09 U10（端到端真实耗时）因此仍空着 |
 | 现场 kiosk 跑生产构建 = 没有慢回路 | — | 要让它活着得跑 `npm run dev`（或给 preview 也接一份）。这是个**待裁决**的部署选择，不是 bug |
+
+## 存档（`docs/43 §8` 的 A 档）
+
+| 表面 | 状态 | 证据 |
+|---|---|---|
+| **一行到访记录的形状（序号 / 物种 / 粗到天的日期）** | `stable` | `packages/archive/src/visit.ts`。`docs/43 §9.4` 那条「永久保留」是靠**这一行里根本没有个人数据**站住的，所以它有仪表不只有注释：`app/test/archive.test.ts` 18 条，钉字段清单、`species` 的闭集、日期只到天、请求体塞 `ip`/`ua`/`email`/`lat` 一个都不落库，外加扫源码确认 `packages/archive/**` 与 `api/**` 里没有任何一处读 header / socket / cookie |
+| **`POST /api/visit` · `GET /api/visits?limit=`** | `experimental` | 返回形状逐字照抄 `GET /__slow/lineage`（`{ok,total,entries}`）。逻辑一份（`packages/archive/src/http.ts`），三个宿主共用：Vercel 函数（`api/*.ts`）、dev server、`vite preview`。**Vercel 上那一侧没有实跑过** —— 这条线不许开通任何东西，见下一行 |
+| **存储** | `stub` | 接口两个方法（`store.ts`）。`fileStore` 只追加 JSONL，dev / preview / 装置那台机器走它，有测试（换一个实例读回来、一条 < 80 字节）；`restStore` 按 Marketplace 上那一家的 HTTP 口子写好了，**协议有测试**（只发 `INCR`/`LPUSH`/`LRANGE`/`LLEN`，没有任何一条会让这一叠变薄），但**没有连过真服务**。开通是作品负责人的动作，步骤在 `docs/13 §5.1` |
+| **没开通时线上是什么样** | `stable` | `createVisitStore()` → `null` → 两个端点 404 `{code:'DISABLED'}` → `/lineage` 仍是「这条回路只在装置现场活着」。**故意不退回内存计数器**：那个数会随函数实例重置，而这一页头一行写着「这一叠不会变薄」（P21） |
+| **写入时机与降级** | `experimental` | 弧线走完（`ArcState.held`）写一次，在 `requestIdleCallback` 里；`justReset` 收回来，下一位重新算一场。任何失败（404 / 5xx / 断网 / 超时）= 静默关掉、本次会话不再尝试、不重试。没有 `sendBeacon`（`§9.7`），有测试扫着。**摄像头没打开的那一场一行都不写** —— 那就是 `§9.5` 的「不参与」 |
 
 ## 展陈层（作品自己讲自己的那几页）
 
