@@ -26,6 +26,20 @@ html.sb-first-screen {
   --sb-on-stage-dim: #5b6168 !important;
   /* 亮底上最强的那一档是黑，不是白。理由见 type.css 里那个令牌的注释 */
   --sb-ink-strong: #000 !important;
+  /* 各角那一份也要翻：舞台按像素采样时把它们写成行内样式，压得过 type.css 里的
+     `var(--sb-on-stage)` 缺省值 —— 首屏这几秒底下是纸，不是舞台画布，舞台量到的不算数。 */
+  --sb-on-stage-tr: var(--sb-on-stage) !important;
+  --sb-on-stage-dim-tr: var(--sb-on-stage-dim) !important;
+  --sb-ink-strong-tr: var(--sb-ink-strong) !important;
+  --sb-on-stage-br: var(--sb-on-stage) !important;
+  --sb-on-stage-dim-br: var(--sb-on-stage-dim) !important;
+  --sb-ink-strong-br: var(--sb-ink-strong) !important;
+  --sb-on-stage-bl: var(--sb-on-stage) !important;
+  --sb-on-stage-dim-bl: var(--sb-on-stage-dim) !important;
+  --sb-ink-strong-bl: var(--sb-ink-strong) !important;
+  --sb-on-stage-tl: var(--sb-on-stage) !important;
+  --sb-on-stage-dim-tl: var(--sb-on-stage-dim) !important;
+  --sb-ink-strong-tl: var(--sb-ink-strong) !important;
 }
 
 /** 环那块画布。底色由它自己在着色器里合成，这里的 background 只是它到位之前的那一瞬 */

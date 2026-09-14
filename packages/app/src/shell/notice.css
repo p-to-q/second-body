@@ -36,10 +36,21 @@
  * 出场动效没有这个风险：它跑不起来的最坏结果是直接消失，而那正是我们要的结果。
  */
 
-.sb-notice--bottom-left { left: var(--sb-safe); }
+.sb-notice--bottom-left {
+  left: var(--sb-safe);
+  /* 墨按左下角底下的像素翻（stage/ink-regions.ts 的 `bl`） */
+  --sb-on-stage: var(--sb-on-stage-bl);
+  --sb-on-stage-dim: var(--sb-on-stage-dim-bl);
+}
 /* 右下角是「用我的摄像头」那个按钮的位置（entry.css 的 .sb-camera）。
    §S0 的降级提示只在启动那 4 秒里出现，那时按钮还没挂上，不会打架。 */
-.sb-notice--bottom-right { right: var(--sb-safe); text-align: right; }
+.sb-notice--bottom-right {
+  right: var(--sb-safe);
+  text-align: right;
+  /* 和右下角那一列同一块底，读同一份（`br`） */
+  --sb-on-stage: var(--sb-on-stage-br);
+  --sb-on-stage-dim: var(--sb-on-stage-dim-br);
+}
 
 .sb-notice .sb-zh { color: var(--sb-on-stage); }
 .sb-notice .sb-en { color: var(--sb-on-stage-dim); }

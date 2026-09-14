@@ -23,6 +23,18 @@
 }
 .sb-corner > * { pointer-events: auto; }
 
+/* 这一列的墨按**右上角底下的像素**翻（stage/ink-regions.ts 的 `tr`），不按场景。
+   在列上把全局令牌换成这一角的，里面几节一条规则都不用改。
+   --sb-ink / --sb-ink-dim 也换：展开的目录和控件面板没有底，那几行字同样直接压在画面上。
+   有底的选项格在 controls.css 里换回纸上的墨。 */
+.sb-corner {
+  --sb-on-stage: var(--sb-on-stage-tr);
+  --sb-on-stage-dim: var(--sb-on-stage-dim-tr);
+  --sb-ink-strong: var(--sb-ink-strong-tr);
+  --sb-ink: var(--sb-on-stage-tr);
+  --sb-ink-dim: var(--sb-on-stage-dim-tr);
+}
+
 /* 进到列里之后，各节交出定位权。**不改它们的其它任何度量** ——
    在只挂目录的文字页上它们仍然走自己那份 fixed。 */
 .sb-corner > .sb-nav,

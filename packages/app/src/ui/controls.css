@@ -105,6 +105,9 @@
 .sb-ctl-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--sb-rule); }
 /* gap:1px + 底色 = 一张有细线的表，而不是一堆按钮。这就是"面板"和"弹窗"的区别 */
 .sb-ctl-opt {
+  /* 格子有纸底，字跟纸走 —— 撤销 corner.css 在列上换成画面墨的那两个 */
+  --sb-ink: var(--sb-paper-ink);
+  --sb-ink-dim: var(--sb-paper-ink-dim);
   appearance: none;
   border: 0;
   border-bottom: 2px solid transparent;

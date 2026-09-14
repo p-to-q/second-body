@@ -50,6 +50,7 @@ import {
   type BodyBounds,
 } from './framing.ts';
 import { applyScene, isSceneId, pickScene, SCENES, type SceneId } from './scenes.ts';
+import { createInkSampler } from './ink-sampler.ts';
 
 /**
  * ⚠️ 这些数**本该住在 `tuning.ts`**（P0：现场要调的旋钮只有一个文件）。
@@ -488,6 +489,14 @@ export function createStage(opt: StageOptions = {}): Stage {
     root.setProperty('--sb-ink-strong', ink.strong);
   }
 
+  /**
+   * 上面那一份是**每场一个数**，跟不上从角底下走过的身体、弧线改的灯、中途换的场景。
+   * 所以角上的字另外按渲染出来的像素翻（`ink-regions.ts` / `ink-sampler.ts`），
+   * 各角写自己的 `--sb-on-stage-{tr,br,bl,tl}`；读不到像素时撤掉，CSS 退回上面这一份。
+   * `?gl=off` 下不采：那是"别碰 GPU 的那条路"。
+   */
+  const inkSampler = createInkSampler({ enabled: typeof document !== 'undefined' && flags.gl });
+
   function applyLook(): void {
     publishStageInk();
     setColor(key.color, look.key);
@@ -693,6 +702,9 @@ export function createStage(opt: StageOptions = {}): Stage {
       get horizon() { return uHorizonY.value; },
       get soft() { return uGlowSoft.value; },
       get sky() { return { top: [...uSkyTop.value.toArray()], glow: [...uSkyGlow.value.toArray()] }; },
+      get ink() {
+        return { active: inkSampler.active, samples: inkSampler.samples, regions: inkSampler.board?.state };
+      },
     };
   }
 
@@ -703,6 +715,7 @@ export function createStage(opt: StageOptions = {}): Stage {
     update(p, m, dt) {
       frames++;
       const step = Math.min(Math.max(dt, 1 / 240), 1 / 15);
+      inkSampler.tick(step);
 
       // ── 主题过渡：换主题不该是一次跳变 ──
       if (lookMix < 1) {
@@ -802,6 +815,8 @@ export function createStage(opt: StageOptions = {}): Stage {
       // 后期没建起来（旧后端 / 建链失败）就直出。帧循环里永不抛异常（P2）
       if (postEnabled && post) post.render();
       else r.render(scene, camera);
+      // 必须紧跟着绘制、在同一个任务里：WebGPU 画布出了这个任务就读不到了
+      inkSampler.afterRender((r as { domElement?: HTMLCanvasElement }).domElement);
     },
 
     setTheme(theme, index) {
@@ -872,6 +887,7 @@ export function createStage(opt: StageOptions = {}): Stage {
 
     dispose() {
       scene.onBeforeRender = (() => {}) as THREE.Scene['onBeforeRender'];
+      inkSampler.dispose();
       post?.dispose();
       post = null;
       field.dispose();
