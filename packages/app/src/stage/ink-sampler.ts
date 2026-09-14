@@ -83,11 +83,12 @@ export function createInkSampler(opt: { enabled: boolean; root?: HTMLElement }):
   const grid = document.createElement('canvas');
   grid.width = INK_GRID_W;
   grid.height = INK_GRID_H;
-  const ctx = grid.getContext('2d');
-  if (!ctx) {
+  const maybeCtx = grid.getContext('2d');
+  if (!maybeCtx) {
     warn('[stage] 拿不到 2D 上下文 —— 角上的字按场景翻墨');
     return idle;
   }
+  const ctx: CanvasRenderingContext2D = maybeCtx;
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'medium';
 
