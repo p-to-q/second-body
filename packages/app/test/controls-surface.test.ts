@@ -101,10 +101,13 @@ test('每一种状态都有一条不靠颜色的记号，而且两两分得开',
   assert.equal(sigs.键盘焦点, sigs.悬停, '键盘焦点和悬停应当是同一个记号（没有鼠标也看得见）');
 
   const TS = readFileSync(fileURLToPath(new URL('../src/ui/controls.ts', import.meta.url)), 'utf8');
-  for (const [cls, copy] of [['is-over', 'C.overlayOn'], ['is-now', 'C.arcNow'], ['is-pending', 'C.restarting']]) {
+  for (const [cls, copy] of [['is-now', 'C.arcNow'], ['is-pending', 'C.restarting']]) {
     assert.match(TS, new RegExp(`'${cls}'`), `controls.ts 不打 ${cls}`);
     assert.match(TS, new RegExp(copy.replace('.', '\\.')), `${cls} 没有配状态词 ${copy}`);
   }
+  // 叠加只靠记号（实线 + 顶上那一行），**不配文字**：作品负责人 2026-09-14「文字提示是累赘」
+  assert.match(TS, /'is-over'/, 'controls.ts 不打 is-over');
+  assert.doesNotMatch(TS, /overlayOn/, '叠加的格子里又配回了一句文字提示');
   assert.match(TS, /aria-current/, '弧线此刻只画了线，读屏读不到');
   assert.match(TS, /aria-busy/, '重开中只画了字，读屏读不到');
 });

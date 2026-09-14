@@ -226,14 +226,19 @@ test('readout: 上半截跟着左下角的场景墨走，底下那一条接近�
   assert.match(panel, /color:\s*var\(--sb-screen-ink\)/);
   // 不支持相对颜色语法的浏览器退回一条固定的深灰梯度（写在前面，被后一条覆盖）
   assert.match(panel, /background:\s*linear-gradient\(180deg,\s*color-mix\(in srgb,\s*var\(--sb-screen\)/, '没有给旧浏览器的退路');
-  // 深场景上要**明显更透**：作品负责人说逆光底下透明度不够
-  assert.ok(veilFor('onDark').alpha <= 0.5, `深场景上上半截还有 ${veilFor('onDark').alpha.toFixed(2)} 的不透明度，负责人要更透`);
-  assert.ok(veilFor('onLight').alpha < 0.84, '浅场景上上半截没有比原来（84%）更透');
+  // 区间（readout.css 文件头第二节第 5 条）：两侧都比上一版（0.84）透，但**往中间收** ——
+  // 负责人看过 0.42 / 0.79 那一版：逆光和纸上下两块色阶差太大
+  const dark = veilFor('onDark').alpha;
+  const light = veilFor('onLight').alpha;
+  for (const [name, a] of [['深场景', dark], ['浅场景', light]] as const) {
+    assert.ok(a >= 0.62 && a <= 0.76, `${name}上半截的不透明度 ${a.toFixed(2)} 出了 0.62–0.76 的区间`);
+  }
+  assert.ok(Math.abs(light - dark) <= 0.1, `两侧差 ${Math.abs(light - dark).toFixed(2)} —— 负责人要两端往中间靠`);
   // 底下那一条：和上半截在任何场景上都拉得开
   const bar = block(CSS, '.sb-readout-bar');
   const barPct = Number(bar.match(/background:\s*color-mix\(in srgb,\s*var\(--sb-screen\)\s*([\d.]+)%/)?.[1]);
   assert.ok(barPct >= 96, `底下那一条只有 ${barPct}% —— 在深场景上和上半截分不开`);
-  assert.ok(barPct / 100 - veilFor('onDark').alpha >= 0.4, '深场景上底条和上半截的不透明度差不到 0.4');
+  assert.ok(barPct / 100 - Math.max(dark, light) >= 0.2, '底条和上半截的不透明度差不到 0.2 —— 上下两截分不开');
   assert.doesNotMatch(CSS, /--sb-screen-dim|opacity\s*:/, '用了暗墨或透明度做层级 —— 小字会掉到 4.5:1 以下');
   assert.doesNotMatch(CSS, /#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})(?![0-9a-fA-F])/, 'readout.css 里写死了一个颜色');
   // 左下角的采样框要包住读数自己：身后亮了（一具白身体走到面板后面），那一角才会翻成浅场景那一档

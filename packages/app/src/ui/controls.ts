@@ -285,7 +285,8 @@ export function mountControls(options: ControlsOptions): Controls | null {
         el.classList.toggle('is-now', atArc);
         if (atArc) el.setAttribute('aria-current', 'true');
         else el.removeAttribute('aria-current');
-        state.textContent = over ? stateText(C.overlayOn) : atArc ? stateText(C.arcNow) : '';
+        // 叠加**不配文字**（作品负责人 2026-09-14：文字提示是累赘）—— 实线下划线和顶上那一行已经说了
+        state.textContent = !over && atArc ? stateText(C.arcNow) : '';
       });
       row.append(el);
     }
