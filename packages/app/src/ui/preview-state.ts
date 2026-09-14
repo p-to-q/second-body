@@ -108,7 +108,11 @@ function trusted(l: Landmark | undefined): boolean {
   return typeof v === 'number' && Number.isFinite(v) ? v >= REFINE.occlusionVisibility : true;
 }
 
-function outOfFrame(screen: readonly Landmark[] | undefined): number {
+/**
+ * 有几个**可信**点落在画面外。**导出**是为了左下角读数的「部分出画」告警（`readout-state.ts`）
+ * 用这一把尺子，而不是另画一条线 —— 两块仪表对"出画"说法不一，观众会信其中一块、不信另一块。
+ */
+export function outOfFrame(screen: readonly Landmark[] | undefined): number {
   if (!screen?.length) return 0;
   let n = 0;
   for (const l of screen) {

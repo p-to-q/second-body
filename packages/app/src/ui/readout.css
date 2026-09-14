@@ -61,7 +61,14 @@
   pointer-events: none;
   /* ↓↓ 见文件头第二节。一块底，没有边 */
   border-radius: 6px;
-  background: color-mix(in srgb, var(--sb-screen) 70%, transparent);
+  /* 上淡下深：顶上 84%，到底 90%；底下那一条再深一档（见 .sb-readout-bar）。
+     作品负责人要底再深一点、带梯度 —— 更深也是告警色能读出来的前提：
+     身后是白纸时，红字要 ≥ 84% 的底才过 4.5:1（测试按最淡的那一端算）。 */
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--sb-screen) 84%, transparent),
+    color-mix(in srgb, var(--sb-screen) 90%, transparent));
+  /* 底下那一条自己有一块更深的底，圆角由这里裁 */
+  overflow: hidden;
   color: var(--sb-screen-ink);
   font-family: var(--sb-mono);
   font-size: var(--sb-size-small);
@@ -92,9 +99,14 @@
   letter-spacing: var(--sb-tracking-label);
   text-transform: uppercase;
 }
-/* 单位小一号，但**不许大写**：通道代号全大写是数控的语汇，单位不是 ——
-   赫兹写作 Hz，不是 HZ（上一版把单位并进了代号那一组，截图上印成了 HZ）。 */
+/* 单位：小一号、坐在数字的基线上（inline-block 的基线就是它那一行字的基线）、定宽，
+   **不许大写** —— 赫兹写作 Hz，不是 HZ。没有单位的行这一截照样占宽，数的右边缘才对得齐。 */
 .sb-readout-unit {
+  display: inline-block;
+  width: 2.4ch;
+  margin-left: 0.3em;
+  text-align: left;
+  vertical-align: baseline;
   font-size: var(--sb-size-micro);
   letter-spacing: var(--sb-tracking-label);
 }
@@ -104,19 +116,23 @@
 .sb-readout-action .sb-en { margin-left: 0.5em; }
 
 /**
- * 三栏：名字 | 数 | 单位。名字吃掉剩下的宽度，数定宽 6ch、单位定宽 2.4ch，
- * 面板本身定宽 —— 每一栏宽度都是常数，数字跳动时一个像素都不回流。
- * ch 按这块板的字号算（等宽字、13px），和数字本身同一个字号，所以 6ch 正好装 6 位。
+ * 两栏：名字 | 数（带单位）。名字吃掉剩下的宽度，右边那一格里数定宽 6ch、单位定宽 2.4ch ——
+ * 每一截宽度都是常数，数字跳动时一个像素都不回流，所有数的右边缘仍竖成一条线。
+ *
+ * **单位不再是自己的一栏。** 原来是三栏网格，单位那一格字号小一号、按自己的行盒对齐，
+ * 截图上 Hz 飘在 31 的上方。现在单位和数字在同一行文字里：它坐在数字的基线上、
+ * 落在数字右下方、小一号 —— 数控板上单位就是这么跟着数走的。
  */
 .sb-readout-rows {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 6ch 2.4ch;
+  grid-template-columns: minmax(0, 1fr) auto;
   column-gap: 0.45rem;
   align-items: baseline;
 }
 .sb-readout-name { white-space: nowrap; overflow: hidden; }
 /* 数：**不放大、不加亮** —— 和名字同一个字号、同一个墨（文件头第三节） */
-.sb-readout-value { text-align: right; }
+.sb-readout-value { text-align: right; white-space: nowrap; }
+.sb-readout-num { display: inline-block; min-width: 6ch; text-align: right; }
 
 /**
  * 最底下那一条：题 + 显示 / 收起。全宽都是按钮。
@@ -124,7 +140,7 @@
  */
 .sb-readout-bar {
   appearance: none;
-  background: none;
+  background: color-mix(in srgb, var(--sb-screen) 96%, transparent);
   border: 0;
   border-top: 1px solid color-mix(in srgb, var(--sb-screen-ink) 16%, transparent);
   margin: 0;
@@ -152,3 +168,42 @@
 .sb-readout.is-collapsed .sb-readout-bar:hover,
 .sb-readout.is-collapsed .sb-readout-bar:focus-visible { border-top-color: transparent; }
 .sb-readout-bar:focus-visible { outline: 1px solid var(--sb-screen-ink); outline-offset: -4px; }
+
+/**
+ * **越界的时候变色，而且只在越界的时候。**
+ *
+ * 判据在 `readout-state.ts` 的 `assess()`，每一条阈值都取自代码里已经在用的判据（出画用左上角小屏幕的那一把、
+ * 置信用精化器自己的那一把、推理用 `CAPTURE.targetHz`），憋过 1 秒才出现、2 秒才撤掉，不会闪。
+ * 变色的是**那一个数和它的单位**，名字不变 —— 人先看到哪一行出了事，再读它是什么。
+ * 这是读数板上仅有的两种颜色（docs/26 §F 第二类例外：仪表的颜色只许表示测量越界）。
+ */
+.sb-readout-value.is-warn { color: var(--sb-caution); }
+.sb-readout-value.is-alarm { color: var(--sb-alarm); }
+
+/**
+ * 最后一行：代码 + 那一句。**这一行永远占着高度**（没事的时候写「正常 NORMAL」）——
+ * 告警出现时面板若长高一行，贴底的面板就会往上顶，名牌也跟着挪；一块仪表为了报一个错自己先动了，
+ * 那比错本身更抢眼。
+ */
+.sb-readout-alarm {
+  display: flex;
+  gap: 0.5em;
+  align-items: baseline;
+  margin: 0.25rem 0 0;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.sb-readout-alarm .sb-readout-code {
+  font-size: var(--sb-size-micro);
+  letter-spacing: var(--sb-tracking-label);
+}
+.sb-readout-alarm .sb-zh,
+.sb-readout-alarm .sb-en { display: inline; color: inherit; }
+.sb-readout-alarm .sb-en {
+  font-size: var(--sb-size-micro);
+  letter-spacing: var(--sb-tracking-label);
+  text-transform: uppercase;
+  margin-left: 0.5em;
+}
+.sb-readout-alarm.is-warn { color: var(--sb-caution); }
+.sb-readout-alarm.is-alarm { color: var(--sb-alarm); }

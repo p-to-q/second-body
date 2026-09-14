@@ -227,6 +227,19 @@ export const COPY = {
     title: bi('读数', 'Readout'),
     show: bi('显示', 'Show'),
     hide: bi('收起', 'Hide'),
+    /** 没有越界时，底下那一行说的话 */
+    normal: bi('正常', 'Normal'),
+    /**
+     * 告警代码对应的话。代码本身（ALM 01…）不翻译，和数控板一样是固定编号；
+     * 什么时候触发、阈值从哪来，见 `readout-state.ts` 的 `AlarmCode` 那张表。
+     */
+    alarms: {
+      ALM01: bi('关节丢失', 'Tracking lost'),
+      ALM02: bi('推理停滞', 'Inference stalled'),
+      WRN11: bi('置信偏低', 'Low confidence'),
+      WRN12: bi('部分出画', 'Partly out of frame'),
+      WRN13: bi('推理偏慢', 'Inference slow'),
+    },
   },
 
   /** S7 离场 / 留念 */

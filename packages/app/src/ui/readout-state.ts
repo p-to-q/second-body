@@ -27,7 +27,9 @@
  * 写在 `readout.css` 的文件头里。
  */
 import type { Landmark, MotionFeatures, RawPose } from '../../../core/src/types.ts';
-import { CAPTURE, REFINE } from '../../../core/src/tuning.ts';
+import { CAPTURE, PREVIEW, REFINE } from '../../../core/src/tuning.ts';
+import { qualityScale } from '../../../core/src/refine.ts';
+import { outOfFrame } from './preview-state.ts';
 import type { Flags } from '../shell/kiosk.ts';
 
 /**
@@ -214,5 +216,126 @@ export function readOut(input: ReadoutInput): Readout {
       // 不是值域。所以这一行也走 `scaled()`，不按那个区间写死位数。
       extent: scaled(f?.expansiveness),
     },
+  };
+}
+
+// ── 告警：测量越界时，数字变色、底下那一行给出代码 ──────────────────────────────
+
+/**
+ * 读数板上的三档。`ok` 是满墨；`warn` 琥珀；`alarm` 红（颜色令牌在 `type.css`）。
+ *
+ * ## 为什么读数板可以有颜色
+ *
+ * 全站"颜色承担语义"只有一处（docs/26 §F）。仪表是那条清单之外的另一类东西（§F 第二类例外），
+ * 而仪表上的颜色有一个作品里其它地方都没有的性质：**它不是一个判断，是一个越界** ——
+ * 阈值写在代码里、每一条都来自这件作品**已经在用**的判据，不为显示而另立一条线。
+ * 作品负责人要的是"更像真实的数控板、会出现意外情况"；真实数控板上的红字就是这个：
+ * 某个量出了它该在的范围。**这里一条假告警都不造** —— 没有越界就没有颜色。
+ */
+export type Level = 'ok' | 'warn' | 'alarm';
+
+/**
+ * 告警代码。数控板的写法：字母表示轻重，数字是固定编号，**编号不随显示顺序变**，
+ * 这样现场的人可以说"刚才跳了 WRN 12"，而不是"刚才黄了一下"。
+ *
+ * | 代码 | 什么时候 | 阈值从哪来 |
+ * |---|---|---|
+ * | ALM 01 关节丢失 | 看得见的关节不到一半 | 本块读数的「关节」那一行 |
+ * | ALM 02 推理停滞 | 推理低于目标的 40% | `CAPTURE.targetHz`（readout.ts 头：12Hz 时身体发木） |
+ * | WRN 11 置信偏低 | 精化器自己开始变迟钝（`qualityScale < 1`） | `refine.ts`，和左上角小屏幕同一把尺子 |
+ * | WRN 12 部分出画 | ≥ `PREVIEW.outOfFramePoints` 个可信点在画外 | `preview-state.ts` 的 `outOfFrame()`，同一把尺子 |
+ * | WRN 13 推理偏慢 | 推理低于目标的 80% | `CAPTURE.targetHz` |
+ */
+export type AlarmCode = 'ALM01' | 'ALM02' | 'WRN11' | 'WRN12' | 'WRN13';
+
+/** 同时越界时底下那一行只说最重的一条。顺序就是轻重 */
+export const ALARM_ORDER: readonly AlarmCode[] = ['ALM01', 'ALM02', 'WRN11', 'WRN12', 'WRN13'];
+
+/** 推理低于目标的这个比例 → 偏慢（琥珀）。0.8 × 30 = 24Hz */
+export const INFER_WARN_RATIO = 0.8;
+/** 推理低于目标的这个比例 → 停滞（红）。0.4 × 30 = 12Hz —— readout.ts 文件头说的"画面顺、身体木"的那个数 */
+export const INFER_ALARM_RATIO = 0.4;
+
+export interface Assessment {
+  levels: Record<ReadoutKey, Level>;
+  code: AlarmCode | null;
+}
+
+const OK: Assessment = {
+  levels: { confidence: 'ok', joints: 'ok', inference: 'ok', energy: 'ok', extent: 'ok' },
+  code: null,
+};
+
+/**
+ * 一帧 → 哪几个数越界、底下那一行说哪一条。**纯函数。**
+ *
+ * @param inferred 这台机器**有没有推理出过至少一帧**。开机那一两秒推理频率是 0，
+ *   那不是停滞，是还没开始 —— 每次打开页面都先红一下，观众读到的是"坏了"。
+ */
+export function assess(input: ReadoutInput, inferred = true): Assessment {
+  const levels: Record<ReadoutKey, Level> = { ...OK.levels };
+  const hit = new Set<AlarmCode>();
+
+  // 推理是机器自己的节拍：没人的时候也照判（和「推理」那一行不跟着 present 作废同一个理由）
+  const hz = input.inferenceHz;
+  if (inferred && Number.isFinite(hz) && hz >= 0) {
+    if (hz < CAPTURE.targetHz * INFER_ALARM_RATIO) { levels.inference = 'alarm'; hit.add('ALM02'); }
+    else if (hz < CAPTURE.targetHz * INFER_WARN_RATIO) { levels.inference = 'warn'; hit.add('WRN13'); }
+  }
+
+  const pose = input.pose;
+  const score = Number.isFinite(pose?.score) ? pose!.score : 0;
+  const present = pose !== null && score > CAPTURE.minScore;
+  // **没有人就没有身体上的告警**：空场里说"关节丢失"是假话 —— 没有人可丢
+  if (present) {
+    const seen = visibleJoints(pose);
+    const total = (pose!.screen?.length ? pose!.screen : pose!.world)?.length ?? 0;
+    if (seen !== null && total > 0 && seen < total / 2) {
+      levels.joints = 'alarm'; hit.add('ALM01');
+    } else if (pose!.screen?.length && outOfFrame(pose!.screen) >= PREVIEW.outOfFramePoints) {
+      levels.joints = 'warn'; hit.add('WRN12');
+    }
+    if (qualityScale(score) < 1) { levels.confidence = 'warn'; hit.add('WRN11'); }
+  }
+
+  return { levels, code: ALARM_ORDER.find((c) => hit.has(c)) ?? null };
+}
+
+/** 进入越界要连续成立多久才显示；回到正常要连续成立多久才撤掉（撤得更慢：「好了」更容易是误报） */
+export const ALARM_ENTER_SECONDS = 1.0;
+export const ALARM_EXIT_SECONDS = 2.0;
+
+const rank = (a: Assessment): number =>
+  a.code === null ? 0 : a.code.startsWith('ALM') ? 2 : 1;
+
+export interface AlarmWatch {
+  update(input: ReadoutInput, dt: number): Assessment;
+  reset(): void;
+}
+
+/**
+ * 告警不许闪。和左上角小屏幕的 `createSeeWatch` 同一条教训：
+ * 门限附近逐帧判出来的状态一定会颤，一块忽红忽白的读数板读起来是"这东西在抽"。
+ * 新判定要**连续成立**一段时间才换上去；变重用 `ALARM_ENTER_SECONDS`，变轻用更长的 `ALARM_EXIT_SECONDS`。
+ */
+export function createAlarmWatch(): AlarmWatch {
+  let shown: Assessment = OK;
+  let pending: string | null = null;
+  let held = 0;
+  let inferred = false;
+  const key = (a: Assessment): string => JSON.stringify(a);
+  return {
+    update(input, dt) {
+      if (Number.isFinite(input.inferenceHz) && input.inferenceHz > 0) inferred = true;
+      const raw = assess(input, inferred);
+      const k = key(raw);
+      if (k === key(shown)) { pending = null; held = 0; return shown; }
+      if (k !== pending) { pending = k; held = 0; }
+      held += Number.isFinite(dt) && dt > 0 ? dt : 0;
+      const need = rank(raw) >= rank(shown) ? ALARM_ENTER_SECONDS : ALARM_EXIT_SECONDS;
+      if (held >= need) { shown = raw; pending = null; held = 0; }
+      return shown;
+    },
+    reset() { shown = OK; pending = null; held = 0; inferred = false; },
   };
 }

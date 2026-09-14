@@ -8,7 +8,12 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ABSENT, alignDecimals, FIGURE_SPACE, readOut, splitUnit, visibleJoints, wantsReadout } from '../src/ui/readout-state.ts';
+import {
+  ABSENT, ALARM_ENTER_SECONDS, ALARM_EXIT_SECONDS, alignDecimals, assess, createAlarmWatch, FIGURE_SPACE,
+  INFER_ALARM_RATIO, INFER_WARN_RATIO, readOut, splitUnit, visibleJoints, wantsReadout,
+} from '../src/ui/readout-state.ts';
+// PREVIEW 这个名字下面已经被 preview.css 的文本占了，所以调参块换个名字进来
+import { CAPTURE, PREVIEW as PREVIEW_TUNING } from '../../core/src/tuning.ts';
 import { isReadoutMode, readFlags, type Flags } from '../src/shell/kiosk.ts';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -171,7 +176,9 @@ test('readout: 数字不比名字大 —— 放大的亮数字是仪表盘的语
 
 test('readout: 底是深灰半透明，字色是一个墨；不跟场景翻，也没有写死的颜色', () => {
   const panel = block(CSS, '.sb-readout');
-  assert.match(panel, /background:\s*color-mix\(in srgb,\s*var\(--sb-screen\)\s*[\d.]+%,\s*transparent\)/, '底不是 --sb-screen 兑的半透明深灰');
+  const bg = panel.match(/background:\s*([^;]+);/)?.[1] ?? '';
+  assert.match(bg, /var\(--sb-screen\)/, '底不是 --sb-screen 兑的半透明深灰');
+  assert.doesNotMatch(bg, /var\(--sb-(?!screen\))/, '底里混进了 --sb-screen 以外的颜色');
   assert.match(panel, /color:\s*var\(--sb-screen-ink\)/);
   assert.doesNotMatch(CSS, /--sb-on-stage/, '又跟着场景翻了 —— 白纸场景上身体走过时数字会消失（实测）');
   assert.doesNotMatch(CSS, /--sb-screen-dim|opacity\s*:/, '用了暗墨或透明度做层级 —— 白纸场景上小字会掉到 4.5:1 以下');
@@ -182,11 +189,17 @@ test('readout: 身后是纯黑、纯白、还是五套场景里任何一套，�
   // 三个底并排比出来的结论（readout.css 文件头第二节）：跟着场景翻的纱在白纸场景上，
   // 身体一走到面板后面数字就没了。所以这里不只量场景，还量**两个极端的身后** ——
   // 身体可以是任何颜色，纯黑和纯白把它们全包住。
-  const pct = block(CSS, '.sb-readout').match(/var\(--sb-screen\)\s*([\d.]+)%/);
-  assert.ok(pct, 'readout.css 的 background 换了写法，这条测试要跟着重写');
-  const alpha = Number(pct![1]) / 100;
+  // 梯度按**最淡的那一端**算：字在最淡处能读，在深处只会更好读
+  const pcts = [...block(CSS, '.sb-readout').matchAll(/var\(--sb-screen\)\s*([\d.]+)%/g)].map((m) => Number(m[1]));
+  assert.ok(pcts.length, 'readout.css 的 background 换了写法，这条测试要跟着重写');
+  const alpha = Math.min(...pcts) / 100;
   const screen = channels(token('--sb-screen'));
-  const ink = luma(channels(token('--sb-screen-ink')));
+  // 满墨，以及两种告警色 —— 告警色也得在最淡处、身后纯白时读得出
+  const inks: Array<[string, number]> = [
+    ['墨', luma(channels(token('--sb-screen-ink')))],
+    ['红（告警）', luma(channels(token('--sb-alarm')))],
+    ['琥珀（警告）', luma(channels(token('--sb-caution')))],
+  ];
 
   const behind: Array<[string, number]> = [['纯黑身后', 0], ['纯白身后', 1]];
   for (const id of SCENE_IDS) behind.push([id, overlayGroundLuma(applyScene(NEUTRAL_LOOK, SCENES[id]))]);
@@ -195,8 +208,10 @@ test('readout: 身后是纯黑、纯白、还是五套场景里任何一套，�
   for (const [name, bg] of behind) {
     const bgGamma = toGamma(bg);
     const onPanel = luma(screen.map((c) => alpha * c + (1 - alpha) * bgGamma));
-    const c = contrast(ink, onPanel);
-    if (c < 4.5) thin.push(`${name}: ${c.toFixed(2)}:1`);
+    for (const [label, ink] of inks) {
+      const c = contrast(ink, onPanel);
+      if (c < 4.5) thin.push(`${name} · ${label}: ${c.toFixed(2)}:1`);
+    }
   }
   assert.deepEqual(thin, [], `读不动：\n${thin.join('\n')}`);
 });
@@ -254,12 +269,102 @@ test('readout: 小数点竖成一条线 —— 只垫显示，不撑破那一栏
   assert.equal(r.values.confidence, '0.96', 'readOut 的位数被改了 —— 该垫的是显示层');
 });
 
+test('readout: 单位坐在数字的基线上、落在数字右下方 —— 不许飘起来', () => {
+  // 截图上 Hz 飘在 31 上方：单位原来是网格里单独一格，小一号的那一格按自己的行盒对齐。
+  // 现在单位必须和数字在同一个格子、同一行文字里。
+  assert.match(TS, /value\.append\(\s*num\s*,\s*unit\s*\)/, '单位不在数字那一格里 —— 它会按自己的格子对齐，又飘起来');
+  assert.doesNotMatch(TS, /rows\.append\([^)]*unit/, '单位又成了网格里单独的一格');
+  const unit = block(CSS, '.sb-readout-unit');
+  assert.match(unit, /vertical-align:\s*baseline/, '单位没有坐在基线上');
+  assert.doesNotMatch(unit, /vertical-align:\s*(super|top|text-top|middle)/, '单位被抬起来了');
+  assert.match(unit, /font-size:\s*var\(--sb-size-micro\)/, '单位没有小一号');
+  const num = block(CSS, '.sb-readout-num');
+  assert.doesNotMatch(num, /font-size\s*:/, '数字单独定了字号 —— 它会比名字大');
+});
+
 test('readout: 单位不大写 —— 赫兹是 Hz，不是 HZ', () => {
   const unit = block(CSS, '.sb-readout-unit');
   assert.doesNotMatch(unit, /text-transform/, '单位被改了大小写');
   // 大写那一组（通道代号）里不许混进单位
   const upper = CSS.match(/([^{}]*)\{[^}]*text-transform:\s*uppercase/g) ?? [];
   assert.ok(!upper.some((r) => r.includes('.sb-readout-unit')), '单位混进了全大写的那一组 —— 截图上会印成 HZ');
+});
+
+// ── 告警：只报真的越界，而且不闪 ──────────────────────────────────────────────
+
+/** 带画面坐标的一帧：n 个点里前 out 个在画外 */
+const framed = (score: number, n = 33, out = 0, vis = 0.9): RawPose => ({
+  world: Array.from({ length: n }, (): Landmark => ({ x: 0, y: 0, z: 0, visibility: vis })),
+  screen: Array.from({ length: n }, (_, i): Landmark => ({ x: i < out ? 1.2 : 0.5, y: 0.5, z: 0, visibility: vis })),
+  score,
+  t: 0,
+});
+
+test('readout 告警: 没有越界就没有颜色、没有代码', () => {
+  const a = assess({ pose: framed(0.97), features: FEATURES, inferenceHz: CAPTURE.targetHz });
+  assert.equal(a.code, null);
+  assert.ok(Object.values(a.levels).every((l) => l === 'ok'), JSON.stringify(a.levels));
+});
+
+test('readout 告警: 阈值全部取自已有的判据，不另立一条线', () => {
+  const hz = CAPTURE.targetHz;
+  // 推理：目标的 80% / 40%
+  assert.equal(assess({ pose: null, features: null, inferenceHz: hz * INFER_WARN_RATIO - 0.1 }).code, 'WRN13');
+  assert.equal(assess({ pose: null, features: null, inferenceHz: hz * INFER_ALARM_RATIO - 0.1 }).code, 'ALM02');
+  assert.equal(assess({ pose: null, features: null, inferenceHz: hz * INFER_WARN_RATIO }).code, null, '正好压线不算');
+  // 出画：左上角小屏幕的那一把 —— 差一个点不算，够数就算
+  assert.equal(assess({ pose: framed(0.97, 33, PREVIEW_TUNING.outOfFramePoints - 1), features: FEATURES, inferenceHz: hz }).code, null);
+  assert.equal(assess({ pose: framed(0.97, 33, PREVIEW_TUNING.outOfFramePoints), features: FEATURES, inferenceHz: hz }).code, 'WRN12');
+  // 关节不到一半 → 丢失（比出画更重）
+  // 关节数先读画面坐标（有 screen 就用 screen），所以两份都要压低 —— 只压 world 的话这一行根本测不到
+  const lowVis = (l: Landmark, i: number): Landmark => ({ ...l, visibility: i < 20 ? 0.1 : 0.9 });
+  const base = framed(0.97);
+  const half = { ...base, world: base.world.map(lowVis), screen: base.screen!.map(lowVis) };
+  assert.equal(assess({ pose: half, features: FEATURES, inferenceHz: hz }).code, 'ALM01');
+});
+
+test('readout 告警: 没有人就没有身体上的告警 —— 空场里说"关节丢失"是假话', () => {
+  const a = assess({ pose: framed(CAPTURE.minScore - 0.1, 33, 20, 0.1), features: FEATURES, inferenceHz: CAPTURE.targetHz });
+  assert.equal(a.code, null);
+  assert.equal(a.levels.joints, 'ok');
+  assert.equal(a.levels.confidence, 'ok');
+});
+
+test('readout 告警: 开机还没推理过的那一两秒不报停滞 —— 每次打开都先红一下，观众读到的是坏了', () => {
+  const w = createAlarmWatch();
+  let a = w.update({ pose: null, features: null, inferenceHz: 0 }, 5);
+  assert.equal(a.code, null, '还没推理过就报了 ALM 02');
+  w.update({ pose: null, features: null, inferenceHz: 30 }, 0.25);
+  a = w.update({ pose: null, features: null, inferenceHz: 0 }, ALARM_ENTER_SECONDS);
+  assert.equal(a.code, 'ALM02', '推理过之后真停了，应当报');
+});
+
+test('readout 告警: 不闪 —— 进入要憋 1 秒，撤掉要憋 2 秒，门限上颤不换', () => {
+  const w = createAlarmWatch();
+  const ok = { pose: framed(0.97), features: FEATURES, inferenceHz: 30 };
+  const slow = { pose: framed(0.97), features: FEATURES, inferenceHz: 20 };
+  w.update(ok, 0.25);
+  assert.equal(w.update(slow, ALARM_ENTER_SECONDS / 2).code, null, '半秒就换上去了');
+  assert.equal(w.update(slow, ALARM_ENTER_SECONDS / 2).code, 'WRN13', '憋够一秒还没换');
+  // 在门限上来回颤：每次都只成立一小段，永远憋不够，不许跟着颤
+  for (let i = 0; i < 20; i++) {
+    const a = w.update(i % 2 ? slow : ok, 0.25);
+    assert.equal(a.code, 'WRN13', `第 ${i} 次采样跟着颤了`);
+  }
+  assert.equal(w.update(ok, ALARM_EXIT_SECONDS - 0.25).code, 'WRN13', '撤得太快');
+  assert.equal(w.update(ok, 0.25).code, null, '憋够两秒还没撤');
+});
+
+test('readout 告警: 同时越界时底下只说最重的一条', () => {
+  const a = assess({ pose: framed(0.97, 33, PREVIEW_TUNING.outOfFramePoints), features: FEATURES, inferenceHz: 5 });
+  assert.equal(a.code, 'ALM02', `推理停滞比部分出画重，却报了 ${a.code}`);
+  assert.equal(a.levels.joints, 'warn');
+  assert.equal(a.levels.inference, 'alarm');
+});
+
+test('readout 告警: 告警行永远占着高度，DOM 里一直在', () => {
+  assert.match(TS, /body\.append\(\s*state\s*,\s*rows\s*,\s*alarm\s*\)/, '告警行不是常驻的 —— 告警来去时面板会长高缩矮');
+  assert.match(block(CSS, '.sb-readout-alarm'), /white-space:\s*nowrap/, '告警行会折成两行，高度就不固定了');
 });
 
 test('readout: 单位单独一栏，数的个位才对得齐', () => {

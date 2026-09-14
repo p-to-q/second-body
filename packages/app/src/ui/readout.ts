@@ -80,7 +80,10 @@
 import type { MotionFeatures, RawPose } from '../../../core/src/types.ts';
 import type { Flags } from '../shell/kiosk.ts';
 import { COPY, setBi } from './i18n.ts';
-import { alignDecimals, readOut, READOUT_KEYS, splitUnit, wantsReadout, type ReadoutKey } from './readout-state.ts';
+import {
+  alignDecimals, createAlarmWatch, readOut, READOUT_KEYS, splitUnit, wantsReadout,
+  type AlarmCode, type Level, type ReadoutKey,
+} from './readout-state.ts';
 import './type.css';
 import './readout.css';
 
@@ -128,19 +131,33 @@ export function mountReadout(options: ReadoutOptions): Readout | null {
   const rows = document.createElement('div');
   rows.className = 'sb-readout-rows';
 
-  const cells = new Map<ReadoutKey, { value: HTMLElement; unit: HTMLElement }>();
+  const cells = new Map<ReadoutKey, { value: HTMLElement; num: HTMLElement; unit: HTMLElement }>();
   for (const key of READOUT_KEYS) {
     const name = document.createElement('span');
     name.className = 'sb-readout-name';
     setBi(name, COPY.readout[key]);
+    // 数和单位**住在同一格里、同一行文字里**：单位跟着数字的基线走，落在数字右下方。
+    // 原来单位是另一个网格格子，字号小一号的那一格按自己的行盒对齐，截图上 Hz 就飘在 31 的上面。
     const value = document.createElement('span');
     value.className = 'sb-readout-value';
+    const num = document.createElement('span');
+    num.className = 'sb-readout-num';
     const unit = document.createElement('span');
     unit.className = 'sb-readout-unit';
-    rows.append(name, value, unit);
-    cells.set(key, { value, unit });
+    value.append(num, unit);
+    rows.append(name, value);
+    cells.set(key, { value, num, unit });
   }
-  body.append(state, rows);
+  // 最后一行：告警代码 + 那一句。**永远占着高度**（没事时写「正常」），告警来去面板不长不缩
+  const alarm = document.createElement('p');
+  alarm.className = 'sb-readout-alarm';
+  const code = document.createElement('span');
+  code.className = 'sb-readout-code';
+  const message = document.createElement('span');
+  setBi(message, COPY.readout.normal);
+  alarm.append(code, message);
+
+  body.append(state, rows, alarm);
 
   // ── 最底下那一条：题 + 显示 / 收起 ───────────────────────────────────────
   const bar = document.createElement('button');
@@ -160,6 +177,13 @@ export function mountReadout(options: ReadoutOptions): Readout | null {
   (options.mount ?? document.body).append(root);
 
   let since = SAMPLE_SECONDS;      // 第一帧就画一次，别让面板空着出现
+  const watch = createAlarmWatch();
+  let shownCode: AlarmCode | null | undefined;
+  const LEVEL_CLASS: Record<Level, string | null> = { ok: null, warn: 'is-warn', alarm: 'is-alarm' };
+  const paint = (el: HTMLElement, level: Level): void => {
+    el.classList.toggle('is-warn', LEVEL_CLASS[level] === 'is-warn');
+    el.classList.toggle('is-alarm', LEVEL_CLASS[level] === 'is-alarm');
+  };
   let shownPresent: boolean | null = null;
   let open = true;
 
@@ -195,9 +219,13 @@ export function mountReadout(options: ReadoutOptions): Readout | null {
       since += Number.isFinite(dt) && dt > 0 ? dt : 0;
       // 收着的时候不写 DOM：看不见的数不值得一次样式重算
       if (!open || since < SAMPLE_SECONDS) return;
+      const elapsed = since;
       since = 0;
 
-      const r = readOut({ pose, features, inferenceHz });
+      const input = { pose, features, inferenceHz };
+      const r = readOut(input);
+      // 告警憋过才换（readout-state.ts 的 createAlarmWatch），所以喂进去的是这两次采样之间真实过去的时间
+      const a = watch.update(input, elapsed);
       if (r.present !== shownPresent) {
         shownPresent = r.present;
         root.classList.toggle('is-present', r.present);
@@ -208,8 +236,17 @@ export function mountReadout(options: ReadoutOptions): Readout | null {
         const [raw, unit] = splitUnit(r.values[key]);
         const value = alignDecimals(raw);   // 小数点竖成一条线（readout-state.ts）
         // 值没变就不写 DOM。4Hz 下大部分行大部分时候是不变的
-        if (cell.value.textContent !== value) cell.value.textContent = value;
+        if (cell.num.textContent !== value) cell.num.textContent = value;
         if (cell.unit.textContent !== unit) cell.unit.textContent = unit;
+        // 整格变色：数和它的单位一起（单位继承颜色）
+        paint(cell.value, a.levels[key]);
+      }
+      if (a.code !== shownCode) {
+        shownCode = a.code;
+        paint(alarm, a.code === null ? 'ok' : a.code.startsWith('ALM') ? 'alarm' : 'warn');
+        // 代码按数控板的写法排：ALM01 → ALM 01
+        code.textContent = a.code === null ? '' : a.code.replace(/^([A-Z]+)(\d+)$/, '$1 $2');
+        setBi(message, a.code === null ? COPY.readout.normal : COPY.readout.alarms[a.code]);
       }
     },
     dispose() {
