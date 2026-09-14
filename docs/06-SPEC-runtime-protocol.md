@@ -103,6 +103,9 @@ GET  /__slow/lineage?species=
 | `?debug=1` | 显示骨架线框、socket 点、特征数值 |
 | `?tier=2` | 锁定 tier，跳过演化（调 look dev 用） |
 | `?seed=12345` | 锁定 genome seed（复现一个具体的身体） |
+| `?theme=xeno` | 跳过选择页，直接进这个物种。**写法**不合法（带空格 / 斜杠）等于没写并打一条 warn；「这个物种在不在」判不在这里 —— 物种表要等资产到齐，由 `main.ts` 判（表读得到时），不在就回到选择页并 warn。分工与 `?cam=` 相同 |
+| `?act=echo` | 锁定一个玩法（docs/16）。名单从 `acts/index.ts` 的 `ACTS` 现读，写错的值（`?act=resit`）等于没写并打一条 warn —— 导演照常按弧线排座次 |
+| `?plan=quadruped` | 覆盖身体方案（docs/18）。名单从 `BODY_PLANS` 现读，写错的值等于没写并打一条 warn |
 | `?nopost=1` | 关掉后期，排查性能 |
 | `?mirror=0` | 关掉镜像（调试坐标用，现场绝不要用） |
 | `?cam=1` / `?cam=<deviceId>` | 选用哪一台摄像头（见下面「现场：怎么选中对着观众的那台」） |

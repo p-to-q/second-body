@@ -183,6 +183,16 @@ async function boot(): Promise<void> {
   if (entry) cues.play('enter');
 
   let theme = flags.theme ?? themeFromUrl();
+  // 写法由 `readFlags()` 判过了（`?theme=` 与 `?plan=` 同一条规矩），**在不在**只能在
+  // 这里判：物种表要等 `libraryReady`。不在就是当没写过 —— 照常进选择页，并且喊一声。
+  // 在这之前 `?theme=xenoo` 会直奔一个不存在的物种：没有名牌、没有自有件，
+  // 画面上是一具借来的身体，而地址栏里写着那个拼错的名字（`?plan=quadrupd` 的同胞）。
+  // 条目表读不到时**认**这个 id —— 和 `chooseTheme()` 同一条（没有资产也要能开发，ADR-4）。
+  const known = library.index.themes ?? [];
+  if (theme && known.length > 0 && !known.some((t) => t.id === theme)) {
+    console.warn(`[main] ?theme=${theme} 不在物种表里 —— 按没写过处理（进选择页）`);
+    theme = null;
+  }
   if (!theme) {
     // 举手滚动（`choose/ring/wave.ts`）。现场一件输入设备都没有，这是那一页
     // 唯一一条不靠鼠标/键盘的输入。三个条件缺一不可，**判断只在这一处**：
