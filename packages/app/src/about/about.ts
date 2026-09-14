@@ -28,6 +28,7 @@ import { markNode } from '../ui/mark.ts';
 import '../ui/type.css';
 import '../ui/editorial.css';
 import './about.css';
+import { heroMeta } from '../ui/hero.ts';
 
 const REPO = 'https://github.com/p-to-q/see-me-see-u';
 const REFERENCE_URL = 'https://www.universaleverything.com/media-art/future-you';
@@ -103,10 +104,7 @@ function num(n: number): HTMLSpanElement {
  * 所以这一屏上多一样东西，就少记住一样东西。
  */
 function head(): HTMLElement {
-  const back = el('a', 'sb-label');
-  back.setAttribute('href', '/');
-  setBi(back, COPY.about.back);
-  back.classList.add('ed-hero__back');
+
 
   const title = biEl('h1', COPY.title, 'sb-display ed-rise');
   // 中文和英文各自是一段揭示（--ed-i 是它们的先后）。分段而不是整块，
@@ -115,7 +113,7 @@ function head(): HTMLElement {
   title.querySelector('.sb-en')?.setAttribute('style', '--ed-i:1');
 
   return el('header', 'ed-hero',
-    el('div', 'ed-hero__meta', back, markNode('span')),
+    heroMeta('/'),
     el('hr', 'ed-rule ed-rule--heavy'),
     el('div', 'ed-hero__title', title),
     el('hr', 'ed-rule'),

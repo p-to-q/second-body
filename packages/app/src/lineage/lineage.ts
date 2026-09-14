@@ -42,6 +42,7 @@ import { createThumb, createThumbObserver } from '../../dev/thumbs.ts';
 import '../ui/type.css';
 import '../ui/editorial.css';
 import './lineage.css';
+import { heroMeta } from '../ui/hero.ts';
 
 const L = COPY.lineage;
 
@@ -157,16 +158,7 @@ function whenText(createdAt: string): { label: BiText; n: string } | null {
 function renderHeader(root: Element): void {
   const head = el('header', 'ed-hero');
 
-  const meta = el('div', 'ed-hero__meta');
-  const back = el('a', 'ed-hero__back');
-  back.href = '/about';
-  setBi(back, COPY.about.back);
-  const work = el('span', 'sb-label sb-bi-inline');
-  setBi(work, COPY.title);
-  // 字标**最后** append：这一条横带靠 `justify-content: space-between` 分两端，
-  // 顺序就是左右。先前多写了一次 `meta.append(back, …)`，那会把 back
-  // 从原位**移到**末尾（append 移动已有节点，不是复制），于是字标跑到了左边。
-  meta.append(back, work, markNode('span'));
+  const meta = heroMeta('/about');
 
   head.append(meta, el('hr', 'ed-rule ed-rule--heavy'));
 

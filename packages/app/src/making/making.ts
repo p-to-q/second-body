@@ -26,6 +26,7 @@
 import { COPY, setBi, type BiText } from '../ui/i18n.ts';
 import { markNode } from '../ui/mark.ts';
 import { mountNav } from '../ui/nav.ts';
+import { heroMeta } from '../ui/hero.ts';
 
 const M = COPY.making;
 
@@ -77,13 +78,7 @@ function section(root: Element, id: string, heading: BiText, note?: BiText): HTM
 function renderHeader(root: Element): void {
   const head = el('header', 'ed-hero', root);
 
-  const meta = el('div', 'ed-hero__meta', head);
-  const back = el('a', 'ed-hero__back', meta);
-  back.setAttribute('href', '/about');
-  setBi(back, COPY.about.back);
-  const work = el('span', 'sb-label sb-bi-inline', meta);
-  setBi(work, COPY.title);
-  meta.append(markNode('span'));
+  head.append(heroMeta('/about'));
 
   el('hr', 'ed-rule ed-rule--heavy', head);
 

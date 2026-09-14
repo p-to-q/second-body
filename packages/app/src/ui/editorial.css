@@ -214,8 +214,22 @@ a.ed-link:hover { background-size: 100% 1px; }
 .ed-hero__back .sb-zh,
 .ed-hero__back .sb-en { display: block; }
 .ed-hero__back .sb-zh { color: var(--sb-ink); font-weight: var(--sb-weight-head); }
+/* **这一行是标签，所以它拿标签的字号。**
+ *
+ * 之前写的是 `0.78em`，那是全站**并置**（中英同一行）时中英的比例。
+ * 这一处不是并置，是**上下两行**：中文那一行是控件本身，英文那一行是它的注脚。
+ * 0.78 × 20px = 15.6px —— 几乎就是正文，于是 `BACK TO WORK` 和「回到作品」
+ * 争起了同一个身份，实际看到的是一个两行都在喊的按钮。
+ *
+ * `--sb-size-micro` 是排版表里**专门给全大写标签**的那一档，
+ * 而这一行本来就已经是 `text-transform: uppercase` + `--sb-tracking-label`。
+ * 也就是说：它一直都是一个标签，只是穿错了尺码。
+ *
+ * 这**不违反** 0.78 那条规矩 —— 那条管的是并置那一种关系（见 `nav.css` 与
+ * `exits.css` 的同一段），而这里根本不是那一种。两条规矩管两件事。
+ */
 .ed-hero__back .sb-en {
-  font-size: 0.78em;
+  font-size: var(--sb-size-micro);
   margin-top: 0.35em;
   letter-spacing: var(--sb-tracking-label);
   text-transform: uppercase;

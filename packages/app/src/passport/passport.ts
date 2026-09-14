@@ -31,6 +31,7 @@ import './passport.css';
 import { COPY, bi, type BiText, setBi } from '../ui/i18n.ts';
 import { markNode } from '../ui/mark.ts';
 import { mountNav } from '../ui/nav.ts';
+import { heroMeta } from '../ui/hero.ts';
 
 interface Stamp {
   /** 准入 / 拒入 */
@@ -235,13 +236,7 @@ const root = document.getElementById('passport')!;
 
 const header = el('header', 'ed-hero');
 
-const meta = el('div', 'ed-hero__meta');
-const back = el('a', 'ed-hero__back');
-back.setAttribute('href', '/about');
-setBi(back, COPY.about.back);
-meta.append(back);
-back.classList.add('sb-bi');
-meta.append(back, el('span', 'sb-label sb-num', 'VII'), markNode('span'));
+const meta = heroMeta('/about');
 header.append(meta, el('hr', 'ed-rule ed-rule--heavy'));
 
 const titleBox = el('div', 'ed-hero__title');
