@@ -84,6 +84,17 @@ then opens **`http://localhost:4173/?kiosk=1&preview=on`**. That is the URL the 
 runs on. Nobody types a second command afterwards — that is P10, and it is why
 every on-site adjustment in §3 is a URL parameter rather than a rebuild.
 
+**Before doors open, turn off every auto-framing upstream of the browser.**
+macOS Control Centre › Video Effects › **Center Stage off**; Windows Settings ›
+Camera › Studio Effects › **Automatic Framing off**; do not use the NVIDIA
+Broadcast virtual camera (Auto Frame); on a PTZ webcam (OBSBOT, Insta360) turn
+face tracking off and lock the gimbal. They all frame the *face*, apply to every
+app, and cannot be detected from the page — so they crop the legs out before
+MediaPipe sees them and the piece switches itself to its upper-body shot for
+every visitor. Check: walk slowly along one side of the frame; the *background*
+in the top-left screen must not move. If it moves, something upstream is
+cropping (`docs/49` §5.6).
+
 Before doors open, also run the self-check page once on the show machine:
 
 ```bash
@@ -149,6 +160,7 @@ of anyone).
 | `?nopost=1` | post on | Turns postprocessing off. **Degrade rung 1 also flips this to true on its own**, so reading it tells you whether the piece has already degraded itself | On-site, for chasing frame rate |
 | `?preview=on\|off` | on for the web, off under `?kiosk=1`, **always off under `?demo=1`** | The small rounded screen in the **top-left** that answers "is it seeing me?" — the camera's own picture with the detected skeleton drawn on it, and a line of advice only when something is wrong. It opens no second camera and starts no second MediaPipe; it shows the video and the landmarks the piece already has. Under `?demo=1` it is not mounted at all and `?preview=on` will not bring it back: replay has no camera but *does* have someone else's landmarks, and a skeleton the visitor cannot move by moving is worse than no indicator. An unrecognised value (`?preview=1`) counts as unwritten, same rule as `?scene=` | **On-site** — reach for `?preview=on` when visitors are standing in front of the camera without realising anything is happening. It is off by default there only because the installation's frame is meant to carry no web furniture (`docs/23 §S4`); whether this venue wants it is a curatorial call, not a code one |
 | `?wave=on\|off` | **on** | The chooser's **raise-a-hand scroll**: one hand above your own shoulder, held 0.75s, then swept sideways, browses the roster. It is the only input on that page that needs no device at all, which is why it defaults on. It is absent — with the page behaving exactly as before — when there is no camera, no permission, under `?demo=1`, before the web visitor grants the camera, and on the `?gl=off` DOM list. An unrecognised value (`?wave=1`, `?wave=yes`) is *not* silently read as on; the console prints which way it actually went at boot | **On site.** There is no mouse in the room |
+| `?framing=auto\|full\|upper` | `auto` | Framing policy (`core/src/autoframe.ts`, `docs/49` §5). **auto:** a visitor showing only head, shoulders and hips gets a medium shot on the body's upper half, the legs settle into a still standing stance, and "step back" stops nagging about legs; stepping back returns to the life-size full shot within about a second. Under `?kiosk=1` auto is **full-first**: the medium shot needs the legs gone for 3 s (1 s on the web). **full:** always the life-size shot. **upper:** always the medium shot (desk demos). All three are overlays — the controls panel's Framing group (key `C`) switches them live, and choosing Auto hands back to the classifier. `?debug=1` shows two `framing` rows: mode, reason, seconds in mode, knee/ankle count and the torso-scale trend against their thresholds. An unrecognised value counts as unwritten and logs a warning | On-site: `full` if a venue wants life-size no matter what; otherwise leave it |
 | `?nav=0` | nav on | Drops the top-right contents menu. Under `?kiosk=1` it is already off. It also gates the on-screen controls bar | Setup — for "projected but not kiosk" |
 | `?exits=0` / `?exits=1` | on, but **off under `?kiosk=1`** | Gates the bottom-right column on the running work: **Back to the hall** (returns to the species chooser), **Give the body back** (the creature stops following the visitor and moves on its own — the camera stays on and capture keeps running), and a **Camera** on/off row that also shows whether it is currently watching. It is off under `?kiosk=1` on purpose: an unattended machine must not offer the public a way back to the chooser, because the first visitor presses it and walks away. An unrecognised value (`?exits=yes`) is treated as unwritten and logs a warning — it is never silently read as on or off | Setup — `?kiosk=1&exits=1` for an attended showing, `?exits=0` to drop it anywhere else |
 | `?loading=0` | on | Drops the loading layer that sits over the chooser's ring | On-site — it lets you pull that layer in three seconds instead of rolling back a build |
