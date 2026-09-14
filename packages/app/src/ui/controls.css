@@ -3,17 +3,43 @@
  *
  * 它要读起来像**一台设备的面板**，不像一个网页的设置弹窗：
  * 没有卡片、没有阴影、没有圆角、没有图标、没有进度条（docs/26 §F 的反面清单）。
- * 分区靠细横线，状态靠一条底边的强调色，键位靠等宽字 —— 全都是 `type.css`
+ * 分区靠细横线，状态靠墨的强弱和线的形状，键位靠等宽字 —— 全都是 `type.css`
  * 和 `nav.css` 已经立好的语汇，一个新的都不发明。
  *
  * 收起来的时候它和目录一样：**一个词加一条线**。
+ *
+ * ## 没有底（2026-09-14，作品负责人裁定：面板全透明）
+ *
+ * 选项格原来坐在不透明的 `--sb-paper` 上，格与格之间的线是"行底色从 1px 缝里露出来"。
+ * 它在它被写出来的那种画面上成立，在别的上面是一块补丁。现在**面板、格子、筛选框一样底都没有**：
+ * 字、线、键帽、选中线全部跟右上角的墨走（`.sb-corner` 把 `--sb-ink*` 指到 `--sb-*-tr`，
+ * 由 `stage/ink-sampler.ts` 按角底下的像素翻；读不到像素时退回场景墨）。
+ * 线是每格自己的 1px 边，颜色是右上角说明墨兑一半（`--sb-ctl-rule`），负外边距让相邻两格的边叠成一条。
+ *
+ * 代价写在这里：墨是按**角落的平均亮度**挑的，一具身体从某一格底下走过去时，那一格会暂时读不清。
+ * 这是透明换来的，作品负责人知道并选了它。`test/controls-surface.test.ts` 量的是采样器在
+ * 纯黑、纯白、五套场景上会挑的那套墨：字 ≥ 4.5:1、选中线 ≥ 3:1、线看得出且和选中线分得开。
+ *
+ * ## 状态（docs/23 §S4.1 的状态表）
+ *
+ * 没有底之后，状态只能靠**墨的强弱 + 线的形状 + 一个等宽小字**说，每一种都有一条不是颜色的差别：
+ *
+ *   可按       名字和说明都是常墨（说明小一档），格子一圈兑淡的线。
+ *              **字一律不用暗墨**：没有底之后 --sb-ink-dim 在白展厅上只有 3.39:1（测试实测红过一次）
+ *   悬停/焦点  名字下一条 1px 实线，格子底边提到常墨（`:focus-visible` 同一个记号，不用鼠标也看得见）
+ *   选中       名字最强墨 + 2px 实线，格子底边最强墨；开关格右边写「开 / 关」
+ *   弧线此刻   名字下一条 1px **点线** + 「此刻 · Now」—— 不点也有东西在走，每秒跟着 sync 挪
+ *   叠加       选中的记号 + 「叠加 · 再点一次撤销」
+ *   刚按下     名字下一条 3px 实线，150ms（纯叠加：静止态不依赖它跑完，见下面那条 1.7 fps 的教训）
+ *   重开中     「重开中 · Restarting」+ 等待光标，整张面板不再接按键，直到页面真的走了
+ *   这具身体上没有的项   **不出现**，不画成灰的（controls.ts 文件头的那条纪律）
  */
 
 .sb-ctl {
   position: fixed;
   top: calc(var(--sb-safe) * 0.5);
   right: calc(var(--sb-safe) * 0.5);
-  /* 11 = 和目录同一层。两者互斥展开（controls.ts 文件头第 1 条），
+  /* 11 = 和目录同一层。两者互斥展开（controls.ts 文件头第 2 条），
      所以不需要谁压过谁 —— 需要谁压过谁的时候，说明布局已经错了。 */
   z-index: 11;
   font-size: var(--sb-size-small);
@@ -23,70 +49,70 @@
   flex-direction: column;
   align-items: flex-end;
   transition: opacity 180ms cubic-bezier(.4, 0, 1, 1);
+  /* 格子的线：右上角说明墨兑一半。它跟着角落翻，所以暗场景上也看得见（原来那条 --sb-rule 是固定的深灰） */
+  --sb-ctl-rule: color-mix(in srgb, var(--sb-on-stage-dim-tr) 55%, transparent);
 }
 
-/* `--below-nav` 和 `is-hidden` 都**删掉了**。
-   它们原来在为同一件事打补丁：控件条和目录是两个各自 fixed 的东西，
-   抢同一个角，所以一个要往下偏一个固定的量、另一个展开时还要把它整条藏起来。
-   现在两者同在 `ui/corner.ts` 那一列里，上面一节展开、下面那节自己被推下去 ——
-   这是浏览器免费给的，不需要任何人去算 3.2rem 是不是够。
+/* `--below-nav` 和 `is-hidden` 都**删掉了**（controls.ts 文件头第 2 条）。
    `.sb-ctl` 自己的 fixed 仍然留着：没有那一列的页面上它照旧自己定位。 */
 
-/* 曾经这里有一条 `.sb-ctl.is-hidden { visibility: hidden }`，用来在目录展开时
-   把整条藏起来。连同它一起删掉的还有一条用血换来的注释，这里留个摘要，
-   因为那条教训和这个类无关、和**所有**靠动画回到静止态的东西都有关：
-   第一版用的是 `opacity: 0`，结果目录展开再收起之后控件条再也不出现 ——
-   `.sb-ctl` 上有 180ms 的 opacity 过渡，在一台被占满的机器上（实测 1.7 fps）
-   那条过渡停在 `playState: running`，永远回不到 1。
-   **一旦元素的静止态依赖某个动画跑完，动画不跑它就永远不在。**
-   `shell/notice.css` 里写着同一条。 */
+/* 曾经这里有一条 `.sb-ctl.is-hidden { visibility: hidden }`。教训留个摘要，
+   因为它和**所有**靠动画回到静止态的东西都有关：
+   第一版用的是 `opacity: 0`，在一台被占满的机器上（实测 1.7 fps）180ms 的过渡停在
+   `playState: running`，永远回不到 1。**一旦元素的静止态依赖某个动画跑完，动画不跑它就永远不在。** */
 
 /* 进场 4 秒后淡下去 —— 和目录、和 ui/page.ts 的浮层页头同一个数。
    鼠标碰上去、tab 到它、或者它展开着，它自己回来。 */
 .sb-ctl.is-faded { opacity: var(--sb-layer-entry); }
 .sb-ctl:hover, .sb-ctl:focus-within, .sb-ctl.is-open { opacity: 1; }
 
-/* ── 收起态：一个词 + 一条线（和 .sb-nav-toggle 是同一个构件）────────────── */
-/* **和 `.sb-nav-toggle` 逐字一致。** 这一列上现在有三节 —— 目录、设置、控件 ——
-   它们是同一种东西的三块，不是两种东西挤在一个角。
-   原来这一条是 label 档、全大写、带一条下划线，和上面两节一比就是另一套系统。
-   凡是这里和 nav.css 不同的地方，都要么是 bug 要么需要一个写下来的理由。 */
-/* 节题的样式在 `ui/corner.css`，目录和控件**共用那一份**。 */
+/* 节题的样式在 `ui/corner.css`，目录和控件**共用那一份**。
+   收起时节题后面那个小字：有叠加开着时写「叠加 N」—— 面板关着也看得出这一屏被人推过 */
+.sb-ctl-toggle-over {
+  font-family: var(--sb-mono);
+  font-size: var(--sb-size-micro);
+  letter-spacing: var(--sb-tracking-label);
+  margin-left: 0.6em;
+}
+.sb-ctl-toggle-over:empty { display: none; }
 
 /* ── 展开的面板 ──────────────────────────────────────────────────────────── */
 .sb-ctl-panel {
   margin-top: calc(var(--sb-gutter) * 0.6);
-  /* 22rem，和目录那两节逐字相同。原来是 30rem —— 同一列上三节三种宽度，
-     右边缘对齐了但左边缘各是各的，读起来就是三个不相干的东西。 */
+  /* 22rem，和目录那两节逐字相同 */
   width: min(22rem, calc(100vw - var(--sb-safe)));
-  /* 五组 + Key 条在 900 高的屏上放不下。面板自己滚，页面不滚 ——
-     一个会把整页顶走的控制面板，在装置现场是灾难。 */
-  max-height: calc(100vh - var(--sb-safe) * 1.5 - 3.4rem - var(--sb-gutter));
+  /* 面板自己滚，页面不滚 —— 一个会把整页顶走的控制面板，在装置现场是灾难。
+     上限 = 从面板顶（`--sb-ctl-top`，controls.ts 量）一直到**右下角那一列的顶上**再留半个 gutter：
+     那一列贴着底边安全区，高度由 `ui/exits.ts` 量出来写到根上（`--sb-exits-h`，没有那一列时是 0）。
+     原来这里写死了一个"面板大概从哪儿开始"的数，而目录、设置两节压在上面时它更低 —— 滚到底仍然压那一列 8.28px（无头 Chrome 实测）。 */
+  max-height: calc(100vh - var(--sb-ctl-top, 6rem) - var(--sb-safe) - var(--sb-exits-h, 0px) - var(--sb-gutter) * 0.5);
   overflow-y: auto;
   overscroll-behavior: contain;
   /* 滚动条不画 —— 这一层的语言里没有"控件"这种东西（docs/26 §F 的否定清单） */
   scrollbar-width: none;
   text-align: left;
-  /* 半透明，不虚化 —— 理由同 nav.css */
-  /* **面板没有底色。**
-     原来是一层 82% 的纸色。去掉的理由不是"透明好看"，是**适配**：
-     这一层会压在任何一种画面上（纸、白展厅、深空、夜潮、逆光，还有观众自己），
-     而任何一个固定的底色都只在其中几种上成立 —— 在别的上面它就是一块补丁。
-     纯文字没有这个问题：字色由 `--sb-on-stage` 跟着场景亮度翻，
-     读得出与否只取决于字自己。 */
-  color: var(--sb-ink-dim);
-  /* 没有入场动效，理由和 nav.css / notice.css 一样：入场动效等于把静止态
-     设成 opacity 0，而动画不一定跑得起来。 */
+  /* 没有底（文件头）。没有入场动效：入场动效等于把静止态设成 opacity 0，而动画不一定跑得起来 */
+  color: var(--sb-ink);
 }
-
 .sb-ctl-panel::-webkit-scrollbar { display: none; }
 
-.sb-ctl-group { border-top: 1px solid var(--sb-rule); padding: 0.7rem 0; }
-.sb-ctl-group:first-child { border-top: 0; }
+/* 面板顶上那一行：弧线此刻在哪一段、叠了什么。等宽小字，一眼读完整个系统 */
+.sb-ctl-status {
+  margin: 0 0 0.3rem;
+  font-family: var(--sb-mono);
+  font-size: var(--sb-size-micro);
+  letter-spacing: var(--sb-tracking-label);
+  color: var(--sb-ink);
+  max-width: none;
+}
+.sb-ctl-status:empty { display: none; }
+
+.sb-ctl-group { border-top: 1px solid var(--sb-ctl-rule); padding: 0.7rem 0; }
+.sb-ctl-group:first-of-type { border-top: 0; }
 
 .sb-ctl-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sb-gutter); }
 .sb-ctl-note { margin: 0.15rem 0 0.5rem; max-width: none; }
-.sb-ctl-note .sb-zh, .sb-ctl-note .sb-en { color: var(--sb-ink-dim); font-size: 0.92em; }
+.sb-ctl-note .sb-zh, .sb-ctl-note .sb-en { color: var(--sb-ink); font-size: 0.92em; }
 .sb-ctl-note .sb-en { display: none; }   /* 组说明的英文放在题上了，这里再来一行会挤 */
 
 /* 键帽。等宽小字 + 一个方框 —— 它是状态/标识，不是文案（和 .sb-nav-here 同一条） */
@@ -94,58 +120,84 @@
   font-family: var(--sb-mono);
   font-size: var(--sb-size-micro);
   letter-spacing: 0;
-  color: var(--sb-ink-dim);
-  border: 1px solid var(--sb-rule);
+  color: var(--sb-ink);
+  border: 1px solid var(--sb-ctl-rule);
   padding: 0.05em 0.4em;
   margin-left: 0.5em;
   white-space: nowrap;
 }
 
 /* ── 选项 ────────────────────────────────────────────────────────────────── */
-.sb-ctl-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--sb-rule); }
-/* gap:1px + 底色 = 一张有细线的表，而不是一堆按钮。这就是"面板"和"弹窗"的区别 */
+/* 一张有细线的表，而不是一堆按钮 —— 这就是"面板"和"弹窗"的区别 */
+.sb-ctl-row { display: grid; grid-template-columns: 1fr 1fr; padding: 0 1px 1px 0; }
 .sb-ctl-opt {
-  /* 格子有纸底，字跟纸走 —— 撤销 corner.css 在列上换成画面墨的那两个 */
-  --sb-ink: var(--sb-paper-ink);
-  --sb-ink-dim: var(--sb-paper-ink-dim);
   appearance: none;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  background: var(--sb-paper);
-  margin: 0;
+  border: 1px solid var(--sb-ctl-rule);
+  margin: 0 -1px -1px 0;
+  background: none;
   padding: 0.45rem 0.55rem;
   font: inherit;
   font-family: var(--sb-grotesk);
   text-align: left;
-  color: var(--sb-ink-dim);
+  color: var(--sb-ink);
   cursor: pointer;
   display: block;
 }
-.sb-ctl-opt:hover, .sb-ctl-opt:focus-visible { outline: none; border-bottom-color: var(--sb-rule); }
-.sb-ctl-opt:hover .sb-ctl-opt-name .sb-zh { color: var(--sb-ink); }
-/* 当前生效的那一个：底边一条强调色。全站只有一处用颜色承担语义（docs/26 §F） */
-.sb-ctl-opt.is-on { border-bottom-color: var(--sb-ink-strong); }
-.sb-ctl-opt.is-on .sb-ctl-opt-name .sb-zh { color: var(--sb-ink); }
-
 .sb-ctl-opt-name { display: flex; align-items: baseline; }
-.sb-ctl-opt-name .sb-zh { color: var(--sb-ink); }
+.sb-ctl-opt-name .sb-zh { color: var(--sb-ink); text-underline-offset: 0.28em; }
 .sb-ctl-opt-name .sb-en { font-size: 0.8em; }
 .sb-ctl-opt-note { display: block; margin-top: 0.15rem; }
-.sb-ctl-opt-note .sb-zh { color: var(--sb-ink-dim); font-size: 0.88em; }
-/* 说明的英文比中文再退一档，但**不能退到 --sb-rule**：那是线的颜色，
-   落在纸色上等于看不见（实测过一版，英文整行消失）。 */
-.sb-ctl-opt-note .sb-en { color: var(--sb-ink-dim); font-size: 0.8em; opacity: 0.72; }
+/* 说明**和名字同一个墨，只小一档**。没有底之后暗墨（--sb-ink-dim）在白展厅上只有 3.39:1 ——
+   层级改由字号说，不由墨说；英文再退一档也**只退字号，不退透明度** */
+.sb-ctl-opt-note .sb-zh { color: var(--sb-ink); font-size: 0.88em; }
+.sb-ctl-opt-note .sb-en { color: var(--sb-ink); font-size: 0.8em; }
 
-/* 开 / 关那一栏：右边多一个状态词 */
+/* 悬停 / 键盘焦点：同一个记号 */
+.sb-ctl-opt:hover, .sb-ctl-opt:focus-visible { outline: none; border-bottom-color: var(--sb-ink); }
+.sb-ctl-opt:hover .sb-ctl-opt-name .sb-zh,
+.sb-ctl-opt:focus-visible .sb-ctl-opt-name .sb-zh { text-decoration: underline 1px solid; }
+
+/* 弧线此刻：点线。写在「选中」前面 —— 同一格两样都是时，选中的实线盖过它 */
+.sb-ctl-opt.is-now .sb-ctl-opt-name .sb-zh { text-decoration: underline 1px dotted; }
+
+/* 选中：最强墨 + 2px 实线 + 格子底边最强墨。浮起一层，免得下一行的上边线盖住这条底边 */
+.sb-ctl-opt.is-on { position: relative; z-index: 1; border-bottom-color: var(--sb-ink-strong); }
+.sb-ctl-opt.is-on .sb-ctl-opt-name .sb-zh { color: var(--sb-ink-strong); text-decoration: underline 2px solid; }
+
+/* 刚按下：粗一档，150ms 后 controls.ts 摘掉这个类。没有过渡 —— 静止态不依赖动画跑完 */
+.sb-ctl-opt.is-flash .sb-ctl-opt-name .sb-zh { color: var(--sb-ink-strong); text-decoration: underline 3px solid; }
+
+/* 重开中：等待光标 + 状态词（controls.ts）。整张面板都是等待光标，因为按什么都不会再生效 */
+.sb-ctl-opt.is-pending, .sb-ctl.is-pending .sb-ctl-opt, .sb-ctl.is-pending .sb-ctl-sp { cursor: progress; }
+
+/* 状态词：开 / 关、此刻、叠加、重开中。空的时候不占行 */
 .sb-ctl-state {
   display: block;
   margin-top: 0.2rem;
   font-family: var(--sb-mono);
   font-size: var(--sb-size-micro);
   letter-spacing: var(--sb-tracking-label);
-  color: var(--sb-ink-dim);
+  color: var(--sb-ink);
 }
-.sb-ctl-opt.is-on .sb-ctl-state { color: var(--sb-ink-strong); }
+.sb-ctl-state:empty { display: none; }
+.sb-ctl-opt.is-on .sb-ctl-state, .sb-ctl-opt.is-pending .sb-ctl-state { color: var(--sb-ink-strong); }
+
+/* ── 链到工作台：和正文里的链接同一种样子（一行字、常驻一条底线），读作"去别处"，不读作选项 ── */
+.sb-ctl-links { display: flex; flex-wrap: wrap; gap: 0.2rem 1rem; margin-top: 0.55rem; }
+.sb-ctl-link {
+  font-family: var(--sb-grotesk);
+  color: var(--sb-ink);
+  text-decoration: none;
+  border-bottom: 1px solid var(--sb-ctl-rule);
+}
+.sb-ctl-link .sb-zh, .sb-ctl-link .sb-en { color: inherit; display: inline; }
+.sb-ctl-link .sb-en { font-size: 0.8em; margin-left: 0.4em; }
+.sb-ctl-link:hover, .sb-ctl-link:focus-visible { outline: none; color: var(--sb-ink-strong); border-bottom-color: var(--sb-ink-strong); }
+
+/* ── 对照：工程 A/B，排在最底下，字小一档 ──────────────────────────────────── */
+/* 它们是真开关（不是灰掉的按钮），只是观众不需要先看见它们 */
+.sb-ctl-group--ab { font-size: 0.92em; }
+.sb-ctl-group--ab .sb-ctl-opt { padding: 0.3rem 0.55rem; }
 
 /* ── 物种那一栏 ──────────────────────────────────────────────────────────── */
 .sb-ctl-filter {
@@ -154,7 +206,7 @@
   box-sizing: border-box;
   background: none;
   border: 0;
-  border-bottom: 1px solid var(--sb-rule);
+  border-bottom: 1px solid var(--sb-ctl-rule);
   padding: 0.35rem 0;
   margin-bottom: 0.4rem;
   font: inherit;
@@ -163,25 +215,24 @@
   color: var(--sb-ink);
 }
 .sb-ctl-filter:focus { outline: none; border-bottom-color: var(--sb-ink); }
-.sb-ctl-filter::placeholder { color: var(--sb-ink-dim); }
+.sb-ctl-filter::placeholder { color: var(--sb-ink); }
 
-/* 29 条不平铺成 29 个按钮：一列可滚的名字。高度取 6 行左右 ——
-   够看见"还有很多"，又不会把上面四组挤出屏幕。 */
+/* 29 条不平铺成 29 个按钮：一列可滚的名字。高度取 6 行左右 */
 .sb-ctl-species {
   max-height: 11rem;
   overflow-y: auto;
   overscroll-behavior: contain;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1px;
-  background: var(--sb-rule);
+  padding: 0 1px 1px 0;
 }
 .sb-ctl-sp {
   appearance: none;
-  border: 0;
+  border: 1px solid var(--sb-ctl-rule);
+  /* 选中是左边一条（名字是竖着一列读的）：左边 2px，常态透明 */
   border-left: 2px solid transparent;
-  background: var(--sb-paper);
-  margin: 0;
+  margin: 0 -1px -1px 0;
+  background: none;
   padding: 0.4rem 0.5rem;
   font: inherit;
   font-family: var(--sb-grotesk);
@@ -189,13 +240,15 @@
   cursor: pointer;
   display: block;
 }
-.sb-ctl-sp:hover .sb-ctl-opt-name .sb-zh { color: var(--sb-ink); }
-.sb-ctl-sp:focus-visible { outline: none; border-left-color: var(--sb-rule); }
+.sb-ctl-sp:hover .sb-ctl-opt-name .sb-zh,
+.sb-ctl-sp:focus-visible .sb-ctl-opt-name .sb-zh { text-decoration: underline 1px solid; text-underline-offset: 0.28em; }
+.sb-ctl-sp:focus-visible { outline: none; border-left-color: var(--sb-ink); }
 .sb-ctl-sp.is-on { border-left-color: var(--sb-ink-strong); }
+.sb-ctl-sp.is-on .sb-ctl-opt-name .sb-zh { color: var(--sb-ink-strong); }
 
 /* ── Key 条 ──────────────────────────────────────────────────────────────── */
 .sb-ctl-keys {
-  border-top: 1px solid var(--sb-rule);
+  border-top: 1px solid var(--sb-ctl-rule);
   padding: 0.6rem 0 0.2rem;
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -219,7 +272,6 @@
  * `docs/26 §F`：全站只有**一处**用颜色承担语义（作品自评里的成立／不成立），
  * 其余一律灰阶。控件的开／关不是那一处。
  *
- * 三级灰就够分：**选中 = --sb-ink-strong（离底最远）· 悬停 = --sb-ink · 未选 = --sb-ink-dim**。
- * 用亮度而不是色相去分状态，还有一个好处：它在五套场景下都成立，
- * 而一个固定的强调色在白展厅里会显得很脏。
+ * 两级墨就够分：**选中 = --sb-ink-strong（离底最远）· 其余字 = --sb-ink**，暗墨只拿来兑线；
+ * 再加上字号、线的形状（实线 / 点线 / 粗细）和状态词，没有一样只靠颜色。
  */
