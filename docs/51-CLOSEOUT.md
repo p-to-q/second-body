@@ -54,6 +54,7 @@
 | D4 | 高 DPI 默认像素比 | `GOVERNOR.dprMax = 1.5` | `test/dpr-cap.test.ts` | ✅ |
 | D5 | 弧线 30–47s 换件段长任务；调速器切换本身的顿帧 | 预编译管线、空闲预解码、上传分帧 | docs/48 新节 | ⏳ |
 | D6 | 帧预算（draw ≤40 / 面 ≤250k） | `creature/swap-budget.ts` | `test/swap-budget.test.ts` | ✅ |
+| D7 | 展签 → 选择页 → 舞台 → 按「摄像头」约 2.3 秒后整页不再出帧（性能线查出，有窗口的 Chrome 也复现，JS 还活着） | 兜底：`shell/stall.ts` 定时器看门（不靠 rAF），可见页面 4 秒无帧 → `degradeTo('reload')`（每会话最多两次） | `test/stall-watchdog.test.ts`（先红）；复现步骤与线索在 docs/48 §10.6 | 🟡 **根因没追到**：只做了恢复，没修冻结本身；下一步是关掉选择页→舞台的交棒再复现 |
 
 ## E · 取景与多人
 
