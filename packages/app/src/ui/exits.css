@@ -35,8 +35,10 @@
 
 .sb-exits {
   position: fixed;
-  right: var(--sb-safe);
-  bottom: var(--sb-safe);
+  /* 半个安全区：和左上小屏幕、左下读数、右上目录同一个框（负责人 2026-09-14：左下读数和这一列底部对齐）。
+     原来是整个安全区，这一列比读数高出 24px、比目录往里缩 24px。`test/corner-insets.test.ts` 钉住四角同值 */
+  right: calc(var(--sb-safe) * 0.5);
+  bottom: calc(var(--sb-safe) * 0.5);
   /* 5 = 和它替下来的那个「用我的摄像头」按钮（entry.css 的 .sb-camera）同一层。
      压在作品之上、在加载态（8）与右上角那一列（11）之下 ——
      这一列是给已经在看作品的人用的，不该盖住还没进来的人要看的东西。 */

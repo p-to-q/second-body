@@ -85,7 +85,8 @@
      上限 = 从面板顶（`--sb-ctl-top`，controls.ts 量）一直到**右下角那一列的顶上**再留半个 gutter：
      那一列贴着底边安全区，高度由 `ui/exits.ts` 量出来写到根上（`--sb-exits-h`，没有那一列时是 0）。
      原来这里写死了一个"面板大概从哪儿开始"的数，而目录、设置两节压在上面时它更低 —— 滚到底仍然压那一列 8.28px（无头 Chrome 实测）。 */
-  max-height: calc(100vh - var(--sb-ctl-top, 6rem) - var(--sb-safe) - var(--sb-exits-h, 0px) - var(--sb-gutter) * 0.5);
+  /* 那一列现在贴着**半个**安全区（四角同一个框，ui/exits.css） */
+  max-height: calc(100vh - var(--sb-ctl-top, 6rem) - var(--sb-safe) * 0.5 - var(--sb-exits-h, 0px) - var(--sb-gutter) * 0.5);
   overflow-y: auto;
   overscroll-behavior: contain;
   /* 滚动条不画 —— 这一层的语言里没有"控件"这种东西（docs/26 §F 的否定清单） */

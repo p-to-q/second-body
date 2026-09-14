@@ -37,7 +37,8 @@
  */
 
 .sb-notice--bottom-left {
-  left: var(--sb-safe);
+  /* 半个安全区：和它下面的读数左边对齐（四角同一个框，见 ui/exits.css） */
+  left: calc(var(--sb-safe) * 0.5);
   /* 墨按左下角底下的像素翻（stage/ink-regions.ts 的 `bl`） */
   --sb-on-stage: var(--sb-on-stage-bl);
   --sb-on-stage-dim: var(--sb-on-stage-dim-bl);
@@ -45,7 +46,8 @@
 /* 右下角是「用我的摄像头」那个按钮的位置（entry.css 的 .sb-camera）。
    §S0 的降级提示只在启动那 4 秒里出现，那时按钮还没挂上，不会打架。 */
 .sb-notice--bottom-right {
-  right: var(--sb-safe);
+  /* 和右下角那一列右边对齐（四角同一个框，见 ui/exits.css） */
+  right: calc(var(--sb-safe) * 0.5);
   text-align: right;
   /* 和右下角那一列同一块底，读同一份（`br`） */
   --sb-on-stage: var(--sb-on-stage-br);
