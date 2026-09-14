@@ -44,12 +44,24 @@ test('隐私说明：存档那一句不许长回 privacy.long 里', () => {
   assert.match(i18n, /archiveRow: bi\(/, 'privacy.archiveRow 不见了');
 });
 
-test('隐私说明：/about 印存档那一句之前必须先问 /api/visits', () => {
+/**
+ * 2026-09-14 起存档可能住在两处（同源 `/api`，或线上那个 Cloudflare Worker，`docs/43 §9.3`），
+ * 所以 `/about` 不再自己敲 `/api/visits`，而是问 `archive/endpoint.ts` 的 `findVisits()` ——
+ * 和 `/lineage` 同一个函数。这条测试钉的仍然是原来那件事：**问在前，印在后，没答就不印。**
+ * `findVisits()` 只在某一处真的答了时才返回东西，那一半的行为钉在 `archive-worker.test.ts`
+ * （「哪一处都不答 → null」）。
+ */
+test('隐私说明：/about 印存档那一句之前必须先问存档在不在', () => {
   const sec = about.slice(about.indexOf('function privacySection'), about.indexOf('function creditsSection'));
   assert.match(
     sec,
-    /fetch\('\/api\/visits'\)/,
-    'privacySection 没有去问 /api/visits —— 那它就是在无条件断言每一次到访都留下了一行',
+    /await findVisits\(\)/,
+    'privacySection 没有去问存档在不在 —— 那它就是在无条件断言每一次到访都留下了一行',
+  );
+  assert.match(
+    about,
+    /import \{ findVisits \} from '\.\.\/archive\/endpoint\.ts';/,
+    'findVisits 不是 archive/endpoint.ts 那一个 —— /about 和 /lineage 必须对「存档在不在」给同一个答案',
   );
   assert.match(
     sec,
@@ -58,12 +70,12 @@ test('隐私说明：/about 印存档那一句之前必须先问 /api/visits', (
   );
   // 顺序：问在前，印在后。两者都在但顺序反了，等于没问。
   assert.ok(
-    sec.indexOf("fetch('/api/visits')") < sec.indexOf('COPY.privacy.archiveRow'),
+    sec.indexOf('await findVisits()') < sec.indexOf('COPY.privacy.archiveRow'),
     '先印了再问 —— 那一句会在存档不存在的时候也出现',
   );
   assert.ok(
-    /if \(!res\.ok\) return;/.test(sec),
-    '没有在 !res.ok 时提前返回：存档缺席时应当**什么都不印**，' +
+    /if \(!found\) return;/.test(sec),
+    '没有在存档缺席时提前返回：缺席时应当**什么都不印**，' +
       '而不是印一句「存档暂未开启」—— 观众不需要知道我们的部署顺序',
   );
 });

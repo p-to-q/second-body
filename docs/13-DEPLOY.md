@@ -132,6 +132,12 @@ packages/app/dist/          静态站点（vite build）
 
 ### 5.1 存档的行住在哪（`docs/43 §9.3` 的落地）
 
+> **2026-09-14 重裁，本节下面 Upstash 那一套现在是休眠备选。** 没有人有 Vercel 项目的权限，
+> 设不了环境变量、装不了集成（`docs/43 §9.3` 重裁那一条）。线上存档走作品负责人自己
+> Cloudflare 账号里的 Worker + D1（`packages/archive-worker/`），网站经由提交进仓库的地址找到它
+> （`packages/app/src/archive/endpoint.ts`）。部署步骤、限流、以及 IP 在哪一层被经手的实话，
+> 都在 `docs/45` 乙。下面的内容原样留着，给哪天有 Vercel 权限的人。
+
 一次走完的相遇在服务端留下**一行**：序号、物种、粗到天的日期。
 字段清单和它为什么只能是这三个，在 `packages/archive/src/visit.ts`，有测试钉着。
 
