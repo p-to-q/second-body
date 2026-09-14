@@ -189,18 +189,22 @@ Upstash for Redis → Create，区域选离 `useeme.ptoq.io` 的读者最近的�
 
 ## 6. 上线检查单
 
-- [ ] `npm run check` 通过
-- [ ] `dist` 首屏 < 3 MB（`du -sh` + network 面板确认）
-- [ ] 部件真的解出来了（不是 191 件全回退占位几何）—— `npm run test -w @smu/app` 里那条
-      meshopt 测试是门；现场再用 `?debug=1` 看一眼 HUD 的 loaded 数
-- [ ] 无摄像头权限时自动进 demo 回放，不白屏
-- [ ] WebGL2 回退路径实测过（Chrome 关掉 WebGPU flag）
-- [ ] 慢回路默认关闭，或限流上限已硬编码
-- [ ] `assets/raw/` 没有被打进去
-- [ ] 隐私说明在页面上
-- [ ] 存档：要么存储已开通（`§5.1`）、`/api/visits` 返回 `{ok,total,entries}`，
-      要么它干净地 404 —— **不许是一个会重置的计数器**
-- [ ] **存储要和这一版一起上，不能晚。** `/about` 的隐私段从这一版起写着
+> 2026-09-14 过了一遍，证据在每一条后面。本机 headless Chrome 跑的是 `main@5e1f97d` 的 `npm run build`，
+> 线上 `useeme.ptoq.io` 的入口 `main-19JEOrZT.js` 与这一版逐字相同。**没有真人、没有真摄像头、没有真 GPU 的那几条照实写了没验。**
+
+- [x] `npm run check` 通过 —— core 222/0，app 399/0，check:parts 247 件 0 错
+- [x] `dist` 首屏 < 3 MB —— 走完标签页 → 选择页 → 舞台，100 个请求 2.06 MB
+- [x] 部件真的解出来了 —— meshopt 测试是门，过了。**没验**：线上 `?debug=1` 的 loaded 数（headless 没有真 GPU）
+- [x] 无摄像头权限时不白屏 —— **行为和这一条原文不同，以代码为准**：不进 demo 回放，舞台照常跑，
+      左上写「打开摄像头，它就能看见你」、右下「摄像头 关着」；0 个未捕获错误
+- [x] WebGL2 回退路径 —— 用脚本删掉 `navigator.gpu` 模拟，到得了选择页，0 个错误。**没验**：真机关 flag
+- [x] 慢回路限流上限已硬编码 —— maxPerSession 1、maxCreditsPerJob 1、maxCreditsPerSession 1、maxCreditsPerDay 20
+- [x] `assets/raw/` 没有被打进去 —— `build/ship-filter.ts` + 测试；构建时故意放进去的文件没出现在 dist
+- [x] 隐私说明在页面上
+- [x] 存档：存储是 Cloudflare Worker + D1（不是 `§5.1` 那条 Vercel 路，`docs/43 §9`）。
+      `GET /visits` 返回 `{ok:true,total,entries}`；站点自己的 `/api/visits` 干净地 404，于是走 Worker。
+      没往里写测试行。**没验**：大陆网络能否访问 `workers.dev`（打不开时页面照实不写存档那一行）
+- [x] **存储要和这一版一起上，不能晚。** `/about` 的隐私段从这一版起写着
       「每一次到访只在服务端留下一行」（`docs/43 §6.2` 的裁定文案）。存储没开通时
       那一行写不出去，于是那句话在线上是**不准的** —— 而它正是 `docs/26 §G`
       那三处「诚实集中」之一，那三处必须逐字为真。开通是四条命令（`§5.1`），
