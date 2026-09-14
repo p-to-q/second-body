@@ -331,7 +331,7 @@ export const COPY = {
     concepts: [
       { term: 'datafication', zh: '身体的数据化' },
       { term: 'Morphogenesis', zh: '形态发生' },
-      { term: 'zoe', zh: '非人格化的、纯粹的生命' },
+      { term: 'zoë', zh: '非人格化的、纯粹的生命' },
       { term: 'simulacrum', zh: '拟像' },
       { term: 'distributed agency', zh: '分布式能动性' },
     ],
@@ -389,7 +389,7 @@ export const COPY = {
         name: bi('跟随', 'Follow'),
         note: bi('它就是你：你的比例，零延迟。起初像是在看一面镜子。',
                  'It is you — your proportions, no latency. At first it is like looking into a mirror.') },
-      { at: '0:40', term: 'Morphogenesis · zoe',
+      { at: '0:40', term: 'Morphogenesis · zoë',
         name: bi('回声', 'Echo'),
         note: bi('它慢半拍，零件开始被换掉。形还是你的，材料已经不是了。',
                  'Half a beat behind, and its parts begin to be replaced. The shape is still yours; the material is not.') },

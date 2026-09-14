@@ -103,7 +103,7 @@ export function surfaceFor(
   const baseColor = hslToRgb(h, s, l);
 
   // ── 自发光 ──
-  // II 的 zoe：**这块材质自己的颜色**在薄处透出来一点，不是新加一种颜色。
+  // II 的 zoë：**这块材质自己的颜色**在薄处透出来一点，不是新加一种颜色。
   // 加在原有自发光之上 —— `glow.signal` 那类是信号，不能被这里盖掉
   const k = MATERIAL.growEmissive * g;
   const emissive: RGB = [

@@ -431,7 +431,7 @@ export function lerpLook(a: LookProfile, b: LookProfile, t: number): LookProfile
 export interface ArcWeights {
   /** I · datafication */
   quote: number;
-  /** II · morphogenesis / zoe */
+  /** II · morphogenesis / zoë */
   grow: number;
   /** III · simulacrum */
   diverge: number;

@@ -365,7 +365,7 @@ export const TOON = {
  * 彼此重叠，任何时刻都可能同时非零 —— docs/40：「这不是四个开关，是一条连续的线」。
  *
  *   quote   I  · datafication  刚被压成信号：翻拍台的平光、没有高光、明度被压平
- *   grow    II · morphogenesis 在长：粗糙度按角色分开，自体微光（zoe）
+ *   grow    II · morphogenesis 在长：粗糙度按角色分开，自体微光（zoë）
  *   diverge III· simulacrum    表面身份开始离开你选的那一套颜色
  *   other   IV · other         它有了自己的物质，不再由我们的主光来描述
  *
@@ -407,7 +407,7 @@ export const MATERIAL = {
   quoteFill: 0.55,
   quoteRim: 0.45,
 
-  // ── II · morphogenesis / zoe ──
+  // ── II · morphogenesis / zoë ──
   /**
    * 粗糙度按角色分开多少（primary +、accent −）。
    * 「被制造出来的」东西整具是同一种表面；**活的东西不是** —— 皮、膜、角质各自反光不同。
@@ -415,7 +415,7 @@ export const MATERIAL = {
   growRoughSplit: 0.26,
   /**
    * 自体微光的强度（乘在**这块材质自己的颜色**上，不是新加一种颜色）。
-   * 这是 zoe 唯一的落点：一个在薄处透出一点自己颜色的表面读作有内部，而不是壳。
+   * 这是 zoë 唯一的落点：一个在薄处透出一点自己颜色的表面读作有内部，而不是壳。
    * 上限很低 —— 再高就是发光体，那是 `glow.signal` 那类**信号**在说的话，不是这里的。
    */
   growEmissive: 0.055,
