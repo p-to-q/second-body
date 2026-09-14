@@ -31,6 +31,7 @@ import '../ui/type.css';
 import '../ui/editorial.css';
 import './about.css';
 import { heroMeta } from '../ui/hero.ts';
+import { findVisits } from '../archive/endpoint.ts';
 
 const REPO = 'https://github.com/p-to-q/see-me-see-u';
 const REFERENCE_URL = 'https://www.universaleverything.com/media-art/future-you';
@@ -411,15 +412,12 @@ function privacySection(): HTMLElement {
   //
   // 敲不通就什么都不印：**少一句话，不少一句真话。** 没有"存档暂未开启"这种
   // 占位文案 —— 观众不需要知道我们的部署顺序，他只需要页面上写的每一句都成立。
-  // 失败路径和 `/lineage` 的 `loadVisits()` 逐字同一条（try/catch + !res.ok）。
+  // 问的是 `/lineage` 同一个函数（`archive/endpoint.ts`：同源 `/api`，然后线上 Worker）。
+  // 它只在某一处**真的答了**（2xx + JSON + ok:true）时返回东西，否则是 null。
   void (async () => {
-    try {
-      const res = await fetch('/api/visits');
-      if (!res.ok) return;
-      const j = (await res.json()) as { total?: unknown };
-      if (typeof j.total !== 'number') return;
-      sec.append(biEl('p', COPY.privacy.archiveRow));
-    } catch { /* 没有存档就没有这一句 */ }
+    const found = await findVisits().catch(() => null);
+    if (!found) return;
+    sec.append(biEl('p', COPY.privacy.archiveRow));
   })();
 
   return sec;

@@ -43,6 +43,7 @@ import '../ui/type.css';
 import '../ui/editorial.css';
 import './lineage.css';
 import { heroMeta } from '../ui/hero.ts';
+import { findVisits } from '../archive/endpoint.ts';
 
 const L = COPY.lineage;
 
@@ -125,13 +126,11 @@ async function loadLineage(): Promise<LineagePayload | null> {
  * （`renderState` 那两句是两个构型、同一个位置），所以这里合并没有代价。
  */
 async function loadVisits(): Promise<VisitsPayload | null> {
-  try {
-    const res = await fetch('/api/visits');
-    if (!res.ok) return null;
-    const j = (await res.json()) as Partial<VisitsPayload>;
-    if (!Array.isArray(j.entries) || typeof j.total !== 'number' || j.total <= 0) return null;
-    return { total: j.total, entries: j.entries };
-  } catch { return null; }
+  // 问哪几处、按什么顺序（同源 `/api`，然后线上 Worker）写在 `archive/endpoint.ts`，
+  // `/about` 问的是同一个函数 —— 两页对「存档在不在」必须给同一个答案
+  const found = await findVisits();
+  if (!found || found.total <= 0) return null;
+  return { total: found.total, entries: found.entries };
 }
 
 /**

@@ -26,6 +26,8 @@
  *    观众不该知道存档写失败了；`?debug=1` 的 HUD 里那一行就够。
  */
 
+import { archiveBases } from './endpoint.ts';
+
 /** 超时。和慢回路的取件超时同一个量级 —— 它只是"别挂着"，不是"要快" */
 const TIMEOUT_MS = 5000;
 
@@ -76,6 +78,8 @@ export interface VisitOptions {
   fetch?: typeof globalThis.fetch;
   /** 测试用：把"等空闲"折成立刻执行 */
   idle?: (fn: () => void) => void;
+  /** 按顺序问的地址前缀。生产路径上是 `archiveBases()`（同源 `/api`，然后线上 Worker） */
+  bases?: string[];
 }
 
 const defaultIdle = (fn: () => void): void => {
@@ -86,6 +90,7 @@ const defaultIdle = (fn: () => void): void => {
 export function createVisitReporter(opt: VisitOptions): VisitReporter {
   const doFetch = opt.fetch ?? globalThis.fetch?.bind(globalThis);
   const idle = opt.idle ?? defaultIdle;
+  const bases = opt.bases ?? archiveBases();
 
   // 没有物种、没有 fetch：这一整个会话都写不了，一次判完。
   // `live` 不在这里判 —— 它会变（观众中途按下「用我的摄像头」），见 VisitOptions
@@ -106,16 +111,24 @@ export function createVisitReporter(opt: VisitOptions): VisitReporter {
     /** 这一场还在不在。人已经走了就只丢结果，不改任何状态 */
     const current = () => mine === era;
     try {
-      const res = await doFetch!('/api/visit', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ species }),
-        signal: ctrl.signal,
-      });
-      // 404 = 这个部署上没有这条回路。和别的失败归成同一个出口：
+      // 按 `endpoint.ts` 的顺序问：同源在前，线上 Worker 在后。
+      // **只有 404 才换下一处** —— 404 是「这里没有这条回路」（`§7.1` 第 4 条），
+      // 一行都没写下。别的失败（5xx、超时、断网）不换：那一处也许已经落了一行，
+      // 再往另一处写一遍，同一位观众就成了两位。
+      let res: Response | null = null;
+      for (const base of bases) {
+        res = await doFetch!(`${base}/visit`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ species }),
+          signal: ctrl.signal,
+        });
+        if (res.status !== 404) break;
+      }
+      // 所有地方都 404 = 这个部署上没有这条回路。和别的失败归成同一个出口：
       // 对观众来说它们是同一件事（什么都没发生），而这一页不需要知道是哪一种
       // —— 但它**永久**关掉（`§7.1` 第 3 条），所以这一条跨场次照样算数
-      if (!res.ok) { phase = 'off'; return; }
+      if (!res?.ok) { phase = 'off'; return; }
       const j = (await res.json()) as { ok?: boolean; entry?: { n?: unknown } };
       if (j?.ok !== true) { phase = 'off'; return; }
       if (!current()) return;

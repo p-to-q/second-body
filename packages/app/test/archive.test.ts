@@ -379,7 +379,9 @@ test('存档：404 和断网都是静默关掉，不重试', async () => {
   for (const outcome of ['404', 'throw'] as const) {
     let n = 0;
     const r = createVisitReporter({
-      species: 'porcelain', live: () => true, idle: (fn) => fn(),
+      // 只问一处：这条钉的是「同一处不重试」。两处之间 404 换下一处是另一件事，
+      // 钉在 archive-worker.test.ts —— 否则部署那天填上 Worker 地址，这条就会无端变红
+      species: 'porcelain', live: () => true, idle: (fn) => fn(), bases: ['/api'],
       fetch: (async () => {
         n++;
         if (outcome === 'throw') throw new Error('offline');
