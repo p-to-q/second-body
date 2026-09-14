@@ -1,0 +1,99 @@
+/**
+ * 选择页的皮肤。**度量和颜色一律来自 `ui/type.css` 的 `--sb-*`，这里一个写死的
+ * 字号/颜色都不许有**（docs/23 §0）—— 排版系统是全场景的硬约束，不是"文字页专用"。
+ *
+ * 它原来是 `choose.ts` 里一个模板字符串，运行时塞进一个 <style>。那个形状绊倒过两个人：
+ * CSS 注释里写一个反引号，模板串就地结束，后面整块 CSS 被当成 TypeScript 解析，
+ * Vite 只报一句莫名其妙的 "Expected a semicolon"。当时唯一的仪表是
+ * `test/css-in-template.test.ts`，它自己写着"搬进 .css 之后删掉这个文件"。
+ * 现在搬进来了，那个测试也删了 —— 这里也终于进了 `css-tokens.test.ts` 的扫描范围
+ * （它只扫 .css 文件，模板串里的颜色它从来看不见）。
+ */
+/* 这一层是叠在环上面的字，不是一块底。底色由环那块画布自己出
+   （ring/field.ts 把 --sb-paper 合成进着色器），所以这里必须是透明的，
+   而且必须让指针穿过去 —— 滚动、拖动、悬停全是环在收。 */
+.sb-choose{position:fixed;inset:0;z-index:2;pointer-events:none;color:var(--sb-ink);
+  font-family:var(--sb-grotesk);font-size:var(--sb-size-body);line-height:var(--sb-lh-body);overflow:hidden}
+/* 降级到列表时反过来：没有环，这一层就是这一页的全部 */
+.sb-choose.is-fallback{pointer-events:auto;background:var(--sb-paper)}
+/* 字标（ui/mark.ts）。**左上角，贴安全区。**
+
+   这一页的左上角此前是空的 —— 2026-09-13 在 514×869 上逐个量过这一层的
+   每一件东西：名牌 y=652、提示 y=721、按键条 y=805、倒计时线 y=743，
+   全都在下三分之一；右上角是目录（x=360，z=11）。y<300 这一带一个元素都没有。
+   摄像头小屏幕（ui/preview.css 的 .sb-see，同样占左上角）在这一页上
+   **不存在**：它挂在观众选完物种之后（main.ts 的第 4b 节，理由是"开始之前
+   一次权限都不问"），量的时候 document.querySelector('.sb-see') 是 null。
+   所以这两块从来不同框，不需要为对方让位 —— 它们是同一个角上**先后**的两件东西。
+   也因此这里不写任何跟着小屏幕尺寸走的偏移：那个高度现在是 --sb-see-h
+   （clamp，会随视口变），而一条为不同框的邻居留的位置，量的时候就是错的。
+   颜色走 --sb-on-stage：首屏把它翻成深色（ring/first-screen.css 里那条
+   注释点名了字标），所以白底上它自己就是黑的。 */
+/* 字标取和物种名同一档（--sb-size-h1）。这一屏讲的是两件事：这是什么作品、
+   你在看哪一个物种 —— 一个是容器一个是条目，同字号让它们读成一副构图的两极
+   （都压在左边那条 --sb-safe 线上，一上一下）。再大就开始和入口屏抢，
+   再小就是现在这样：作品的名字比它目录里的一条还轻。 */
+.sb-brand{position:absolute;left:var(--sb-safe);top:var(--sb-safe);pointer-events:none;--sb-mark-size:var(--sb-size-h1)}
+.sb-hud{position:absolute;left:0;right:0;bottom:0;padding:var(--sb-safe);pointer-events:none;
+  background:linear-gradient(to top,color-mix(in srgb,var(--sb-paper) 82%,transparent),transparent)}
+.sb-name{font-size:var(--sb-size-h1);font-weight:var(--sb-weight-head);
+  line-height:var(--sb-lh-h1);letter-spacing:var(--sb-tracking-h1)}
+/* 这里**没有 margin-left**。原来有 0.8em —— 那是中英还在**同一行**时写的，
+   是两个词之间的间距。改成上下两行之后它原地变成了一个纯缩进：
+   实测英文那一行比其余三行右移 12.2px，正好是 0.8em 在这个字号下的值。
+   一条规则活过了它所描述的那个版式，这是本仓库反复犯的同一类错。 */
+.sb-name .sb-en{font-size:var(--sb-size-small);font-weight:var(--sb-weight-body);
+  letter-spacing:var(--sb-tracking-label);color:var(--sb-ink-dim);text-transform:uppercase}
+.sb-tag{color:var(--sb-ink-dim);margin-top:0.25em}
+/* 物种的出身（character / guest）。只有一部分条目有，所以它**必须常占位**：
+   这一块是底部锚定的（.sb-hud 贴着 bottom），多出一行会把上面整块顶上去，
+   于是名字和介绍的位置随着"这一个恰好是不是角色"上下跳。
+   上面那三行的位置是固定的 —— 那是名牌，不是列表。min-height 就是那句话的实现。 */
+.sb-kind{margin-top:0.4em;min-height:1.4em;font-family:var(--sb-mono);font-size:var(--sb-size-small);
+  letter-spacing:var(--sb-tracking-label);text-transform:uppercase;color:var(--sb-ink-dim);opacity:.7}
+/* 一句话。正文字体 —— 它是说给人听的，不是标注 */
+.sb-hint{position:absolute;right:var(--sb-safe);bottom:calc(var(--sb-safe) + 2.2em);text-align:right;
+  color:var(--sb-ink-dim);max-width:min(24rem,44vw)}
+.sb-hint .sb-en{color:var(--sb-ink-dim);opacity:.7}
+/* 按键图例。等宽、极小号、压暗 —— 档案的语言，不是说明文字 */
+.sb-keys{position:absolute;right:var(--sb-safe);bottom:var(--sb-safe);text-align:right;
+  font-family:var(--sb-mono);font-size:var(--sb-size-micro);letter-spacing:var(--sb-tracking-label);
+  color:var(--sb-ink-dim);opacity:.55}
+
+.sb-choose.is-leaving .sb-hud,.sb-choose.is-leaving .sb-hint,
+.sb-choose.is-leaving .sb-keys,.sb-choose.is-leaving .sb-idle,
+.sb-choose.is-leaving .sb-brand{opacity:0;transition:opacity .5s}
+
+/* 自动选择的倒计时（docs/23 §S2）：最后 5 秒，中心卡下方**一条极细的线**走完。
+   规格明确不要百分比、不要数字 —— 一条正在走完的线已经说清楚"还有一会儿"，
+   而一个跳动的秒数会把人的注意力从卡片上拽走。 */
+.sb-idle{position:absolute;left:50%;bottom:calc(var(--sb-safe) * 2.6);transform:translateX(-50%);
+  width:min(22rem,40vw);height:1px;background:var(--sb-rule);opacity:0;
+  transition:opacity 240ms cubic-bezier(.16,1,.3,1);pointer-events:none}
+.sb-idle.is-on{opacity:1}
+.sb-idle i{display:block;height:1px;width:0;background:var(--sb-ink-dim)}
+
+/* 无 WebGL 的降级列表。**同样的排版语言**（等宽字、同底色、卡片图）——
+   docs/23 §S2：「降级路径也是作品的一部分」，不是丑陋兜底。 */
+/* ⚠️ 下面那条 display:grid 会盖过 [hidden] 的 UA 规则（作者规则胜过 UA 规则）——
+   于是这块 inset:0 的列表在 GL 模式下**看不见却仍然盖住整屏**，
+   滚轮和指针全被它吃掉，环一动不动。滚动是这一页的主要输入，这一条必须在。 */
+.sb-list[hidden]{display:none}
+.sb-list{position:absolute;inset:0;overflow-y:auto;pointer-events:auto;padding:var(--sb-safe);display:grid;
+  gap:var(--sb-gutter);grid-template-columns:repeat(auto-fill,minmax(18rem,1fr));align-content:start}
+.sb-row{background:none;border:1px solid var(--sb-rule);color:inherit;padding:0;cursor:pointer;
+  font:inherit;text-align:left;display:block}
+.sb-row canvas{position:static;width:100%;height:auto}
+.sb-row span{display:block;padding:0.5em 0.7em;font-family:var(--sb-mono);
+  font-size:var(--sb-size-small);color:var(--sb-ink-dim)}
+.sb-row.is-active{border-color:var(--sb-ink-dim)}
+.sb-row.is-active span{color:var(--sb-ink)}
+
+/* 列表模式下每一行自己带名字，底部那块常驻的名牌就成了重复信息 ——
+   而且它会压在正在滚动的卡片上。删掉（§0：每多一个元素都要论证它不该被删） */
+.sb-choose.is-fallback .sb-hud{display:none}
+
+/* 可选条目 < 3：螺旋退化成横向一排（docs/23 §S2）。
+   三个以下的螺旋看起来像坏了 —— 所以那一档根本不进螺旋。 */
+.sb-list.is-row{grid-template-columns:repeat(var(--sb-row-n,2),minmax(0,1fr));
+  align-content:center;height:100%;align-items:center}
