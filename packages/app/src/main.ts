@@ -827,7 +827,7 @@ async function boot(): Promise<void> {
           tier, index: library.index, rejected: library.rejected, overall: arcState.overall, grown,
           // 给操作员（`?debug=1`），不给观众：换的是哪一格、从哪一圈借的（docs/44 §7 最后一段）
           onChoice: hud ? (c) => console.info(
-            `[theseus] #${fired.index} ${fired.slot} ← d${c.ring} ${c.pick.partId}`,
+            `[theseus] @${(tMs / 1000).toFixed(2)}s #${fired.index} ${fired.slot} ← d${c.ring} ${c.pick.partId}`,
           ) : undefined,
         },
       );
@@ -872,7 +872,7 @@ async function boot(): Promise<void> {
       const want = Math.max(tier, step ? step.tier : arcState.tier, evoTier) as Tier;
       if (want !== tier) {
         // 给操作员（`?debug=1`）：升档落在弧线的第几秒 —— 现场验"它不在乐章边界上"靠这一行
-        if (hud) console.info(`[tier] ${tier} → ${want} @ arc ${arcState.elapsed.toFixed(2)}s（乐章 ${arcState.movement + 1}）`);
+        if (hud) console.info(`[tier] @${(tMs / 1000).toFixed(2)}s ${tier} → ${want} @ arc ${arcState.elapsed.toFixed(2)}s（乐章 ${arcState.movement + 1}）`);
         morph(want);
         stage.pulse(want);      // docs/23 §S5：升档必须可感知，否则演化等于没发生
         // 这一声也跟着挂点搬走了。**乐章序号就是档位下限**，所以在四个交接点上
