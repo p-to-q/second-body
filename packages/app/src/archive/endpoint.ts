@@ -31,7 +31,11 @@
  *
  * `null` 的时候线上照旧：两处都缺席，页面不说假话（`test/privacy-truth.test.ts`）。
  */
-export const ARCHIVE_WORKER_URL: string | null = null;
+// 2026-09-14 部署：作品负责人的 Cloudflare 账号（Simon.sun.yiming@gmail.com's Account），
+// D1 库 smu-archive。部署后只读检查过一次：GET /visits → {"ok":true,"total":0,"entries":[]}。
+// 这是一个公开地址，不是凭证。注意 *.workers.dev 在中国大陆通常访问不到 ——
+// 那种情况下站点走「没有存档」那条路（/lineage 说它那句话，/about 不印存档那一句），不会坏。
+export const ARCHIVE_WORKER_URL: string | 'https://smu-archive.smu-archive-worker.workers.dev' = 'https://smu-archive.smu-archive-worker.workers.dev';
 
 /** 按顺序问的地址前缀。同源在前，Worker 在后 */
 export function archiveBases(worker: string | null = ARCHIVE_WORKER_URL): string[] {
