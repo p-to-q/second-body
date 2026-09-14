@@ -261,6 +261,10 @@ function build(): void {
     link('进现场 /?kiosk=1', '/?kiosk=1'),
     link('回放兜底 /?demo=1', '/?demo=1&debug=1'),
     link('录制页 /dev/record.html', '/dev/record.html'),
+    // 这一页不走 main.ts，没有目录；上面三条都通向"再开一次"，没有一条是离开。
+    // 它从工作台目录点进来，所以回工作台；也给一条回作品本身的
+    link('工作台 /dev', '/dev'),
+    link('作品 /', '/'),
   );
   main.appendChild(bar);
 }

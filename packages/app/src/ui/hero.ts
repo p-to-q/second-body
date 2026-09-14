@@ -30,6 +30,7 @@
 import { COPY, setBi } from './i18n.ts';
 import { markNode } from './mark.ts';
 import { returnLabel, safeFrom } from './return-to.ts';
+import { installPrefetch } from './page-transition.ts';
 
 /**
  * @param backHref 「回到作品」指向哪儿。`/about` 回首页，其余三页回 `/about` ——
@@ -40,6 +41,8 @@ import { returnLabel, safeFrom } from './return-to.ts';
  *   **仍然是左边一格**，横带的结构不变，中间照旧什么都没有。
  */
 export function heroMeta(backHref: string, from: string | null = null): HTMLDivElement {
+  // 横带在的页就是文档页或侧室：悬停预取跟着它（docs/47）
+  installPrefetch();
   const meta = document.createElement('div');
   meta.className = 'ed-hero__meta';
 
@@ -49,7 +52,10 @@ export function heroMeta(backHref: string, from: string | null = null): HTMLDivE
   const back = document.createElement('a');
   back.className = 'ed-hero__back';
   back.setAttribute('href', origin && label ? origin : backHref);
-  setBi(back, origin && label ? label : COPY.about.back);
+  // 默认回程按目的地起名：回 `/` 叫「回到作品」，回 `/about` 叫「返回作品陈述」——
+  // 原来三页都写「回到作品」却指向 /about，字说的和点下去发生的不是一件事（docs/47 §5）
+  const fallback = backHref === '/' ? COPY.about.back : returnLabel(backHref) ?? COPY.about.back;
+  setBi(back, origin && label ? label : fallback);
 
   meta.append(back, markNode('span'));
   return meta;

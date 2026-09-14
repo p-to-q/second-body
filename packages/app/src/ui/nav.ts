@@ -25,6 +25,7 @@
  *    中英并置不切换（那是设计决定，见 i18n 的文件头）。
  */
 import { COPY, setBi, type BiText } from './i18n.ts';
+import { installPrefetch } from './page-transition.ts';
 import './type.css';
 import './section-head.css';
 import './nav.css';
@@ -50,15 +51,16 @@ const ITEMS: NavItem[] = [
     match: (p) => p === '/about',
   },
   {
-    href: '/lineage.html', ...COPY.nav.items.lineage,
+    href: '/lineage', ...COPY.nav.items.lineage,
+    // 干净地址（2026-09-14）：线上 `cleanUrls` 把 `.html` 308 回这里，每点一次多一个往返（docs/47）
     match: (p) => p === '/lineage' || p === '/lineage.html',
   },
   {
-    href: '/making.html', ...COPY.nav.items.making,
+    href: '/making', ...COPY.nav.items.making,
     match: (p) => p === '/making' || p === '/making.html',
   },
   {
-    href: '/passport.html', ...COPY.nav.items.passport,
+    href: '/passport', ...COPY.nav.items.passport,
     match: (p) => p === '/passport' || p === '/passport.html',
   },
   {
@@ -102,6 +104,8 @@ export interface Nav { root: HTMLElement; open(): void; close(): void; }
 export function mountNav(options: NavOptions = {}): Nav | null {
   const { enabled = true, overlay = false, startOpen = false, mount = document.body, onOpenChange } = options;
   if (!enabled || typeof document === 'undefined') return null;
+  // 悬停预取（docs/47）。和目录同一个开关：现场不挂目录，也就不预取
+  installPrefetch();
 
   // `cleanUrls` 会把 /making.html 变成 /making，两种写法都要认得出"就是这一页"
   const path = location.pathname.replace(/\/+$/, '');
@@ -144,6 +148,8 @@ export function mountNav(options: NavOptions = {}): Nav | null {
     // 比没有链接更让人怀疑是不是坏了
     const row = document.createElement(here ? 'span' : 'a');
     row.className = here ? 'sb-nav-item is-here' : 'sb-nav-item';
+    // 排版上的退一档读屏看不见；这一句让它也知道「就是这一页」
+    if (here) row.setAttribute('aria-current', 'page');
     if (!here) (row as HTMLAnchorElement).href = item.href;
 
     const nameRow = document.createElement('div');

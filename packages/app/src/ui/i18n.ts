@@ -316,8 +316,16 @@ export const COPY = {
    * 「回到作品」和 `about.back` 同一句话：出口说的是同一件事，不另起一个词
    */
   devnav: {
-    workbench: bi('返回工作台', 'Workbench'),
+    workbench: bi('返回工作台', 'Back to the workbench'),
+    /** 作为「返回〈来处〉」里的那个名字（`ui/return-to.ts` 的 RETURN_PAGES）。和上一行拼出来是同一句话 */
+    home: bi('工作台', 'the workbench'),
     exit: bi('退出 · 回到作品', 'Back to the work'),
+  },
+
+  /** 不存在的地址（`404.html`）。左上角「回到作品」、右上角目录，就是它全部的出口 */
+  notFound: {
+    title: bi('这里没有这一页', 'Nothing here'),
+    lede: bi('地址可能拼错了，或者这一页已经搬走。', 'The address may be mistyped, or the page has moved.'),
   },
 
   /** 作品陈述页 `/about` —— 面向观众和评委，不是面向开发者 */

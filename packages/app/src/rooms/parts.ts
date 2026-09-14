@@ -150,15 +150,16 @@ async function readJson<T>(url: string): Promise<T | null> {
 /**
  * 评级写回还在不在。
  *
- * 探针用的是一个**注定被拒**的请求：没有 id 的 POST。
- * 中间件在的时候回 400（它读懂了请求并拒绝了）；中间件不在的时候
+ * 探针是一个带 `?probe` 的空 POST。中间件在的时候回 204；中间件不在的时候
  * 静态托管回 404/405，或者直接把 index.html 回过来。
- * 400 = 有中间件，其余 = 只读。没有副作用，因为它什么都没写。
+ * 204 = 有中间件，其余 = 只读。没有副作用，因为它什么都没写。
+ * （原来靠没有 id 的 POST 换一个 400 —— 判断对，但每开一次页控制台就多一条红色的 400，
+ * 从工作台点进来的人读到的是「坏了」。docs/47 导航审计）
  */
 async function probeCurateWriteback(): Promise<boolean> {
   try {
-    const r = await fetch('/__curate', { method: 'POST', body: '{}' });
-    return r.status === 400;
+    const r = await fetch('/__curate?probe', { method: 'POST' });
+    return r.status === 204;
   } catch {
     return false;
   }

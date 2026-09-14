@@ -154,7 +154,7 @@ test('点名空位的深链有地方可去，而且那个锚点真的存在', ()
   const target = vacancyOnShow(VACANT);
   assert.ok(target, `${VACANT} 在空位表里没有去处`);
   const [page, hash] = target.split('#');
-  assert.equal(page, '/passport.html',
+  assert.equal(page, '/passport',
     '空位的去处不再是《共生护照》。这一页是作品为这个缺口挑好的房间'
     + '（passport.ts 文件头论证过为什么不是选择页、也不是 /about）');
   assert.ok(hash, '去处少了锚点 —— 观众会落在页首，读起来像这条链接没生效');

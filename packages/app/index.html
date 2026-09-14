@@ -4,8 +4,18 @@
 <title>SEE-ME SEE-U</title>
 <style>
  html,body{margin:0;height:100%;background:#0e0f12;overflow:hidden}
+ /* 进展签 / 选择页的那几次：第一帧就是纸，不先闪一块深底（docs/47）。
+    令牌到了之后由 first-screen.css 接手，这一行只管样式表到达之前 */
+ html.sb-first-screen,html.sb-first-screen body{background:#fafafa}
  canvas{display:block}
-</style></head>
+ /* 跨页过渡整个关着：跨页快照在无头 Chrome 上每一类跳都量出过整帧纯白（docs/47 §4.3）。
+    这一页换景只靠上面那一行底色 —— 第一帧就是对的颜色，不需要任何动画 */
+</style>
+<script>
+ // 第一帧的底色：ui/transitions.ts 的 groundFor() 在这里的一份抄本（测试逐条对）。
+ // 这一刻还没有任何模块，所以只能抄。main.ts 的 adoptPrepaint() 接过这一份 hold。
+ (function(){var q=new URLSearchParams(location.search);if(q.get('selftest')!=='1'&&!q.get('theme'))document.documentElement.classList.add('sb-first-screen')})();
+</script></head>
 <body><script type="module">
  // 两条路，都是字面量 import —— 打包器照样能静态分析，两个 chunk 互不牵连。
  //

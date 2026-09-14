@@ -55,6 +55,7 @@ import { COPY, bi, type BiText, setBi } from '../ui/i18n.ts';
 import { markNode } from '../ui/mark.ts';
 import { mountNav } from '../ui/nav.ts';
 import { heroMeta } from '../ui/hero.ts';
+import { fromSearch } from '../ui/return-to.ts';
 import { setBiLinked, type AsidePhrase } from '../ui/aside.ts';
 import { PASSPORT_ASIDES } from '../ui/asides.ts';
 
@@ -334,7 +335,7 @@ const root = document.getElementById('passport')!;
 
 const header = el('header', 'ed-hero');
 
-const meta = heroMeta('/about');
+const meta = heroMeta('/about', fromSearch(location.search));
 header.append(meta, el('hr', 'ed-rule ed-rule--heavy'));
 
 const titleBox = el('div', 'ed-hero__title');

@@ -33,6 +33,7 @@ import '../ui/type.css';
 import '../ui/editorial.css';
 import './about.css';
 import { heroMeta } from '../ui/hero.ts';
+import { fromSearch } from '../ui/return-to.ts';
 import { findVisits } from '../archive/endpoint.ts';
 
 const REPO = 'https://github.com/p-to-q/see-me-see-u';
@@ -118,7 +119,7 @@ function head(): HTMLElement {
   title.querySelector('.sb-en')?.setAttribute('style', '--ed-i:1');
 
   return el('header', 'ed-hero',
-    heroMeta('/'),
+    heroMeta('/', fromSearch(location.search)),
     el('hr', 'ed-rule ed-rule--heavy'),
     el('div', 'ed-hero__title', title),
     el('hr', 'ed-rule'),

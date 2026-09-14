@@ -48,7 +48,7 @@ test('from 拒掉站外地址、javascript: 和白名单外的路径，拒掉之
   const bad = [
     'https://evil.example/about', '//evil.example', '/\\evil.example', '\\\\evil.example',
     'javascript:alert(1)', 'JavaScript:alert(1)', ' /about', '/about ', '/about\n',
-    '/about?x=1', '/about#top', 'about', '/', '/dev/', '/dev/figure.html', '/unknown',
+    '/about?x=1', '/about#top', 'about', '/', '/dev/figure.html', '/dev/index.html/x', '/unknown',
     '/%2F%2Fevil.example', '/..//evil.example', 'data:text/html,hi', '',
   ];
   for (const raw of bad) {
@@ -123,7 +123,7 @@ test('每一个被正文链到的页面都有一个会读 from 的出口，短�
 test('被正文链到的页面一个都没有混进目录', () => {
   const nav = read('src/ui/nav.ts');
   const hrefs = [...nav.matchAll(/href: '([^']+)'/g)].map((m) => m[1]);
-  assert.deepEqual(hrefs, ['/', '/about', '/lineage.html', '/making.html', '/passport.html', '/dev/'],
+  assert.deepEqual(hrefs, ['/', '/about', '/lineage', '/making', '/passport', '/dev/'],
     `目录的条目变了：${JSON.stringify(hrefs)}。目录只列面（docs/23 §S9），旁注的目的地不进这里`);
   for (const path of Object.values(ASIDE_PAGES)) {
     const base = path.split('/').pop()!;

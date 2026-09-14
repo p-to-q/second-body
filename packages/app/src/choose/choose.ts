@@ -31,6 +31,7 @@ import { isThemeId } from '../shell/kiosk.ts';
 import { mulberry32 } from '../../../core/src/rng.ts';
 import { cjkClass, COPY, setBi } from '../ui/i18n.ts';
 import { markNode } from '../ui/mark.ts';
+import { handOff, stageShown } from '../ui/page-transition.ts';
 import type { PartLibraryIndex, RawPose, Rng, ThemeDef } from '../../../core/src/types.ts';
 import { acquireRingField, type RingField } from './ring/field.ts';
 import { holdFirstScreen } from './ring/first-screen.ts';
@@ -123,6 +124,8 @@ export function themeFromUrl(search: string = location.search): string | null {
 export function writeThemeToUrl(id: string): void {
   const url = new URL(location.href);
   url.searchParams.set('theme', id);
+  // 大厅那个标记只管"这一次别立展签"。选定之后它没有意义，分享出去的地址不该带着它
+  url.searchParams.delete('hall');
   history.replaceState(null, '', url);
 }
 
@@ -333,8 +336,13 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
   function finish(id: string): void {
     if (finished) return;
     finished = true;
-    handOver();
+    // 环要拆了，喂它的那条循环必须先停 —— 不然它会对着一个已经 dispose 的场调用
+    wave?.stop();
+    wave = null;
     onChoose(id);
+    // 涨满屏幕的那张卡留在原地，等舞台真的画出第一帧（最多 HANDOFF_WAIT_MS）再交棒。
+    // 原来是立刻交：底色一帧从纸翻到深，中间 450ms 没有一帧（docs/47 第 03 跳）
+    void stageShown().then(handOver);
   }
 
   /**
@@ -348,12 +356,12 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
    * 淡掉的是一张满屏的图，不是一个正在动的东西 —— 所以这一下读作交接，不读作消失。
    */
   function handOver(): void {
-    releaseFirstScreen();
-    // 环要拆了，喂它的那条循环必须先停 —— 不然它会对着一个已经 dispose 的场调用
-    wave?.stop();
-    wave = null;
     const field = carousel;
     carousel = null;
+    // 有平台过渡：卡片那一帧截图，底色、字色、画布一次换完，平台淡过去（ui/page-transition.ts）
+    if (handOff(() => { releaseFirstScreen(); field?.dispose(); ui.root.remove(); })) return;
+    // 没有（旧浏览器 / 减少动态效果）：原来那条路
+    releaseFirstScreen();
     field?.canvas.classList.add('is-gone');
     setTimeout(() => {
       field?.dispose();

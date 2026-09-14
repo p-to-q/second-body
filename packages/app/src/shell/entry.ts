@@ -62,6 +62,8 @@ function dismiss(node: HTMLElement): void {
 export interface Entry {
   /** 观众按下「开始」之前，主流程停在这里等 */
   readonly started: Promise<void>;
+  /** 展签真的立起来了。`?hall=1` 回来时是 false：选择页直接出现，但仍按"按过开始"那条路起步 */
+  readonly shown: boolean;
 }
 
 /**
@@ -124,6 +126,14 @@ function titleNode(): HTMLElement {
 
 export function mountEntry(flags: Flags): Entry | null {
   if (!wantsEntry(flags)) return null;
+
+  // 从舞台「回到大厅」回来（docs/47 §5）。展签已经读过一次，不再挡路；
+  // 但返回值照旧不是 null —— main.ts 据此用回放起步，不在大厅里弹摄像头权限。
+  if (flags.hall) {
+    const field = acquireRingField();
+    field.play();
+    return { started: Promise.resolve(), shown: false };
+  }
 
   const layer = document.createElement('div');
   layer.className = 'sb-entry';
@@ -222,7 +232,7 @@ export function mountEntry(flags: Flags): Entry | null {
     }, { once: true });
   });
 
-  return { started };
+  return { started, shown: true };
 }
 
 /**

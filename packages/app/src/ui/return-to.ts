@@ -46,6 +46,9 @@ export const RETURN_PAGES: Readonly<Record<string, BiText>> = {
   '/parts': COPY.rooms.parts.title,
   '/roster': COPY.rooms.roster.title,
   '/marks': COPY.rooms.marks.title,
+  // 工作台目录（2026-09-14）：从 `/dev/` 点进侧室的人原来被送回 `/about` —— 一个他没去过的地方。
+  // 只有目录页本身是来处；`/dev/figure.html` 这类仪器页有自己的出口（devnav），不进这张表
+  '/dev': COPY.devnav.home,
 };
 
 /** `/about.html`、`/about/` → `/about`。别的形状原样返回，交给白名单去拒 */

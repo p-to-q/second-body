@@ -43,6 +43,7 @@ import '../ui/type.css';
 import '../ui/editorial.css';
 import './lineage.css';
 import { heroMeta } from '../ui/hero.ts';
+import { fromSearch } from '../ui/return-to.ts';
 import { findVisits } from '../archive/endpoint.ts';
 
 const L = COPY.lineage;
@@ -187,7 +188,7 @@ function whenText(createdAt: string): { label: BiText; n: string } | null {
 function renderHeader(root: Element): void {
   const head = el('header', 'ed-hero');
 
-  const meta = heroMeta('/about');
+  const meta = heroMeta('/about', fromSearch(location.search));
 
   head.append(meta, el('hr', 'ed-rule ed-rule--heavy'));
 
