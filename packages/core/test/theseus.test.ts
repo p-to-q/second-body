@@ -88,6 +88,20 @@ test('theseus: 头二十秒一件都没换 —— §2 里最硬的那条线', ()
   }
 });
 
+test('theseus: ?arc= 压短之后宽限也不许被挖穿', () => {
+  // `?arc=60` 时第 I 段只有 13.2 秒，整段都落在 20 秒宽限里 ——
+  // 窗口被压到段末，排出来的时刻会比宽限还早。宽限赢，这一条是在
+  // 浏览器里跑 `?arc=60` 时发现的（HUD 上"宽限中"和第一件同时出现）。
+  for (const total of [60, 30, 21]) {
+    for (let seed = 1; seed <= 20; seed++) {
+      for (const t of buildSchedule(mulberry32(seed), total)) {
+        assert.ok(t >= THESEUS.graceSeconds,
+          `?arc=${total} seed ${seed}: 排到了 ${t.toFixed(2)}s，早于 ${THESEUS.graceSeconds}s 的宽限`);
+      }
+    }
+  }
+});
+
 test('theseus: 第一段优先动安静的槽位 —— 第一次替换要被余光看见，不被正眼看见', () => {
   const quiet = quietSlotKeys();
   // 锁骨 / 关节（含颈环）/ 脚 —— 身份住在头和手上，第一段不动它们

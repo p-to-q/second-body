@@ -208,7 +208,10 @@ export function buildSchedule(
   for (const t of raw) {
     // 宽限之后按 `rate` 缩放；宽限本身不缩（见 `TheseusOptions.rate`）
     const scaled = t <= grace ? t : grace + (t - grace) / speed;
-    const v = Math.max(scaled, last + gap);
+    // `grace` 也在这里兜一道底，不只靠上面那个窗口起点：`?arc=60` 时第 I 段
+    // 只有 13.2 秒，整段都在宽限里，窗口会被压到段末 —— 那时排出来的时刻是
+    // 13.2 秒，比宽限还早。宽限是 §2 里最硬的一条，`?arc=` 不该能把它挖穿。
+    const v = Math.max(scaled, grace, last + gap);
     if (v > total) break;            // 推出了这一场之外：那一件就是不发生，不是排到下一场
     out.push(v);
     last = v;
