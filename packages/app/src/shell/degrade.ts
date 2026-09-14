@@ -130,6 +130,16 @@ function reloadBudgetSpent(): boolean {
   }
 }
 
+/** stub（先红）：直接跳到某一级 */
+export function degradeTo(_stage: DegradeStage, _reason: string | null = null): DegradeStage | null {
+  return null;
+}
+
+/** stub（先红）：WebGPU device lost 之后怎么办 */
+export function deviceLostAction(_info: { reason?: string | null } | null | undefined): 'reload' | 'ignore' {
+  return 'ignore';
+}
+
 /** 测试用 */
 export function resetDegrade(): void {
   state.stage = null; state.nopost = false; state.placeholder = false; state.reason = null; state.steps = 0;
