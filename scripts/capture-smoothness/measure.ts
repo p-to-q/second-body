@@ -228,6 +228,20 @@ if (watchdogMs > 0) {
       const list = await (await fetch(`http://127.0.0.1:${port}/json`)).json() as { type: string; url: string; id: string }[];
       console.log(`targets: ${list.filter((t) => t.type === 'page').map((t) => `${t.id.slice(0, 6)} ${t.url}`).join(' | ')} (probe attached to ${target!.webSocketDebuggerUrl.split('/').pop()!.slice(0, 6)})`);
     } catch { /* */ }
+    // 页面此刻的状态（JS 还活着时才回得来，给 3 秒）：rAF 停了而定时器照跑，原因一般在这几样里
+    const diag = await Promise.race([
+      evalJs(`(async () => {
+        const raf = await Promise.race([new Promise((r) => requestAnimationFrame(() => r('raf fired'))), new Promise((r) => setTimeout(() => r('raf silent 1s'), 1000))]);
+        const exits = [...document.querySelectorAll('.sb-exits .sb-exit')].map((e) => (e.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 24));
+        return JSON.stringify({ raf, vis: document.visibilityState, hidden: document.hidden, focus: document.hasFocus(),
+          vt: !!document.activeViewTransition, ready: document.readyState, now: Math.round(performance.now()),
+          exits, videos: [...document.querySelectorAll('video')].map((v) => [v.readyState, v.paused, Math.round(v.currentTime * 10) / 10]),
+          canvases: document.querySelectorAll('canvas').length, lastRaf: Math.round(window.__probe.raf.at(-1) || 0),
+          notice: (document.querySelector('.sb-notice') || {}).textContent || null });
+      })()`),
+      new Promise((r) => setTimeout(() => r('diag: no answer in 3s'), 3000)),
+    ]);
+    console.log(`page: ${diag}`);
     const paused = new Promise<any>((res) => {
       listeners.push((m) => { if (m.method === 'Debugger.paused') res(m.params); });
       setTimeout(() => res(null), 4000);
