@@ -273,7 +273,10 @@
 }
 
 .sb-filter button:hover { color: var(--sb-ink); }
-.sb-filter button.is-on { color: var(--sb-ink); border-bottom-color: var(--sb-accent); }
+/* 选中的那一档：墨色最浓 + 底线用墨，**不用 --sb-accent**。
+   /parts 是展出页，全站"颜色承担语义"只有一处（docs/26 §F）—— 选中与否由浓淡说，不由蓝色说。
+   （2026-09-14：去掉颜色的那条线清掉了策展与接口的色相，漏了这一处，它自己报告了出来。） */
+.sb-filter button.is-on { color: var(--sb-ink); border-bottom-color: var(--sb-ink); }
 
 .sb-entry[hidden] { display: none; }
 
