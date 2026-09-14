@@ -123,7 +123,7 @@ test('每一个被正文链到的页面都有一个会读 from 的出口，短�
 test('被正文链到的页面一个都没有混进目录', () => {
   const nav = read('src/ui/nav.ts');
   const hrefs = [...nav.matchAll(/href: '([^']+)'/g)].map((m) => m[1]);
-  assert.deepEqual(hrefs, ['/', '/about', '/lineage.html', '/making.html', '/passport.html', '/dev/'],
+  assert.deepEqual(hrefs, ['/', '/about', '/lineage', '/making', '/passport', '/dev/'],
     `目录的条目变了：${JSON.stringify(hrefs)}。目录只列面（docs/23 §S9），旁注的目的地不进这里`);
   for (const path of Object.values(ASIDE_PAGES)) {
     const base = path.split('/').pop()!;

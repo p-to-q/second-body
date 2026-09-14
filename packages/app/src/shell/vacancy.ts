@@ -41,7 +41,7 @@
 
 /** 空位 → 它在哪一页上展出（含锚点）。今天只有一条，这是好事，不是简化。 */
 export const VACANCY_ON_SHOW: Readonly<Record<string, string>> = {
-  'guest.founder': '/passport.html#stamp-iv',
+  'guest.founder': '/passport#stamp-iv',
 };
 
 /**

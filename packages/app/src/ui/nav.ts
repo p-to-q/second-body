@@ -50,15 +50,16 @@ const ITEMS: NavItem[] = [
     match: (p) => p === '/about',
   },
   {
-    href: '/lineage.html', ...COPY.nav.items.lineage,
+    href: '/lineage', ...COPY.nav.items.lineage,
+    // 干净地址（2026-09-14）：线上 `cleanUrls` 把 `.html` 308 回这里，每点一次多一个往返（docs/47）
     match: (p) => p === '/lineage' || p === '/lineage.html',
   },
   {
-    href: '/making.html', ...COPY.nav.items.making,
+    href: '/making', ...COPY.nav.items.making,
     match: (p) => p === '/making' || p === '/making.html',
   },
   {
-    href: '/passport.html', ...COPY.nav.items.passport,
+    href: '/passport', ...COPY.nav.items.passport,
     match: (p) => p === '/passport' || p === '/passport.html',
   },
   {

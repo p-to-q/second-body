@@ -144,6 +144,9 @@ function anchorWriter(): Plugin {
       // 策展评级：/dev/parts.html 点一下部件就写回 assets/parts/curation.json
       server.middlewares.use('/__curate', async (req, res) => {
         if (req.method !== 'POST') { res.statusCode = 405; return res.end('POST only'); }
+        // `/parts` 开页时问一句「写回在不在」。原来靠发一个空 POST 换 400 来判断 ——
+        // 答案对，但每开一次控制台就多一条红色的 400，看起来像坏了（docs/47 导航审计）
+        if ((req.url ?? '').includes('probe')) { res.statusCode = 204; return res.end(); }
         const chunks: Buffer[] = [];
         for await (const c of req) chunks.push(c as Buffer);
         const { id, verdict, note } = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
