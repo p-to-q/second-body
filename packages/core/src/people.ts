@@ -260,6 +260,8 @@ export function createPeopleTracker(opts: { cap?: number; aspect?: number } = {}
   const selectedAt = new Map<number, number>();
   let primary: number | null = null;
   let clock = 0;
+  /** 动过的人连续在场多久（漏桶）。攒满 `staticYieldSeconds`，没动过的轨迹让出身体 */
+  let movedHeld = 0;
   /** 换人的漏桶：[挑战者 id, 攒了多久] */
   let challenge: [number, number] = [-1, 0];
   let current: PeopleFrame = { tracks: [], selected: [], primary: null };
@@ -297,9 +299,11 @@ export function createPeopleTracker(opts: { cap?: number; aspect?: number } = {}
   function select(dt: number): void {
     const alive = new Map(tracks.map((t) => [t.id, t]));
     const confirmed = tracks.filter((t) => t.state === 'confirmed');
-    const anyMoved = confirmed.some((t) => t.moved);
-    // 从没动过的（海报、墙上的人像）：有一个动过的人在场，它就让出身体
-    const keepable = (t: Internal | undefined) => !!t && t.state === 'confirmed' && (t.moved || !anyMoved);
+    movedHeld = leak(movedHeld, confirmed.some((t) => t.moved && t.missing === 0), dt);
+    // 从没动过的（海报、墙上的人像）：一个动过的人**持续**在场 staticYieldSeconds，它才让出身体。
+    // 当场让的话，一个人从几个站着不动的人面前走过，他们的身体会同时溶掉
+    const yieldStatic = movedHeld >= PEOPLE.staticYieldSeconds;
+    const keepable = (t: Internal | undefined) => !!t && t.state === 'confirmed' && (t.moved || !yieldStatic);
     selected = selected.filter((id) => keepable(alive.get(id)));
     // 上限被调低：最后拿到身体的先让，主身体最后让
     while (selected.length > cap) {
@@ -422,7 +426,7 @@ export function createPeopleTracker(opts: { cap?: number; aspect?: number } = {}
     get cap() { return cap; },
     get nextId() { return nextId; },
     reset() {
-      tracks = []; ghosts = []; nextId = 1; selected = []; selectedAt.clear(); primary = null; clock = 0;
+      tracks = []; ghosts = []; nextId = 1; selected = []; selectedAt.clear(); primary = null; clock = 0; movedHeld = 0;
       challenge = [-1, 0];
       current = { tracks: [], selected: [], primary: null };
     },
@@ -454,18 +458,22 @@ export function lineup(people: readonly LineupInput[], aspect = 16 / 9): Map<num
   const mean = xs.reduce((a, p) => a + p.x, 0) / xs.length;
   for (const p of xs) p.x -= mean;
   xs.sort((a, b) => a.x - b.x || a.id - b.id);
-  for (let pass = 0; pass < 8; pass++) {
+  // 相邻互推会渐近收敛（三个挤在一起时 8 遍还差 1e-5）；推到最大欠账 < 1e-9 为止，最多 64 遍
+  for (let pass = 0; pass < 64; pass++) {
+    let worst = 0;
     for (let i = 1; i < xs.length; i++) {
       const gap = xs[i].x - xs[i - 1].x;
       if (gap < PEOPLE.minGap) {
         const push = (PEOPLE.minGap - gap) / 2;
         xs[i - 1].x -= push; xs[i].x += push;
+        worst = Math.max(worst, PEOPLE.minGap - gap);
       }
     }
     // 夹进舞台：从两头往里压，保持间隔（总宽放得下时一定放得下：3 × 0.8 < 2 × 1.3）
     const lo = -PEOPLE.maxOffset, hi = PEOPLE.maxOffset;
     if (xs[0].x < lo) { const d = lo - xs[0].x; for (const p of xs) p.x += d; }
     if (xs[xs.length - 1].x > hi) { const d = xs[xs.length - 1].x - hi; for (const p of xs) p.x -= d; }
+    if (worst < 1e-9) break;
   }
   for (const p of xs) out.set(p.id, Math.max(-PEOPLE.maxOffset, Math.min(PEOPLE.maxOffset, p.x)));
   return out;

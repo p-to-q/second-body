@@ -119,10 +119,11 @@ test('一个挡住另一个（前面的大、后面的小）一秒：后面那�
     const back = { cx: 0.52, s: 0.35, hy: 0.45 };
     return t > 1.5 && t < 2.3 ? [front] : [front, back];
   });
-  const backId = frames[30].tracks.find((t) => t.scale < 0.1)?.id;
+  const smaller = (f: PeopleFrame) => [...f.tracks].sort((a, b) => a.scale - b.scale)[0]?.id;
+  const backId = smaller(frames[30]);
   assert.ok(backId);
   const end = frames[frames.length - 1];
-  assert.equal(end.tracks.find((t) => t.scale < 0.1)?.id, backId, '被挡住 0.8 秒不算走');
+  assert.equal(smaller(end), backId, '被挡住 0.8 秒不算走');
   assert.equal(end.tracks.length, 2);
 });
 
@@ -196,8 +197,10 @@ test('海报：从出生就没动过的人像不拿身体；画面里只有它�
   const alone = run(HZ * 3, () => [poster]);
   assert.equal(alone[alone.length - 1].selected.length, 1, '只有它：和 numPoses=1 的行为一样');
 
-  // 一个真人走进来：动过 → 海报让位
-  const frames = run(HZ * 6, (_k, t) => (t > 2 ? [poster, { cx: 0.4 + 0.1 * Math.sin(t * 3), s: 0.5 }] : [poster]), { cap: 2 });
+  // 一个真人走进来：动过、而且留下来 staticYieldSeconds → 海报让位
+  const frames = run(HZ * 8, (_k, t) => (t > 2 ? [poster, { cx: 0.4 + 0.1 * Math.sin(t * 3), s: 0.5 }] : [poster]), { cap: 2 });
+  const mid = frames[Math.round(HZ * 3)];
+  assert.ok(mid.selected.includes(idNear(mid, 0.15)!), '人刚进来的那一秒海报还拿着身体：不许当场溶掉');
   const end = frames[frames.length - 1];
   const posterId = idNear(end, 0.15)!;
   assert.ok(!end.selected.includes(posterId), '海报不占身体');
