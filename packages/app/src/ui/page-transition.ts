@@ -46,7 +46,28 @@ function nameShared(shared: readonly Shared[]): Shared[] {
   }
   return done;
 }
+/**
+ * 旧页上满屏的 GPU 画布，在截图之前藏起来。
+ *
+ * 2026-09-14 无头 Chrome 实测：从舞台、`/dev/figure`、`/dev/lineup` 离开时，旧页那一张截图
+ * 有时整张是纯白（亮度 255、离散度 0）—— 于是深底的舞台先闪一帧白纸再淡到下一页，比一刀切更糟。
+ * 藏掉画布之后截到的是深底加角上的字，淡出的是它。画面本身在截图的那一刻就要走了，藏它不损失什么；
+ * 从往返缓存回来时在 `pageshow` 里还原。
+ */
+const hidden: HTMLElement[] = [];
+function hideGpuCanvases(): void {
+  const area = innerWidth * innerHeight;
+  for (const c of document.querySelectorAll<HTMLElement>('canvas, video')) {
+    const r = c.getBoundingClientRect();
+    // 摄像头那块小屏幕（`<video>`，带实时流）也截成过纯白，不论大小一起藏
+    if ((c.tagName === 'CANVAS' && r.width * r.height < area * 0.25) || c.style.visibility === 'hidden') continue;
+    c.style.visibility = 'hidden';
+    hidden.push(c);
+  }
+}
+
 function unname(): void {
+  for (const c of hidden.splice(0)) c.style.visibility = '';
   for (const el of named.splice(0)) el.style.removeProperty('view-transition-name');
   document.documentElement.classList.remove('sb-vt-arrived');
 }
@@ -75,6 +96,7 @@ export function installPageTransitions(): void {
     const url = e.activation?.entry?.url;
     const t: Transition | null = url ? transitionFor(here(), surfaceOfUrl(url)) : null;
     if (!t || t.kind === 'none' || reduced()) { vt.skipTransition(); return; }
+    hideGpuCanvases();
     nameShared(t.shared);
   });
 
