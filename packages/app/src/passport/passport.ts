@@ -206,12 +206,13 @@ const STAMPS: Stamp[] = [
       'The mechanism works: write a look, add one reference image, and it can be generated, chosen and worn. What is missing is neither budget nor means. It is that person’s consent. The roster has two ways of recording a missing body and both of them wait on a file; this one waits on a person, and only they can fill it in.',
     ),
     consequence: bi(
-      '空位留在花名册上，门把它挡在公开构建之外：它不在 parts.json 的条目表里，不在轮播里，自动挑身体也永远挑不到它。这个位置在场上的样子，就是它不在场。',
-      'The vacancy stays on the roster and the gate keeps it out of the public build: not in the entry table of parts.json, not in the carousel, never picked when a body is chosen for you. The only form this position takes on stage is not being there.',
+      '空位留在花名册上，门把它挡在公开构建之外：它不在 parts.json 的条目表里，不在轮播里，自动挑身体也永远挑不到它。点名要它的那条链接被送到这一枚章上 —— 这个位置在场上唯一的样子，就是它不在场。',
+      'The vacancy stays on the roster and the gate keeps it out of the public build: not in the entry table of parts.json, not in the carousel, never picked when a body is chosen for you. A link that asks for it by name lands on this stamp — the only form this position takes on stage is not being there.',
     ),
     evidence: [
       'packages/factory/recipes/roster.ts guest.founder',
       'packages/factory/src/index-parts.ts ROSTER.filter(isPublic)',
+      'packages/app/src/shell/vacancy.ts',
       'packages/app/test/vacancy.test.ts',
       'docs/14-SPEC-roster.md §2',
     ],
@@ -267,6 +268,9 @@ function stampMark(s: Stamp): HTMLElement {
 
 function stampBlock(s: Stamp): HTMLElement {
   const sec = el('section', `sb-stamp pp-stamp sb-${s.verdict}`);
+  // 每一枚章都能被单独指到。第四枚是有人点名要它的那一个：
+  // `?theme=guest.founder` 会被 `shell/vacancy.ts` 送到 `#stamp-iv`。
+  sec.id = `stamp-${s.no.toLowerCase()}`;
 
   // 章头：左边是那枚章，右边是申请人。两栏，和 .ed-section 同一套比例
   const head = el('div', 'pp-stamp__head');
@@ -351,3 +355,15 @@ root.append(el('hr', 'sb-rule'), foot);
 
 // 这一页原本是条死路：读完之后走不回作品，也走不到别的房间
 mountNav();
+
+/**
+ * 锚点要自己滚一次。
+ *
+ * 这一页的正文是脚本现搭的：浏览器处理 URL 里那个 fragment 的那一刻，
+ * `#stamp-iv` 指的那个 `<section>` 还不存在，于是它什么都不做 ——
+ * 而一条点名空位的链接（`shell/vacancy.ts` 把 `?theme=guest.founder` 送到这里）
+ * 会落在页首，读起来像是这条链接没生效。
+ */
+if (location.hash.length > 1) {
+  document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView();
+}

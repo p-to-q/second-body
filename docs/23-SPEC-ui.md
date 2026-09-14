@@ -299,6 +299,67 @@ WebGPU 的笔记本上也开得出来；**它自己印在页面上的每一个�
 
 ---
 
+## S10 · 文档流页面在窄屏上（`/about` `/making` `/passport` `/lineage`）
+
+一条规矩：**宽的东西在自己的容器里横向滚，页面本身永远不横向滚。**
+被裁掉的正文和有滚动条的正文是同一件事的两种表现，所以
+**`overflow-x: hidden` 不算修好** —— 它只是让溢出不再报信，字照样读不到。
+
+这四页靠**六件具体的事**成立，六件都在 `packages/app/test/narrow-viewport.test.ts`
+里有守卫（node 验不了版面，所以它验的是这六条在样式表文本上还成不成立，
+每一条附它拦的那一种坏法）：
+
+| | 规定 | 没有它会怎样 |
+|---|---|---|
+| 版心边距 | `.ed` 的 `--ed-edge: clamp(20px, 4.2vw, 60px)` | 用固定的 `--sb-safe`（48px）会在 320px 上吃掉三分之一 |
+| 满幅线 | `.ed-rule` 的 `margin: 0 calc(var(--ed-edge) * -1)` | 两处只改一处，这条线在**每一个宽度**上都捅出视口 |
+| 塌栏 | 窄屏断点里一律 `minmax(0, 1fr)` | 裸 `1fr` 的最小宽度是 min-content，一条长路径就顶开它 |
+| 正文格 | `.pp-row__body` / `.ed-section__body` / `.ln-row__body` 的 `min-width: 0` | grid 子项默认 `min-width: auto`，同上 |
+| 巨题 | `.sb-display` 的 `overflow-wrap: anywhere` | 「SEE-ME SEE-U」捅出视口（`type.css` 记过这一次） |
+| 存证列 | `.sb-evidence li` 的 `word-break: break-all` | `packages/factory/src/index-parts.ts` 这样的路径顶开右栏 |
+
+### 实测（2026-09-14）
+
+版面只有浏览器量得出来，所以数记在这里，不在测试里编。
+本机 dev server 与 `vite preview` 打的 dist 两套，Chromium，
+每个宽度上遍历整棵 DOM 取 `getBoundingClientRect().right`，
+并对每一个文本节点取 `Range.getClientRects()`：
+
+| 页面 | 量过的宽度 | `documentElement.scrollWidth` | 右边越过视口的盒子 / 文字 |
+|---|---|---|---|
+| `/passport` | 300 / 320 / 360 / 380 / 400 / 420 / 440 / 460 / 480 / 500 / 520 / 560 / 600 / 620 / 700 / 780 / 860 / 900 | 每一档都 **= 视口宽** | **0 / 0** |
+| `/about` | 300 / 360 / 420 / 500 / 620 / 700 / 780 / 860 / 900 | 同上 | **0 / 0** |
+| `/making` | 300 / 360 / 420 / 500 / 620 / 700 / 780 / 860 / 900 | 同上 | **0 / 0** |
+| `/lineage` | 300 / 360 / 420 / 500 / 600 / 760 / 800 | 同上 | **0 / 0** |
+
+`/passport` 另外单量过：目录展开时 `scrollWidth` 仍是 420；
+420px 上 `.ed` 的内容右边界是 400，越过 400 的文本行 **0 行**。
+
+复现用的片段（贴进 DevTools 控制台即可，不引任何依赖）：
+
+```js
+const vw = document.documentElement.clientWidth;
+const boxes = [...document.querySelectorAll('*')]
+  .filter((el) => el.getBoundingClientRect().right > vw + 0.5);
+const texts = [];
+const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+for (let n; (n = walk.nextNode()); ) {
+  if (!n.nodeValue.trim()) continue;
+  const r = document.createRange(); r.selectNodeContents(n);
+  if ([...r.getClientRects()].some((c) => c.right > vw + 0.5)) texts.push(n.nodeValue.trim());
+}
+console.log(document.documentElement.scrollWidth, vw, boxes.length, texts.length);
+```
+
+> 记一句，免得下一轮再查一遍：本轮是带着"`/passport` 在 500px 以下横向溢出、
+> 四枚章的正文都被右边裁掉"这条报告来的，**照上面的办法量下来没有复现**。
+> 最像的一种成因是**截图本身**：页面按 800px 排版、图被裁到 420px 宽，
+> 读起来就是"每一段正文都在右边被切掉"，而且四枚章切得一模一样 ——
+> 真的溢出很少会在四段长短不同的文字上切得一样齐。
+> **先量再判**：`scrollWidth` 和视口宽是一个数就是没溢出，截图不是判据。
+
+---
+
 ## 附 · 调试 UI（`?debug=1`，永不出现在现场）
 
 左上角 HUD：fps / cpu / instances / tris / draws / infer / **cam** / act。超 `BUDGET` 标红。
