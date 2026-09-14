@@ -703,7 +703,13 @@ async function boot(): Promise<void> {
       const g = swapOneSlot(
         creature.genome, step.fired.slot,
         (seed ^ Math.imul(step.fired.index, 0x9e3779b9)) >>> 0,
-        { tier, index: library.index, rejected: library.rejected, overall: arcState.overall, grown },
+        {
+          tier, index: library.index, rejected: library.rejected, overall: arcState.overall, grown,
+          // 给操作员（`?debug=1`），不给观众：换的是哪一格、从哪一圈借的（docs/44 §7 最后一段）
+          onChoice: hud ? (c) => console.info(
+            `[theseus] #${step.fired!.index} ${step.fired!.slot} ← d${c.ring} ${c.pick.partId}`,
+          ) : undefined,
+        },
       );
       // 借不到就是这一件不发生 —— 不抛、不等、不退化成"换了个一模一样的"（P3）。
       if (g) {
