@@ -53,5 +53,5 @@ test('标记对读屏说得出它是什么；重复挂载只挂一次', () => {
   const ts = read('../src/ui/footer-mark.ts');
   assert.match(ts, /role['"]?,\s*['"]img['"]|role="img"|setAttribute\('role', 'img'\)/, '没有 role=img');
   assert.match(ts, /aria-label/, '没有 aria-label');
-  assert.match(ts, /querySelector\(['"`]\.sb-footmark/, '没有防重复挂载');
+  assert.match(ts, /querySelector(?:<[^>]+>)?\(['"`](?::scope\s*>\s*)?\.sb-footmark/, '没有防重复挂载');
 });
