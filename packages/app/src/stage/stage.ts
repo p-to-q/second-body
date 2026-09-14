@@ -930,7 +930,7 @@ export function createStage(opt: StageOptions = {}): Stage {
 
     setPost(on) {
       postEnabled = on;
-      // 不拆链：原来这里是 `post.dispose(); post = null`，拿回后期那一帧整条链重建、重编（docs/48 §10）。
+      // 不拆链：原来关后期时在这里释放整条链，拿回后期那一帧整条链重建、重编（docs/48 §10）。
       // 链占的只是几张随画布大小走的渲染目标；关着的时候 `render()` 不走它，它就不花 GPU 时间。
       // 建链失败过的那一次仍然允许关了再开时重试（和原来一样）
       if (!on && !post) postFailed = false;

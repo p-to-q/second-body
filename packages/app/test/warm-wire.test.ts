@@ -24,7 +24,8 @@ test('拨后期: 舞台关后期不拆链（拿回来不重建）', () => {
 test('拨后期: 舞台能在空闲里把直出那条路编一遍（compileAsync，不是 render）', () => {
   const body = /warmDirect\(r\)\s*\{([\s\S]*?)\n\s{4}\},/.exec(STAGE)?.[1] ?? '';
   assert.ok(body, 'stage.ts 里没有 warmDirect');
-  assert.match(body, /compileAsync\(/, 'warmDirect 没有用 compileAsync');
+  assert.match(body, /compileAsync/, 'warmDirect 没有用 compileAsync');
+  assert.match(body, /\.call\(r, scene, camera\)/, 'warmDirect 没有拿舞台的 scene / camera 去编');
   assert.match(STAGE, /warmDirect\(renderer: THREE\.Renderer\): Promise<boolean>/, 'Stage 接口上没有 warmDirect');
 });
 
