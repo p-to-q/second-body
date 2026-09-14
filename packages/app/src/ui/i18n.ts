@@ -196,6 +196,33 @@ export const COPY = {
     light: bi('站到亮一点的地方', 'Find a brighter spot'),
   },
 
+  /**
+   * S4 左下角那块读数（`ui/readout.ts`）——「它此刻从你身上读到了什么」。
+   *
+   * 这几个词是**观众读的**，所以它们进这里，不进 `?debug=1` 的 HUD 那一套
+   * 英文缩写（`fps` / `infer` / `tris`）。两套词汇服务两种人：
+   * HUD 上的 `infer 31 Hz` 是给现场调机器的人看的，这里的「推理 · INFERENCE」
+   * 是给一个站在身体前面、想知道它在读自己什么的人看的。
+   *
+   * 中文两个字、英文一个词 —— 定宽的两栏排版靠这条约束成立（`readout.css`）。
+   * 加行之前先量一眼名字那一栏会不会被撑开。
+   */
+  readout: {
+    /** 顶上那一行：这一帧有没有人。它是下面五行为什么全是破折号的答案 */
+    present: bi('有人', 'Someone'),
+    absent: bi('无人', 'No one'),
+    /** 整体置信度（`RawPose.score`）—— 整条链都压在这一个数上 */
+    confidence: bi('置信', 'Confidence'),
+    /** 模型报"看得见"的点数 / 总点数。半个人出画时置信度还很高，这一行不会 */
+    joints: bi('关节', 'Joints'),
+    /** **不是帧率**：每秒重新看你几次（`Capture.fps`） */
+    inference: bi('推理', 'Inference'),
+    /** 无量纲的运动能量。推动整件作品往前走的就是它 */
+    energy: bi('动能', 'Energy'),
+    /** 四肢离骨盆多远。这一块唯一一个形状的量，其余都是速率 */
+    extent: bi('舒展', 'Extent'),
+  },
+
   /** S7 离场 / 留念 */
   leave: {
     keepsake: bi('带走这具身体', 'Take this body with you'),
@@ -722,9 +749,16 @@ export const COPY = {
     // 「不离开你的浏览器」是一句技术保证，读起来像条款。
     // 同样的事实换一种说法就有画面，而且更准：摄像头的画面从来没被送出去，
     // 送出去的只有关节坐标 —— 它认得的一直只是一副骨头。
+    // §6.2 的最小版。原句是「它只认得你的骨头」—— **没有换一个新句子，是把它续了一截**：
+    // 前半句说的是「我们没拿走你的样子」，续上的半句说「留下的你也只是一个号码」，
+    // 两半是同一件事的两面，读起来是一句话不是两条条款。
+    //
+    // 为什么必须续这一截：从 `docs/43 §8` 起，一次走完的相遇会在服务端留下一行。
+    // 留下东西这件事必须在观众按下那个按钮**之前**就说了 —— `§0.1` 裁的是「声明，
+    // 不是默许」。而它只有一行的篇幅（入口层展签的左下角），所以只能是一句。
     short: bi(
-      '它只认得你的骨头',
-      'It only ever sees your bones',
+      '它只认得你的骨头。留下的是一个号码。',
+      'It only ever sees your bones. What it keeps is a number.',
     ),
     // 这句话原来写的是「你**主动触发**的那一张剪影」。那是假的：
     // 慢回路在人待满 `SLOW_LOOP.armAfter`（20 秒）之后**自己**就武装了，
@@ -734,13 +768,73 @@ export const COPY = {
     // 唯一一处必须逐字为真的文案。改成实际发生的事：**站着不走就是那个触发**。
     // 而这句话因此也更准：它说的正是这件作品的题目 —— 你什么都没做，
     // 只是待在那儿，而那已经足够让一具身体从你身上长出来。
+    //
+    // ── 第三句是「不参与」（`§9.5`）──────────────────────────────────────────
+    //
+    // `docs/13 §5` 要求页面上有一行说明**加一个「不参与」开关**，而
+    // `COPY.privacy.optOut` 这个常量一直存在、全仓没有任何一处渲染它。
+    // 裁定是：**不新做一个开关，把已经存在的那条路说出来。**
+    // 网页版的入口层本来就不要求授权也能看见东西（`docs/13 §1`、`PRD §8`）——
+    // 不按那个按钮，摄像头就不开，作品照样在放 demo 回放。
+    // 「不参与」在网页版上**已经实现了，只是没有被命名**。加一个勾选框是
+    // `docs/26 §F` 的反面清单；说出来才是这件作品的做法。
+    //
+    // ── 第二句是存档（`§8` / `§9.4`）────────────────────────────────────────
+    //
+    // 逐字列出那一行里有什么，是因为「永久保留」这条裁定**不是靠匿名化站住的，
+    // 是靠那一行里根本没有个人数据站住的**。说不清有什么，那条裁定就没有基础。
+    // 字段清单在 `packages/archive/src/visit.ts`，那边有测试钉着它。
+    //
+    // 现场那一句（二十秒）留着：它此前写的是「你**主动触发**的那一张剪影」，
+    // 而慢回路是人待满 `SLOW_LOOP.armAfter`（20 秒）之后**自己**武装的，
+    // 观众一个键都没按（`docs/38 §8`）。一句写在隐私说明里的假话比没有隐私说明更糟。
     long: bi(
-      '姿态识别全部在本地运行。站够二十秒，它会拿这一刻的剪影去长出一件新的部件 —— '
-      + '上传的只有那一张剪影，不保存、不关联身份。',
-      'Pose estimation runs entirely on your device. Stay about twenty seconds and it takes a single '
-      + 'silhouette of that moment to grow a new part — only that silhouette is ever uploaded, '
-      + 'not stored, not linked to you.',
+      '姿态识别全部在本地运行，摄像头的画面一帧都不离开你的设备。'
+      + '不按那个按钮，摄像头就不会打开，作品照样在放。'
+      + '装置上的那一张剪影在你连续站够二十秒之后自动送出一次，用来生成那件长在你身上的东西。',
+      'Pose estimation runs entirely on your device; no camera frame ever leaves it. '
+      + 'If you never press the button, the camera never opens and the piece plays anyway. '
+      + 'On the installation, one silhouette is sent once, automatically, after you have stood there '
+      + 'for twenty seconds, to generate the part that grows on you.',
     ),
+
+    /**
+     * **存档那一句是分开的，而且只有存档真的在的时候才渲染。**
+     *
+     * 它本来长在 `long` 里。问题是：存储没配的时候，`/api/visits` 会 404，
+     * **一行都不会留下** —— 而这一句会照常印在页面上。
+     * 那是 `docs/26 §G` 三处「诚实集中」之一，那三处的要求不是"说得好听"，
+     * 是**逐字为真**。一句写在隐私说明里的假话比没有隐私说明更糟，
+     * 这句话就写在上面 `long` 的注释里，对它自己同样生效。
+     *
+     * 时序是这样错开的：网站会先于存储上线（存储要作品负责人本人去开，
+     * 见 `docs/13 §6` 的发布清单）。所以这一句不能靠"发布的时候记得改文案"
+     * 来保证 —— 那等于把一句真话托付给一次人工步骤。
+     * 它改成**问一句再说**：`/about` 去敲 `/api/visits`，敲得到才印。
+     * 存储开了它自己就出现，不用改代码，也不用有人记得。
+     *
+     * 逐字列出那一行里有什么，是因为「永久保留」这条裁定**不是靠匿名化站住的，
+     * 是靠那一行里根本没有个人数据站住的**。字段清单在
+     * `packages/archive/src/visit.ts`，那边有测试钉着它。
+     */
+    archiveRow: bi(
+      '每一次到访只在服务端留下一行：一个序号、你选的物种、一个粗到天的日期 —— '
+      + '没有影像，没有动作，没有姓名、账号或 IP。',
+      'Each visit leaves a single line on the server: a number, the species you chose, and a date '
+      + 'no finer than the day — no imagery, no movement, no name, account or IP address.',
+    ),
+    /**
+     * **这一条故意没有任何一处渲染它，而且从今天起是有裁定的。**
+     *
+     * `docs/13 §5` 当初要求页面上有一个「不参与」开关，于是这个常量被写了出来，
+     * 然后全仓没人用它 —— 一笔悬着的账（`docs/38 §4` 如实记过）。
+     * `docs/43 §9.5` 把它裁掉了：网页版的「不参与」**已经实现了，只是没有被命名** ——
+     * 不按那个按钮，摄像头就不开，这一场也不会被记进存档（`archive/visit.ts` 的 `live()`）。
+     * 做法是让上面那一段把它说出来，不是加一个勾选框（`docs/26 §F` 的反面清单）。
+     *
+     * 留着这个词是因为现场那一半还欠着（画出来的采集区 + 一条绕开它的路，`§1.5`），
+     * 那是布展决定，装台那天在房间里定。**在那之前，网页上不许出现这个控件。**
+     */
     optOut: bi('不参与', 'Opt out'),
   },
 
@@ -796,6 +890,14 @@ export const COPY = {
 
     /** 两个巨大的数。数字自己承担句子，所以标签里不留待填的空 */
     countParts: bi('件留在池子里', 'pieces in the pool'),
+    /**
+     * 网页版那一个数（`docs/43 §8` 的存档）。
+     *
+     * 它和 `countParts` **不是同一件事**，所以不能共用一个标签：
+     * 装置上数的是留下来的件，网页版上数的是走完一整条弧线的人。
+     * 一个标签套两种数，那个数就不再说明任何事情。
+     */
+    countVisits: bi('个人走完过这条弧线', 'people have walked the whole arc'),
     countChance: bi('下一个站上去的人，穿上这里某一件的机会',
                     'the chance that the next person to step up wears one of these'),
 
@@ -804,9 +906,43 @@ export const COPY = {
                'One layer per piece, the oldest at the bottom. This stack never gets thinner.'),
     strataOlder: bi('底下这一段是更早的人，超出了这一页一次能取回的范围。',
                     'The band below is earlier visitors, beyond what this page can fetch at once.'),
+    /** 网页版：一层是一个人，不是一件。厚度的读法不变，被数的东西变了 */
+    strataVisits: bi('一人一层，最早的在最底下。这一叠不会变薄。',
+                     'One layer per person, the earliest at the bottom. This stack never gets thinner.'),
+    /**
+     * 网页版这一叠底下那一句。
+     *
+     * 装置那一版（`lede`）说的是「你在这一页上看到的厚度，就是在你之前站上去过的人」，
+     * 网页版逐字成立，但它必须补上**留下来的是什么**：只有位次和日期，没有件。
+     * 不补这一句，观众会以为这些层里各有一个看不见的东西。
+     */
+    visitsNote: bi(
+      '这里每一层只有三样东西：第几位、选的哪一个物种、哪一天。没有影像，没有动作，也没有一件可以看的东西 —— 网页版长不出件，那一半只在装置现场发生。',
+      'Each layer here holds three things only: a position, the species chosen, and a day. No imagery, no movement, and nothing to look at — the web version grows no parts; that half only happens at the installation.',
+    ),
+    /**
+     * `docs/43 §9.8` 裁的那一句（代 `docs/23` 裁，登记在 `docs/23 §S8`）。
+     *
+     * 一个循存档链接回来的人看到的是：作品在动，而摄像头没亮。不说明，他会以为坏了；
+     * 说明得太重，就变成一个 UI 控件 —— 裁定写明**不做角标、不做「回放中」的常驻标记**，
+     * 「那是播放器的语言，而这件作品不是播放器」。所以它是这一页正文里的一句话，
+     * 位置在画面之外、和这一页其它文字同一列。
+     */
+    replay: bi(
+      '循一条存档链接回到作品，画面会自己动起来，摄像头不亮 —— 那不是坏了，是有人先来过。',
+      'Follow an archive link back into the piece and it moves on its own, with the camera dark. Nothing is broken: somebody was here before you.',
+    ),
 
     /** 记录区 */
     sec: bi('每一件，和留下它的人', 'Each piece, and who left it'),
+    /**
+     * 存档那一支的同一个位置。**不能共用上面那一句。**
+     *
+     * 上面写的是「每一件」，而存档那一边一件都没有 —— 它自己底下那一句正说着
+     * 「没有一件可以看的东西」。两句话隔着三行互相拆台，读到的人只会认为
+     * 这一页哪里坏了。被数的东西变了，题也得变。
+     */
+    secVisits: bi('每一个走完的人', 'Everyone who walked it through'),
     secNote: bi('左边那个数是留下它的人 —— 按先后排的第几位。不是时间，是位次：谁在谁之后。',
                 'The number on the left is the person who left it — their place in the order of arrival. Not a time; a position: who came after whom.'),
     where: bi('长在哪', 'Where it grew'),
@@ -902,9 +1038,14 @@ export const COPY = {
 
     /** 数字。`value` 一律是从 git / 文件系统点出来的原样，不做四舍五入 */
     numbers: [
-      { value: '249', label: bi('次提交', 'Commits'), note: bi('第一条 09-12 14:24，最后一条 09-13 22:56', 'First at 09-12 14:24, last at 09-13 22:56') },
-      { value: '62', label: bi('次合并', 'Merges'), note: bi('分支合回来，以及主线合进分支', 'Branches merged back, and main merged in') },
-      { value: '28', label: bi('条并行分支', 'Parallel branches'), note: bi('每条是一个代理的一间工作室', 'One worktree, one agent, one room') },
+      // 这四个数**都只数黑客松那一段**：09-12 14:24 的第一条，到 09-13 10:24 的
+      // 最后一条，20 小时。仓库今天还在长（写这一行时 268 条），但这一页数的是
+      // 那场比赛，不是这个仓库的一生 —— 一个跨过截止时间还在涨的数字，
+      // 说的已经不是同一件事了。四个数必须同源，否则「149 条提交里 38 次合并」
+      // 这种话自己就打自己：它们要么一起数那 20 小时，要么一起数到今天。
+      { value: '149', label: bi('次提交', 'Commits'), note: bi('黑客松 20 小时：09-12 14:24 到 09-13 10:24', 'The 20-hour hackathon: 09-12 14:24 to 09-13 10:24') },
+      { value: '38', label: bi('次合并', 'Merges'), note: bi('分支合回来，以及主线合进分支', 'Branches merged back, and main merged in') },
+      { value: '23', label: bi('条并行分支', 'Parallel branches'), note: bi('每条是一个代理的一间工作室', 'One worktree, one agent, one room') },
       { value: '5', label: bi('个并行 worktree', 'Worktrees at once'), note: bi('git 一次把五个当成嵌入仓库吞了进去（480a48f）', 'Five got swallowed as embedded repos in one go — 480a48f') },
       { value: '7', label: bi('条契约裁决', 'Contract rulings'), note: bi('分三次报上来，三次都没在下游打补丁', 'Three reports, zero downstream patches') },
       { value: '432', label: bi('个测试', 'Tests'), note: bi('core 182 + app 250，全过', 'core 182 + app 250, all green') },
@@ -1216,8 +1357,8 @@ export const COPY = {
     ],
 
     footer: bi(
-      '人类署名 2 人；249 条提交里有 185 条写着代理的共同署名。每一条都写着它是谁和谁一起做的。',
-      'Two human authors; of 249 commits, 185 carry an agent’s co-author line. Every one records who made it with whom.',
+      '人类署名 2 人；黑客松那 149 条提交里有 122 条写着代理的共同署名。每一条都写着它是谁和谁一起做的。',
+      'Two human authors; of the hackathon’s 149 commits, 122 carry an agent’s co-author line. Every one records who made it with whom.',
     ),
   },
 } as const;

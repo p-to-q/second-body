@@ -37,6 +37,7 @@ import {
 } from '../../core/src/bodyplan.ts';
 import { REFERENCE_POSE } from '../src/stage/framing.ts';
 import { PLAN_LABEL } from '../src/ui/species.ts';
+import { PLAN_MARKS, markShape } from '../src/ui/marks.ts';
 import { COPY } from '../src/ui/i18n.ts';
 import { ROSTER } from '../../factory/recipes/roster.ts';
 import type { PartLibraryIndex } from '../../core/src/types.ts';
@@ -134,6 +135,34 @@ test('每一个方案在两份文案表里都有名字 —— 图例和控件条
       `COPY.controls.form 缺 '${plan}' —— 控件条会把这个方案的按钮整个跳过`,
     );
   }
+});
+
+test('每一个方案在 /about 的散点图上都有**自己的**记号 —— 两个方案不许共用一个', () => {
+  // 这条守的是"图例里六个不同的名字配同一个空心圆"。
+  // 不画记号只是没说话；画成一样是在断言"它们是一类"，而那是假的（docs/02 P21）。
+  // 记号是数据（`ui/marks.ts`）而不是一段 createElementNS，为的就是这里能读它 ——
+  // `about.ts` 第一行 import 了 CSS，在 node 里 import 不进来。
+  const seen = new Map<string, BodyPlanId>();
+  for (const plan of BODY_PLANS) {
+    const shape = PLAN_MARKS[plan];
+    assert.ok(shape?.length,
+      `PLAN_MARKS 缺 '${plan}' —— /about 的图例会给它画一个和 'rig' 一样的空心圆，`
+      + `于是页面上出现两个不同的名字配同一个记号`);
+
+    const key = JSON.stringify(shape);
+    const twin = seen.get(key);
+    assert.equal(twin, undefined,
+      `'${plan}' 和 '${twin}' 的记号一模一样 —— 图例会并排印出两个名字、一个形状，`
+      + `那是在断言这两个方案是一类，而它们不是`);
+    seen.set(key, plan);
+  }
+});
+
+test('markShape 对未知值退回 rig —— 和 remapSkeleton 的 default 是同一句话', () => {
+  // 画面上站着的就是一具人形（`remapSkeleton` 未知值走 default，P2）。
+  // 记号跟着画面走，不跟着字符串走。
+  assert.deepEqual(markShape('quadrupd'), PLAN_MARKS.rig);
+  assert.deepEqual(markShape('quadruped'), PLAN_MARKS.quadruped);
 });
 
 // ── 3. 声明的比例必须到达运行时（step 5 那一类） ────────────────────────────

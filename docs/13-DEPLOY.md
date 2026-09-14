@@ -124,6 +124,63 @@ packages/app/dist/          静态站点（vite build）
 - 页面上要有一行说明 + 一个"不参与"开关。这不是合规姿态，是作品的一部分：
   一件关于身体的作品，对身体数据的态度就是它的态度。
 
+> **「不参与」那一条已经落地了，但不是一个开关**（`docs/43 §9.5` 裁定，2026-09-14）。
+> 网页版的入口层本来就不要求授权：不按「开始 / 用我的摄像头」，摄像头不开，
+> 作品照样在放回放，而且**那一场不会被记进存档**（`main.ts` 的 `cameraOn` →
+> `archive/visit.ts` 的 `live()`）。这条路一直存在，只是没有被命名 ——
+> 现在 `/about` 的隐私段把它说出来了。加一个勾选框是 `docs/26 §F` 的反面清单。
+
+### 5.1 存档的行住在哪（`docs/43 §9.3` 的落地）
+
+一次走完的相遇在服务端留下**一行**：序号、物种、粗到天的日期。
+字段清单和它为什么只能是这三个，在 `packages/archive/src/visit.ts`，有测试钉着。
+
+`§9.3` 裁的是**不加第二个部署目标**：站点在 Vercel 上，行就住在 Vercel 上，
+具体哪一家由实现那条线按 Marketplace 的现状定。
+
+**挑的结果（2026-09-14，`vercel integration discover --category storage` 的实际列表）：
+Upstash for Redis（slug `upstash/upstash-kv`）。** 三条理由，按重要性排：
+
+1. **序号是主键**（`§4.2`），而 `INCR` 是一条原子命令就给的。换成 Postgres 要
+   建表、要迁移、要一个连接池；换成对象存储则根本给不出单调序号（`§3.3`）。
+2. **它的口子是 HTTP**，所以这条回路一个依赖都不用加（`AGENTS.md` 那条）。
+   `packages/archive/src/store.ts` 里的 `restStore()` 就是全部，四条命令。
+3. Neon 那条路（`§3.6` 记的）有**5 分钟无活动冷启动**和免费额度用尽后 compute
+   挂起。这一页是一个几天才有人打开一次的页面，冷启动正好命中它。
+
+**这条线没有开通它。** 开通要花钱、要改项目所有者的 Vercel 设置 ——
+那是作品负责人的动作。要做的事按顺序：
+
+```bash
+vercel link                                   # 还没 link 过的话
+vercel integration add upstash                # 面板上会开一个授权页，在那里建 database
+vercel env pull .env.local                    # 把注入的变量拉下来核一眼
+vercel --prod                                 # 重新部署一次，函数才读得到新变量
+```
+
+（也可以全在面板上点：Vercel 项目 → Storage → Browse Marketplace →
+Upstash for Redis → Create，区域选离 `useeme.ptoq.io` 的读者最近的那一个。）
+
+集成会自己注入环境变量，**不需要手填**。代码认两套名字（`store.ts` 的
+`createVisitStore`），装哪一版都不用改代码：
+
+| 变量 | 用途 |
+|---|---|
+| `KV_REST_API_URL` / `KV_REST_API_TOKEN` | 集成注入的那一对，优先 |
+| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | 另一套常见命名，同样认 |
+| `ARCHIVE_FILE` | 本地盘那条路。dev server / `vite preview` 自己设；装置那台机器用它（`§7.3`） |
+
+**开通之前线上是什么样：** `createVisitStore()` 返回 `null`，
+`/api/visit` 与 `/api/visits` 一律 **404 `{code:'DISABLED'}`**，
+`/lineage` 因此仍然是「这条回路只在装置现场活着」那一句。
+**不退回内存计数器** —— 那个数会随函数实例重置，贴在「这一叠不会变薄」下面
+就是 `docs/02` P21 那种读数为真、说的是错的那件事的仪表。
+
+**免费档够不够：** 一行是 60 字节（`docs/43 §2.1` 量过）。一百万次到访 = 59 MB，
+每次到访是 2 条命令（`INCR` + `LPUSH`），打开一次 `/lineage` 是 2 条（`LRANGE` + `LLEN`）。
+免费档的具体额度以开通那天面板上写的为准 —— 这里不抄一个会过期的数字，
+但要记住判据：**这份存档的瓶颈是命令数，不是字节数**，而且它一天的量级是三位数。
+
 ## 6. 上线检查单
 
 - [ ] `npm run check` 通过
@@ -135,6 +192,13 @@ packages/app/dist/          静态站点（vite build）
 - [ ] 慢回路默认关闭，或限流上限已硬编码
 - [ ] `assets/raw/` 没有被打进去
 - [ ] 隐私说明在页面上
+- [ ] 存档：要么存储已开通（`§5.1`）、`/api/visits` 返回 `{ok,total,entries}`，
+      要么它干净地 404 —— **不许是一个会重置的计数器**
+- [ ] **存储要和这一版一起上，不能晚。** `/about` 的隐私段从这一版起写着
+      「每一次到访只在服务端留下一行」（`docs/43 §6.2` 的裁定文案）。存储没开通时
+      那一行写不出去，于是那句话在线上是**不准的** —— 而它正是 `docs/26 §G`
+      那三处「诚实集中」之一，那三处必须逐字为真。开通是四条命令（`§5.1`），
+      别让它欠着过夜
 
 
 ## 7. 域名
