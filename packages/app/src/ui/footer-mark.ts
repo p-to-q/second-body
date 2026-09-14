@@ -4,9 +4,9 @@
  * distributed agency / NOTME）。它在站里有两个落点：
  *
  * 1. **页脚**：陈述、谱系、做的过程、护照、工作台目录、三个侧室的最底下（负责人：「有点像 AI 公司或产品公司在最下面放的一个 logo」）。
- * 2. **`/about` 的巨题**：替掉原来那两行文字的 `SEE-ME SEE-U`，下面「看我看你」保留，进场动效照旧（负责人 2026-09-14）。
+ * 2. ~~`/about` 的巨题~~：同日试过替掉那两行文字的 `SEE-ME SEE-U`，负责人看过之后**撤回**，巨题回到原来的字形与动效。
  *
- * 两处用的是**同一个节点工厂**（`diagramNode`），所以形状、着色、对齐的算法只有一份。
+ * 节点工厂（`diagramNode`）仍然单独导出：形状、着色、墨对齐的算法只有一份，下一个落点不用再抄。
  *
  * ## 为什么是蒙版，不是 `<img>`
  *
@@ -53,11 +53,9 @@ export function diagramNode(label: string | null = FOOTER_MARK_LABEL): HTMLEleme
 }
 
 /**
- * 在 `parent`（缺省 `document.body`）的末尾挂上页脚标记。
- *
- * **挂在 body 上，不挂在页面那一栏里**：负责人要它基本撑满整屏。各页的内容栏宽度、左右边距各不相同
- * （陈述页正文靠右、工作台目录满宽），挂进栏里就只能跟着那一栏的宽度走。body 上的最后一个元素
- * 永远在所有页面内容之后 —— 异步填进来的内容进的是各自的根节点，不会跑到它下面。
+ * 在 `parent` 的末尾挂上页脚标记。`parent` 传**页面那一栏的根**（不是 body）：
+ * 负责人要图里的墨和正文的字左对齐，只有挂在同一栏里左边才是同一条线（第二版挂 body，左边跟屏幕走，对不上）。
+ * 调用方在自己的内容都挂完之后再调；异步页面在数据回来之后调。
  *
  * **同一个 parent 只挂一次**：重复调用把已有的那一枚挪回最底下，不叠第二枚。返回挂好的那个元素。
  */
@@ -69,7 +67,9 @@ export function mountFooterMark(parent: Element = document.body): HTMLElement {
   }
   const footer = document.createElement('footer');
   footer.className = 'sb-footmark';
-  footer.append(diagramNode());
+  const mark = diagramNode();
+  mark.classList.add('sb-diagram--flush');
+  footer.append(mark);
   parent.append(footer);
   return footer;
 }

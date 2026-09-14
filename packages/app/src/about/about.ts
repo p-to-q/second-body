@@ -34,7 +34,7 @@ import '../ui/editorial.css';
 import './about.css';
 import { heroMeta } from '../ui/hero.ts';
 import { fromSearch } from '../ui/return-to.ts';
-import { diagramNode, mountFooterMark } from '../ui/footer-mark.ts';
+import { mountFooterMark } from '../ui/footer-mark.ts';
 import { findVisits } from '../archive/endpoint.ts';
 
 const REPO = 'https://github.com/p-to-q/see-me-see-u';
@@ -113,23 +113,10 @@ function num(n: number): HTMLSpanElement {
 function head(): HTMLElement {
 
 
-  const title = biEl('h1', COPY.title, 'sb-display ed-rise about-title');
-  // 巨题的承重行（作品名 SEE-ME SEE-U）换成负责人在海报上画的那张扩展示意图（2026-09-14）。
-  // 名字仍在 h1 里给读屏（视觉隐藏），图本身是装饰 —— 同一个名字不念两遍。
-  // 图里的墨和下面「看我看你」左对齐（`.sb-diagram--flush`），不是和图的留白对齐。
-  const zh = title.querySelector<HTMLElement>('.sb-zh');
-  if (zh) {
-    const name = zh.textContent ?? '';
-    zh.textContent = '';
-    const hidden = el('span', 'sb-visually-hidden');
-    hidden.textContent = name;
-    const mark = diagramNode(null);
-    mark.classList.add('sb-diagram--flush');
-    zh.append(hidden, mark);
-  }
+  const title = biEl('h1', COPY.title, 'sb-display ed-rise');
   // 中文和英文各自是一段揭示（--ed-i 是它们的先后）。分段而不是整块，
-  // 是因为整块淡入读作"网页加载完了"，分段才读作"有人在把它揭开"。换成图之后这一段动效原样作用在图上
-  zh?.setAttribute('style', '--ed-i:0');
+  // 是因为整块淡入读作"网页加载完了"，分段才读作"有人在把它揭开"
+  title.querySelector('.sb-zh')?.setAttribute('style', '--ed-i:0');
   title.querySelector('.sb-en')?.setAttribute('style', '--ed-i:1');
 
   return el('header', 'ed-hero',
@@ -501,5 +488,5 @@ export async function renderAbout(root: HTMLElement = document.body): Promise<vo
   page.append(howSection(index));
   if (index) page.append(speciesSection(index));
   page.append(privacySection(), creditsSection());
-  mountFooterMark();
+  mountFooterMark(page);
 }

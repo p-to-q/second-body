@@ -49,16 +49,21 @@ test('颜色跟着页面的墨走：蒙版 + 令牌，没有写死的颜色；�
   assert.match(css, /aspect-ratio/, '没有按 viewBox 的宽高比占位 —— 加载前后会跳');
 });
 
-test('/about 的巨题用同一张示意图替掉作品名：名字留给读屏、墨和「看我看你」左对齐、进场动效照旧', () => {
+test('页脚的图：墨和正文左对齐、挂在页面那一栏里（不是 body）', () => {
+  const css = read('../src/ui/footer-mark.css');
+  // 左移量和 viewBox 里墨的左留白是同一个数：(2.05 − 0.5) / 633.8；用 transform，百分比按图自己的宽算
+  assert.match(css, /\.sb-diagram--flush\s*\{\s*transform:\s*translateX\(calc\(-100%\s*\*\s*1\.55\s*\/\s*633\.8\)\)/, '左移量和 viewBox 的墨留白不一致，或者没按图自己的宽算');
+  assert.match(read('../src/ui/footer-mark.ts'), /classList\.add\('sb-diagram--flush'\)/, '页脚的图没有做墨的左对齐');
+  // 第二版挂 body，左边跟着屏幕走、对不上正文（负责人 2026-09-14）
+  const bodyMounts = PAGES.filter(([, file]) => /mountFooterMark\(\s*\)/.test(read(file))).map(([name]) => name);
+  assert.deepEqual(bodyMounts, [], `这些页把页脚挂在了 body 上，左边对不上正文：${bodyMounts.join('、')}`);
+});
+
+test('/about 巨题保持原样：原来的字形、原来的动效（负责人撤回了换成示意图的那一版）', () => {
   const about = read('../src/about/about.ts');
   const head = about.slice(about.indexOf('function head()'), about.indexOf('function statementSection'));
-  assert.match(head, /diagramNode\(null\)/, '巨题没有换成示意图（或者图没有标成装饰，读屏会把名字念两遍）');
-  assert.match(head, /sb-diagram--flush/, '图没有做墨的左对齐 —— 左边会比「看我看你」多出一截留白');
-  assert.match(head, /sb-visually-hidden/, '作品名从 h1 里消失了 —— 读屏和搜索读不到这一页叫什么');
-  assert.match(head, /ed-rise/, '巨题的进场动效没了');
-  const css = read('../src/ui/footer-mark.css');
-  // 左移量和 viewBox 里墨的左留白是同一个数：(2.05 − 0.5) / 633.8
-  assert.match(css, /\.sb-diagram--flush\s*\{\s*margin-left:\s*calc\(-100%\s*\*\s*1\.55\s*\/\s*633\.8\)/, '左移量和 viewBox 的墨留白不一致');
+  assert.doesNotMatch(head, /diagramNode/, '巨题又换成了示意图');
+  assert.match(head, /biEl\('h1', COPY\.title, 'sb-display ed-rise'\)/, '巨题不是原来的 sb-display + ed-rise');
 });
 
 test('标记对读屏说得出它是什么；重复挂载只挂一次', () => {

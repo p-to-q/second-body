@@ -195,7 +195,7 @@ export function renderMaking(root: Element): void {
   renderPrinciples(root);
   renderGaps(root);
   renderFooter(root);
-  mountFooterMark();
+  mountFooterMark(root);
 }
 
 const mount = document.querySelector('#mk');

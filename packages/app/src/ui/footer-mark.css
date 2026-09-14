@@ -28,31 +28,21 @@
   }
 }
 
-/* 图替掉文字时，名字仍留在文档里给读屏和搜索：视觉上隐藏，不是 display:none */
-.sb-visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-  border: 0;
-}
+/* 墨和文字左对齐：整体左移 viewBox 左留白对应的那一截。用 transform 不用 margin ——
+   transform 的百分比按**图自己的宽**算，margin 的百分比按父级宽算；图被 max-width 收窄时后者会多挪一截 */
+.sb-diagram--flush { transform: translateX(calc(-100% * 1.55 / 633.8)); }
 
-/* 墨和文字左对齐：宽度不变，整体左移 viewBox 左留白对应的那一截（(2.05 − 0.5) / 633.8 × 自身宽） */
-.sb-diagram--flush { margin-left: calc(-100% * 1.55 / 633.8); }
-
-/* 作品负责人 2026-09-14 看过线上第一版：**再大、基本撑满；离底更近、离上面的字更远**。
-   所以页脚这一枚挂在 body 上（不在页面那一栏里），左右只留安全区的一半，和读数、目录同一条边；
-   上面空出八倍栏距（≈ 一屏的四分之一），下面只留安全区的一半。 */
+/* 页脚这一枚的位置。负责人三轮：
+   1. 第一版（栏宽、上限 72rem、上三倍栏距）：「再大、基本撑满；离底更近、离上面的字更远」；
+   2. 第二版（挂 body、满屏、上八倍栏距）：「太大、稍微小一点；没和文字的实体左对齐；离文字近一点」；
+   3. 现在：回到**页面那一栏里**（左边和正文同一条线，墨用 --flush 对齐）、吃满那一栏不设上限，
+      上五倍栏距、下半个安全区。 */
 .sb-footmark {
   display: block;
   box-sizing: border-box;
   width: 100%;
-  margin: calc(var(--sb-gutter) * 8) 0 0;
-  padding: 0 calc(var(--sb-safe) * 0.5) calc(var(--sb-safe) * 0.5);
+  margin: calc(var(--sb-gutter) * 5) 0 0;
+  padding: 0 0 calc(var(--sb-safe) * 0.5);
   color: var(--sb-ink);
 }
 

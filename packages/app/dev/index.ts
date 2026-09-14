@@ -151,4 +151,4 @@ foot.textContent =
   '排版系统 packages/app/src/ui/type.css · 场景规格 docs/23-SPEC-ui.md · ' +
   '「什么真的跑通了」以 docs/10-SURFACES.md 为准';
 page.appendChild(foot);
-mountFooterMark();
+mountFooterMark(page);

@@ -108,8 +108,8 @@ export function mountRoom(options: RoomOptions): Room {
 
   page.append(head, body);
   mount.append(page);
-  // 页脚标记挂在 document.body 的最后：房间的内容全部进 `body` 那一格，异步填进来也不会跑到标记下面
-  mountFooterMark();
+  // 页脚标记挂在这一栏（page）的最后：房间的内容全部进 `body` 那一格，异步填进来也不会跑到标记下面
+  mountFooterMark(page);
 
   const setStateImpl = (text: BiText | null): void => {
     if (!text) { stateEl.textContent = ''; stateEl.hidden = true; return; }
