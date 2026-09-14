@@ -40,6 +40,7 @@ import { chooseTheme, themeFromUrl } from './choose/choose.ts';
 import { createFrameLoop } from './shell/safe-frame.ts';
 import { wireDegrade } from './shell/degrade-wire.ts';
 import { degradeTo, deviceLostAction, getDegradeState } from './shell/degrade.ts';
+import { watchStall } from './shell/stall.ts';
 import { createDeferral, createGovernor, GOVERNOR_LADDER } from './shell/governor.ts';
 import { wireGovernor } from './shell/governor-wire.ts';
 import { createWarmPlan } from './stage/warm-plan.ts';
@@ -687,7 +688,11 @@ async function boot(): Promise<void> {
   if (flags.debug) (globalThis as Record<string, unknown>).__governorProbe = { apply: (l: number) => applyGovernor(l) };
 
   // ── 6. 一帧（docs/06 §1） ────────────────────────────────────────────────
+  // 停摆看门狗（`shell/stall.ts`，docs/48 §10.6）：定时器看门，不靠 rAF —— 帧停了它还在。
+  // 停摆走有次数上限的重载；根因没追到，这是兜底，不是修复
+  const stall = watchStall((sinceMs) => degradeTo('reload', `frame loop stalled ${Math.round(sinceMs)}ms`));
   const loop = createFrameLoop((dt, tMs) => {
+    stall.frame(performance.now());
     elapsedT += dt;
 
     // ── 调速器：这一帧的真实间隔 + 长任务 → 该放下第几级（docs/48 §4）──────────
