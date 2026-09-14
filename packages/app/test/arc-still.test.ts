@@ -31,6 +31,18 @@ const POSE: Record<string, Vec3> = {
 const STILL: Skeleton = buildSkeleton(POSE, [], 0);
 
 /**
+ * 同一个人，站偏 0.3m、右手举过头顶，然后一动不动。
+ * 上面那副是左右对称的，而对称姿态在"朝向"那一路上是恒等的 ——
+ * 拿它测，朝向就算在没人出力的时候自己转过去，也量不出来。
+ */
+const STILL_ASYM: Skeleton = (() => {
+  const p: Record<string, Vec3> = {};
+  for (const k in POSE) p[k] = [POSE[k][0] + 0.3, POSE[k][1], POSE[k][2]];
+  p.elbowR = [0, 1.62, 0.02]; p.wristR = [-0.04, 1.88, 0.04]; p.handTipR = [-0.05, 1.97, 0.05];
+  return buildSkeleton(p, [], 0);
+})();
+
+/**
  * 观众一动不动地站 `seconds` 秒，量这具身体**自己**动了多少（米）。
  *
  * 头 `settle` 秒不算：`resist` 的临界阻尼和 `echo` 的缓冲各有一段建立期，
@@ -49,8 +61,10 @@ function selfMotion(play: (w: World, dt: number) => void, w: World & { posed: Sk
   let segStart = 0;
   let worst = 0;
   for (let i = 0; i < Math.round(seconds / dt); i++) {
-    play(w, dt);
     const t = i * dt;
+    // 会话时钟照走 —— 延迟那一路给缓冲打的就是这个时间戳
+    (w as { t: number }).t = t;
+    play(w, dt);
     const now = segment();
     if (now !== seg) { seg = now; segStart = t; ref = null; continue; }
     if (!w.posed || t - segStart < settle) continue;
@@ -66,12 +80,12 @@ function selfMotion(play: (w: World, dt: number) => void, w: World & { posed: Sk
 
 type StillWorld = World & { posed: Skeleton | null; arc: ArcState };
 
-function stillWorld(arc: ArcState): StillWorld {
+function stillWorld(arc: ArcState, skeleton: Skeleton = STILL): StillWorld {
   const w = {
     t: 0,
     presence: { state: 'ALIVE' as const, elapsed: 60, transition: 1 },
     arc,
-    skeleton: STILL,
+    skeleton,
     // 站着不动的人：速度、能量、jerk 全是 0，stillness 是 1
     features: {
       speed: 0, energy: 0, expansiveness: 0.5, verticality: 0.2,
@@ -93,33 +107,41 @@ function stillWorld(arc: ArcState): StillWorld {
 const STILL_ENOUGH = 1e-3;
 
 for (const id of ARC_ACTS) {
-  test(`永不脱钩：第 ${ARC_ACTS.indexOf(id) + 1} 乐章「${id}」—— 人不动，它就不动`, (t) => {
-    const act = ACTS.find((a) => a.id === id) as Act;
-    const w = stillWorld(createArc().state);
-    act.enter?.(w);
-    const moved = selfMotion((world, dt) => act.update(world, dt), w);
-    t.diagnostic(`${id}: 静止 20 秒，自动 ${(moved * 1000).toFixed(4)}mm`);
-    assert.ok(moved < STILL_ENOUGH,
-      `${id} 在观众静止时自己动了 ${(moved * 1000).toFixed(1)}mm —— ` +
-      '那一刻它不再需要他（docs/40 §1「永远不脱钩」）');
-    assert.ok(w.posed !== null, `${id} 一帧都没有 pose 过 —— 这个夹具没跑起来`);
-  });
+  for (const [name, pose] of [['对称', STILL], ['举手偏站', STILL_ASYM]] as const) {
+    test(`永不脱钩：钉在第 ${ARC_ACTS.indexOf(id) + 1} 个地名「${id}」（${name}）—— 人不动，它就不动`, (t) => {
+      const act = ACTS.find((a) => a.id === id) as Act;
+      const w = stillWorld(createArc().state, pose);
+      act.enter?.(w);
+      // 按住 = `?act=` 那条路：钉在它自己那一点上，而不是跟着弧线（此刻在 0）
+      const moved = selfMotion((world, dt) => act.update(world, dt, { pinned: true }), w);
+      t.diagnostic(`${id}/${name}: 静止 20 秒，自动 ${(moved * 1000).toFixed(4)}mm`);
+      assert.ok(moved < STILL_ENOUGH,
+        `${id} 在观众静止时自己动了 ${(moved * 1000).toFixed(1)}mm —— ` +
+        '那一刻它不再需要他（docs/40 §1「永远不脱钩」）');
+      assert.ok(w.posed !== null, `${id} 一帧都没有 pose 过 —— 这个夹具没跑起来`);
+    });
+  }
 }
 
-test('永不脱钩：整条弧线走一遍，四段没有一段自己动起来', (t) => {
-  const arc = createArc();
-  const director = createDirector(ACTS);
-  const w = stillWorld(arc.state);
-  const seen = new Set<string>();
-  const moved = selfMotion((world, dt) => {
-    (world as StillWorld).arc = arc.update(true, dt);
-    director.update(world, dt);
-    seen.add(director.currentId!);
-  }, w, 200, 5, () => director.currentId ?? '');
-  t.diagnostic(`整条弧线 200 秒，段内自动 ${(moved * 1000).toFixed(4)}mm`);
-  assert.deepEqual([...seen].sort(), [...ARC_ACTS].sort(), '四段都要真的上过台');
-  assert.ok(moved < STILL_ENOUGH, `整条弧线上它自己动了 ${(moved * 1000).toFixed(1)}mm`);
-});
+for (const [name, pose] of [['对称', STILL], ['举手偏站', STILL_ASYM]] as const) {
+  test(`永不脱钩：整条弧线走一遍（${name}），**跨过旧界也**不自己动`, (t) => {
+    // 这里原来按 `director.currentId` 分段、每换一段重取基准 ——
+    // 「乐章交接那一下位移不算脱钩」。docs/44 §6 之后没有交接了，这个豁免也删掉：
+    // 整整 200 秒一个基准，名字换了四次，身体一毫米都不许动。
+    const arc = createArc();
+    const director = createDirector(ACTS);
+    const w = stillWorld(arc.state, pose);
+    const seen = new Set<string>();
+    const moved = selfMotion((world, dt) => {
+      (world as StillWorld).arc = arc.update(true, dt);
+      director.update(world, dt);
+      seen.add(director.currentId!);
+    }, w, 200, 5);
+    t.diagnostic(`整条弧线 200 秒（${name}），自动 ${(moved * 1000).toFixed(4)}mm`);
+    assert.deepEqual([...seen].sort(), [...ARC_ACTS].sort(), '四个名字都要真的上过台');
+    assert.ok(moved < STILL_ENOUGH, `整条弧线上它自己动了 ${(moved * 1000).toFixed(1)}mm`);
+  });
+}
 
 test('对照组：`untether` 在同一套夹具下**必须**动 —— 否则上面那些断言什么都没测', (t) => {
   // 它是唯一一个脱钩的玩法，而它只由观众自己按下去（docs/40 §1 末尾、docs/16 §7）。

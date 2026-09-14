@@ -7,7 +7,8 @@
 import type {
   EvolutionState, Genome, MotionFeatures, Presence, Rng, Skeleton, Tier,
 } from '../../../core/src/types.ts';
-import type { ArcState } from '../../../core/src/arc.ts';
+import type { ArcState, MovementIndex } from '../../../core/src/arc.ts';
+import { createLineSampler, lineAt, pointOf } from '../../../core/src/line.ts';
 import type { Capture } from '../capture/capture.ts';
 import type { PartLibrary } from '../assets/library.ts';
 import type { BodyInstance } from '../creature/body.ts';
@@ -42,6 +43,15 @@ export interface World {
   note(s: string): void;
 }
 
+/** 导演递给玩法的那一点上下文 */
+export interface ActContext {
+  /**
+   * 被 `force()` 按住了（`?act=` / 控件条 / 「把身体还回去」）。
+   * 一条线上的玩法据此决定采样点：按住 = 钉在自己的地名上，否则跟着 `arc.overall` 走。
+   */
+  pinned: boolean;
+}
+
 export interface Act {
   id: string;
   label: string;
@@ -52,8 +62,37 @@ export interface Act {
   minSeconds?: number;
   maxSeconds?: number;
   enter?(w: World): void;
-  update(w: World, dt: number): void;
+  update(w: World, dt: number, ctx?: ActContext): void;
   exit?(w: World): void;
+}
+
+// ── 一条线（docs/44 §6：四个乐章留名字，删边界）──────────────────────────────
+//
+// follow / echo / resist / facing 不再是四套逻辑，是同一个采样器在四个点上的名字。
+// 采样器**只有一个**、状态跨四个名字共享：弧线在 40 秒把名字从 follow 换成 echo 时，
+// 缓冲、追踪、朝向一样都不重置 —— 名字换了，线没有断。
+const line = createLineSampler();
+let lastPin: MovementIndex | null = null;
+let lastOverall = 0;
+
+/**
+ * 在这条线上演一帧。`movement` 是调用它的那个玩法自己的地名：
+ * 被按住时就钉在那一点，否则跟着 `w.arc.overall` 走（那时 `movement` 只是个名字）。
+ */
+export function playLine(w: World, dt: number, movement: MovementIndex, ctx?: ActContext): void {
+  const sk = w.skeleton;
+  if (!sk) return;
+  const pin = ctx?.pinned ? movement : null;
+  const live = w.arc && Number.isFinite(w.arc.overall) ? w.arc.overall : pointOf(movement);
+  const overall = pin === null ? live : pointOf(movement);
+  // 换钉点、或者弧线往回走了（归零 = 换了一个人）：朝向直接到位，不慢慢追
+  const snap = pin !== lastPin || overall < lastOverall - 1e-3;
+  lastPin = pin;
+  lastOverall = overall;
+  const target = lineAt(overall);
+  const posed = line.apply({ skeleton: sk, t: w.t, dt, speed: w.features?.speed ?? 0, target, snap });
+  w.creature.pose(posed, w.presence, dt);
+  w.note(`线 延迟 ${target.delay.toFixed(2)}s · 重量 ${target.weight.toFixed(2)} · 朝向 ${line.facing.toFixed(2)}`);
 }
 
 /** 连续出错这么多次，这个 Act 就被永久禁用 —— 一个坏玩法不该带走整件作品 */
@@ -136,11 +175,11 @@ export function createDirector(acts: readonly Act[], fallbackId = 'follow'): Dir
       }
       if (!current && fallback && !disabled.has(fallback.id)) switchTo(fallback, w);
 
-      if (current) guard(current, 'update', () => current!.update(w, dt));
+      if (current) guard(current, 'update', () => current!.update(w, dt, { pinned: forced }));
       for (const a of ambient) {
         if (disabled.has(a.id)) continue;
         if (a.canEnter && guard(a, 'canEnter', () => a.canEnter!(w)) !== true) continue;
-        guard(a, 'update', () => a.update(w, dt));
+        guard(a, 'update', () => a.update(w, dt, { pinned: false }));
       }
     },
     get currentId() { return current?.id ?? null; },

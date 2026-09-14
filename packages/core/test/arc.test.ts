@@ -123,13 +123,9 @@ test('arc: 归零不许放升档音 —— 那一帧没有人站在那里', () =
   assert.equal(changes, 0, '从第 III 乐章掉回第 I 乐章不是一次"交接"');
 });
 
-test('arc: 交接是交叉淡入不是硬切，但第 I 乐章没有上一段可以淡', () => {
-  const arc = createArc();
-  assert.equal(arc.state.blend, 1, '开场凭空多一次淡入是错的');
-  run(arc, 41);
-  assert.ok(arc.state.blend > 0 && arc.state.blend < 1, `刚换段应当还在淡入，实得 ${arc.state.blend}`);
-  run(arc, ARC.crossfade);
-  assert.equal(arc.state.blend, 1);
+test('arc: 交叉淡入这个概念已经删掉 —— 没有边界需要被淡化（docs/44 §6）', () => {
+  assert.equal('crossfade' in ARC, false, 'ARC.crossfade 回来了：四个乐章又有了边界');
+  assert.equal('blend' in createArc().state, false, 'ArcState.blend 回来了');
 });
 
 test('arc: 段内进度与到下一段的时间是 HUD 那一行的两个数', () => {

@@ -1,41 +1,21 @@
 /**
- * 面对面：身体不再是你的镜像，而是**一个面对着你的人**。
+ * 第 IV 乐章的名字：面对面。身体不再是你的镜像，而是**一个面对着你的人**。
  *
  * 整个作品的默认设定是镜子（docs/04 §1：镜像只在 mediapipeToWorld 里发生一次）。
- * 这个玩法把 X 再取一次负 —— 镜像被抵消，于是你抬右手，它抬的是**你对面那个人**
- * 会抬的手。观众几乎立刻会察觉不对，但往往说不出哪里不对，然后才反应过来：
- * 它不再是我，它在看着我。
+ * 到这一点，镜像被抵消 —— 你抬右手，它抬的是**你对面那个人**会抬的手。
  *
- * 这是这件作品里最便宜也最狠的一个转折：一行取负。
+ * docs/44 §6 之后它是那条线（`acts/act.ts` 的 `playLine`）在第 IV 个地名上的样子：
+ * 朝向 = `LINE.facing[3]` = 1。朝向是一路**转移**过去的（哪根肢体答哪根），
+ * 不是一次 X 取负；而且只在观众动的时候才往前走 —— 站着别动，它也不转
+ *（为什么这样做，见 `core/src/line.ts` 的 `faceSk` 与 `LINE.facingChase`）。
  */
-import type { Bone, Skeleton, Vec3 } from '../../../core/src/types.ts';
 import type { Act } from './act.ts';
-
-const flipX = (p: Vec3): Vec3 => [-p[0], p[1], p[2]];
-
-/** 不改输入 —— World.skeleton 是共享的，就地改会污染别的消费者 */
-function unmirror(sk: Skeleton): Skeleton {
-  const joints: Record<string, Vec3> = {};
-  for (const k in sk.joints) joints[k] = flipX(sk.joints[k]);
-  const bones: Bone[] = sk.bones.map((b) => ({ ...b, p0: flipX(b.p0), p1: flipX(b.p1) }));
-  return { ...sk, joints, bones };
-}
+import { playLine } from './act.ts';
 
 export const facing: Act = {
   id: 'facing',
   label: '面对面（镜像被抵消）',
   kind: 'body',
   weight: 1,
-  minSeconds: 18,
-  maxSeconds: 40,
-
-  // 要等观众先建立"这是我的镜子"这个预期，破坏才有意义。
-  // 太早出现只会被当成坐标写反了。
-  canEnter: (w) => w.evolution.tier >= 1 && w.presence.state === 'ALIVE' && w.presence.elapsed > 18,
-
-  update(w, dt) {
-    if (!w.skeleton) return;
-    w.creature.pose(unmirror(w.skeleton), w.presence, dt);
-    w.note('面对面：它不再是你的镜像');
-  },
+  update(w, dt, ctx) { playLine(w, dt, 3, ctx); },
 };
