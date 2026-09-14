@@ -24,6 +24,14 @@ import { dirname, resolve } from 'node:path';
 const SRC = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'src');
 const PAGES = ['about/about.ts', 'making/making.ts', 'passport/passport.ts', 'lineage/lineage.ts'];
 
+/**
+ * 侧室（docs/23 §S9）。它们**不在目录里**，所以进来的人屏幕上一条出去的路都没有 ——
+ * 横带因此不是可选的，它是这几页唯一的出口。
+ * 断言的形状和上面四页一样：**不许自己建**。只不过它们经手的是
+ * `rooms/room.ts` 的 `mountRoom()`，而那一个才去调 `heroMeta()`。
+ */
+const ROOMS = ['rooms/parts.ts', 'rooms/roster.ts', 'rooms/marks.ts'];
+
 test('四个文档页的页头横带都来自 heroMeta()，没有一页自己建', () => {
   for (const page of PAGES) {
     const src = readFileSync(resolve(SRC, page), 'utf8');
@@ -45,6 +53,32 @@ test('四个文档页的页头横带都来自 heroMeta()，没有一页自己建
       `${page} 在自己建「回到作品」。它跟着横带一起住在 ui/hero.ts`,
     );
   }
+});
+
+test('四个侧室的横带都来自 mountRoom()，而只有 mountRoom 去调 heroMeta()', () => {
+  for (const room of ROOMS) {
+    const src = readFileSync(resolve(SRC, room), 'utf8');
+    assert.match(
+      src,
+      /mountRoom\(/,
+      `${room} 没有调用 mountRoom()。侧室不在目录里（docs/23 §S9），` +
+        '横带是它唯一的出口 —— 没有它，从 /about 正文里点进来的人只剩后退键',
+    );
+    assert.doesNotMatch(
+      src,
+      /heroMeta\(|'ed-hero__meta'|"ed-hero__meta"|'ed-hero__back'|"ed-hero__back"/,
+      `${room} 在自己建横带。建它的地方只能是 rooms/room.ts —— ` +
+        '四个文档页正是因为各建一份而跑偏过三次',
+    );
+  }
+
+  const src = readFileSync(resolve(SRC, 'rooms/room.ts'), 'utf8');
+  assert.match(
+    src,
+    /heroMeta\('\/about'\)/,
+    'rooms/room.ts 的「回到作品」必须指向 /about：门开在那一页的正文里，' +
+      '把人送回首页等于把他送到一个他没去过的地方',
+  );
 });
 
 test('heroMeta() 里只有「回到作品」和字标，中间什么都没有', () => {

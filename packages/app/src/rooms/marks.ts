@@ -34,8 +34,18 @@ import { mountRoom } from './room.ts';
 
 const SVG = 'http://www.w3.org/2000/svg';
 
-/** 记号的画幅。`ui/marks.ts` 的坐标以中心为原点、尺度按散点图上 ~10px 那一档定 */
+/**
+ * 记号的画幅。`ui/marks.ts` 的坐标以中心为原点、尺度按散点图上 ~10px 那一档定，
+ * 所以 viewBox 是 22 见方。
+ *
+ * **屏幕上放到 44。** 散点图上它是一个数据点，图例上它是一枚小样；
+ * 这一页上它是**标本本身** —— 这九笔就是这个房间的全部内容，
+ * 按数据点那一档印出来，观众得凑到屏幕前才分得清放射和点场。
+ * 放大的是画幅不是笔：`stroke-width` 跟着 viewBox 一起缩放，
+ * 所以线条的相对粗细和散点图上逐字相同，这一页不是另一套记号。
+ */
 const BOX = 22;
+const SHOWN = 44;
 
 /**
  * 一枚独立的记号。
@@ -46,8 +56,8 @@ const BOX = 22;
 function markNode(kind: string): SVGSVGElement {
   const root = document.createElementNS(SVG, 'svg');
   root.setAttribute('class', 'sb-plan-mark');
-  root.setAttribute('width', String(BOX));
-  root.setAttribute('height', String(BOX));
+  root.setAttribute('width', String(SHOWN));
+  root.setAttribute('height', String(SHOWN));
   root.setAttribute('viewBox', `${-BOX / 2} ${-BOX / 2} ${BOX} ${BOX}`);
   root.setAttribute('aria-hidden', 'true');
   for (const part of markShape(kind)) root.append(partNode(part));

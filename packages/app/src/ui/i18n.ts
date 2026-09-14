@@ -760,19 +760,6 @@ export const COPY = {
       usedByNone: bi('还没有物种走这个方案', 'No species is on this plan yet'),
     },
 
-    lag: {
-      title: bi('慢半拍', 'Half a Beat Behind'),
-      lede: bi(
-        '同一段动作，左边关、右边开。刚体做不出"弯"，但一串各自延迟不同的刚体看起来就是在弯。',
-        'The same movement, off on the left and on on the right. Rigid parts cannot bend — but a '
-        + 'chain of rigid parts, each lagging a little more than the last, looks exactly like bending.',
-      ),
-      off: bi('关：目标姿态本身', 'Off: the target pose itself'),
-      on: bi('开：末端比根部慢半拍', 'On: the ends trail the root'),
-      trail: bi('淡色是前 12 帧的残影 —— 延迟的形状要看得见，才算看得见。',
-                'The pale lines are the previous 12 frames. A lag you cannot see is a lag you cannot judge.'),
-    },
-
     /** 读不到 `parts.json` 时这几个房间说的话。白屏不是一种状态（docs/02 §craft） */
     empty: bi(
       '这个房间要等资产流水线跑过一次才有东西可看。应用本身没有部件库照样运行 —— 它会用程序化占位几何。',
@@ -789,7 +776,6 @@ export const COPY = {
       parts: bi('侧室 · 部件档案', 'Side room · Parts Archive'),
       roster: bi('侧室 · 物种接触表', 'Side room · Contact Sheet'),
       marks: bi('侧室 · 九枚记号', 'Side room · Nine Marks'),
-      lag: bi('侧室 · 慢半拍', 'Side room · Half a Beat Behind'),
       /** 逐个物种的那一扇：通向它在部件档案里的那一格 */
       partsOfSpecies: bi('侧室 · 部件档案里的这一个物种', 'Side room · this species in the Parts Archive'),
     },

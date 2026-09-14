@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>生命力 A/B · SEE-ME SEE-U</title>
+<link rel="stylesheet" href="../src/ui/type.css">
+<style>
+  body { padding: var(--sb-safe); }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sb-gutter); margin-top: 1.5em; }
+  figure { margin: 0; }
+  figcaption { margin-top: 0.6em; color: var(--sb-ink-dim); }
+  canvas { width: 100%; background: #0a0b0d; border: 1px solid var(--sb-rule); display: block; }
+  #num { margin-top: 1.5em; border-top: 1px solid var(--sb-rule); }
+  #num div { padding: 0.4em 0; border-bottom: 1px solid var(--sb-rule); font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<main>
+  <p class="sb-label">DEV · 生命力 A/B</p>
+  <h1>末端比根部慢半拍</h1>
+  <p style="max-width:var(--sb-measure)">
+    同一段动作，左边关、右边开。刚体挂载做不出"弯"，但一串各自延迟不同的刚体看起来就是在弯 ——
+    这是参照作品那句 <em>wiggles, shifts, and bends</em> 里，不做蒙皮唯一能拿到的部分。
+    淡色是前 12 帧的残影，用来看出延迟的形状。
+  </p>
+  <div class="row">
+    <figure><canvas id="off" width="620" height="560"></canvas><figcaption>vitality = 0（现在的样子）</figcaption></figure>
+    <figure><canvas id="on" width="620" height="560"></canvas><figcaption>vitality = 1</figcaption></figure>
+  </div>
+  <div id="num"></div>
+</main>
+<script type="module" src="./vitality.ts"></script>
+</body>
+</html>
