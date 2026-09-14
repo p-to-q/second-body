@@ -94,6 +94,7 @@ await sleep(mode === 'infer' ? 8000 : 4000);   // worker 预热 / 伴随身体�
 await evalJs('window.__frames.length = 0');
 
 const samples: { t: number; infer: number | null; hz: number | null; draws: number | null; tris: number | null; inst: number | null; people: string[] }[] = [];
+const snapshots: { at: string; people: unknown }[] = [];
 for (let s = 0; s < recS; s++) {
   await sleep(1000);
   const h: string | null = await evalJs(hudText);
@@ -108,7 +109,15 @@ for (let s = 0; s < recS; s++) {
     inst: num(/instances\s+([\d.]+)/),
     people: h.split('\n').filter((l) => /^people|^\s+#\d/.test(l)),
   });
-  if (s === Math.floor(recS / 2)) await shot(`${mode}-${n}${mode === 'infer' ? '-' + y4m.split('/').pop()!.replace('.y4m', '') : ''}${tag}-mid`);
+  if (s === Math.floor(recS / 2)) {
+    const name = `${mode}-${n}${mode === 'infer' ? '-' + y4m.split('/').pop()!.replace('.y4m', '') : ''}${tag}`;
+    // 截图和 `window.__people`（main.ts 在 `?debug=1` 下写的那一帧的骨架与站位）在同一刻取，再隔 0.5 秒各取一次
+    snapshots.push({ at: 'mid', people: await evalJs('JSON.parse(JSON.stringify(globalThis.__people ?? null))') });
+    await shot(`${name}-mid`);
+    await sleep(500);
+    snapshots.push({ at: 'mid+0.5s', people: await evalJs('JSON.parse(JSON.stringify(globalThis.__people ?? null))') });
+    await shot(`${name}-mid2`);
+  }
 }
 const frames: number[] = await evalJs('window.__frames.slice()');
 const sorted = [...frames].sort((a, b) => a - b);
@@ -121,7 +130,7 @@ const summary = {
   draws: Math.max(...samples.map((s) => s.draws ?? 0)), trisK: Math.max(...samples.map((s) => s.tris ?? 0)), instances: Math.max(...samples.map((s) => s.inst ?? 0)),
   lastPeople: samples.at(-1)?.people ?? [],
 };
-writeFileSync(`${out}/${mode}-${n}${mode === 'infer' ? '-' + y4m.split('/').pop()!.replace('.y4m', '') : ''}${tag}.json`, JSON.stringify({ summary, samples, console: consoleLog.slice(-80) }, null, 2));
+writeFileSync(`${out}/${mode}-${n}${mode === 'infer' ? '-' + y4m.split('/').pop()!.replace('.y4m', '') : ''}${tag}.json`, JSON.stringify({ summary, snapshots, samples, console: consoleLog.slice(-80) }, null, 2));
 console.log(JSON.stringify(summary));
 kill();
 process.exit(0);

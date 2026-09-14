@@ -1080,6 +1080,24 @@ async function boot(): Promise<void> {
     if (!uiShed) readout?.update(live, lastFeatures, capture.fps, dt);
 
     if (hud) {
+      // 多人取证（docs/50 §10）：这一帧**真的交给身体的**骨架和站位。只在 `?debug=1` 下写，
+      // 无头 Chrome 截图的同一刻用 CDP 读它 —— 画面上看到的形状和骨架的数对不对得上，一眼就分得清是"人那一半"还是"画那一半"
+      if (people) {
+        const brief = (sk: Skeleton | null) => sk ? {
+          height: +sk.height.toFixed(3),
+          pelvis: sk.joints.pelvis?.map((v) => +v.toFixed(3)),
+          head: sk.joints.headCenter?.map((v) => +v.toFixed(3)),
+        } : null;
+        (globalThis as { __people?: unknown }).__people = {
+          primary: crowd?.primary ?? null,
+          primaryX: crowdOut?.primaryX ?? 0,
+          primarySkeleton: brief(lastSkeleton),
+          companions: (crowdOut?.companions ?? []).map((c) => ({
+            dx: +c.dx.toFixed(3), dz: c.dz, scale: c.scale, presence: c.presence.state, ...brief(c.skeleton),
+          })),
+          tracks: (crowd?.tracks ?? []).map((t) => ({ id: t.id, cx: +t.cx.toFixed(3), scale: +t.scale.toFixed(3), missing: +t.missing.toFixed(2), selected: t.selected, primary: t.primary })),
+        };
+      }
       const s = body.stats;
       hud.update(loop.stats, {
         instances: (s as { instances?: number }).instances ?? 0, triangles: s.triangles,
