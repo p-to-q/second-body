@@ -344,6 +344,62 @@ const ADOPTED = [
   // heel-spring（girth 0.401）当关节会被放大 2.5 倍，18 个关节全变成大平板（截过图）。
   // hip-roll 的壳 0.929 ≈ 槽位中位数 0.993，是这台机器上唯一接近各向同性的件。
   { id: 'joint.digitigrade.real',    slot: 'joint',    family: 'digitigrade', origin: 'cassie', asset: 'hip-roll.obj',   why: '关节。髋 roll 壳，girth 0.929 ≈ joint 中位数 0.993' },
+
+  // ── athlete = Atlas（DRC / v5 描述模型）──────────────────────────────────
+  // 2026-09-14 取件。girth 是规范化之后当场量的，中位数取当时 parts.json 的值。
+  // 版权人是 MIT CSAIL 不是 Boston Dynamics；液压那一代不是电动版 —— 写在 ORIGINS.caveat 与 machine.note。
+  { id: 'spine.athlete.atlas',    slot: 'spine',    family: 'athlete', origin: 'atlas', asset: 'utorso.gltf', why: '上躯干。Atlas 那副背着液压泵的宽胸 —— 剪影里最先被认出来的一块；girth 0.726 ≈ spine 中位数 0.842 的 0.86×' },
+  { id: 'head.athlete.atlas',     slot: 'head',     family: 'athlete', origin: 'atlas', asset: 'head.gltf',   why: '头。MultiSense 传感器头，没有脸；girth 0.751 ≈ head 中位数的 0.80×' },
+  { id: 'clavicle.athlete.atlas', slot: 'clavicle', family: 'athlete', origin: 'atlas', asset: 'r_clav.gltf', why: '锁骨连杆。真机就叫 clav' },
+  { id: 'upperArm.athlete.atlas', slot: 'upperArm', family: 'athlete', origin: 'atlas', asset: 'r_uarm.gltf', why: '上臂' },
+  { id: 'foreArm.athlete.atlas',  slot: 'foreArm',  family: 'athlete', origin: 'atlas', asset: 'r_farm.gltf', why: '前臂' },
+  { id: 'hand.athlete.atlas',     slot: 'hand',     family: 'athlete', origin: 'atlas', asset: 'r_hand.gltf', why: '手（腕法兰端）；girth 0.658 ≈ hand 中位数的 1.05×' },
+  { id: 'thigh.athlete.atlas',    slot: 'thigh',    family: 'athlete', origin: 'atlas', asset: 'r_uleg.gltf', why: '大腿' },
+  { id: 'shin.athlete.atlas',     slot: 'shin',     family: 'athlete', origin: 'atlas', asset: 'r_lleg.gltf', why: '小腿' },
+  { id: 'foot.athlete.atlas',     slot: 'foot',     family: 'athlete', origin: 'atlas', asset: 'r_foot.gltf', why: '脚' },
+  { id: 'joint.athlete.atlas',    slot: 'joint',    family: 'athlete', origin: 'atlas', asset: 'r_talus.gltf', why: '关节。踝的万向节块 —— 它本来就是一个关节；girth 1.000 ≈ joint 中位数的 1.01×' },
+
+  // ── wheelleg = LimX WL_P311D（代 W1）──────────────────────────────────────
+  // 只有五种网格（机身 / 髋 / 大腿 / 小腿 / 轮），十个槽位在同一台机器上挑，不去别的机器借（docs/26 §H）。
+  // 前后腿用不同文件（LF / LH），和 Spot 那次一样。
+  { id: 'spine.wheelleg.limx',    slot: 'spine',    family: 'wheelleg', origin: 'wl_p311d', asset: 'base_link.STL', why: '机身。girth 0.588 ≈ spine 中位数的 0.70×，贴着 §H 带的下沿 —— 选它而不是髋座，是因为这台机器的剪影就是一块扁机身挂四条轮腿' },
+  { id: 'head.wheelleg.limx',     slot: 'head',     family: 'wheelleg', origin: 'wl_p311d', asset: 'LF_hip.STL',    why: '头（代）。这台机器没有头，用前左髋 HAA 执行器座当 sensor pod；girth 0.848 ≈ head 中位数的 0.90×' },
+  { id: 'clavicle.wheelleg.limx', slot: 'clavicle', family: 'wheelleg', origin: 'wl_p311d', asset: 'RF_hip.STL',    why: '肩座。前右髋座 —— 腿从机身伸出去的那一节' },
+  { id: 'upperArm.wheelleg.limx', slot: 'upperArm', family: 'wheelleg', origin: 'wl_p311d', asset: 'LF_thigh.STL',  why: '前腿大腿' },
+  { id: 'foreArm.wheelleg.limx',  slot: 'foreArm',  family: 'wheelleg', origin: 'wl_p311d', asset: 'LF_calf.STL',   why: '前腿小腿' },
+  { id: 'hand.wheelleg.limx',     slot: 'hand',     family: 'wheelleg', origin: 'wl_p311d', asset: 'LF_wheel.STL',  why: '前轮。四足里前腿的末端就是手 —— 这台机器的手是轮子。girth 0.999 超出 hand 带（≈1.6×），只给自己用、不外借' },
+  { id: 'thigh.wheelleg.limx',    slot: 'thigh',    family: 'wheelleg', origin: 'wl_p311d', asset: 'LH_thigh.STL',  why: '后腿大腿' },
+  { id: 'shin.wheelleg.limx',     slot: 'shin',     family: 'wheelleg', origin: 'wl_p311d', asset: 'LH_calf.STL',   why: '后腿小腿' },
+  { id: 'foot.wheelleg.limx',     slot: 'foot',     family: 'wheelleg', origin: 'wl_p311d', asset: 'LH_wheel.STL',  why: '后轮。**这一格就是 docs/42 说这条线上真正缺的那个轮子**' },
+  { id: 'joint.wheelleg.limx',    slot: 'joint',    family: 'wheelleg', origin: 'wl_p311d', asset: 'RH_hip.STL',    why: '关节。后右髋 HAA 执行器座；girth 0.847 ≈ joint 中位数的 0.86×。轮子当关节会让 18 个关节全变成轮子，读不出哪里在滚' },
+
+  // ── manipulator = Hello Robot Stretch 3 ─────────────────────────────────
+  // 身体方案是 column：两条腿的六节串成桅杆，手臂是顶端的分支（core/bodyplan.ts）。
+  // 一个 link 在 Menagerie 里按材质拆成几份 OBJ，按 stretch.xml 的 visual geom 整个取。
+  // 不取的：base_link_8（22 MB）、link_head_0（11.5 MB）—— docs/42 §4 已经说过避开它们。
+  { id: 'spine.manipulator.stretch', slot: 'spine', family: 'manipulator', origin: 'stretch3',
+    asset: ['link_lift_0.obj', 'link_lift_2.obj', 'link_lift_3.obj', 'link_lift_4.obj', 'link_lift_5.obj', 'link_lift_6.obj', 'link_lift_7.obj', 'link_lift_8.obj', 'link_lift_9.obj'],
+    why: '升降滑架。套在桅杆上、伸出手臂的那一块 —— column 方案里躯干就在桅杆顶上；girth 0.745 ≈ spine 中位数的 0.88×' },
+  { id: 'head.manipulator.stretch', slot: 'head', family: 'manipulator', origin: 'stretch3',
+    asset: ['link_head_1.obj', 'link_head_2.obj', 'link_head_3.obj', 'link_head_4.obj', 'link_head_5.obj', 'link_head_6.obj', 'link_head_7.obj', 'link_head_8.obj', 'link_head_9.obj', 'link_head_10.obj', 'link_head_11.obj'],
+    why: '头。桅杆顶上那个装相机的头罩（不含 11.5 MB 的 link_head_0）；girth 0.694 ≈ head 中位数的 0.74×' },
+  { id: 'clavicle.manipulator.stretch', slot: 'clavicle', family: 'manipulator', origin: 'stretch3',
+    asset: ['link_arm_l0_0.obj', 'link_arm_l0_1.obj', 'link_arm_l0_2.obj'], why: '伸缩臂最内一节，连着滑架' },
+  { id: 'upperArm.manipulator.stretch', slot: 'upperArm', family: 'manipulator', origin: 'stretch3',
+    asset: ['link_arm_l4_0.obj', 'link_arm_l4_1.obj'], why: '伸缩臂外套管' },
+  { id: 'foreArm.manipulator.stretch', slot: 'foreArm', family: 'manipulator', origin: 'stretch3',
+    asset: ['link_arm_l1_0.obj', 'link_arm_l1_1.obj'], why: '伸缩臂内套管 —— 比上一节细，套筒一节套一节的读法在这里' },
+  { id: 'hand.manipulator.stretch', slot: 'hand', family: 'manipulator', origin: 'stretch3',
+    asset: 'link_SG3_gripper_body.obj', why: '夹爪本体。girth 0.748 超出 hand 带（≈1.2×），只给自己用、不外借' },
+  { id: 'thigh.manipulator.stretch', slot: 'thigh', family: 'manipulator', origin: 'stretch3',
+    asset: 'link_mast.obj', why: '桅杆。column 方案里腿骨串成桅杆，而这台机器真的只有一根桅杆' },
+  { id: 'shin.manipulator.stretch', slot: 'shin', family: 'manipulator', origin: 'stretch3',
+    asset: 'link_mast.obj', why: '桅杆（同一件）。桅杆是一根铝型材，拆两节是拓扑要求，不是机器的' },
+  { id: 'foot.manipulator.stretch', slot: 'foot', family: 'manipulator', origin: 'stretch3',
+    asset: ['base_link_0.obj', 'base_link_2.obj', 'base_link_3.obj', 'base_link_4.obj', 'base_link_5.obj', 'base_link_6.obj', 'base_link_7.obj'],
+    why: '底盘（不含 22 MB 的 base_link_8）。桅杆底端落在它上面 —— 轮式底盘就是这个物种的脚' },
+  { id: 'joint.manipulator.stretch', slot: 'joint', family: 'manipulator', origin: 'stretch3',
+    asset: ['link_wrist_yaw.obj', 'link_DW3_wrist_yaw_bottom.stl'], why: '关节。腕 yaw 关节 —— 它本来就是一个关节；girth 0.815 ≈ joint 中位数的 0.82×' },
 ];
 
 /** 一个 link 可以是几份文件（Menagerie 按材质拆 OBJ），`asset` 因此可以是数组 */
