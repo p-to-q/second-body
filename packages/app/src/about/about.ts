@@ -26,6 +26,7 @@ import { COPY, setBi, type BiText } from '../ui/i18n.ts';
 import { PLAN_LABEL, orderThemes, planKind, speciesNumber, themeAnchor } from '../ui/species.ts';
 import { clue, type ClueOptions } from '../ui/clue.ts';
 import { markNode } from '../ui/mark.ts';
+import { markShape } from '../ui/marks.ts';
 import '../ui/type.css';
 import '../ui/editorial.css';
 import './about.css';
@@ -305,18 +306,17 @@ function svg<K extends keyof SVGElementTagNameMap>(
  * 标记的**形状**编码身体方案，位置编码形态空间坐标。
  * 为什么不用颜色区分：§0 的强调色是跟着当前物种走的，不是一套分类色板；
  * 而且形状在黑白印刷和投影上都活得下来，颜色不一定。
+ *
+ * 形状本身在 `ui/marks.ts`（九个方案九个记号，逐条写了读法）。
+ * 这里只负责把它**摆到**散点图上的 (x, y)：平移交给 `<g>`，
+ * 于是记号的坐标可以一律以自己为原点，读起来也才是"一个记号"而不是九组偏移量。
  */
 function planMark(kind: string, x: number, y: number): SVGElement {
-  switch (kind) {
-    case 'quadruped':   // 横的、矮的 —— 和它在场上的剪影一致
-      return svg('rect', { class: 'plot-mark', x: x - 7, y: y - 3.5, width: 14, height: 7, rx: 3.5 });
-    case 'mass':        // 实心：团块没有槽位件，是一整坨
-      return svg('circle', { class: 'plot-mark-fill', cx: x, cy: y, r: 5 });
-    case 'stub':        // 方的、墩的
-      return svg('rect', { class: 'plot-mark', x: x - 4.5, y: y - 4.5, width: 9, height: 9 });
-    default:            // rig：空心圆
-      return svg('circle', { class: 'plot-mark', cx: x, cy: y, r: 5 });
+  const g = svg('g', { transform: `translate(${x} ${y})` });
+  for (const part of markShape(kind)) {
+    g.append(svg(part.tag, { class: part.cls, ...part.attrs }));
   }
+  return g;
 }
 
 function speciesSection(index: PartLibraryIndex): HTMLElement {
@@ -400,9 +400,29 @@ function speciesSection(index: PartLibraryIndex): HTMLElement {
 
 function privacySection(): HTMLElement {
   // 网页版必须在页面上有这一段（docs/13 §5）。放在署名之前，不折叠、不藏。
-  return section(COPY.about.privacyTitle,
+  const sec = section(COPY.about.privacyTitle,
     biEl('p', COPY.privacy.short, 'about-lede'),
     biEl('p', COPY.privacy.long));
+
+  // 存档那一句**先问再说**。理由整段写在 `i18n.ts` 的 `privacy.archiveRow` 上，
+  // 一句话是：存储要作品负责人本人去开，网站会先于它上线，
+  // 而这一句是 docs/26 §G 三处「诚实集中」之一 —— 那三处的要求是**逐字为真**，
+  // 不是"发布那天记得改文案"。
+  //
+  // 敲不通就什么都不印：**少一句话，不少一句真话。** 没有"存档暂未开启"这种
+  // 占位文案 —— 观众不需要知道我们的部署顺序，他只需要页面上写的每一句都成立。
+  // 失败路径和 `/lineage` 的 `loadVisits()` 逐字同一条（try/catch + !res.ok）。
+  void (async () => {
+    try {
+      const res = await fetch('/api/visits');
+      if (!res.ok) return;
+      const j = (await res.json()) as { total?: unknown };
+      if (typeof j.total !== 'number') return;
+      sec.append(biEl('p', COPY.privacy.archiveRow));
+    } catch { /* 没有存档就没有这一句 */ }
+  })();
+
+  return sec;
 }
 
 function creditsSection(): HTMLElement {

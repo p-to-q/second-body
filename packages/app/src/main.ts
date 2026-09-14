@@ -13,7 +13,7 @@ import { buildSkeleton, mediapipeToWorld } from '../../core/src/skeleton.ts';
 import { createStabilizer } from '../../core/src/stabilize.ts';
 import { clampFold, createRefiner } from '../../core/src/refine.ts';
 import { createVitality } from '../../core/src/vitality.ts';
-import { createMotion } from '../../core/src/motion.ts';
+import { createBoneEnergy, createMotion } from '../../core/src/motion.ts';
 import { createEvolution } from '../../core/src/evolution.ts';
 import { createPresence } from '../../core/src/presence.ts';
 import { arcPresent, createArc, type ArcState } from '../../core/src/arc.ts';
@@ -21,11 +21,12 @@ import { makeGenome, toPlaceholderGenome } from '../../core/src/genome.ts';
 import { blendSkeletons, remapSkeleton, type BodyPlan } from '../../core/src/bodyplan.ts';
 import { mulberry32 } from '../../core/src/rng.ts';
 import { CAPTURE, NASCENT, REFINE, STAGE } from '../../core/src/tuning.ts';
-import type { MotionFeatures, Presence, Skeleton, Tier } from '../../core/src/types.ts';
+import type { Genome, MotionFeatures, Presence, Skeleton, SlotKey, SlotPick, Tier } from '../../core/src/types.ts';
 
 import { createCapture, type Capture } from './capture/capture.ts';
 import { createPartLibrary } from './assets/library.ts';
 import { createCreature } from './creature/creature.ts';
+import { makeTheseus, swapOneSlot } from './creature/theseus-wire.ts';
 import { resolveShading, type ShadingId } from './creature/shading.ts';
 import { createMassBody } from './creature/mass.ts';
 import { createNascent } from './creature/nascent.ts';
@@ -39,6 +40,7 @@ import { wireDegrade } from './shell/degrade-wire.ts';
 import { getDegradeState } from './shell/degrade.ts';
 import { showBootError } from './shell/boot-error.ts';
 import { createSlowLoop } from './slow/slow.ts';
+import { createVisitReporter } from './archive/visit.ts';
 import { enterKiosk, readFlags } from './shell/kiosk.ts';
 import { mountCameraButton, mountEntry } from './shell/entry.ts';
 import { mountLoading } from './shell/loading.ts';
@@ -47,6 +49,7 @@ import { mountNav } from './ui/nav.ts';
 import { mountControls, type Controls } from './ui/controls.ts';
 import { cornerColumn } from './ui/corner.ts';
 import { mountPreview, wantsPreview, previewReservedTop } from './ui/preview.ts';
+import { mountReadout } from './ui/readout.ts';
 import { HANDED_BACK_ACT, mountExits } from './ui/exits.ts';
 import { createHud } from './shell/hud.ts';
 import { createSound } from './sound/sound.ts';
@@ -181,6 +184,16 @@ async function boot(): Promise<void> {
   if (entry) cues.play('enter');
 
   let theme = flags.theme ?? themeFromUrl();
+  // 写法由 `readFlags()` 判过了（`?theme=` 与 `?plan=` 同一条规矩），**在不在**只能在
+  // 这里判：物种表要等 `libraryReady`。不在就是当没写过 —— 照常进选择页，并且喊一声。
+  // 在这之前 `?theme=xenoo` 会直奔一个不存在的物种：没有名牌、没有自有件，
+  // 画面上是一具借来的身体，而地址栏里写着那个拼错的名字（`?plan=quadrupd` 的同胞）。
+  // 条目表读不到时**认**这个 id —— 和 `chooseTheme()` 同一条（没有资产也要能开发，ADR-4）。
+  const known = library.index.themes ?? [];
+  if (theme && known.length > 0 && !known.some((t) => t.id === theme)) {
+    console.warn(`[main] ?theme=${theme} 不在物种表里 —— 按没写过处理（进选择页）`);
+    theme = null;
+  }
   if (!theme) {
     // 举手滚动（`choose/ring/wave.ts`）。现场一件输入设备都没有，这是那一页
     // 唯一一条不靠鼠标/键盘的输入。三个条件缺一不可，**判断只在这一处**：
@@ -311,6 +324,15 @@ async function boot(): Promise<void> {
     },
   });
 
+  // ── 4c. 左下角那块读数（`ui/readout.ts`）──────────────────────────────────
+  // 「它此刻从你身上读到了什么」：置信 / 关节 / 推理 / 动能 / 舒展，五个数
+  // 都是这一帧本来就在算的。挂在这里而不是更早，理由和上面那块小屏幕一样：
+  // 它报的是**驱动这具身体的那份数据**，而那份数据要等观众进到作品里才存在。
+  //
+  // 挂不挂的判断在 `wantsReadout()` 一处（`?kiosk=1` 默认不挂），
+  // 这里不重写一遍那个条件 —— 和 `flags.nav` / `wantsPreview()` 同一条纪律。
+  const readout = mountReadout({ flags });
+
   // ── 5. 状态机 ───────────────────────────────────────────────────────────
   const presence = createPresence();
   /**
@@ -321,6 +343,30 @@ async function boot(): Promise<void> {
    */
   const arc = createArc({ total: flags.arc });
   let arcState: ArcState = arc.state;
+  /**
+   * 现在是不是摄像头在驱动。开场那一份由 `capturePromise` 决定，两处判断必须一致。
+   *
+   * **声明在这里，不在下面那一列旁边**（它原来在 `mountExits` 上面）：存档要在
+   * 弧线走完的那一刻读它，而弧线和帧循环都建在这一行之前 —— `let` 有 TDZ，
+   * 一个建得更早、调得更晚的闭包会在第一帧上炸，而那正是绝不许炸的地方（P2）。
+   */
+  let cameraOn = !entry && !flags.demo;
+
+  /**
+   * 存档（`docs/43 §8`）—— 一次走完的相遇往 `/api/visit` 写一行。
+   *
+   * 挂在弧线旁边而不是慢回路旁边：它记的是**这一场**，不是那一件生成物。
+   * 帧循环里只有 `visits.note(arcState.held)` 一次 boolean 比较，网络在空闲里。
+   *
+   * `live` 是一个 getter，读的是**此刻**是不是摄像头在驱动：
+   * 网页版开场用的是回放，摄像头要等观众按下「用我的摄像头」才打开。
+   * 一段录像走完弧线不是一次相遇（那是给厚度掺水），而不按那个按钮就什么都
+   * 不会被留下 —— 那正是 `§9.5` 那条「不参与」，`/about` 说出来的就是它。
+   */
+  const visits = createVisitReporter({
+    species: theme ?? null,
+    live: () => cameraOn,
+  });
   const stabilizer = createStabilizer();
   // 时域精化在**原始 landmark 上**做，在 buildSkeleton 之前 ——
   // 骨架是从 landmark 推出来的，先抖后建等于把抖动烘进骨长和朝向里，
@@ -335,6 +381,9 @@ async function boot(): Promise<void> {
   const vitality = createVitality();
   let vitalityOn = flags.vitality;
   const motion = createMotion();
+  // 逐骨运动能量：`motion` 给的是整具的一个数，回答不了"他现在在用哪根肢体"，
+  // 而 docs/44 §3 的 `motionBias`（"它拿走你正在用的那一部分"）只关心这个。
+  const boneEnergy = createBoneEnergy();
   const evolution = createEvolution();
   // 身体方案决定用哪种**表达**：刚体挂载（手办式）还是团块（物质式）。
   // 两者都满足 BodyInstance，帧循环不关心是哪一种（docs/18 §2）。
@@ -472,6 +521,31 @@ async function boot(): Promise<void> {
     },
   });
 
+  /**
+   * ── 忒修斯之船（`docs/44-THESEUS.md`）──────────────────────────────────────
+   *
+   * 排期器住在 `core`（纯的，测得起 200 个种子 × 180 秒），这里只接三件事：
+   * 喂它时间和运动量、拿它给的那一件去 `remorph`、人一走把槽位收回来。
+   * **没有第二套换装机制** —— docs/44 §1：升档那套一行都不浪费，只是粒度改细。
+   *
+   * `?theseus=off` 时 `theseus` 是 null，下面每一处都是 `?.`：
+   * 关掉之后这条线上一个对象都不存在，身体退回这一版之前那条四档跳的路。
+   */
+  const theseus = makeTheseus(flags, seed, arc.total);
+  /**
+   * 已经被换掉的那些槽位。**升档重建 genome 时必须盖回去** ——
+   * `morph()` 是拿 `seed` 从头抽一具身体，不盖的话每一次乐章交接都会把
+   * 前面换掉的件悄悄变回原件，于是"一件都不剩"永远走不到头，
+   * 而画面上看不出发生过什么（它只是又换了一批）。
+   */
+  const swapped = new Map<SlotKey, SlotPick>();
+  const withSwapped = (g: Genome): Genome => {
+    if (!swapped.size) return g;
+    const slots = { ...g.slots };
+    for (const [k, v] of swapped) slots[k] = v;
+    return { ...g, slots };
+  };
+
   const morph = (t?: Tier) => {
     if (t !== undefined) tier = t;
     // 团块没有槽位件可换 —— 它的"演化"由 tier 驱动的表面参数表达，不是换装。
@@ -480,7 +554,7 @@ async function boot(): Promise<void> {
     // tier 0 一件部件都没有（parts.json 里 tier 0 的件数是 0），有开场形态接着的时候
     // remorph 只会白建 30 个占位实例然后被团块盖住 —— 那 30 个实例正是这次要拿掉的东西。
     if (!nascent || tier >= 1) {
-      const g = makeGenome(seed, tier, library.index, { theme: theme ?? undefined, rejected: library.rejected });
+      const g = withSwapped(makeGenome(seed, tier, library.index, { theme: theme ?? undefined, rejected: library.rejected }));
       // 已经降到第 2 级之后，升档不许把真几何再装回来 —— 那会让降级**自己撤销自己**，
       // 而画面上看不出发生过什么（docs/36 D4）。降级是单向的，只有重载能回头。
       creature.remorph(getDegradeState().placeholder ? toPlaceholderGenome(g) : g);
@@ -516,6 +590,8 @@ async function boot(): Promise<void> {
     // 升档那 0.15 秒是给身体的顿挫，不是给时间轴的）。在不在场用已有的 `Presence`
     // 折一下，不发明第二套检测（docs/40 §3）。
     arcState = arc.update(arcPresent(p), dt);
+    // 一次走完的相遇，写一行。这里只有一次 boolean 比较（`docs/43 §7.1` 第 2 条）
+    visits.note(arcState.held);
 
     // 把弧线交给**表面和光**（`docs/41-MATERIAL.md`）。
     //
@@ -545,6 +621,9 @@ async function boot(): Promise<void> {
       // 而骨长要等滚动中位数定下来才可信（放前面就是拿噪声当尺子）。
       if (refiner && refineOn) clampFold(humanSk);
       lastFeatures = motion.update(humanSk, dt);
+      // 逐骨能量也算在**人的**骨架上，和 `motion` 同一条理由：
+      // docs/44 §3 那条机制说的是"他刚才在用哪根肢体"，不是"那具身体哪根动得多"。
+      boneEnergy.update(humanSk, dt);
       // 拓扑漂移（docs/40 §1：**"逐渐"是这条线的全部技术要求**）。
       // 第 I / II 乐章 drift = 0，人形；第 III 乐章开头那 `ARC.crossfade` 秒里
       // 从人形漂到物种自己的方案；之后 drift = 1，一次 remap 就够，零额外开销。
@@ -574,6 +653,43 @@ async function boot(): Promise<void> {
       evoTier = evo.tier;
     }
 
+    // ── 忒修斯之船：这一帧要不要换一件（docs/44 §2 / §3）────────────────────
+    //
+    // 时间喂的是 `arcState.elapsed`（人不在就停表），在不在场喂的是同一个
+    // `arcPresent(p)` —— 不发明第二套检测（docs/44 §8）。
+    // 借件的种子由会话种子和第几件推出来，**不摇裸骰子**（P1）：
+    // 同一个 seed 的同一场，第 7 件换成谁，每次都一样。
+    const step = theseus?.update(
+      { elapsed: arcState.elapsed, present: arcPresent(p), energy: boneEnergy.current },
+      dt,
+    );
+    // 整体尺度（docs/44 §5 第 5 条）。`bodyRoot` 的原点就是地面，所以按它缩放
+    // **脚不会离地**；取景吃的是没缩放过的骨架（`stage.frame(lastSkeleton)`），
+    // 所以这一下是真的在画面里长大/变小，而不是被相机跟着补偿掉。
+    // `?theseus=off` 时 `step` 是 undefined，缩放回 1 —— 和这一版之前逐字相同。
+    bodyRoot.scale.setScalar(step?.scale ?? 1);
+
+    if (step?.fired && !isMass && !isSwarm) {
+      const g = swapOneSlot(
+        creature.genome, step.fired.slot,
+        (seed ^ Math.imul(step.fired.index, 0x9e3779b9)) >>> 0,
+        { tier, index: library.index, rejected: library.rejected },
+      );
+      // 借不到就是这一件不发生 —— 不抛、不等、不退化成"换了个一模一样的"（P3）。
+      if (g) {
+        swapped.set(step.fired.slot, g.slots[step.fired.slot]);
+        creature.remorph(getDegradeState().placeholder ? toPlaceholderGenome(g) : g);
+        // docs/40 §5 第 3 条（2026-09-14 改的挂点）+ docs/44 §7：
+        // 升档音原来挂在四个乐章的交接上，而 docs/44 §6 之后那四个点不再是事件 ——
+        // 一个挂在不再发生的东西上的声音等于没有声音。挪到**每一次替换**上：
+        // 那是一件真的发生了的事，它让"刚才是不是有什么变了"从怀疑变成确认。
+        // **不新造提示音**，用的就是已经存在的那一个（docs/29 §S5 的克制照旧）。
+        // 现场如果听起来像钟表，docs/44 §7 给了退路：加一句 `step.borrowDistance >= 2`
+        // 就只在借得远的时候响 —— 那个数这里已经拿在手上了。
+        sound.tierUp(tier);
+      }
+    }
+
     // ── 分档：**跟着弧线走，运动量只是加速项**（docs/40 §4 最后一段）───────────
     //
     // 此前这里只有 `evo.tierChanged`：分档看的是累计运动量，于是站着不动的人
@@ -590,14 +706,18 @@ async function boot(): Promise<void> {
       if (want !== tier) {
         morph(want);
         stage.pulse(want);      // docs/23 §S5：升档必须可感知，否则演化等于没发生
-        sound.tierUp(want);     // 同一个事件的另一半。两半必须在同一帧，否则读成两件事
+        // 这一声也跟着挂点搬走了。**乐章序号就是档位下限**，所以在四个交接点上
+        // 走的正是这一条分支 —— 留着它，那一声照样在标记那四个点，
+        // 而 docs/44 §6 已经裁定那四个点不再是事件。`?theseus=off` 时原样保留。
+        if (!theseus) sound.tierUp(want);
       } else if (arcState.movementChanged) {
-        // 乐章交接是这件作品少数几个"事件"之一（docs/40 §5 第 3 条）。
-        // 档位已经被运动量提前推上去时这里不会再升一档，但**交接本身仍然发生了**，
-        // 所以那一声照放 —— 用的是已经存在的升档音，**不新造一种提示音**：
-        // 乐章不是成就（docs/29 §S5 那条克制同样适用）。
+        // 乐章交接仍然让画面顿一下（`stage.pulse`），但**那一声不在这里了**：
+        // docs/40 §5 第 3 条在 2026-09-14 改了挂点，声音跟着每一次零件替换走
+        //（上面那一段）。留在这里就会变成同一件事响两遍。
+        // `?theseus=off` 是例外：现场的 plan B 必须和这一版之前**逐字相同**，
+        // 而这一版之前那一声就挂在交接上（`test/theseus-flag.test.ts` 钉着这一条）。
         stage.pulse(tier);
-        sound.tierUp(tier);
+        if (!theseus) sound.tierUp(tier);
       }
     }
     // 身体怎么动交给当前的 Act。追踪短暂丢失时 lastSkeleton 还在，
@@ -626,15 +746,26 @@ async function boot(): Promise<void> {
     if (arcState.justReset) {
       seed = (Math.random() * 0xffffffff) >>> 0;
       motion.reset();
+      boneEnergy.reset();
+      // docs/44 §8：人一走，18 个槽位全部回到原件。下面那句 `morph(tier)` 是拿
+      // **新的 seed** 从头抽一具身体，所以清空这张表就等于归零 —— 不归零的话
+      // 第二个观众看到的是一具已经被换了一半的身体，而他没见过原件：
+      // 对他来说忒修斯之船从来没发生过，而且失效得看不出来（画面照常在动）。
+      swapped.clear();
       evolution.reset();
       stabilizer.reset();
       refiner?.reset();
       vitality.reset();
       slow.reset();
+      // 存档也要收回来。装置那台机器一开就是一整天，不收等于把这一页数的东西
+      // 从「人」偷偷换成「开机次数」—— 正是这一段注释说的那种跨观众留存的状态。
+      // 和 `slow.reset()` 一样，它不解除写失败之后那道会话级的闸
+      visits.reset();
       groundSense.reset();   // 换了一个人：下一次观测重新立基准，不在进场那一帧砸一下
       lastSkeleton = null;
       evoTier = 0;
       tier = (flags.tier ?? 0) as Tier;
+      theseus?.reset(seed);
       morph(tier);
       // 上一个人可能把身体还回去了（右下角那一行）。下一个人站上去必须被跟随，
       // 否则他看到的是一具从第一秒就不理他的身体 —— docs/40 §3 点名的那个 bug。
@@ -658,6 +789,12 @@ async function boot(): Promise<void> {
     stage.update(p, lastFeatures, dt);
     stage.render(renderer);   // 后期链在舞台里；?nopost=1 时它退化成直出
 
+    // 左下角那块读数。放在这里而不是上面 `preview?.update()` 旁边，是因为它要的
+    // `lastFeatures` 是这一帧**刚算出来**的那一份 —— 放在前面就永远晚一帧，
+    // 而"晚一帧"在一块 4Hz 刷新的读数上看不出来，正是 P21 说的那种坏法。
+    // `raw` 和小屏幕吃的是同一份（滤波之前），理由也同：读数要说实话。
+    readout?.update(raw, lastFeatures, capture.fps, dt);
+
     if (hud) {
       const s = body.stats;
       hud.update(loop.stats, {
@@ -667,6 +804,8 @@ async function boot(): Promise<void> {
         // 现场调时长的人靠这一行，不靠掐表（docs/40 §5 第 2 条）
         arc: arcState,
         arcForced: director.forced,
+        // docs/44 §7 最后一段：现场调速率的人靠这一行，不靠掐表
+        theseus: theseus?.state,
         // `camera` 只有 `WebcamCapture` 有（回放没有摄像头可选），所以按可选字段读 ——
         // 和上面 `instances` 同一个写法，不为一个显示字段去动 `Capture` 契约。
         cam: (capture as { camera?: { hud: string } | null }).camera?.hud,
@@ -677,6 +816,8 @@ async function boot(): Promise<void> {
           note,
           refiner && `hold=${refiner.stats.held} drop=${refiner.stats.dropped} q=${refiner.stats.cutoffScale.toFixed(2)}`,
           slow.phase !== 'idle' && `slow:${slow.phase}${slow.note ? `(${slow.note})` : ''}`,
+          // 存档写成没写成只在这一行说（`docs/43 §7.1` 第 5 条：降级必须静默）
+          visits.phase !== 'idle' && `visit:${visits.phase}${visits.n === null ? '' : `(#${visits.n})`}`,
         ].filter(Boolean).join(' · '),
       });
     }
@@ -734,8 +875,7 @@ async function boot(): Promise<void> {
   // 摄像头 = 和下面那个按钮完全相同的一次 capture 替换。
   // `?kiosk=1` 下 `flags.exits` 为 false，这一整列不挂（见 shell/kiosk.ts 的那条注释）。
 
-  /** 现在是不是摄像头在驱动。开场那一份由 `capturePromise` 决定，两处判断必须一致 */
-  let cameraOn = !entry && !flags.demo;
+  // `cameraOn` 声明在弧线那一段（存档要读它，而它有 TDZ）—— 这里只有用它的人
 
   /** 换一个 Capture。失败时**原来那一个继续跑** —— 画面不许因为切换而停（P3） */
   const swapCapture = async (kind: 'webcam' | 'replay'): Promise<boolean> => {
@@ -794,7 +934,8 @@ async function boot(): Promise<void> {
   console.info(
     `[main] running · theme=${theme} · seed=${seed} · ` +
     `plan=${planKind}${planOverride === null && planKind !== 'rig' ? '(第 III 乐章到场)' : ''} · ` +
-    `arc=${arc.total}s · capture=${entry || flags.demo ? 'replay' : 'webcam'} · ` +
+    `arc=${arc.total}s · theseus=${theseus ? (flags.theseus.rate === 1 ? 'on' : `×${flags.theseus.rate}`) : 'off'} · ` +
+    `capture=${entry || flags.demo ? 'replay' : 'webcam'} · ` +
     `acts=${ACTS.map((a) => a.id).join(',')} · sound=${sound.state}`,
   );
 }

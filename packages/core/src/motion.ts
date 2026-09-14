@@ -244,3 +244,71 @@ export function createMotion(): MotionMachine {
     },
   };
 }
+
+/**
+ * 逐骨运动能量 —— `docs/44 §3` 的 `motionBias` 要的那一半输入。
+ *
+ * `MotionFeatures.energy` 是**整具**的一个数，回答不了"他现在在用哪根肢体"，
+ * 而 §3 那条机制（"它拿走你正在用的那一部分"）恰恰只关心这个。
+ * 所以这里另给一个读数，但**沿用上面那一套纪律**：无量纲（除以 `sk.height`）、
+ * 帧率无关（`emaAlpha`）、常数全部来自 tuning。
+ *
+ * 输出是**相对**的 0..1：最忙的那根骨头趋近 1，其余按比例。
+ * 归一化的分母取 `max(当前最大值, MOTION.stillnessSpeedRef)`，所以
+ * 一个几乎静止的人不会因为某根骨头抖了一下就被判成"在挥那只手"——
+ * 真静止时所有骨头都接近 0，`motionBias` 退回 1，排期器只看陈旧度。
+ */
+export interface BoneEnergyMachine {
+  update(sk: Skeleton, dt: number): Readonly<Record<string, number>>;
+  readonly current: Readonly<Record<string, number>>;
+  reset(): void;
+}
+
+export function createBoneEnergy(): BoneEnergyMachine {
+  let prev: Map<string, Vec3> | null = null;
+  const ema = new Map<string, number>();
+  let out: Record<string, number> = {};
+
+  const mid = (j: Record<string, Vec3>, a: string, b: string): Vec3 | null => {
+    const pa = j[a];
+    const pb = j[b];
+    if (!isVec3(pa) || !isVec3(pb)) return null;
+    return [(pa[0] + pb[0]) / 2, (pa[1] + pb[1]) / 2, (pa[2] + pb[2]) / 2];
+  };
+
+  return {
+    update(sk, dt) {
+      let d = Number.isFinite(dt) && dt > 0 ? dt : 1 / 60;
+      d = clamp(d, TIME.dtMin, TIME.dtMax);
+      const joints = sk?.joints as Record<string, Vec3> | undefined;
+      if (!joints || typeof joints !== 'object') return out;   // 没有骨架：保持上一帧，不抛
+      const H = Number.isFinite(sk.height) && sk.height > 1e-3 ? sk.height : SKELETON.referenceHeight;
+
+      const cur = new Map<string, Vec3>();
+      const a = emaAlpha(d, MOTION_TUNING.tauEnergy);
+      for (const bone of BONES) {
+        const [id, ja, jb] = bone;
+        const m = mid(joints, ja, jb);
+        if (!m) continue;
+        cur.set(id, m);
+        const last = prev?.get(id);
+        if (!last) continue;
+        const s = Math.hypot(m[0] - last[0], m[1] - last[1], m[2] - last[2]) / (d * H);
+        if (!Number.isFinite(s)) continue;
+        const was = ema.get(id) ?? 0;
+        ema.set(id, was + (s - was) * a);
+      }
+      prev = cur;
+
+      let peak = 0;
+      for (const v of ema.values()) if (v > peak) peak = v;
+      const denom = Math.max(peak, MOTION_TUNING.stillnessSpeedRef);
+      const next: Record<string, number> = {};
+      for (const [id, v] of ema) next[id] = clamp(fin(v) / denom, 0, 1);
+      out = next;
+      return out;
+    },
+    get current() { return out; },
+    reset() { prev = null; ema.clear(); out = {}; },
+  };
+}

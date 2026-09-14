@@ -20,8 +20,8 @@
  *     包括没有 anchor 图时的「场」与「空盘子」。破图一张都不会出现。
  *  2. **编号与顺序**：`ui/species.ts` 的 `orderThemes` / `speciesNumber` ——
  *     和 `/about` 的散点、海报是同一套。对不上的话那些数字就都白标了。
- *  3. **身体方案的记号**：`ui/marks.ts`（见 `rooms/marks.ts` 的文件头里那条
- *     并行改动说明）。
+ *  3. **身体方案的记号**：`ui/marks.ts` 的那九枚，经 `room.ts` 的 `markNode()`
+ *     画成 DOM —— 和 `/about` 的散点、`/marks` 的标本行同一份形状。
  *
  * 随机数由 `mulberry32(hashSeed(id))` 注入，所以同一个物种的「场」卡片
  * 每次刷新都一模一样（AGENTS.md：所有随机都经过注入的 `Rng`）。
@@ -30,28 +30,11 @@ import type { PartLibraryIndex, ThemeDef } from '../../../core/src/types.ts';
 import { hashSeed, mulberry32 } from '../../../core/src/rng.ts';
 import { buildCard, loadImage } from '../choose/cards.ts';
 import { COPY, setBi } from '../ui/i18n.ts';
-import { markShape, type MarkPart } from '../ui/marks.ts';
 import { PLAN_LABEL, orderThemes, planKind, speciesNumber } from '../ui/species.ts';
-import { mountRoom } from './room.ts';
+import { markNode, mountRoom } from './room.ts';
 
-const SVG = 'http://www.w3.org/2000/svg';
-const BOX = 18;
-
-function markNode(kind: string): SVGSVGElement {
-  const root = document.createElementNS(SVG, 'svg');
-  root.setAttribute('class', 'sb-plan-mark');
-  root.setAttribute('width', String(BOX));
-  root.setAttribute('height', String(BOX));
-  root.setAttribute('viewBox', `${-BOX / 2} ${-BOX / 2} ${BOX} ${BOX}`);
-  root.setAttribute('aria-hidden', 'true');
-  for (const part of markShape(kind) as readonly MarkPart[]) {
-    const node = document.createElementNS(SVG, part.tag);
-    node.setAttribute('class', part.cls);
-    for (const [k, v] of Object.entries(part.attrs)) node.setAttribute(k, String(v));
-    root.append(node);
-  }
-  return root;
-}
+/** 格子底下那一行里的记号：正文档的大小，它是一条注释不是一件标本 */
+const MARK = 18;
 
 async function loadIndex(): Promise<PartLibraryIndex | null> {
   try {
@@ -113,7 +96,7 @@ function plate(theme: ThemeDef, i: number): HTMLElement {
   label.className = 'sb-bi-inline';
   const text = PLAN_LABEL[kind];
   if (text) setBi(label, text); else label.textContent = kind;
-  plan.append(markNode(kind), label);
+  plan.append(markNode(kind, MARK), label);
 
   line.append(n, name, plan);
   li.append(line);

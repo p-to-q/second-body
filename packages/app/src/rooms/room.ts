@@ -31,6 +31,7 @@
  * 只会让人觉得自己走错了。出口由横带给，地图在 `/about` 上等着。
  */
 import { COPY, setBi, type BiText } from '../ui/i18n.ts';
+import { markShape } from '../ui/marks.ts';
 import { heroMeta } from '../ui/hero.ts';
 import '../ui/type.css';
 import '../ui/editorial.css';
@@ -96,12 +97,54 @@ export function mountRoom(options: RoomOptions): Room {
   page.append(head, body);
   mount.append(page);
 
-  const setState = (text: BiText | null): void => {
+  const setStateImpl = (text: BiText | null): void => {
     if (!text) { stateEl.textContent = ''; stateEl.hidden = true; return; }
     stateEl.hidden = false;
     setBi(stateEl, text);
   };
-  setState(state);
+  setStateImpl(state);
 
-  return { body, setState };
+  return { body, setState: setStateImpl };
+}
+
+// ── 身体方案的记号 ──────────────────────────────────────────────────────────
+
+/**
+ * 一枚独立画幅的记号。`/marks` 和 `/roster` 共用这一个。
+ *
+ * **形状不在这里**，在 `ui/marks.ts` 的 `PLAN_MARKS` —— 那份表是作品负责人
+ * 逐枚看过的九枚，`/about` 的散点与图例走的也是它。这里只负责把它画成 DOM：
+ * 那个模块刻意不碰 DOM、不 import CSS，是为了能在 node 里被测（见它的文件头），
+ * 所以画笔和画幅留给用它的人。
+ *
+ * `/about` 那边另有一个几行的 builder（`about.ts` 的 `planMark`），因为散点上
+ * 记号要落在**数据点的坐标**上，而这里永远落在画幅中心。
+ * 两者共用的是形状，不共用摆放 —— 摆放本来就是两件事。
+ */
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/** 记号自己的坐标系：以中心为原点，尺度按散点图上 ~10px 那一档定 */
+export const MARK_BOX = 22;
+
+/**
+ * @param shown 屏幕上的边长。**放大的是画幅不是笔** —— `stroke-width` 跟着
+ *   viewBox 一起缩放，所以线条的相对粗细和散点图上逐字相同，
+ *   `/marks` 上那九枚不是另一套记号，只是同一套印大了。
+ */
+export function markNode(kind: string, shown = MARK_BOX): SVGSVGElement {
+  const root = document.createElementNS(SVG_NS, 'svg');
+  root.setAttribute('class', 'sb-plan-mark');
+  root.setAttribute('width', String(shown));
+  root.setAttribute('height', String(shown));
+  root.setAttribute('viewBox', `${-MARK_BOX / 2} ${-MARK_BOX / 2} ${MARK_BOX} ${MARK_BOX}`);
+  // 记号旁边永远写着这个方案的名字（`COPY.plans`）。读屏再念一遍形状
+  // 只会把同一件事说两次
+  root.setAttribute('aria-hidden', 'true');
+  for (const part of markShape(kind)) {
+    const node = document.createElementNS(SVG_NS, part.tag);
+    node.setAttribute('class', part.cls);
+    for (const [k, v] of Object.entries(part.attrs)) node.setAttribute(k, String(v));
+    root.append(node);
+  }
+  return root;
 }

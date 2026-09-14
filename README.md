@@ -27,7 +27,7 @@ the registrar's parking page ([`docs/13-DEPLOY.md`](docs/13-DEPLOY.md) §7).
 The artist's line, and the only English inside a statement otherwise written in
 Chinese. The statement is set in full on
 [`/about`](https://useeme.ptoq.io/about), with the five terms it is built on —
-*datafication*, *Morphogenesis*, *zoe*, *simulacrum*, *distributed agency*.
+*datafication*, *Morphogenesis*, *zoë*, *simulacrum*, *distributed agency*.
 Everything below this line is the engineering account of the same object.
 
 ## State

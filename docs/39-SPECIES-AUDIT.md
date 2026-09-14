@@ -53,7 +53,7 @@ headless Chrome（`--enable-unsafe-webgpu`），帧落在 `scratch/evidence/`（
 | `manipulator` | archetype · light | `column` | 6/6 | **勉强** | 桅杆 + 双臂读得出，但与 `screenface` 共用一个剪影，差别只有臂长与配色。`fig-manipulator.png` |
 | `autonomous` | archetype · light | `quadruped` | 5/6（spine 被 reject） | **名不副实** | 躯干（那块「汽车壳 + 激光雷达穹顶」）正是被 reject 的那一件，改借 `porcelain`；tagline 说「只是大了很多」，画面上它是四足里**最小最细**的一具。`fig-autonomous.png`、`lineup-quadruped.png` |
 | `field` | archetype · light | `swarm` | 0（程序化，本该如此） | **成立** | 1400 点跟着骨架走，站住聚成人形。这是上一轮修好的那一条，复核通过。`fig-field.png` |
-| `guest.founder` | guest · light | — | 0/6 | **不存在 → 明确缺席（2026-09-13）** | 索引里一件自有件都没有 → `makeGenome` 的名单里没有它 → `?theme=guest.founder` **静默渲染成 `porcelain`**（HUD 显示「瓷 · Porcelain」）。另：`clearance='public-figure'` 却已经写进 parts.json。`fig-guest.founder.png`。**已改**：`buildIndex()` 现在只写 `ROSTER.filter(isPublic)`，它整个不在 parts.json 的条目表里了 —— 一个故意的空位应当**看得见地缺席**（docs/14 §2） |
+| `guest.founder` | guest · light | — | 0/6 | **不存在 → 明确缺席（2026-09-13）** | 索引里一件自有件都没有 → `makeGenome` 的名单里没有它 → `?theme=guest.founder` **静默渲染成 `porcelain`**（HUD 显示「瓷 · Porcelain」）。另：`clearance='public-figure'` 却已经写进 parts.json。`fig-guest.founder.png`。**已改**：`buildIndex()` 现在只写 `ROSTER.filter(isPublic)`，它整个不在 parts.json 的条目表里了 —— 一个故意的空位应当**看得见地缺席**（docs/14 §2）。**2026-09-14**：那句「看得见地」落地了 —— 它在 `/passport` 上成为第 IV 枚章（§4 第 1 条末尾写了为什么不是选择页），守卫 `packages/app/test/vacancy.test.ts` |
 | `char.dumpling` | character · light | `mass` | 6/6（不实例化） | **勉强 · 部分未核实** | 与 `coral`／`char.ghost` 同一具团块。比例未核实（§0.1）。`mass-char.dumpling.png` |
 | `char.ghost` | character · light | `mass` | 6/6（不实例化） | **勉强 · 部分未核实** | 同上。「半透明」在材质里没有落点，团块也不自发光。`mass-char.ghost.png` |
 | `char.paper` | character · light | `towering` | 6/6 | **成立** | 又高又薄，折面与硬边读得出来。`fig-char.paper.png` |
@@ -232,6 +232,18 @@ uniform 名单从五个改成四个（`head` / `spine` / `hand` / `joint`），�
    `joint.char.diva.a` 事后被 reject。`guest.keynote` 落在「成立」，`char.diva` 落在「勉强」——
    比这一条当初的预判（「大概率还是落在勉强那一档」）好半档。
    `guest.founder` 不动，它仍是故意的空位。买到的那条教训在 `docs/30 §5.5` 末尾。
+
+   **2026-09-14：`guest.founder` 那半条闭了 —— 但不是在选择页上闭的。**
+   这一条的原话要的是「至少应该在选择页上明确地缺席」。落地时换了地方，理由是
+   轮播上的一张卡是一句承诺（「点下去你会变成它」，`choose/wearable.ts`）——
+   放一张点不动的卡进去读出来是「你没有权限」，和这个空位要说的正好反过来，
+   而且会重新打破 §2.1 刚修好的那条一致性。散点图上多一个标记也不行：
+   被画进谱系里的空位不再是空位。
+   现在它在 `/passport` 上，是第 IV 枚章 —— 一次**在任何人申请之前就发出的拒入**：
+   原话引的是条目自己的 tagline，裁定人写的是 `clearance` 门本身（四枚里只有这一枚
+   每次构建都重盖一遍），末尾一条没有人签的空线。
+   守卫在 `packages/app/test/vacancy.test.ts`，四条先红后绿逐条验过。
+   条目本身一字未改，`clearance` 仍是 `public-figure`。
 
    下面这段是裁定执行前的原文，留着看当时算的是什么账：
 
