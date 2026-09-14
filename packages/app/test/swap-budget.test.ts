@@ -26,6 +26,7 @@ import { swapCeiling } from '../src/creature/swap-budget.ts';
 import { swapOneSlot } from '../src/creature/theseus-wire.ts';
 import { REFERENCE_POSE } from '../src/stage/framing.ts';
 import { PLANS_WITHOUT_PARTS, remapSkeleton } from '../../core/src/bodyplan.ts';
+import { borrowPools } from '../../core/src/borrow.ts';
 import { makeGenome } from '../../core/src/genome.ts';
 import { createTheseus } from '../../core/src/theseus.ts';
 import { createArc } from '../../core/src/arc.ts';
@@ -221,6 +222,33 @@ test('交接中的面数不越 BUDGET —— 每个物种按自己每一格最�
   // 活性：最紧的那个物种确实在逼近预算，不是一条永远宽松的断言
   assert.ok(tightest.drawn > 0.8 * BUDGET.maxTriangles,
     `最紧的物种 ${tightest.id} 只有 ${Math.round(tightest.drawn)} 面 —— 这条断言没有在守任何东西`);
+});
+
+/**
+ * "一件原件都不剩"（docs/44 §0）和预算要同时成立：每个物种的每一格，都换成它能借到的**最轻**那件外借件，
+ * 最坏那一帧也要放得下。放不下 = 借件门迟早要把某一件原件挡在外面 —— 替换在排期器上发生了、
+ * 画面上什么都没换，而 HUD 上的计数照样走到 18/18。最轻的外借件从真的 `borrowPools()` 里挑（d1–d3）。
+ */
+test('每一件原件都还换得掉 —— 全身换成最轻的外借件，最坏那一帧也放得下', { skip: !index }, () => {
+  const ceiling = swapCeiling(PASSES);
+  const over: string[] = [];
+  for (const t of partBuilt) {
+    const own = ownMax(t.id);
+    const g = makeGenome(1, 3, index!, { theme: t.id, rejected });
+    const bound = {} as Record<SlotKey, number>;
+    for (const key of ALL_SLOT_KEYS) {
+      const pools = borrowPools({ slot: key, genome: g, tier: 3, index: index!, rejected });
+      const outer = [...pools[1], ...pools[2], ...pools[3]];
+      const lightest = outer.length ? Math.min(...outer.map((p) => p.triCount)) : 0;
+      bound[key] = Math.max(own[slotOfKey(key)] ?? 0, lightest);
+    }
+    const w = worstFill(bound, skFor(t), ceiling);
+    if (PASSES * w.fill > BUDGET.maxTriangles) {
+      over.push(`${t.id}: ${Math.round(PASSES * w.fill)} 面（稳态 ${Math.round(PASSES * w.steady)}，${w.what}）`);
+    }
+  }
+  assert.equal(over.length, 0,
+    `这些物种换不完所有原件就会越过 BUDGET.maxTriangles=${BUDGET.maxTriangles}：\n  ${over.join('\n  ')}`);
 });
 
 // ── 3 ────────────────────────────────────────────────────────────────────────

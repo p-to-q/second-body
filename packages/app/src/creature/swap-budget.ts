@@ -20,6 +20,7 @@
  */
 import { ALL_SLOT_KEYS, SLOT_OF_BONE } from '../../../core/src/slots.ts';
 import { PLACEHOLDER_PREFIX } from '../../../core/src/genome.ts';
+import { girthOutliers } from '../../../core/src/girth.ts';
 import { BUDGET, MORPH } from '../../../core/src/tuning.ts';
 import type { Genome, PartLibraryIndex, PartMeta, Slot, SlotKey, SlotPick } from '../../../core/src/types.ts';
 import { JOINT_CAPS, type SlotRender } from './assemble.ts';
@@ -176,21 +177,53 @@ export interface AdmitOptions {
 }
 
 /**
+ * 每个槽位类型里，**别的物种**能借出来的最轻那件（策展没否、条目表里有、girth 在区间里）。
+ * 借件门往前看一步用的就是它：还没被换掉的原件，将来至少要能换成这么轻的一件。
+ */
+export function lightestBorrowable(
+  index: PartLibraryIndex, theme: string, rejected?: ReadonlySet<string>,
+): Partial<Record<Slot, number>> {
+  const declared = new Set((index.themes ?? []).map((t) => t.id));
+  const outOfBand = new Set(girthOutliers(index.parts ?? []).map((o) => o.part.id));
+  const out: Partial<Record<Slot, number>> = {};
+  for (const p of index.parts ?? []) {
+    if (!p || p.family === theme || !declared.has(p.family) || rejected?.has(p.id)
+      || p.id.startsWith(PLACEHOLDER_PREFIX) || outOfBand.has(p.id) || !Number.isFinite(p.triCount)) continue;
+    out[p.slot] = Math.min(out[p.slot] ?? Infinity, p.triCount);
+  }
+  return out;
+}
+
+/**
  * 借件的预算门（`borrowPart` 的 `admit`）：候选件换上 `slot` 之后，最坏那一帧还放得下才放行。
  * 替换那一格按新旧两件里重的那件算 —— 替换进行中旧件的芯和墨屑与新件同时在场。
+ *
+ * **往前看一步**：还挂着本物种自己件的那些格子，按"将来换成最轻的外借件"再算一遍，也要放得下。
+ * 只看眼前的话这道门是贪心的：前面几件把重件借满，后面的原件就一件都借不进来，
+ * 替换在排期器上照常发生、画面上什么都没换 —— digitigrade 实测一场只换掉 11–16 / 18 格，
+ * "一件原件都不剩"（docs/44 §0）当场不成立，而 HUD 上的计数照样走到 18/18。
  */
 export function makeAdmit(opt: AdmitOptions): (candidate: PartMeta) => boolean {
   const passes = opt.passes ?? 2;
   const byId = new Map((opt.index.parts ?? []).map((p) => [p.id, p]));
-  const own = ownMaxTris(opt.index, opt.genome.theme, opt.rejected);
+  const theme = opt.genome.theme;
+  const own = ownMaxTris(opt.index, theme, opt.rejected);
   const bound = boundOf(opt.genome, opt.index, own, (id) => byId.get(id));
+  const light = lightestBorrowable(opt.index, theme, opt.rejected);
+  const ahead = { ...bound };
+  for (const key of ALL_SLOT_KEYS) {
+    if (key === opt.slot) continue;
+    const id = opt.genome.slots?.[key]?.partId;
+    const original = !id || byId.get(id)?.family === theme;
+    if (original) ahead[key] = Math.max(ahead[key], light[slotOfKey(key)] ?? 0);
+  }
   const budget = fillBudget(passes);
   const base = bound[opt.slot];
   return (candidate) => {
     const tris = Number.isFinite(candidate?.triCount) ? candidate.triCount : BUDGET.maxPartTris;
-    bound[opt.slot] = Math.max(base, tris);
-    const fits = worstFrame(bound, passes).fill <= budget;
-    bound[opt.slot] = base;
+    bound[opt.slot] = ahead[opt.slot] = Math.max(base, tris);
+    const fits = worstFrame(bound, passes).fill <= budget && worstFrame(ahead, passes).fill <= budget;
+    bound[opt.slot] = ahead[opt.slot] = base;
     return fits;
   };
 }
