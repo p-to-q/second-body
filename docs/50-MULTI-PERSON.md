@@ -53,13 +53,16 @@ PoseLandmarker 是 detector → 从上一帧关节推 ROI → 在 ROI 上跑 256
 - 画面里只有 1 个人、开着 `numPoses = 3`：**每一帧都跑检测器**（没跟满）。比单人档贵的不是"多两个人的关节模型"，是"每帧一次检测器"。
 - 画面里正好 N 个人、`numPoses = N`：检测器几乎不跑，代价 ≈ N 次关节模型。
 
-**[实测]** 推理耗时（worker 里 `detectForVideo` 的单次毫秒，假摄像头喂合成人形，§10 的命令）：
+推理耗时（worker 里 `detectForVideo` 的单次毫秒）× numPoses 1/2/3 × 画面里 1/2/3 人：**Not run**。
+这一轮额度到头，协调者裁定先落地、不跑这张表。命令和素材都在仓库里，下一轮直接跑：
 
-| numPoses ＼ 画面里的人 | 1 人 | 2 人 | 3 人 |
-|---|---|---|---|
-| 1 | 待测 | 待测 | 待测 |
-| 2 | 待测 | 待测 | 待测 |
-| 3 | 待测 | 待测 | 待测 |
+```bash
+for n in 1 2 3; do python3 scripts/people/figures.py assets/demo/pose-jumpingjacks.json scratch/people/figures-$n.y4m $n 20; done
+npm run build && (cd packages/app && npx vite preview --port 4777 --strictPort)
+for p in 1 2 3; do for n in 1 2 3; do node scripts/people/measure.ts infer http://localhost:4777 scratch/people/infer $p scratch/people/figures-$n.y4m 20; done; done
+```
+
+**这张表是 `PEOPLE.defaultCap` 唯一的依据**（§6.3），所以默认值留在 1，直到它被跑出来。
 
 ### 1.3 输出顺序
 
@@ -89,7 +92,7 @@ PoseLandmarker 是 detector → 从上一帧关节推 ROI → 在 ROI 上跑 256
 | 量 | 怎么算 | 为什么 |
 |---|---|---|
 | 躯干中心 `cx, cy` | 肩中点与胯中点的中点；胯不在画内时按肩宽往下估半个躯干 | 最稳的一块：手脚会出画、脸会转，躯干很少突变 |
-| 尺度 `scale` | 肩中点到胯中点的距离（x 按宽高比折算）；胯不在时肩宽 × 1.45 | 离得远的人小：位置差按尺度折成"躯干长"，远近同一把尺 |
+| 尺度 `scale` | **躯干长与"肩宽 × 1.45"里大的那个**（x 按宽高比折算）；胯不在时只用肩宽 | 离得远的人小：位置差按尺度折成"躯干长"，远近同一把尺。取大：弯腰时躯干投影缩到几分之一、侧身时肩宽缩到几分之一，两件事很少同时发生 —— 只看躯干长时，开合跳录像里尺度一帧从 0.16 掉到 0.04，同一个人被判成新人（实测：22 次交接 → 0 次） |
 | 面积 `area` | 可信点包围盒 | "离得最近 = 最大"（docs/23 §S4「跟面积最大的那个」） |
 | 描述子 `desc` | 肩肘腕胯膝十个点相对躯干中心、除以尺度 | 两个人站得很近时区分他们的唯一线索：一个举着手、一个没有 |
 
@@ -119,7 +122,8 @@ cost   = dPos + 1.5·dScale + 0.6·dPose
 | 出生 | 新轨迹是 `tentative`，连续被看见（漏桶：看不见一帧扣两帧）`birthSeconds` 才转正、才有资格拿身体 | 0.3s |
 | 误检 | 还没转正就丢了 `tentativeGrace` = 当它没来过 | 0.15s |
 | 丢失 | 转正的轨迹丢了 `graceSeconds` 才死；期间预测位置照走、门限放宽 | 1.0s（= `PRESENCE.loseDelay`） |
-| 墓地 | 死了的轨迹留 `reattachSeconds`；这期间在离开处 2.5 个躯干内、尺度相近地出现 = 同一个人回来了，同一个 id、直接转正 | 3.0s |
+| 墓地 | 死了的轨迹留 `reattachSeconds`；这期间在离开处 **1.5 个躯干内**、尺度相近、姿态描述子不远（≤ 0.6）地出现 = 同一个人回来了，同一个 id、直接转正。几个人同时在墓地里时按**全局最近的一对**先配 | 3.0s |
+| 重新看见 | 丢失超过 `tentativeGrace` 后又配上（或从墓地认回）的那一帧，轨迹带 `reacquired`：消费者清掉这个人的姿态时钟、精化、稳定、生命力 | — |
 | 新人 | 墓地里认不上 = 新 id（单调递增，不复用） | — |
 
 ### 2.4 它挺不住的情形（以及决定好的行为）
@@ -316,6 +320,10 @@ draw call：任何人数下 = 一具身体（共用桶，`people-budget.test.ts`
 | 调速器高位 | 第 7 级只留主身体 | `governor-wire.test.ts` 的登记表 |
 | 调低上限 | 最后拿到身体的先让，主身体最后让 | 「调低上限」 |
 | 一帧误检 | 不成人、不拿身体 | 「出生要憋」 |
+| 丢了一阵又被认回来 | 这个人的时间状态清零，不在"之前"和"之后"之间插值（否则插出一具摊在地上的星形，§10） | 「reacquired」 |
+| 并排两人先后离开又回来 | 按全局最近配回各自的 id | 「两个人并排、先后离开又回来」 |
+| 一个人走了、另一个人在墓地窗口里从另一边进来 | 新 id（位置门限 1.5 躯干） | 「一个人走了，另一个人……从画面另一边进来」 |
+| 弯腰 / 侧身 | 尺度取两种量法里大的，不被判成新人 | 「弯腰……侧身」 |
 | 坏输入（NaN、null、巨大 dt） | 不 throw | 「坏输入不 throw」 |
 | **隐私** | 多人**不改变任何存储**：存档仍是一场一行（n / species / at，docs/43 §8），不按人计 —— "这台机器前面站过几个人"不是这件作品要记的东西，而按人计会让一行记录开始描述一群人。轨迹 id 只活在内存里，人一走进墓地、3 秒后连 id 都没了 | `archive.test.ts` 不变（没有新字段） |
 
@@ -323,7 +331,35 @@ draw call：任何人数下 = 一具身体（共用桶，`people-budget.test.ts`
 
 ## 8 · 落地（这一版做了什么，没做什么）
 
-待落地后填。
+### 8.1 做了
+
+| 做什么 | 在哪 | 守卫 |
+|---|---|---|
+| 身份、出生 / 死亡 / 墓地、谁拿到身体、主身体交接、站位、差异色、`reacquired` | `core/src/people.ts`；数全在 `tuning.ts` 的 `PEOPLE` | `core/test/people.test.ts` 28 条 |
+| `numPoses` 进 worker（开机消息 + 运行中 `options`），`others` 只在多于一个人时出现；主线程降级路径同形 | `capture/pose-worker.ts`、`pose-protocol.ts`、`webcam.ts` 的 `latestAll()` / `setPeople()` | `test/people-flag.test.ts` |
+| 回放上合成的第二、三个人（错开取帧、奇数位镜像、摆到两侧），只给演示与取证 | `capture/people-synth.ts`、`replay.ts` | 同上 |
+| 伴随身体共用主身体的桶：实例接在后面、`instanceColor` 上色、描边外壳只数主身体 | `creature/creature.ts` 的 `setCompanions` / `setOutlineWithCompanions` | `test/people-budget.test.ts`（N 具不开新桶） |
+| 每个人的滤波链、在场、腿、站位弹簧；交接时滤波器跟着人走，上一个主身体就地溶掉 | `creature/companions.ts` | 无头取证（§10） |
+| 预算：几具放得下、描边留不留 | `creature/people-budget.ts` | `test/people-budget.test.ts` |
+| 主线接线：主身体换成跟踪器的那个人；"有人"看任何一具身体；多具时全景、取景框住最宽的跨度与最高的那一具 | `main.ts`、`stage/stage.ts` 的 `setGroup(width, height)` | `npm run check` |
+| 调速器第 7 级 `people`：只留主身体 | `shell/governor.ts`、`governor-wire.ts` | `test/governor{,-wire}.test.ts` |
+| `?people=1\|2\|3`、控件「人数」· N（重载）、HUD 的 people 几行、小屏画其余的人 | `shell/kiosk.ts`、`ui/control-table.ts`、`ui/i18n.ts`、`shell/hud.ts`、`ui/preview.ts` | `people-flag` / `people-hud` / `control-table` |
+| 工作台 `/dev/people.html`：六个合成场景、轨迹时间线、舞台俯视、门限 | `dev/people.{html,ts}`，目录里一行 | — |
+| 取证脚本（raw CDP）与合成假摄像头 | `scripts/people/{measure.ts,figures.py}` | — |
+
+**默认值：网页和现场都是 1。** 推理那张表（§1.2）没跑，按 §6.3 的裁定，证据之前不改。
+
+### 8.2 没做（按收益排序）
+
+1. **§1.2 的推理表**，然后按它定 `PEOPLE.defaultCap` / `defaultCapKiosk`（命令在 §1.2）。
+2. **伴随身体的低面数 LOD**（第三具身体的前提，§5.3）：`meshoptimizer` 的 simplifier 已在依赖里，按部件 id 简化一次、缓存、伴随身体共用。
+3. **描边让位改成 0.4 秒淡出**：现在第二个人进画的那一帧，主身体的描边一帧消失（§5.3）。
+4. **伴随身体的接触阴影**：舞台的接触阴影只按主身体的脚画，伴随身体脚下没有那一摊影子（`stage.ts` 的 `uFeet` 只有一组）。
+5. **开场团块阶段的伴随身体**：主身体还是团块（tier 0）时伴随身体整具不画（`scale = emergence`），要等长出零件才一起出现。更好的做法是伴随身体也先是团块 —— 那要每人一个 metaball，CPU 要重新量。
+6. **团块 / 点场物种上的多人**：没有桶可共用，这一版这两种物种上 `?people=` 按 1 走。
+7. **主身体交接时颜色一帧切**：接班的伴随身体从差异色一帧变回原色、拿回描边。
+8. `companions.ts` 没有 node 单测（它只依赖 core，测得起）：交接、`retire`、`reacquired` 清状态各一条。
+9. 舞台跟随 docs/52（拖动、转视角、拽零件）：计划写好了，一行没写。
 
 ## 9 · 先红后绿
 
@@ -331,7 +367,33 @@ draw call：任何人数下 = 一具身体（共用桶，`people-budget.test.ts`
 
 ## 10 · 浏览器里的证据
 
-待落地后填。
+无头 Chrome，raw CDP（`scripts/people/measure.ts`），`vite preview` 打的 dist，解开帧率（帧间隔量的是"这一帧的活有多重"）。
+回放（`?demo=1`）上的第二个人是**合成的**（§7 回放那一条），不是录像里真有的人。截图在工作树 `scratch/people/`，不进仓库。
+
+### 10.1 一具 vs 两具（同一个 URL，只差 `people`）
+
+`/?theme=porcelain&seed=7&debug=1&arc=900&loading=0&wave=off&tier=1&theseus=off&clip=walkturn&demo=1&people=N`
+
+| | 帧间隔 p50 / p95 / p99（ms） | >25ms 帧 | draws | tris | instances | 截图 |
+|---|---|---|---|---|---|---|
+| people=1 | 3.3 / 12.0 / 17.3 | 7 / 5119 | 36 | 175k | 30 | `ctl2/bodies-1-ctl1b-mid.png` |
+| people=2 | 3.7 / 10.7 / 16.8 | 3 / 4171 | 18 | 175k | 60 | `ctl2/bodies-2-ctl2-mid.png` |
+
+两具身体的帧间隔和一具在噪声里；draw call 从 36 **降到** 18（伴随身体在场时描边让位），面数不变（两具无描边 = 一具带描边）。
+三具（需要轻物种）和 `numPoses` 的推理代价：**Not run**（§1.2）。首屏字节：**Not run**（这一版加的代码在 `main` / `creature` / `webcam` chunk 里，没按 docs/13 的口径重量）。
+
+### 10.2 取证撞到的三件事，都在这一版修了
+
+1. **伴随身体被切成巨人。** 舞台只按主身体取景；主身体一蹲下（高 0.41m），画面框成 1.35m 高，站着的伴随身体溢出画面。
+   → `stage.setGroup(width, height)`：框住最宽的跨度**和最高的那一具**。
+2. **同一个人被认成新人、主身体来回交接。** 开合跳录像里尺度（只看躯干长）一帧从 0.16 掉到 0.04，门限把他判成新人：40 秒 22 次交接、id 发到 #57。
+   → 尺度取躯干与肩宽里大的：0 次交接、id 到 #2（`dbgprimary` 复现，node）。
+3. **丢了一阵又被认回来时，身体摊在地上。** 姿态时钟和滤波器在"之前"和"之后"两份姿态之间插值。
+   → 跟踪器给 `reacquired`，主身体和伴随身体各自清状态；认亲门限 2.5 → 1.5 躯干、加姿态门限、按全局最近配。
+
+**还剩的那一个"摊在地上"不是多人的 bug**：`pose-walkturn` 的第 298–346 帧是录像本身的一段转身 / 下蹲，分数 0.72–0.89、肩胯全可见，
+而骨架高只有 0.34–0.84m。**单人那条链在同一段上也有 18 帧低于 0.7m**（最低 0.35m，第 321 帧）—— 这一版之前就是这样。
+页内快照（`?debug=1` 时 `globalThis.__people`）与截图同一刻取，数和形状对得上：主身体骨架高 0.406m、骨盆 0.059m，伴随身体 1.595m。
 
 ## 11 · 和旧文档的冲突（登记，不改原文）
 

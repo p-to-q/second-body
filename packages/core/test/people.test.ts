@@ -196,14 +196,45 @@ test('reacquired：丢了一阵又被配上的那一帧为真，其余帧为假'
 // ── 谁拿到身体 ─────────────────────────────────────────────────────────────────
 
 test('人数到顶：第四个人擦肩走过，场上三具身体一个都不换', () => {
-  const frames = run(HZ * 6, (_k, t) => {
-    const three = [{ cx: 0.2, s: 0.5 }, { cx: 0.5, s: 0.5 }, { cx: 0.8, s: 0.5 }];
-    // 第四个人 1–2.2 秒走过前景：比场上的大 1.5 倍，但只停留 1.2 秒 < swapSeconds
-    return t > 1 && t < 2.2 ? [...three, { cx: 0.1 + (t - 1) * 0.6, s: 0.62, hy: 0.55 }] : three;
-  }, { cap: 3 });
-  const before = [...frames[HZ * 0.9].selected].sort();
+  // 三个人和第四个人**全身都在画内**：画外的手脚不进面积，半个身子在画外的路人算不上"更大" ——
+  // 上一版的路人脚踩在画面下边外面，面积从来没超过换人门限，这条测试删掉 swapSeconds 照样绿（M4 没红）
+  const three: PersonSpec[] = [{ cx: 0.2, s: 0.45 }, { cx: 0.5, s: 0.45 }, { cx: 0.8, s: 0.45 }];
+  // 尺度比 0.58 / 0.45 = 1.29 > duplicateScale：重叠时不会被当成同一个人的第二份
+  const passer = (t: number): PersonSpec => ({ cx: 0.12 + (t - 1) * 0.6, s: 0.58, hy: 0.45 });
+  const inPass = (t: number) => t > 1 && t < 2.2;   // 只停留 1.2 秒 < swapSeconds
+  const frames = run(HZ * 6, (_k, t) => (inPass(t) ? [...three, passer(t)] : three), { cap: 3 });
+
+  // 反空转：路人确实够格发起换人（面积超过场上最小的 swapRatio 倍），否则这条测试什么都没守
+  const minArea = Math.min(...three.map((s) => observePerson(person(s))!.area));
+  const qualified = Array.from({ length: HZ * 6 }, (_, k) => k * DT).filter(inPass)
+    .some((t) => (observePerson(person(passer(t)))?.area ?? 0) > minArea * PEOPLE.swapRatio);
+  assert.ok(qualified, '路人从头到尾都不够格换人 —— 这条测试守不住 swapSeconds');
+
+  const before = [...frames[Math.round(HZ * 0.9)].selected].sort();
   assert.equal(before.length, 3);
   for (const f of frames.slice(HZ)) assert.deepEqual([...f.selected].sort(), before, '擦肩而过不许换人');
+});
+
+test('人数到顶：一个明显更近的人站定 —— 憋够 swapSeconds 之前不换，之后换掉最小的非主身体', () => {
+  // 上限 2。第三个人 2 秒起站在中间：全身在画内，面积是最小那个人的 2 倍以上
+  const frames = run(HZ * 7, (_k, t) => {
+    const two: PersonSpec[] = [{ cx: 0.25, s: 0.45 }, { cx: 0.75, s: 0.36, hy: 0.52 }];
+    return t > 2 ? [...two, { cx: 0.5, s: 0.52, hy: 0.46 }] : two;
+  }, { cap: 2 });
+  const confirmedAt = 2 + PEOPLE.birthSeconds;
+  const early = frames[Math.round((confirmedAt + PEOPLE.swapSeconds * 0.6) * HZ)];
+  assert.ok(!early.selected.includes(idNear(early, 0.5)!), '还没憋够 swapSeconds 就换人了');
+  const late = frames[Math.round((confirmedAt + PEOPLE.swapSeconds + 1.0) * HZ)];
+  assert.ok(late.selected.includes(idNear(late, 0.5)!), '憋够了还不换');
+  assert.ok(!late.selected.includes(idNear(late, 0.75)!), '让出的应该是最小的那个非主身体');
+});
+
+test('一个人走了，另一个人在认亲窗口里从画面另一边进来：是新的人，不认成刚走的那个', () => {
+  // A 在左边 1.5 秒后离开（2.5 秒进墓地，墓地留到 5.5 秒）；B 3 秒时出现在右边 —— 隔着 4 个躯干以上
+  const frames = run(HZ * 6, (_k, t) => (t < 1.5 ? [{ cx: 0.2, s: 0.45 }] : t < 3.0 ? [] : [{ cx: 0.8, s: 0.45 }]), { cap: 1 });
+  const a = frames[HZ].primary, b = frames[frames.length - 1].primary;
+  assert.ok(a !== null && b !== null);
+  assert.notEqual(b, a, '隔着半个画面进来的人被认成了刚走的那个（认亲的位置门限没起作用）');
 });
 
 test('人数到顶：一个明显更近的人站定不走，swapSeconds 之后换掉最小的那个非主身体，只换一次', () => {

@@ -1284,9 +1284,12 @@ export const AUTOFRAME = {
  */
 export const PEOPLE = {
   // ── 人数 ──
-  /** `?people=` 的默认值（网页版）。**由证据定**：docs/50 §5 的推理与帧预算实测 */
+  /**
+   * `?people=` 的默认值（网页版）。**1，直到证据说可以改**：它唯一的依据是 docs/50 §1.2 的推理表
+   * （numPoses 1/2/3 × 画面里 1/2/3 人），而那张表这一轮没跑（Not run）。
+   */
   defaultCap: 1,
-  /** `?kiosk=1` 的默认值。同上 */
+  /** `?kiosk=1` 的默认值。同上；现场要多人写 `?kiosk=1&people=2` */
   defaultCapKiosk: 1,
   /**
    * 硬上限：`?people=` 认的最大值，也是 worker 里 `numPoses` 的上限。
