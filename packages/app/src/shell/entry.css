@@ -19,7 +19,8 @@
   overflow-y: auto;
   scrollbar-width: none;
   gap: var(--sb-gutter);
-  padding: var(--sb-safe);
+  /* 半个安全区：和右上目录、舞台四角同一个框（负责人 2026-09-14）。原来整个安全区，左下那一行比目录往里缩 24px */
+  padding: calc(var(--sb-safe) * 0.5);
   background: var(--sb-paper);
   /* 进 240ms，缓动按 §0 */
   animation: sb-entry-in 240ms cubic-bezier(.16, 1, .3, 1) both;
@@ -132,8 +133,8 @@
  */
 .sb-camera {
   position: fixed;
-  right: var(--sb-safe);
-  bottom: var(--sb-safe);
+  right: calc(var(--sb-safe) * 0.5);
+  bottom: calc(var(--sb-safe) * 0.5);
   z-index: 5;
   animation: sb-entry-in 240ms cubic-bezier(.16, 1, .3, 1) both;
 }

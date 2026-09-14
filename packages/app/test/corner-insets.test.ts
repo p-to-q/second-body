@@ -30,3 +30,14 @@ test('四个角同一个边距：右下出口列与左下读数底边对齐、�
   assert.equal(bottomOf(exits).replace(/\s+/g, ''), bottomOf(readout).replace(/\s+/g, ''), '右下出口列和左下读数的底边距不一样，底部对不齐');
   assert.equal(rightOf(exits).replace(/\s+/g, ''), rightOf(corner).replace(/\s+/g, ''), '右下出口列和右上目录的右边距不一样，右边对不齐');
 });
+
+test('入口展签：整块字（含隐私那一行）和摄像头按钮的边距与右上目录同一个框', () => {
+  const entry = css('../src/shell/entry.css');
+  const label = first(entry, '.sb-entry');
+  const camera = first(entry, '.sb-camera');
+  const corner = first(css('../src/ui/corner.css'), '.sb-corner');
+  const rightOf = (b: string) => b.match(/right:\s*([^;]+);/)?.[1].trim().replace(/\s+/g, '') ?? '';
+  assert.match(label.match(/padding:\s*([^;]+);/)?.[1] ?? '', HALF, '展签的内边距不是半个安全区 —— 左下那一行和右上目录不在同一个框里');
+  assert.equal(rightOf(camera), rightOf(corner), '摄像头按钮和右上目录的右边距不一样');
+  assert.match(camera.match(/bottom:\s*([^;]+);/)?.[1] ?? '', HALF, '摄像头按钮的底边距不是半个安全区');
+});

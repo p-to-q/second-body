@@ -689,9 +689,12 @@ en: Pose estimation runs entirely on your device; no camera frame ever leaves it
 **入口层那一句**：
 
 ```
-zh: 它只认得你的骨头。留下的是一个号码。
-en: It only ever sees your bones. What it keeps is a number.
+zh: 它只认得你的骨头。
+en: It only ever sees your bones.
 ```
+
+> 2026-09-14 作品负责人裁定：删掉续的那半句「留下的是一个号码」，全站只留原句。
+> 存档留下一行这件事改由 `/about` 隐私一节的长段与 `archiveRow` 说（存档真的在应答时才印）。
 
 **`/about` 那一段**：
 
