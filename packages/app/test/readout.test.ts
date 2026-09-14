@@ -231,7 +231,8 @@ test('readout: 上半截跟着左下角的场景墨走，底下那一条接近�
   const dark = veilFor('onDark').alpha;
   const light = veilFor('onLight').alpha;
   for (const [name, a] of [['深场景', dark], ['浅场景', light]] as const) {
-    assert.ok(a >= 0.62 && a <= 0.76, `${name}上半截的不透明度 ${a.toFixed(2)} 出了 0.62–0.76 的区间`);
+    // 上沿 0.80：深空上泛灰的纱化进地里之后（readout.css 第 6 条）放宽的；仍低于上一版固定的 0.84
+    assert.ok(a >= 0.62 && a <= 0.8, `${name}上半截的不透明度 ${a.toFixed(2)} 出了 0.62–0.80 的区间`);
   }
   assert.ok(Math.abs(light - dark) <= 0.1, `两侧差 ${Math.abs(light - dark).toFixed(2)} —— 负责人要两端往中间靠`);
   // 底下那一条：和上半截在任何场景上都拉得开
