@@ -322,6 +322,12 @@ export const COPY = {
     exit: bi('退出 · 回到作品', 'Back to the work'),
   },
 
+  /** 不存在的地址（`404.html`）。左上角「回到作品」、右上角目录，就是它全部的出口 */
+  notFound: {
+    title: bi('这里没有这一页', 'Nothing here'),
+    lede: bi('地址可能拼错了，或者这一页已经搬走。', 'The address may be mistyped, or the page has moved.'),
+  },
+
   /** 作品陈述页 `/about` —— 面向观众和评委，不是面向开发者 */
   about: {
     back: bi('回到作品', 'Back to the work'),
