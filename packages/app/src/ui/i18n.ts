@@ -309,6 +309,15 @@ export const COPY = {
     metaDurationV: bi('约三分钟', 'about three minutes'),
   },
 
+  /**
+   * 工作台（`/dev/*`）顶上的两条出路，`dev/devnav.ts`。
+   * 「回到作品」和 `about.back` 同一句话：出口说的是同一件事，不另起一个词
+   */
+  devnav: {
+    workbench: bi('返回工作台', 'Workbench'),
+    exit: bi('退出 · 回到作品', 'Back to the work'),
+  },
+
   /** 作品陈述页 `/about` —— 面向观众和评委，不是面向开发者 */
   about: {
     back: bi('回到作品', 'Back to the work'),

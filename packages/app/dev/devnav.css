@@ -1,0 +1,61 @@
+/**
+ * 工作台出口的皮肤。
+ *
+ * 十五页里有三页（accuracy / record / poster）不引 type.css，各自有一套自己的底。
+ * 所以这里每一个 `var(--sb-*)` 都带一个**和 type.css 同值**的兜底 ——
+ * 在引了 type.css 的页上兜底从不生效；在那三页上它让这两行字仍然是同一家的字，
+ * 而不是浏览器默认的蓝色下划线。
+ *
+ * 反面清单（docs/26 §F）：没有底、没有框、没有圆角、没有阴影、没有图标。
+ * 悬停与键盘焦点只提亮，不位移、不加线；焦点另有一圈直角的 1px 焦点框。
+ */
+
+.sb-devnav {
+  position: absolute;
+  top: calc(var(--sb-safe, 48px) * 0.5);
+  right: calc(var(--sb-safe, 48px) * 0.5);
+  /* 12 = 高过浮层页头（4）、HUD（3）、以及站点目录（11）那一档 */
+  z-index: 12;
+  display: flex;
+  align-items: baseline;
+  gap: 1.6em;
+  font-family: var(--sb-grotesk, "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif);
+  font-size: var(--sb-size-small, 0.8125rem);
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.sb-devnav__link {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5em;
+  /* `--sb-on-stage-dim` 在纸上**就是** `--sb-ink-dim`（type.css 里同值）；
+     在舞台页上它由舞台按场景亮度发布 —— stage.html 的浅灰场景上，
+     固定的浅墨读不出来（实测：页头自己也读不出，而出口不许读不出） */
+  color: var(--sb-on-stage-dim, var(--sb-ink-dim, #9aa0a6));
+  text-decoration: none;
+  border: 0;
+  /* 焦点框的位置先留好：出现焦点框时字不许动 */
+  outline: 1px solid transparent;
+  outline-offset: 3px;
+  transition: color 180ms;
+}
+
+/* 并置在同一行（setBi 给的是块级那一种，这里压成行内）。行内并置不补汉字左边距 */
+.sb-devnav .sb-zh,
+.sb-devnav .sb-en { display: inline; margin: 0; }
+.sb-devnav .sb-zh { color: inherit; }
+.sb-devnav .sb-cjk { margin-left: 0; }
+.sb-devnav .sb-en {
+  color: inherit;
+  font-size: var(--sb-size-micro, 0.6875rem);
+  letter-spacing: var(--sb-tracking-label, 0.07em);
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+.sb-devnav__link:hover,
+.sb-devnav__link:focus-visible { color: var(--sb-on-stage, var(--sb-ink, #dfe4ea)); }
+.sb-devnav__link:focus-visible { outline-color: currentColor; }
+
+@media print { .sb-devnav { display: none; } }

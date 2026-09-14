@@ -8,7 +8,9 @@
  #stage{position:fixed;left:0;top:0;right:340px;bottom:0;background:#000}
  video,#ov{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:contain}
  #side{position:fixed;right:0;top:0;bottom:0;width:340px;background:#111316;
-       border-left:1px solid #222;padding:16px;overflow:auto;box-sizing:border-box}
+       border-left:1px solid #222;padding:16px;
+       /* 顶上一行让给工作台出口（dev/devnav.ts），它住在右上角的仪表线上 */
+       padding-top:52px;overflow:auto;box-sizing:border-box}
  h1{font-size:14px;color:#eef2f6;margin:0 0 2px;letter-spacing:.05em;font-weight:600}
  .sub{color:#5c626b;font-size:11.5px;margin-bottom:14px}
  .card{border:1px solid #24272c;border-radius:6px;padding:10px 12px;margin-bottom:12px;background:#141619}
@@ -86,5 +88,6 @@
   </div>
 </div>
 <script type="module" src="./record.ts"></script>
+<script type="module" src="./devnav.ts"></script>
 </body>
 </html>
