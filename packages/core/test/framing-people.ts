@@ -105,21 +105,24 @@ export const SCRIPTS: Record<string, Segment[]> = {
     { seconds: 4, from: WHOLE, swayAmp: 0.05, swayHz: 2 },
     { seconds: 1.5, from: WHOLE },
   ],
-  /** 往自己左边走出画、停一会、走回来 */
+  /**
+   * 往自己左边走出画、停一会、走回来。两端都写明 `cx`：`between()` 对只有一边有的键直接取有的那边 ——
+   * 写成 `from: WHOLE, to: { cx: 1.08 }` 的话，人在这一段的第一帧就瞬移出画了（第一版取证就是这么漏的）
+   */
   'out-left': [
-    { seconds: 1.5, from: WHOLE },
-    { seconds: 2.5, from: WHOLE, to: { ...WHOLE, cx: 1.08 } },
+    { seconds: 1.5, from: { ...WHOLE, cx: 0.5 } },
+    { seconds: 2.5, from: { ...WHOLE, cx: 0.5 }, to: { ...WHOLE, cx: 1.08 } },
     { seconds: 2.5, from: { ...WHOLE, cx: 1.08 } },
-    { seconds: 2.5, from: { ...WHOLE, cx: 1.08 }, to: WHOLE },
-    { seconds: 2, from: WHOLE },
+    { seconds: 2.5, from: { ...WHOLE, cx: 1.08 }, to: { ...WHOLE, cx: 0.5 } },
+    { seconds: 2, from: { ...WHOLE, cx: 0.5 } },
   ],
   /** 往自己右边走出画、停一会、走回来 */
   'out-right': [
-    { seconds: 1.5, from: WHOLE },
-    { seconds: 2.5, from: WHOLE, to: { ...WHOLE, cx: -0.08 } },
+    { seconds: 1.5, from: { ...WHOLE, cx: 0.5 } },
+    { seconds: 2.5, from: { ...WHOLE, cx: 0.5 }, to: { ...WHOLE, cx: -0.08 } },
     { seconds: 2.5, from: { ...WHOLE, cx: -0.08 } },
-    { seconds: 2.5, from: { ...WHOLE, cx: -0.08 }, to: WHOLE },
-    { seconds: 2, from: WHOLE },
+    { seconds: 2.5, from: { ...WHOLE, cx: -0.08 }, to: { ...WHOLE, cx: 0.5 } },
+    { seconds: 2, from: { ...WHOLE, cx: 0.5 } },
   ],
   /** 站在一边、整个人出画（跟丢）三秒、从另一边回来 */
   reentry: [
