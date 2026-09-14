@@ -33,7 +33,8 @@ for (const dir of process.argv.slice(2)) {
   const lt = (p.lt as [number, number][]).filter(([s]) => s >= c - 200).map(([s, d]) => [Math.round(s - c), d]);
   const loaf = (p.loaf as { s: number; d: number; scripts: [string, string, string, number][] }[])
     .filter((l) => l.s >= c - 200 && l.d >= 50)
-    .sort((a, b) => b.d - a.d).slice(0, 6)
+    // ALL=1 → 按时刻列出全部 ≥50ms 的帧（对 `[governor] @秒` 行用）；缺省是最重的 6 个
+    .sort((a, b) => (process.env.ALL === '1' ? a.s - b.s : b.d - a.d)).slice(0, process.env.ALL === '1' ? 200 : 6)
     .map((l) => `${Math.round(l.s - c)}ms:${l.d}ms[${l.scripts.filter((s) => s[3] > 5).map((s) => `${s[0].replace(/-[A-Za-z0-9_]{8}\.js$/, '')}:${s[1] || s[2]}=${s[3]}`).join(',')}]`);
   const consoleTxt = existsSync(`${dir}/console.txt`) ? readFileSync(`${dir}/console.txt`, 'utf8') : '';
   const pick = (re: RegExp) => consoleTxt.split('\n').filter((l) => re.test(l)).map((l) => l.slice(0, 160));

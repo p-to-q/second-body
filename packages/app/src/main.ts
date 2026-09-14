@@ -42,6 +42,7 @@ import { wireDegrade } from './shell/degrade-wire.ts';
 import { degradeTo, deviceLostAction, getDegradeState } from './shell/degrade.ts';
 import { createDeferral, createGovernor, GOVERNOR_LADDER } from './shell/governor.ts';
 import { wireGovernor } from './shell/governor-wire.ts';
+import { createWarmPlan } from './stage/warm-plan.ts';
 import { createLongTaskCounter } from './shell/long-tasks.ts';
 import { createPoseClock } from './capture/pose-clock.ts';
 import { showBootError } from './shell/boot-error.ts';
@@ -587,6 +588,8 @@ async function boot(): Promise<void> {
   /** 「降级渲染」那一句一个会话只说一次：说过了再说就是闪 */
   let saidReduced = false;
   const governor = createGovernor();
+  /** 什么时候在空闲里把直出那条路编一遍 —— 让调速器放下「后期」只是一次切换（docs/48 §10） */
+  const warmPlan = createWarmPlan();
   const longTasks = createLongTaskCounter();
   /** 推理节拍 → 渲染节拍（`capture/pose-clock.ts`）。身体吃它给的；小屏幕和读数吃采集端的原话 */
   const poseClock = createPoseClock();
@@ -679,6 +682,9 @@ async function boot(): Promise<void> {
     dpr: (shed) => renderer.setPixelRatio(shed ? Math.min(devicePixelRatio, GOVERNOR.dprShed) : Math.min(devicePixelRatio, GOVERNOR.dprMax)),
     ui: (shed) => { uiShed = shed; },
   });
+  // 调试探针（只在 ?debug=1 下挂）：直接拨到第几级，量"拨开关本身"是不是一次长任务（docs/48 §10）。
+  // 调速器自己下一次变级时 `wireGovernor` 只拨和它不一样的那几个，所以拨乱了也会被收回来
+  if (flags.debug) (globalThis as Record<string, unknown>).__governorProbe = { apply: (l: number) => applyGovernor(l) };
 
   // ── 6. 一帧（docs/06 §1） ────────────────────────────────────────────────
   const loop = createFrameLoop((dt, tMs) => {
@@ -824,7 +830,7 @@ async function boot(): Promise<void> {
           tier, index: library.index, rejected: library.rejected, overall: arcState.overall, grown,
           // 给操作员（`?debug=1`），不给观众：换的是哪一格、从哪一圈借的（docs/44 §7 最后一段）
           onChoice: hud ? (c) => console.info(
-            `[theseus] #${fired.index} ${fired.slot} ← d${c.ring} ${c.pick.partId}`,
+            `[theseus] @${(tMs / 1000).toFixed(2)}s #${fired.index} ${fired.slot} ← d${c.ring} ${c.pick.partId}`,
           ) : undefined,
         },
       );
@@ -869,7 +875,7 @@ async function boot(): Promise<void> {
       const want = Math.max(tier, step ? step.tier : arcState.tier, evoTier) as Tier;
       if (want !== tier) {
         // 给操作员（`?debug=1`）：升档落在弧线的第几秒 —— 现场验"它不在乐章边界上"靠这一行
-        if (hud) console.info(`[tier] ${tier} → ${want} @ arc ${arcState.elapsed.toFixed(2)}s（乐章 ${arcState.movement + 1}）`);
+        if (hud) console.info(`[tier] @${(tMs / 1000).toFixed(2)}s ${tier} → ${want} @ arc ${arcState.elapsed.toFixed(2)}s（乐章 ${arcState.movement + 1}）`);
         morph(want);
         stage.pulse(want);      // docs/23 §S5：升档必须可感知，否则演化等于没发生
         // 这一声也跟着挂点搬走了。**乐章序号就是档位下限**，所以在四个交接点上
@@ -971,6 +977,17 @@ async function boot(): Promise<void> {
     });
     stage.update(p, lastFeatures, dt);
     stage.render(renderer);   // 后期链在舞台里；?nopost=1 时它退化成直出
+
+    // 空闲里预编译直出那条路（docs/48 §10）：桶集合稳定、画面不忙、后期开着时才编，编的时候让出主线程。
+    // 物种身体到场（第 III 乐章）是另一批网格第一次可见，也算内容变了
+    warmPlan.note(creature.stats.buckets * 2 + (speciesBody?.object.visible ? 1 : 0), tMs);
+    // "不忙" = 这一帧自己不是丢帧。**不看调速器走到了第几级**：原来看，结果恰恰在它要放下后期之前
+    // 那几秒（L3）被挡住，一次都没编成（B-prof2：@24.29s 放下后期，那一帧 302ms，其中节点构建 61ms）。
+    // 编译本身逐个对象让出主线程，所以在调速器忙着放级的时候开编是对的 —— 那正是它要赶在前面的时候
+    if (warmPlan.next(tMs, { postOn: stage.post, calm: loop.stats.frameMs < GOVERNOR.jankFloorMs })) {
+      warmPlan.started(tMs);
+      void stage.warmDirect(renderer).then((ok) => warmPlan.finished(performance.now(), ok));
+    }
 
     // 左下角那块读数。放在这里而不是上面 `preview?.update()` 旁边，是因为它要的
     // `lastFeatures` 是这一帧**刚算出来**的那一份 —— 放在前面就永远晚一帧，

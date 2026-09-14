@@ -32,6 +32,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { PLACEHOLDER_PREFIX } from '../../../core/src/genome.ts';
+import { createIdleQueue } from './idle-queue.ts';
 import type {
   MaterialDef, PartLibraryIndex, PartMeta, Slot, ThemeDef, Vec3,
 } from '../../../core/src/types.ts';
@@ -437,6 +438,9 @@ export function createPartLibrary(opt: PartLibraryOptions = {}): PartLibrary {
       } finally {
         inFlight.delete(partId);
         emit(partId);
+        // 左侧肢体要画的预镜像副本：在空闲里先做好，别等第一次被画的那一帧（docs/48 §10）。
+        // 必须排在 emit 之后 —— emit 会把旧的镜像副本作废
+        if (geometries.has(partId) && meta.symmetry === 'mirror') premirror(partId);
       }
     })();
     inFlight.set(partId, task);
@@ -478,6 +482,30 @@ export function createPartLibrary(opt: PartLibraryOptions = {}): PartLibrary {
       bgActive++;
       void fetchPart(id).finally(() => { bgActive--; pump(); });
     }
+  }
+
+  /**
+   * 离开帧循环的准备活（`idle-queue.ts`，docs/48 §10）。每个空闲时段最多做 `PREP_SLICE_MS`；
+   * 没有 requestIdleCallback 就退到 0ms 定时器、按同一个预算切片。
+   */
+  const PREP_SLICE_MS = 8;
+  const prep = createIdleQueue({
+    now: () => performance.now(),
+    schedule: () => {
+      const ric = (globalThis as { requestIdleCallback?: (cb: (d: { timeRemaining(): number }) => void, o?: { timeout: number }) => void }).requestIdleCallback;
+      if (ric) ric((d) => prep.run(Math.min(PREP_SLICE_MS, d.timeRemaining())), { timeout: 1000 });
+      else setTimeout(() => prep.run(PREP_SLICE_MS), 0);
+    },
+    onError: (key, e) => console.warn(`[library] 空闲准备 ${key} 失败 → 第一次画它时照旧现做`, e),
+  });
+
+  /** 预镜像副本进空闲队列。帧循环里 `mirrored()` 命中缓存就不再 clone + 翻绕序 */
+  function premirror(partId: string): void {
+    prep.add(`mirror:${partId}`, () => {
+      const g = geometries.get(partId);
+      if (!g || mirrors.has(partId)) return;
+      mirrors.set(partId, mirrorGeometry(g));
+    });
   }
 
   /** 浏览器空闲时再动手；没有 requestIdleCallback 就退到定时器。两条路都跑得通 */

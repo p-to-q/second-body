@@ -2,9 +2,12 @@
 // node measure.ts <baseUrl> <outDir> <mode: swap|deeplink> [recordSec=45] [cpuThrottle=1] [warmCache=0]
 import { spawn } from 'node:child_process';
 import { createWriteStream, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 const [base, out, mode = 'swap', recS = '45', throttle = '1', warm = '0'] = process.argv.slice(2);
-const HERE = new URL('.', import.meta.url).pathname;
+// fileURLToPath 而不是 `.pathname`：路径里有非 ASCII（`今天`）时 pathname 是百分号编码的，
+// Chrome 拿它找不到假摄像头的 y4m，摄像头那一路静静地 NotFoundError
+const HERE = fileURLToPath(new URL('.', import.meta.url));
 mkdirSync(`${out}/shots`, { recursive: true });
 const profile = `${HERE}/profile-${warm === '1' ? 'warm' : Date.now()}`;
 if (warm !== '1') rmSync(profile, { recursive: true, force: true });
@@ -20,6 +23,9 @@ const chrome = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chro
 ], { stdio: 'ignore' });
 const kill = () => { try { chrome.kill('SIGKILL'); } catch { /* */ } };
 process.on('exit', kill);
+// 被 kill 的时候也要带走 Chrome：否则那个孤儿 Chrome 占着 profile-warm，下一次起的 Chrome 直接交给它然后退出
+//（症状只有一行 "no chrome"，实测踩过）
+for (const sig of ['SIGTERM', 'SIGINT'] as const) process.on(sig, () => { kill(); process.exit(130); });
 setTimeout(() => { console.log('hard timeout'); kill(); process.exit(2); }, (Number(recS) + 150) * 1000);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -136,8 +142,13 @@ if (mode === 'swap') {
     if (process.env.BYTES_ONLY === '1') { ws.close(); kill(); process.exit(0); }
   }
   // 读数默认收着、收着时不写 DOM —— 打开它，is-present 才是首个姿态的证据
+  // STEPS=1 → 每一步打一行（排查"卡在哪一步"：截图要等页面出一帧，页面不出帧时它永远不返回）
+  const step = (s: string) => { if (process.env.STEPS === '1') console.log(`step ${((Date.now() - tNav) / 1000).toFixed(1)}s ${s}`); };
+  step('before readout click');
   await evalJs(`document.querySelector('.sb-readout-bar')?.click()`);
+  step('after readout click');
   await sleep(6000);   // replay settles
+  step(`raf count ${await evalJs('window.__probe.raf.length')}`);
 } else {
   await send('Page.navigate', { url: `${base}/?theme=porcelain&debug=1` });
 }
@@ -153,14 +164,33 @@ if (tracing) await send('Tracing.start', {
     includedCategories: ['devtools.timeline', 'toplevel', 'blink.user_timing'],
   },
 });
+// PROFILE=1 → CDP 采样 profiler（200µs）从按下那一刻起：比 trace 小两个数量级，
+// 帧循环里每一段长任务能拆到函数（`attribute.ts`）。和 TRACE 一样是负载，数字不进结论
+const profiling = process.env.PROFILE === '1';
+if (profiling) {
+  await send('Profiler.enable');
+  await send('Profiler.setSamplingInterval', { interval: 200 });
+  await send('Profiler.start');
+}
 const clickPerf = await evalJs(`(performance.mark('probe:click'), performance.now())`);
+// GOV_AT="20:4,32:0" → 按下后第 20 秒把调速器拨到 L4、第 32 秒拨回 L0（`?debug=1` 的 `__governorProbe`）。
+// 拨开关本身是不是一次长任务，要在没有别的负载的时候单独看（docs/48 §8 第 3 条）
+for (const spec of (process.env.GOV_AT ?? '').split(',').filter(Boolean)) {
+  const [sec, lvl] = spec.split(':').map(Number);
+  setTimeout(() => {
+    void evalJs(`(window.__probe.gov = window.__probe.gov || [], window.__probe.gov.push([Math.round(performance.now()), ${lvl}]), window.__governorProbe?.apply(${lvl}))`);
+  }, sec * 1000);
+}
 if (mode === 'swap') {
   // HOVER=1 → 观众先把手移到「摄像头」那一行上（悬停预取），停 HOVER_MS 再按
   if (process.env.HOVER === '1') {
     await evalJs(`document.querySelectorAll('.sb-exits .sb-exit')[2].dispatchEvent(new PointerEvent('pointerenter'))`);
     await sleep(Number(process.env.HOVER_MS ?? 1500));
   }
-  await evalJs(`(window.__probe.click = performance.now(), document.querySelectorAll('.sb-exits .sb-exit')[2].click())`);
+  // NOCLICK=1 → 只记下"按下"的时刻，不按。深链（`?theme=`）没有展签，开机就是摄像头 ——
+  // 那时再按「摄像头」那一行是**关**摄像头，量出来的是回放，不是改前那一场的摄像头稳态
+  if (process.env.NOCLICK === '1') await evalJs(`window.__probe.click = performance.now()`);
+  else await evalJs(`(window.__probe.click = performance.now(), document.querySelectorAll('.sb-exits .sb-exit')[2].click())`);
 } else {
   await evalJs(`window.__probe.click = performance.now()`);
 }
@@ -194,6 +224,11 @@ if (tracing) {
   }
   fh.end();
   await send('IO.close', { handle: stream });
+}
+
+if (profiling) {
+  const r = await send('Profiler.stop');
+  writeFileSync(`${out}/profile.json`, JSON.stringify(r.result.profile));
 }
 
 const probe = await evalJs(`JSON.stringify(window.__probe)`);
