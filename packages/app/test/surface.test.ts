@@ -67,7 +67,7 @@ test('第 I 乐章：表面不再回答环境 —— 粗糙度逼近 1、金属�
   assert.deepEqual(s.emissive, [0, 0, 0], '第 I 乐章不许有自体微光 —— 那是第 II 乐章的话');
 });
 
-test('第 II 乐章：三个角色的表面分开，而且长出自体微光（zoe）', () => {
+test('第 II 乐章：三个角色的表面分开，而且长出自体微光（zoë）', () => {
   const w = arcWeights(MATERIAL.growCenter);
   const p = surfaceFor('primary', BASE, w, TONE_L);
   const a = surfaceFor('accent', BASE, w, TONE_L);
