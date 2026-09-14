@@ -133,6 +133,23 @@
   --sb-on-stage: #dfe4ea;
   --sb-on-stage-dim: #9aa0a6;
 
+  /* ── 仪表屏：左上角那块小屏幕 + 左下角那块读数 ───────────────────
+     **一块自发光的屏不跟场景翻。** 数控机床的读数屏在白车间里也是黑的 ——
+     它亮不亮是它自己的事，不是房间的事。所以这三个令牌只有深底这一侧，
+     `first-screen.css` 和 `publishStageInk()` 都不许去翻它们。
+     对比度在五套场景上是**算**出来的（`test/readout.test.ts`），不是看出来的。 */
+  --sb-screen: #0b0c0e;
+  --sb-screen-ink: #e6e9ed;
+  --sb-screen-dim: #9aa0a6;
+
+  /* 屏幕的高只在这里定义一次，宽从 4:3 推。
+     **它原来住在 `preview.css`**，而读数也要用它 —— 读数不许依赖"小屏幕的样式表
+     恰好也被加载了"（`?preview=off` 时它就没被加载，`var()` 会静默失效，
+     宽度退回 auto，面板悄悄变成另一块东西）。同一个毛病 `section-head.css`
+     的文件头记过两次。所以它搬到两边都会 import 的这一份里。 */
+  --sb-see-h: clamp(150px, 20vh, 280px);
+  --sb-see-w: calc(var(--sb-see-h) * 4 / 3);
+
   /* ── 栅格：Typographic Style 的骨架 ───────────────────────────────── */
   --sb-gutter: 24px;
   --sb-safe: 48px;              /* 投影会切边，安全区不能小于这个数 */

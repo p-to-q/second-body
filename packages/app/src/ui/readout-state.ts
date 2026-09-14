@@ -141,6 +141,20 @@ function scaled(v: number | undefined): string {
 }
 
 /**
+ * `31 Hz` → `['31', 'Hz']`；没有单位的原样返回、单位为空。
+ *
+ * 数控的读数屏把**单位单独放一栏**：数字右对齐成一条竖线，单位在它右边另起一列。
+ * 单位和数字挤在同一格里，`31 Hz` 和 `0.878` 的个位就对不齐 ——
+ * 一块读数屏上最该对齐的那条线恰恰断在那儿。
+ * 拆在这里（纯函数、能测）而不是在 DOM 里临时切字符串：`readOut()` 的输出格式
+ * 已经被一整组测试钉着，改它等于把那组保证重写一遍。
+ */
+export function splitUnit(s: string): readonly [string, string] {
+  const m = /^(.*\S)\s+([A-Za-z]+)$/.exec(s);
+  return m ? [m[1], m[2]] : [s, ''];
+}
+
+/**
  * 一帧 → 屏幕上那几行。**没有时间、没有随机、没有 DOM**（P1）。
  */
 export function readOut(input: ReadoutInput): Readout {

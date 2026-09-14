@@ -49,3 +49,19 @@
   transition: opacity 180ms cubic-bezier(.4, 0, 1, 1);
   animation: none;
 }
+
+/**
+ * **左下角有读数的时候，名牌抬到读数上面。**
+ *
+ * 两样东西共用左下角：名牌只说 4 秒，读数一直在。上一版让读数**永远**悬在
+ * 离底 3.4rem 的半空给名牌留一格 —— 为一个 4 秒的东西，让常驻的几何
+ * 在其余全部时间里都歪着。反过来才对：读数占住真正的角（和左上角那块屏幕
+ * 上下镜像），名牌在它说话的那 4 秒里站到读数上方。
+ *
+ * 高度由 `ui/readout.ts` 写进根上的 `--sb-readout-h`（开合时它会变）。
+ * 名牌的左边缘仍是 `--sb-safe`，而读数的字也在那条线上（面板内边距正好是半个安全区），
+ * 所以这 4 秒里左下角是一条干净的竖线。
+ */
+body:has(> .sb-readout) .sb-notice--bottom-left {
+  bottom: calc(var(--sb-safe) * 0.5 + var(--sb-readout-h, 0px) + var(--sb-gutter) * 0.5);
+}

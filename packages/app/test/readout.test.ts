@@ -8,7 +8,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ABSENT, readOut, visibleJoints, wantsReadout } from '../src/ui/readout-state.ts';
+import { ABSENT, readOut, splitUnit, visibleJoints, wantsReadout } from '../src/ui/readout-state.ts';
 import { isReadoutMode, readFlags, type Flags } from '../src/shell/kiosk.ts';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -101,7 +101,7 @@ test('readout: NaN / Infinity 一律写破折号，绝不写成 0', () => {
   assert.equal(first.values.energy, ABSENT);
 });
 
-test('readout: 值的宽度装得进定宽的那一栏（readout.css 的 6.5ch）', () => {
+test('readout: 数装得进定宽的那一栏（readout.css 的 6ch，单位另起一栏）', () => {
   // 这一栏定宽是为了"数字跳动时面板一个像素都不回流"。
   // 宽度一旦被撑破，那条保证就没了，而它在截图上要下一帧才看得出来。
   const cases: ReadoutInputLike[] = [
@@ -111,25 +111,35 @@ test('readout: 值的宽度装得进定宽的那一栏（readout.css 的 6.5ch�
   ];
   for (const c of cases) {
     for (const [k, v] of Object.entries(readOut(c).values)) {
-      assert.ok(v.length <= 6, `${k} = "${v}" 有 ${v.length} 个字符，撑破了 6.5ch 那一栏`);
+      const [num] = splitUnit(v);
+      assert.ok(num.length <= 6, `${k} = "${num}" 有 ${num.length} 个字符，撑破了 6ch 那一栏`);
     }
   }
 });
 type ReadoutInputLike = Parameters<typeof readOut>[0];
 
-// ── 那块半透明的灰，在五套场景上都得成立 ──────────────────────────────────────
+// ── 仪表屏：和左上角那块小屏幕是同一类东西 ─────────────────────────────────────
 
-/**
- * 面板的底是**字色兑水**（`color-mix(in srgb, var(--sb-on-stage) N%, transparent)`），
- * 而字色由 `stage.ts` 的 `publishStageInk()` 按当前场景的角上亮度翻。
- * 所以"它在白展厅和深空上都成立"是可以**算**的，不必靠五张截图。
- *
- * 兑水的比例从 `readout.css` 里**读出来**，不在这里抄一份 ——
- * 抄一份的话，谁把 12% 调成 60% 这条测试也照样绿（docs/02 P21）。
- */
-const CSS = readFileSync(
-  fileURLToPath(new URL('../src/ui/readout.css', import.meta.url)), 'utf8',
-);
+const read = (rel: string): string => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8');
+const strip = (s: string): string => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+const CSS = strip(read('../src/ui/readout.css'));
+const TYPE = strip(read('../src/ui/type.css'));
+const PREVIEW = strip(read('../src/ui/preview.css'));
+const NOTICE = strip(read('../src/shell/notice.css'));
+const TS = strip(read('../src/ui/readout.ts'));
+
+/** 一个选择器第一次出现时那一整块的正文 */
+function block(css: string, selector: string): string {
+  const i = css.indexOf(`${selector} {`);
+  assert.ok(i >= 0, `找不到 ${selector} 那一块`);
+  return css.slice(i, css.indexOf('}', i));
+}
+/** type.css 里一个令牌的值。**从文件里读**，不在测试里抄一份 */
+function token(name: string): string {
+  const m = TYPE.match(new RegExp(`${name}:\\s*([^;]+);`));
+  assert.ok(m, `type.css 里没有 ${name}`);
+  return m![1].trim();
+}
 
 /** sRGB 十六进制 → 0..1 的 gamma 通道值 */
 function channels(hex: string): number[] {
@@ -145,39 +155,98 @@ const luma = (c: number[]): number =>
 const contrast = (a: number, b: number): number =>
   (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 
-test('readout: 面板的底和边只从 --sb-on-stage 来，一个固定颜色都没有', () => {
-  // 固定的底色这个仓库犯过三次（见 type.css 的 --sb-ink-strong），
-  // `--sb-stage-ground` 就是因此被整个删掉的。这一条挡的是它长回来。
-  for (const prop of ['background', 'border', 'border-top']) {
-    const line = CSS.split('\n').find((l) => l.trim().startsWith(`${prop}:`));
-    assert.ok(line, `readout.css 里没有 ${prop}`);
-    assert.match(line!, /var\(--sb-on-stage\)/, `${prop} 没有跟着场景亮度走：${line!.trim()}`);
-  }
+test('readout: 底、边、字只从仪表屏令牌来 —— 不跟场景翻，也没有一个写死的颜色', () => {
+  // 一块发光的屏不跟房间翻（readout.css 第二节）。要是有人把 --sb-on-stage 接回来，
+  // 它就又退回成一层贴膜；要是有人写死一个灰，那就是这个仓库犯过三次的那个 bug。
+  const panel = block(CSS, '.sb-readout');
+  assert.match(panel, /background:\s*color-mix\(in srgb,\s*var\(--sb-screen\)/, '底不是仪表屏的那块黑');
+  assert.match(panel, /box-shadow:\s*inset 0 0 0 1px var\(--sb-rule\)/, '边不是和小屏幕同一圈发丝线');
+  assert.match(panel, /color:\s*var\(--sb-screen-ink\)/, '字不是仪表屏的墨');
+  assert.doesNotMatch(CSS, /--sb-on-stage/, 'readout.css 又开始跟着场景翻了 —— 那是上一版的贴膜');
+  assert.doesNotMatch(CSS, /#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})(?![0-9a-fA-F])/, 'readout.css 里写死了一个颜色');
 });
 
-test('readout: 五套场景下，字压在面板上都过 4.5:1，面板也和画面分得开', () => {
-  const pct = CSS.match(/background:\s*color-mix\(in srgb,\s*var\(--sb-on-stage\)\s*([\d.]+)%/);
-  assert.ok(pct, 'readout.css 的 background 不是 color-mix 兑水写法了，这条测试要重写');
-  const alpha = Number(pct![1]) / 100;
+test('readout: 五套场景下，数值过 7:1、标签过 4.5:1、面板的边和画面分得开', () => {
+  const panel = block(CSS, '.sb-readout');
+  const viaToken = /color-mix\(in srgb,\s*var\(--sb-screen\)\s*calc\(var\(--sb-layer-panel\)\s*\*\s*100%\)/.test(panel);
+  const literal = panel.match(/color-mix\(in srgb,\s*var\(--sb-screen\)\s*([\d.]+)%/);
+  assert.ok(viaToken || literal, 'readout.css 的 background 换了写法，这条测试要跟着重写');
+  const alpha = viaToken ? Number(token('--sb-layer-panel')) : Number(literal![1]) / 100;
+
+  const screen = channels(token('--sb-screen'));
+  const ink = channels(token('--sb-screen-ink'));
+  const dim = channels(token('--sb-screen-dim'));
+  const edge = channels(token('--sb-rule'));
 
   const thin: string[] = [];
-  const flat: string[] = [];
+  const lost: string[] = [];
   for (const id of SCENE_IDS) {
     const look = applyScene(NEUTRAL_LOOK, SCENES[id]);
-    // 面板坐落的那块底色的亮度 —— 用 stage.ts 翻墨时用的**同一个**函数，
-    // 不另外量一份（`stage-ink.test.ts` 拿实测帧钉着它准不准）
+    // 面板坐落的那块底色 —— 用 stage.ts 翻墨时用的**同一个**函数（stage-ink.test.ts 拿实测帧钉着它）
     const bg = overlayGroundLuma(look);
-    const ink = channels(stageInk(look).on);
-    // 合成发生在 sRGB gamma 空间（CSS 的默认合成空间）
     const bgGamma = toGamma(bg);
-    const panel = ink.map((c) => alpha * c + (1 - alpha) * bgGamma);
-    const onPanel = contrast(luma(ink), luma(panel));
-    const panelVsScene = contrast(luma(panel), bg);
-    if (onPanel < 4.5) thin.push(`${id}: 字压在面板上只有 ${onPanel.toFixed(2)}:1`);
-    if (panelVsScene < 1.15) flat.push(`${id}: 面板和画面只差 ${panelVsScene.toFixed(3)}，看不出是一块面板`);
+    // 合成发生在 sRGB gamma 空间（CSS 的默认合成空间）
+    const onPanel = luma(screen.map((c) => alpha * c + (1 - alpha) * bgGamma));
+    const value = contrast(luma(ink), onPanel);
+    const label = contrast(luma(dim), onPanel);
+    // 深空上黑屏压黑底，靠的是那一圈发丝线分开 —— 和小屏幕一模一样。两者取大
+    const apart = Math.max(contrast(onPanel, bg), contrast(luma(edge), bg));
+    if (value < 7) thin.push(`${id}: 数值只有 ${value.toFixed(2)}:1`);
+    if (label < 4.5) thin.push(`${id}: 11px 的标签只有 ${label.toFixed(2)}:1`);
+    if (apart < 1.3) lost.push(`${id}: 面板和画面只差 ${apart.toFixed(3)}`);
   }
   assert.deepEqual(thin, [], `读不动：\n${thin.join('\n')}`);
-  assert.deepEqual(flat, [], `面板化在画面里了：\n${flat.join('\n')}`);
+  assert.deepEqual(lost, [], `面板化在画面里了：\n${lost.join('\n')}`);
+});
+
+test('readout: 和左上角那块屏幕同一列、同一宽、同一圆角 —— 屏幕尺寸只有一个来源', () => {
+  const panel = block(CSS, '.sb-readout');
+  const see = block(PREVIEW, '.sb-see');
+  const screen = block(PREVIEW, '.sb-see-screen');
+  const left = /left:\s*calc\(var\(--sb-safe\)\s*\*\s*0\.5\)/;
+  assert.match(panel, left, '读数没有贴仪表那条线（安全区的一半）');
+  assert.match(see, left, '小屏幕不在仪表线上了 —— 两块要一起改');
+  assert.match(panel, /width:\s*var\(--sb-see-w\)/, '读数和小屏幕不同宽');
+  assert.match(see, /width:\s*var\(--sb-see-w\)/);
+  const r = (s: string): string | undefined => s.match(/border-radius:\s*([^;]+);/)?.[1].trim();
+  assert.equal(r(panel), r(screen), '两块仪表的圆角不是同一个数');
+
+  // 尺寸住在 type.css：读数不能依赖 preview.css 恰好被加载（?preview=off 时它没被加载，
+  // var(--sb-see-w) 会静默失效，面板宽度退回 auto）
+  assert.match(TYPE, /--sb-see-h\s*:/, 'type.css 里没有 --sb-see-h');
+  assert.match(TYPE, /--sb-see-w\s*:/, 'type.css 里没有 --sb-see-w');
+  assert.doesNotMatch(PREVIEW, /--sb-see-[hw]\s*:/, 'preview.css 又定义了一份屏幕尺寸 —— 两份会漂');
+});
+
+test('readout: 收起键在最底下、面板贴底 —— 开合的时候那个键一个像素都不动', () => {
+  const panel = block(CSS, '.sb-readout');
+  assert.match(panel, /bottom:/, '面板不是贴底的');
+  assert.doesNotMatch(panel, /\btop:/, '面板贴了顶 —— 收起时那个键会跳');
+  assert.match(TS, /root\.append\(\s*body\s*,\s*bar\s*\)/, '开合键不是最后一个孩子');
+  assert.match(TS, /aria-expanded/, '开合键没有告诉读屏器它是开是合');
+  assert.match(block(CSS, '.sb-readout-bar'), /pointer-events:\s*auto/, '开合键点不到');
+  assert.match(panel, /pointer-events:\s*none/, '整块面板吃掉了指针 —— 只许那一条吃');
+});
+
+test('readout: 收起不跨观众留存 —— 刷新就回到展开', () => {
+  // docs/40 §3：任何跨观众的状态都当 bug。画廊里跑网页版的那台笔记本，
+  // 上一个人收起的面板不该替下一个人收着。
+  assert.doesNotMatch(TS, /localStorage|sessionStorage|indexedDB|document\.cookie/);
+});
+
+test('readout: 左下角的名牌抬到读数上面，而不是压在上面', () => {
+  const lift = NOTICE.match(/body:has\(>\s*\.sb-readout\)\s*\.sb-notice--bottom-left\s*\{[^}]*\}/);
+  assert.ok(lift, 'notice.css 没有给读数让位的那一条');
+  assert.match(lift![0], /var\(--sb-readout-h/, '名牌抬多高没跟着读数的实际高度走');
+  assert.match(TS, /'--sb-readout-h'/, 'readout.ts 没有把面板高度写出去');
+});
+
+test('readout: 单位单独一栏，数的个位才对得齐', () => {
+  assert.deepEqual(splitUnit('31 Hz'), ['31', 'Hz']);
+  assert.deepEqual(splitUnit('120 Hz'), ['120', 'Hz']);
+  assert.deepEqual(splitUnit('33/33'), ['33/33', '']);
+  assert.deepEqual(splitUnit(ABSENT), [ABSENT, '']);
+  assert.deepEqual(splitUnit('0.878'), ['0.878', '']);
 });
 
 // ── 挂不挂 ───────────────────────────────────────────────────────────────────
