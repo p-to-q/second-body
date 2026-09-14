@@ -108,7 +108,7 @@ export interface Stage {
   readonly bounds: BodyBounds;
   /**
    * 运行时开关后期（HUD / 现场排查 / 降级阶梯 / 调速器）。
-   * 关掉**不拆链**：拿回来的那一帧不重建（docs/48 §10）。链只在 `dispose()` 时释放。
+   * 关掉就拆链、拿回来重建 —— 不拆反而让拿回来那一帧更贵（docs/48 §10.3 实测）。
    */
   setPost(on: boolean): void;
   readonly post: boolean;
@@ -930,10 +930,9 @@ export function createStage(opt: StageOptions = {}): Stage {
 
     setPost(on) {
       postEnabled = on;
-      // 不拆链：原来关后期时在这里释放整条链，拿回后期那一帧整条链重建、重编（docs/48 §10）。
-      // 链占的只是几张随画布大小走的渲染目标；关着的时候 `render()` 不走它，它就不花 GPU 时间。
-      // 建链失败过的那一次仍然允许关了再开时重试（和原来一样）
-      if (!on && !post) postFailed = false;
+      // 关后期照旧拆链。试过"不拆、只是不走它"（docs/48 §10.3）：放下那一帧没变快（那一下是直出管线现编译，
+      // 由 `warmDirect` 解决），**拿回来**那一帧反而多出一次 410–417ms（两场实测，拆链重建时没有）。
+      if (!on) { post?.dispose(); post = null; postFailed = false; }
     },
 
     warmDirect(r) {
