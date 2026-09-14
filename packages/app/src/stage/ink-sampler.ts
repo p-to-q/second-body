@@ -9,10 +9,18 @@
  * 所以 `stage.render()` 返回之前，这一帧就在画布上、而且读得到。
  * 读到全透明时 board 当作读回失败处理（撤回场景墨），不会把"没读到"当成"黑"。
  *
+ * ## 画和读分在两帧
+ *
+ * `drawImage` 必须在渲染的那个任务里（上一段）；`getImageData` 不必。
+ * 两个放在同一个任务里时，读回要**等 GPU 把刚提交的这一整帧画完**才拿得到那 64×36 格 ——
+ * 无头 Chrome 实测 getImageData 中位 4.6 ms，采样帧 6.7 ms 对普通帧 1.8 ms，
+ * 一下子就越过 P5 的每帧 4 ms。挪到下一帧开头的 `tick()` 读时，上一帧早已画完，
+ * 剩下的只有格子本身的那次拷贝。格子画进去之后就是 2D 画布自己的内容，不随 WebGPU 那帧失效。
+ *
  * ## 代价
  *
- * 不该采样的帧上只有一次布尔判断。该采样的帧（≤ 2 Hz）：一次 `drawImage`（缩放在 GPU 上）、
- * 一次 64×36 的 `getImageData`、四次 `getBoundingClientRect`。
+ * 不该采样的帧上只有一两次布尔判断。采样那一帧：一次 `drawImage`（缩放在 GPU 上）；
+ * 下一帧：一次 64×36 的 `getImageData`、四组 `getBoundingClientRect`。
  * `getImageData` 每次都会新建一个 ImageData —— 平台没有不分配的读法；2 Hz × 9.2 KB，
  * 不在逐帧路径上。实测数写在交付报告与 `docs/10-SURFACES.md`。
  */
@@ -113,26 +121,49 @@ export function createInkSampler(opt: { enabled: boolean; root?: HTMLElement }):
     return true;
   }
 
+  /** 上一帧画进了格子、还没读回。读回挪到下一帧开头的 tick，理由见文件头 */
+  let drawn = false;
+  let source: HTMLCanvasElement | null = null;
+
+  function settle(px: Uint8ClampedArray | null): void {
+    board.sample({ px, w: INK_GRID_W, h: INK_GRID_H, boxes });
+    if (board.failures >= GIVE_UP_AFTER) {
+      stopped = true;
+      board.release();
+    }
+  }
+
+  function read(): void {
+    drawn = false;
+    let px: Uint8ClampedArray | null = null;
+    try {
+      if (!source || !measure(source)) return;
+      px = ctx.getImageData(0, 0, INK_GRID_W, INK_GRID_H).data;
+    } catch (e) {
+      warn('[stage] 读画布像素抛了 —— 角上的字退回按场景翻墨（只说这一次）', e);
+      px = null;
+    }
+    settle(px);
+  }
+
   return {
-    tick(dt) { if (!stopped) acc += dt; },
+    tick(dt) {
+      if (stopped) return;
+      if (drawn) read();
+      acc += dt;
+    },
     afterRender(canvas) {
-      if (stopped || acc < period || !canvas) return;
+      if (stopped || drawn || acc < period || !canvas) return;
       acc = 0;
       samples++;
-      let px: Uint8ClampedArray | null = null;
       try {
-        if (!measure(canvas)) return;
         ctx.clearRect(0, 0, INK_GRID_W, INK_GRID_H);
         ctx.drawImage(canvas, 0, 0, INK_GRID_W, INK_GRID_H);
-        px = ctx.getImageData(0, 0, INK_GRID_W, INK_GRID_H).data;
+        source = canvas;
+        drawn = true;
       } catch (e) {
         warn('[stage] 读画布像素抛了 —— 角上的字退回按场景翻墨（只说这一次）', e);
-        px = null;
-      }
-      board.sample({ px, w: INK_GRID_W, h: INK_GRID_H, boxes });
-      if (board.failures >= GIVE_UP_AFTER) {
-        stopped = true;
-        board.release();
+        settle(null);
       }
     },
     dispose() { stopped = true; board.release(); },
