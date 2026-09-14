@@ -672,7 +672,9 @@ async function boot(): Promise<void> {
     });
     if (gov.changed !== 0) {
       applyGovernor(gov.level);
-      console.info(`[governor] ${gov.changed > 0 ? '放下' : '拿回'} ${gov.step} → L${gov.level}（丢帧 ${(governor.jank * 100).toFixed(0)}% · 节拍 ${governor.refreshMs.toFixed(1)}ms）`);
+      // 带上时刻：拨开关本身可能就是一次长任务（关后期 / 改像素比会重建目标与管线，docs/48 §4.3），
+      // 对得上长任务的时间戳才分得清"它在救火"还是"它在放火"
+      console.info(`[governor] @${(tMs / 1000).toFixed(2)}s ${gov.changed > 0 ? '放下' : '拿回'} ${gov.step} → L${gov.level}（丢帧 ${(governor.jank * 100).toFixed(0)}% · 节拍 ${governor.refreshMs.toFixed(1)}ms）`);
       // 观众只在**看得出来**的那一级被告知一次：后期没了画面会变（docs/23 §S0 那一句）。
       // 前三级（墨色采样、替换延后、推理降频）观众看不出来，说了只是打扰。现场静默，同开机那一句。
       if (gov.changed > 0 && governor.sheds('post') && !saidReduced && !flags.kiosk) {
