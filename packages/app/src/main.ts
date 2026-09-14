@@ -752,6 +752,8 @@ async function boot(): Promise<void> {
     if (flags.tier === null) {
       const want = Math.max(tier, step ? step.tier : arcState.tier, evoTier) as Tier;
       if (want !== tier) {
+        // 给操作员（`?debug=1`）：升档落在弧线的第几秒 —— 现场验"它不在乐章边界上"靠这一行
+        if (hud) console.info(`[tier] ${tier} → ${want} @ arc ${arcState.elapsed.toFixed(2)}s（乐章 ${arcState.movement + 1}）`);
         morph(want);
         stage.pulse(want);      // docs/23 §S5：升档必须可感知，否则演化等于没发生
         // 这一声也跟着挂点搬走了。**乐章序号就是档位下限**，所以在四个交接点上
