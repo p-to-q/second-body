@@ -31,7 +31,7 @@
 import type { Landmark, RawPose } from '../../../core/src/types.ts';
 import { PREVIEW } from '../../../core/src/tuning.ts';
 import { qualityScale } from '../../../core/src/refine.ts';
-import { trustedLandmark } from '../../../core/src/autoframe.ts';
+import { lateralEvidence, trustedLandmark, type Side } from '../../../core/src/autoframe.ts';
 import { CAPTURE } from '../../../core/src/tuning.ts';
 import type { Flags } from '../shell/kiosk.ts';
 
@@ -77,11 +77,34 @@ export type SeeState = 'off' | 'empty' | 'partial' | 'ok';
  * 为什么是这个状态。`partial` 有两个成因，而它们要的是**两句不同的话** ——
  * 出画要往后退，质量差要换个亮一点的地方。状态只有四种，话可以有五句。
  */
-export type SeeReason = 'ok' | 'camera' | 'nobody' | 'bounds' | 'quality';
+export type SeeReason = 'ok' | 'camera' | 'nobody' | 'bounds' | 'side' | 'quality';
 
 export interface SeeReading {
   state: SeeState;
   reason: SeeReason;
+  /**
+   * `reason === 'side'` 时：从观众**自己的**哪一侧走出了画（docs/49 §6.3 二）。
+   * 往后退救不了往旁边走出去的人，所以它和 `bounds` 是两句话。
+   */
+  side?: Side;
+}
+
+/**
+ * 小屏上那条侧边画在显示的哪一边。侧边按观众自己的左右说；镜像显示时那就是屏幕上的同一侧，
+ * `?mirror=0`（只用于调坐标）时反过来。
+ */
+export function displaySide(side: Side, mirror: boolean): Side {
+  return mirror ? side : side === 'left' ? 'right' : 'left';
+}
+
+/**
+ * 小屏的数字裁切开不开（docs/49 §6.3 一、§6.5）。三条都要满足：
+ *  - 上半身是正当取景；
+ *  - 没有减少动态（一块跟着人挪的缩略图本身就是动态）；
+ *  - 画里没有别的**有身体**的人（多人时取景是整组，也就是整幅 —— 和舞台一律全景同一条）。
+ */
+export function cropActive(input: { upperIsIntended: boolean; reduced: boolean; othersBodied: boolean }): boolean {
+  return input.upperIsIntended && !input.reduced && !input.othersBodied;
 }
 
 export interface SeeInput {
@@ -150,8 +173,12 @@ export function seeState(input: SeeInput): SeeReading {
 
   // `screen` 可能没有（回放数据里就常常没有）。没有就跳过这一条，
   // 而不是当成"没出画" —— 少一条判据是事实，编一个"都在画面里"不是。
-  if (pose.screen?.length && outOfFrame(pose.screen, input.upperIsIntended) >= OUT_OF_FRAME_POINTS) {
-    return { state: 'partial', reason: 'bounds' };
+  if (pose.screen?.length) {
+    // 从左右走出去的排在「往后退」前面：它按躯干**坐标**判，不数可信点 ——
+    // MediaPipe 对画外的点给低可见度，半个人出了左边时画外点一个都不可信（docs/49 §6.2 S4）
+    const side = lateralEvidence(pose)?.side;
+    if (side) return { state: 'partial', reason: 'side', side };
+    if (outOfFrame(pose.screen, input.upperIsIntended) >= OUT_OF_FRAME_POINTS) return { state: 'partial', reason: 'bounds' };
   }
 
   // 质量：直接问精化器自己的那把尺子。< 1 = 它已经开始变迟钝了。

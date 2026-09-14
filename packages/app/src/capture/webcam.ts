@@ -47,6 +47,7 @@ import {
   type CamDevice, type CamStatus,
 } from './camera-select.ts';
 import { describe, overallScore, toLandmark, type PoseIn, type PoseOut } from './pose-protocol.ts';
+import { applyCamFraming, readCamFraming, type CamFramingFlag, type CamFramingStatus, type TrackLike } from './cam-framing.ts';
 
 // 本地 wasm：打包进产物，现场断网也能起（Vite 把它们当静态资源发出去）
 // 注意子路径没有 /wasm/：包的 exports 就是这么导出的
@@ -282,6 +283,14 @@ export class WebcamCapture implements Capture {
   readonly #cam: string | null;
 
   /**
+   * 摄像头自带的取景（`cam-framing.ts`，docs/49 §6.3 三）：开没开、请求成没成。摄像头开起来之前是 null。
+   * 每约 30 次推理重读一次 `getSettings()`：用户在系统里开关 Center Stage 不会通知页面。
+   */
+  camFraming: CamFramingStatus | null = null;
+  readonly #camFramingFlag: CamFramingFlag;
+  #framingTicks = 0;
+
+  /**
    * 启动里程碑。三件：摄像头开了 / 姿态模型到了 / 第一次推理完成。
    * 三件都是**真的发生了才报**，加载态因此不用猜（见 capture.ts 的 CaptureStep）。
    */
@@ -294,6 +303,7 @@ export class WebcamCapture implements Capture {
     const flags = readFlags();
     this.model = model ?? flags.model ?? 'lite';
     this.#cam = flags.cam;
+    this.#camFramingFlag = flags.camframing ?? 'auto';
     this.#useWorker = flags.worker;
     this.video = video ?? document.createElement('video');
     this.video.playsInline = true;
@@ -442,6 +452,11 @@ export class WebcamCapture implements Capture {
       this.camera = null;
       this.#error = `摄像头选择失败（画面照跑，但不知道在用哪一台）：${describe(e)}`;
     }
+
+    // 摄像头自带的取景：按 `?camframing=` 请求（能请求的话），读回实际状态。自带超时、永不 reject ——
+    // 它绝不能成为摄像头起不来的新方式（和上面选摄像头同一条规矩）
+    this.camFraming = await applyCamFraming(this.#track(), this.#camFramingFlag);
+    if (this.camFraming.flag !== 'auto' || this.camFraming.active) console.info(`[webcam] ${this.camFraming.hud}`);
 
     // 摄像头中途断了（拔线、被别的程序占走、系统收回权限）：记下来，由 main.ts 换回回放
     for (const t of this.#stream?.getVideoTracks() ?? []) {
@@ -708,6 +723,15 @@ export class WebcamCapture implements Capture {
     this.#tickTimes.push(now);
     while (this.#tickTimes.length && now - this.#tickTimes[0] > 1000) this.#tickTimes.shift();
     this.#fps = this.#tickTimes.length;
+    // 摄像头自带的取景：约每秒重读一次（同步、只读、永不抛）
+    if (this.camFraming && ++this.#framingTicks % 30 === 0) {
+      this.camFraming = readCamFraming(this.#track(), this.#camFramingFlag, this.camFraming.applied);
+    }
+  }
+
+  /** 这条流的视频 track，按 `cam-framing.ts` 要的那几个方法看 */
+  #track(): TrackLike | null {
+    return (this.#stream?.getVideoTracks()[0] as unknown as TrackLike | undefined) ?? null;
   }
 
   #segment(stamp: number): void {

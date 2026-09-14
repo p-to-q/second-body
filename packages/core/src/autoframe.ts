@@ -665,7 +665,9 @@ export function lateralEvidence(pose: RawPose | null | undefined, aspect = 16 / 
   if (!has(sL) || !has(sR)) return null;
   const hips = has(hL) && has(hR);
   const torso = hips ? [sL, sR, hL, hR] : [sL, sR];
-  if (torso.filter((l) => trustedLandmark(l) && inFrame(l)).length < 2) return null;
+  // 至少一个躯干点可信地在画内。要两个的话，胯中点一出左边（最需要报侧边的那一刻）证据就没了：
+  // 画外的肩和胯可见度都只有 0.2，剩下的正好只有画内那一只肩
+  if (!torso.some((l) => trustedLandmark(l) && inFrame(l))) return null;
   const x = hips ? (hL.x + hR.x) / 2 : (sL.x + sR.x) / 2;
   const scale = torsoScale(sL, sR, hips ? hL : null, hips ? hR : null, aspect);
   const xs = torso.map((l) => l.x * aspect);
@@ -763,8 +765,10 @@ export function stepLateral(s: LateralState, input: LateralInput, dt: number): L
       why = 'hold-jump'; goal = NaN;
     }
   }
+  // 回中线 / 让位时不要死区：死区会让身体停在离中线还有 5cm 的地方（和景别回全景同一条理由）
+  const centering = why === 'center' || why === 'yield';
   const x = stepFollow(s.x, goal, t, {
-    deadZone: T.lateralDeadZone, band: T.lateralBand, omega: T.lateralOmega,
+    deadZone: centering ? 0 : T.lateralDeadZone, band: centering ? 1e-6 : T.lateralBand, omega: T.lateralOmega,
     range: Math.max(0, Number.isFinite(input.room) ? input.room : 0),
     maxSpeed: T.lateralMaxSpeed, lead: T.lateralLead, leadMax: T.lateralLeadMax, jitter: T.lateralJitter,
   });

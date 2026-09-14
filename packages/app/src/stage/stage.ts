@@ -46,11 +46,10 @@ import {
   type ArcWeights, type LookProfile, type RGB,
 } from './look.ts';
 import {
-  boundsOfPlan, boundsOfSkeleton, contactPoints, fitFrame, lerpBounds, DEFAULT_BOUNDS, upperFit, blendFit,
+  boundsOfPlan, boundsOfSkeleton, contactPoints, lerpBounds, shotCamera, DEFAULT_BOUNDS,
   type BodyBounds,
 } from './framing.ts';
-// `smoothstep` 这个名字已经被 TSL 的节点函数占了（上面那一行），纯数的这一个改个名
-import { smoothstep as ease01, stepShot, SHOT_REST, type Shot, type ShotState } from '../../../core/src/autoframe.ts';
+import { stepShot, SHOT_REST, type Shot, type ShotState } from '../../../core/src/autoframe.ts';
 import { applyScene, isSceneId, pickScene, SCENES, type SceneId } from './scenes.ts';
 import { createInkSampler } from './ink-sampler.ts';
 
@@ -99,7 +98,7 @@ export interface Stage {
    * 景别（docs/49 §落地）：全景（等身）或中景（上半身）。**每帧调都行**，同一个值不重启任何东西。
    * 走多久、跟不跟随由舞台自己按时间推（`core/src/autoframe.ts` 的 `stepShot`），不靠 CSS 或动画事件。
    * @param opts.reduced `prefers-reduced-motion`：0.15 秒到位，中景不跟随
-   * @param opts.hold 帧循环在降级：直接切到位、跟随冻结
+   * @param opts.hold 帧循环在降级：跟随冻结，景别照常按时间走完（docs/49 §6.3：不再直接切）
    */
   setShot(shot: Shot, opts?: { reduced?: boolean; hold?: boolean }): void;
   /**
@@ -110,6 +109,11 @@ export interface Stage {
   setGroup(width: number, height: number): void;
   /** 景别此刻的进度（0 全景 … 1 中景，线性）与跟随偏移（米）。HUD / 截图取证用 */
   readonly shot: Readonly<ShotState>;
+  /**
+   * 身体此刻还能横向走多远而不出画（米，`framing.ts` 的 `lateralRoom()`）。随景别连续变化；
+   * 帧循环把它递给 `stepLateral()`，身体的横向根偏移夹在它里面（docs/49 §6.3 二）。
+   */
+  readonly lateralRoom: number;
   /** 当前取景依据的包围盒（HUD / 截图取证用） */
   readonly bounds: BodyBounds;
   /**
@@ -462,6 +466,11 @@ export function createStage(opt: StageOptions = {}): Stage {
   let bodyHTarget = bodyH;
   /** 中景跟随的目标偏移（米）：x = 头胸的横向位置，y = 颅顶低于站姿身高多少（前倾 / 塌腰为负） */
   let shotOffset: { x: number; y: number } | null = null;
+  /** 横向余量（米），每次 fitCamera 重算 */
+  let lateralRoomM = 0;
+  /** 身体骨盆的横向位置（米，含横向根偏移）与天幕的晕上一次按它算时的值 */
+  let bodyX = 0;
+  let glowBodyX = 0;
 
   let aliveMix = 0;
   let gather = 0;
@@ -682,21 +691,16 @@ export function createStage(opt: StageOptions = {}): Stage {
   function fitCamera(): void {
     const aspect = viewW / Math.max(1, viewH);
     uAspect.value = aspect;
-    // 景别：t = 0 时 `blendFit` 逐字返回全景，等身一毫米不偏（`test/framing.test.ts`）
-    const mix = ease01(shotState.progress);
-    const fit = blendFit(fitFrame(bounds), upperFit(bodyH, bounds.width), mix);
-    fit.centerY += shotState.fy.x * mix;
-    const panX = shotState.fx.x * mix;
-    let h = fit.frameHeight;
-    if (h * aspect < fit.frameWidth) h = fit.frameWidth / aspect;   // 太窄了就往高了框
-
-    // 取景平面放在身体的**近面**，不是身体中心。
-    // 四足沿 Z 有 1.1m 进深，最近的那条前腿离镜头只有 2.25m —— 按 2.8m 反算 fov，
-    // 它会因为透视被放大到出画。这一行是"四足的腿跑出画面外"那个 bug 的修法。
-    const dist = Math.max(0.8, STAGE.viewDistance - Math.min(1.0, bounds.depth / 2));
+    // 景别、移轴、视角、横向余量都由 `framing.ts` 的 `shotCamera()` 算：t = 0 时 `blendFit` 逐字返回全景，
+    // 等身一毫米不偏（`test/framing.test.ts`）；取景平面放在身体**近面**（四足的前腿离镜头只有 2.25m，
+    // 按 2.8m 反算 fov 它会被透视放大到出画）那一条也在那里。连续性测试和 `/dev/framing.html` 用的是同一个函数
+    const cam = shotCamera(bounds, bodyH, shotState, aspect, look.frameLift);
+    const { h, panX } = cam;
+    const fit = { aimY: cam.aimY };
+    lateralRoomM = cam.room;
 
     camera.aspect = aspect;
-    camera.fov = (2 * Math.atan((h / 2) / dist) * 180) / Math.PI;
+    camera.fov = cam.fov;
 
     // 镜头上下平移：相机保持水平，把整个视锥往下推 (eyeHeight - 画面中心)。
     // width/height 用满 → 不裁剪、只平移，等价于移轴镜头：竖线仍然是竖的。
@@ -704,7 +708,7 @@ export function createStage(opt: StageOptions = {}): Stage {
     // `frameLift` 是场景对构图的那一票，叠在 `FRAMING.centerLift` 之上（后者不动）。
     // 为什么构图要归场景管：留白多少是"这个世界有多空"的一部分 ——
     // 逆光那套身后是一块亮盘，身体要压低一点才压得住；白展厅反过来。
-    const centerY = fit.centerY + bounds.height * look.frameLift;
+    const centerY = cam.centerY;
     const shift = (STAGE.eyeHeight - centerY) / h;
     const full = 1000;
     // 中景的横向跟随同样是平移视锥（移轴），不转相机：竖线仍然是竖的，地平线不歪
@@ -737,8 +741,10 @@ export function createStage(opt: StageOptions = {}): Stage {
     // 而探针读出来的 `uGlow.y` 和手算的完全一致 —— 差的只有这一个符号。
     // 上游文档两种约定都能找到，所以这里以实测为准，别按记忆改回去。
     const toScreenY = (worldY: number): number => 0.5 - (worldY - centerY) / h;
-    // 全景没有横向偏移；中景跟随时身体离开中线多少，晕就跟着挪多少（晕心钉在身体背后）
-    uGlow.value.x = 0.5 - panX / (h * aspect);
+    // 晕心钉在身体背后：身体横向走了多少（横向根偏移，docs/49 §6.3 二）、镜头移轴移了多少，晕就跟着挪多少。
+    // 多人时按组取景（组是左右对称的），晕留在中线
+    glowBodyX = groupWidth > 0 ? 0 : bodyX;
+    uGlow.value.x = 0.5 + (glowBodyX - panX) / (h * aspect);
     uGlow.value.y = toScreenY(bounds.centerY + bounds.height * look.glowLift);
     // 地平线 = 眼高那条水平视线（地面上无穷远处）。地面镜射天幕时绕它翻折
     uHorizonY.value = toScreenY(STAGE.eyeHeight);
@@ -797,7 +803,8 @@ export function createStage(opt: StageOptions = {}): Stage {
         const next = stepShot(shotState, { shot: shotWant, offset: shotOffset, reduced: shotReduced, hold: shotHold }, step);
         const moved = Math.abs(next.progress - shotState.progress) > 1e-6
           || Math.abs(next.fx.x - shotState.fx.x) > 1e-6 || Math.abs(next.fy.x - shotState.fy.x) > 1e-6
-          || (next.progress > 0 && Math.abs(bodyHTarget - bodyH) > 1e-4);
+          || (next.progress > 0 && Math.abs(bodyHTarget - bodyH) > 1e-4)
+          || Math.abs((groupWidth > 0 ? 0 : bodyX) - glowBodyX) > 1e-3;
         shotState = next;
         if (moved) fitCamera();
       }
@@ -906,6 +913,7 @@ export function createStage(opt: StageOptions = {}): Stage {
     },
 
     get shot() { return shotState; },
+    get lateralRoom() { return lateralRoomM; },
 
     setGroup(w, h) {
       groupWidth = Number.isFinite(w) && w > 0 ? w : 0;
@@ -923,8 +931,13 @@ export function createStage(opt: StageOptions = {}): Stage {
       const J = skeleton?.joints;
       const head = J?.headCenter, chest = J?.chest;
       if (skeleton && Number.isFinite(skeleton.height) && skeleton.height > 0.3) bodyHTarget = skeleton.height;
+      // 横向跟随的目标是头胸**相对骨盆**的偏移（前倾），不是头胸的绝对位置：身体整体的横向根偏移是镜子，
+      // 相机跟过去就把观众的位移抵消了（docs/49 §3 用法 C / §6.3 二）。单人、没有横向偏移时骨盆就在 0，和原来逐字相同
+      const pelvis = J?.pelvis;
+      const px = pelvis && Number.isFinite(pelvis[0]) ? pelvis[0] : 0;
+      if (skeleton && pelvis && Number.isFinite(pelvis[0])) bodyX = pelvis[0];
       shotOffset = head && chest && [...head, ...chest].every(Number.isFinite)
-        ? { x: (head[0] + chest[0]) / 2, y: head[1] + SKELETON.craniumOffset - bodyHTarget }
+        ? { x: (head[0] + chest[0]) / 2 - px, y: head[1] + SKELETON.craniumOffset - bodyHTarget }
         : null;
       // 落地点：拿不到骨架就**保持上一帧**，不要归零 ——
       // 追踪丢一帧就把接触阴影关掉，脚下会闪一下，比没有更显眼

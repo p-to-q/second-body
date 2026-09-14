@@ -30,6 +30,7 @@ import type { Landmark, MotionFeatures, RawPose } from '../../../core/src/types.
 import { CAPTURE, PREVIEW, REFINE } from '../../../core/src/tuning.ts';
 import { qualityScale } from '../../../core/src/refine.ts';
 import { outOfFrame } from './preview-state.ts';
+import { lateralEvidence } from '../../../core/src/autoframe.ts';
 import type { Flags } from '../shell/kiosk.ts';
 
 /**
@@ -316,7 +317,9 @@ export function assess(input: ReadoutInput, inferred = true): Assessment {
     const total = (pose!.screen?.length ? pose!.screen : pose!.world)?.length ?? 0;
     if (seen !== null && total > 0 && seen < total / 2) {
       levels.joints = 'alarm'; hit.add('ALM01');
-    } else if (pose!.screen?.length && outOfFrame(pose!.screen, input.upperIsIntended) >= PREVIEW.outOfFramePoints) {
+    } else if (pose!.screen?.length
+      && (lateralEvidence(pose)?.side || outOfFrame(pose!.screen, input.upperIsIntended) >= PREVIEW.outOfFramePoints)) {
+      // 从左右走出去的也是部分出画，和小屏同一把尺子（`lateralEvidence`，按躯干坐标判，docs/49 §6.2 S4）。
       // **出画不给「关节」那一行上色。** 出画的点照样是看得见的点：截图上 33/33 被涂成琥珀，
       // 读起来是"全都看见了，但有问题"—— 一行数和它的颜色自相矛盾。出画这件事没有哪一行在量，
       // 所以它只出现在最底下那一行的代码里。

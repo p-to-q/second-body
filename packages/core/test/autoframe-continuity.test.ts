@@ -11,7 +11,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  stepCrop, stepShot, stepToward, smoothstep, CROP_FULL, SHOT_REST, type Crop, type ShotState,
+  lateralEvidence, stepCrop, stepLateral, stepShot, stepToward, smoothstep, CROP_FULL, LATERAL_REST, SHOT_REST, type Crop, type ShotState,
 } from '../src/autoframe.ts';
 import { mulberry32 } from '../src/rng.ts';
 import { AUTOFRAME } from '../src/tuning.ts';
@@ -97,6 +97,26 @@ test('连续性：小屏裁切（放大倍数、窗口中心）在任何决策�
     }
     assert.ok(wz.value <= M.zoom + 1e-9, `小屏放大倍数一帧跳了 ${wz.value.toFixed(3)}/16ms（上限 ${M.zoom}）@ ${wz.at}`);
     assert.ok(wc.value <= M.center + 1e-9, `小屏窗口中心一帧跳了 ${wc.value.toFixed(4)}/16ms（上限 ${M.center}）@ ${wc.at}`);
+  }
+});
+
+test('连续性：身体的横向根偏移在任何序列下（人乱跳、出左右边、跟丢、余量随景别变、多人让位）每 16ms 的变化不超过上限', () => {
+  for (const seed of [1, 2, 3, 7, 42]) {
+    let s = LATERAL_REST;
+    const wl = worst();
+    let t = 0;
+    for (const f of chaos(seed, 60)) {
+      t += f.dt;
+      // 人的位置在 [-0.1, 1.1] 里乱跳：包括越过左右边
+      const cx = -0.1 + ((f.cx - 0.2) / 0.6) * 1.2;
+      const ev = f.present ? lateralEvidence(person({ ...WHOLE, cx })) : null;
+      // 余量随景别连续地在 0.35 与 1.2 之间变（和舞台一样是连续的）
+      const room = 0.35 + 0.85 * (0.5 + 0.5 * Math.sin(t * 0.7));
+      const n = stepLateral(s, { evidence: ev, room, enabled: !f.hold }, f.dt);
+      note(wl, per16(n.x.x - s.x.x, f.dt), `seed ${seed} t=${t.toFixed(2)}s why=${n.why}`);
+      s = n;
+    }
+    assert.ok(wl.value <= M.lateral + 1e-9, `横向根偏移一帧挪了 ${wl.value.toFixed(4)}m/16ms（上限 ${M.lateral}）@ ${wl.at}`);
   }
 });
 
