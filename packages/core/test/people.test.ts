@@ -57,6 +57,18 @@ test('观测：躯干中心、尺度、面积；没有 screen / 分太低 = 不�
   assert.equal(observePerson(null), null);
 });
 
+test('观测：弯腰（躯干投影缩到 1/4）和侧身（肩宽缩到 1/4）时尺度都不塌 —— 不塌才不会被门限判成新人', () => {
+  const upright = observePerson(person({ cx: 0.5, s: 0.5 }))!.scale;
+  const bent = observePerson(person({ cx: 0.5, s: 0.5, torso: 0.25 }))!.scale;
+  const side = observePerson(person({ cx: 0.5, s: 0.5, width: 0.25 }))!.scale;
+  for (const [name, v] of [['弯腰', bent], ['侧身', side]] as const) {
+    assert.ok(Math.abs(Math.log(v / upright)) <= PEOPLE.gateScale, `${name}：尺度 ${v.toFixed(3)} / 站直 ${upright.toFixed(3)} 越过了尺度门限`);
+  }
+  // 时间线：一个人站直 → 弯腰 → 站直，id 一个都不换
+  const frames = run(HZ * 3, (_k, t) => [{ cx: 0.5, s: 0.5, torso: t > 1 && t < 2 ? 0.25 : 1 }], { cap: 1 });
+  assert.equal(new Set(frames.slice(12).flatMap((f) => f.tracks.map((x) => x.id))).size, 1);
+});
+
 test('观测：胯在画外（笔记本前坐着）照样有中心和尺度', () => {
   const o = observePerson(person({ s: 1.0, hy: 0.95 }))!;
   assert.ok(o, '只露头肩的人也是一个人');

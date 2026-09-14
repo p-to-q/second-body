@@ -62,7 +62,9 @@ export function observePerson(pose: RawPose | null | undefined, aspect = 16 / 9)
     const mx = (sL.x + sR.x) / 2, my = (sL.y + sR.y) / 2;
     const hx = (hL.x + hR.x) / 2, hy = (hL.y + hR.y) / 2;
     cx = (mx + hx) / 2; cy = (my + hy) / 2;
-    scale = Math.hypot((mx - hx) * aspect, my - hy);
+    // 尺度取「躯干长」和「肩宽折算」里**大的那个**：弯腰 / 蹲下时躯干的投影缩到几分之一，侧身时肩宽缩到几分之一，
+    // 两件事很少同时发生。只看躯干长的话，开合跳录像里的尺度一帧从 0.16 掉到 0.04，门限把同一个人判成新人（2026-09-14 实测）
+    scale = Math.max(Math.hypot((mx - hx) * aspect, my - hy), Math.hypot(X(sL) - X(sR), sL.y - sR.y) * PEOPLE.torsoPerShoulder);
   } else if (shoulders) {
     cx = (sL.x + sR.x) / 2;
     // 胯在画外（笔记本前坐着）：躯干中心按肩宽往下估半个躯干
