@@ -319,9 +319,9 @@ machine?: {
 ## 8. 取件记录（2026-09-14）—— 「实·有几何」六条全部落地
 
 §7 裁完之后，第一档六条里还剩三条只有路没有件：`athlete` / `manipulator` / `wheelleg`。
-这一节是取件那一轮的记录。落地提交：`67164c7`（件、LICENSE、索引），
-取件代码在它前面两个提交（`harvest.mjs` 的 `ORIGINS` 支持 Menagerie 之外的来源、`.gltf` 外挂 `.bin`、
-一个 link 多份 OBJ）。**Menagerie 的 SHA 没有动**，仍是 `8161bba`。
+这一节是取件那一轮的记录。落地提交：「adopt real geometry for athlete, wheelleg and manipulator」（件、LICENSE、索引），
+取件代码在它前面几个提交（`harvest.mjs` 的 `ORIGINS` 支持 Menagerie 之外的来源、`.gltf` 外挂 `.bin`、
+一个 link 多份 OBJ），joint 面数上限在它后面一个提交。**Menagerie 的 SHA 没有动**，仍是 `8161bba`。
 
 ### 授权 —— 在钉住的 SHA 上重新取原文核过
 
@@ -340,11 +340,16 @@ machine?: {
 所有件 ≤ `BUDGET.maxPartTris` 5000、远低于 `maxPartBytes` 1.5 MB。超过 5000 面的原始网格由 `normalize.ts` 的容差焊接 + 减面兜住
 （LimX 的 `base_link` 132,464 → 4,928）。
 
+**单件预算够，整具不够。** 第一次落地时 `outline-budget.test.ts` 当场红：`joint` 一具身体里有 14 个实例，
+LimX 每件都减到刚好 4984 面，整具 149,448 面，描边翻倍 298,896 > `BUDGET.maxTriangles` 250,000；
+Stretch 同理到 239,294（没红，但只剩 4%）。修法不动预算：`normalizeOne` 多一个只许往低压的 `maxTris`，
+这两个物种的 `joint` 压到 1500 面。之后整具最坏是 wheelleg 100,420 面（描边 200,840）、manipulator 70,563 面（141,126）。
+
 | 物种 | 件 | 三角形（逐件） | 入库 | 下载原料 |
 |---|---|---|---|---|
 | `athlete` | 10 | spine 4998 · thigh 2464 · shin 1494 · head 935 · clavicle 556 · upperArm 546 · foot 540 · hand 292 · foreArm 196 · joint 48（共 12,069） | 118 KB | 0.5 MB |
-| `wheelleg` | 10 | 4928–5000 每件（共 49,760） | 241 KB | 17.9 MB |
-| `manipulator` | 10 | spine 4993 · head 4982 · clavicle 4999 · hand 4992 · foot 4999 · joint 4998 · foreArm 2472 · upperArm 2268 · thigh/shin 60（共 34,823） | 204 KB | 22.5 MB |
+| `wheelleg` | 10 | spine 4928 · head 4952 · clavicle 4952 · upperArm 4976 · foreArm 5000 · hand 5000 · thigh 4968 · shin 5000 · foot 5000 · joint 1482（共 46,258） | 225 KB | 17.9 MB |
+| `manipulator` | 10 | spine 4993 · head 4982 · clavicle 4999 · hand 4992 · foot 4999 · foreArm 2472 · upperArm 2268 · joint 1492 · thigh/shin 60（共 31,317） | 189 KB | 22.5 MB |
 
 `manipulator` 故意没取 `base_link_8.obj`（22 MB）和 `link_head_0.obj`（11.5 MB），§4 说过避开它们；
 代价是底盘和头罩各少一份材质分件。`wheelleg` 没取第三方的 `realsense_d435.stl`。
