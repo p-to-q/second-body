@@ -113,7 +113,7 @@ export function groundOf(surface: Surface): Ground {
 export const groundFor = (pathname: string, search = ''): Ground => groundOf(surfaceOf(pathname, search));
 
 /** 两页上"是同一件东西"的元素 */
-export type Shared = 'title' | 'mark' | 'nav' | 'devnav';
+export type Shared = 'title' | 'mark' | 'nav' | 'devnav' | 'footer';
 
 export interface Transition {
   /**
@@ -127,7 +127,7 @@ export interface Transition {
 
 /** `view-transition-name`。两页上同名的元素会被平台当成同一件东西挪过去 */
 export const SHARED_NAME: Readonly<Record<Shared, string>> = {
-  title: 'sb-title', mark: 'sb-mark', nav: 'sb-nav', devnav: 'sb-devnav',
+  title: 'sb-title', mark: 'sb-mark', nav: 'sb-nav', devnav: 'sb-devnav', footer: 'sb-footer',
 };
 
 /**
@@ -165,9 +165,10 @@ export const TRANSITIONS: ReadonlyMap<Pair, Transition> = new Map<Pair, Transiti
   // 展签 / 选择页 ↔ 陈述页：巨题是同一行字；选择页左上的字标挪到横带右端；目录那个词不动
   ...both('label', 'doc', xfade('title', 'mark', 'nav')),
   // 文档页之间、文档页与侧室之间：右上角字标、目录那个词一动不动，其余交叉淡化 —— 墙上的展签不跟着人走
-  ...both('doc', 'doc', xfade('mark', 'nav')),
-  ...both('doc', 'room', xfade('mark', 'nav')),
-  ...both('room', 'room', xfade('mark', 'nav')),
+  // 页脚那张图也不动 —— 只在它看得见的时候（长页往下滚过之后，它通常不在视口里，就只是淡）
+  ...both('doc', 'doc', xfade('mark', 'nav', 'footer')),
+  ...both('doc', 'room', xfade('mark', 'nav', 'footer')),
+  ...both('room', 'room', xfade('mark', 'nav', 'footer')),
   ...both('missing', 'doc', xfade('mark', 'nav')),
   ...both('missing', 'label', xfade('mark', 'nav')),
   // 舞台 ↔ 其余：深底与纸之间是底色的交叉淡化；目录那个词在两边都有，它不动
@@ -177,10 +178,10 @@ export const TRANSITIONS: ReadonlyMap<Pair, Transition> = new Map<Pair, Transiti
   ...both('stage', 'stage', xfade('nav')),          // 换物种 / 随机：一次重载，淡过去
   ...both('stage', 'workbench', xfade()),
   // 工作台：右上角那条出口在工作台页之间不动；到侧室 / 文档页是一次短淡化
-  ...both('workbench', 'workbench', xfade('devnav')),
+  ...both('workbench', 'workbench', xfade('devnav', 'footer')),
   ...both('label', 'workbench', xfade()),
-  ...both('doc', 'workbench', xfade()),
-  ...both('room', 'workbench', xfade()),
+  ...both('doc', 'workbench', xfade('footer')),     // 工作台目录页脚下也挂着那张图
+  ...both('room', 'workbench', xfade('footer')),
   ...both('missing', 'workbench', xfade()),
   ...both('workbench', 'kiosk', xfade()),
   ...both('workbench', 'selftest', xfade()),

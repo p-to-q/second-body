@@ -139,7 +139,9 @@ test('原地换景：选择页 → 舞台是交棒，展签 → 选择页由 ent
 });
 
 test('共享元素：每一种都由建它的地方声明，页面上没有第二处写 view-transition-name', () => {
-  const declared: Record<Shared, string> = { title: 'src/about/about.ts', mark: 'src/ui/hero.ts', nav: 'src/ui/nav.ts', devnav: 'dev/devnav.ts' };
+  const declared: Record<Shared, string> = {
+    title: 'src/about/about.ts', mark: 'src/ui/hero.ts', nav: 'src/ui/nav.ts', devnav: 'dev/devnav.ts', footer: 'src/ui/footer-mark.ts',
+  };
   for (const [kind, file] of Object.entries(declared)) {
     assert.match(strip(read(file)), new RegExp(`declareShared\\([^;]*'${kind}'\\)`), `${file} 没有声明 ${kind}`);
   }

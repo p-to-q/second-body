@@ -289,7 +289,8 @@ a:hover { border-bottom-color: var(--sb-accent); }
 ::view-transition-group(sb-title),
 ::view-transition-group(sb-mark),
 ::view-transition-group(sb-nav),
-::view-transition-group(sb-devnav) { animation-duration: var(--sb-dur-move); animation-timing-function: var(--sb-ease-enter); }
+::view-transition-group(sb-devnav),
+::view-transition-group(sb-footer) { animation-duration: var(--sb-dur-move); animation-timing-function: var(--sb-ease-enter); }
 ::view-transition-old(sb-title),
 ::view-transition-new(sb-title),
 ::view-transition-old(sb-mark),
