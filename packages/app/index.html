@@ -4,8 +4,21 @@
 <title>SEE-ME SEE-U</title>
 <style>
  html,body{margin:0;height:100%;background:#0e0f12;overflow:hidden}
+ /* 进展签 / 选择页的那几次：第一帧就是纸，不先闪一块深底（docs/47）。
+    令牌到了之后由 first-screen.css 接手，这一行只管样式表到达之前 */
+ html.sb-first-screen,html.sb-first-screen body{background:#fafafa}
  canvas{display:block}
-</style></head>
+ /* 跨页过渡的开关。type.css 里也有一份，但这一页的样式表是脚本带进来的，晚于第一帧 */
+ @view-transition{navigation:auto}
+ @media (prefers-reduced-motion: reduce){@view-transition{navigation:none}}
+</style>
+<script>
+ // 第一帧的底色：ui/transitions.ts 的 groundFor() 在这里的一份抄本（测试逐条对）。
+ // 这一刻还没有任何模块，所以只能抄。main.ts 的 adoptPrepaint() 接过这一份 hold。
+ (function(){var q=new URLSearchParams(location.search);if(q.get('selftest')!=='1'&&!q.get('theme'))document.documentElement.classList.add('sb-first-screen')})();
+ // 跨页过渡的看门狗（ui/transitions.ts 的 SETTLE_MS）：静止态不许等一个动画跑完
+ addEventListener('pagereveal',function(e){var v=e.viewTransition;if(v){var t=setTimeout(function(){v.skipTransition()},1260);v.finished.finally(function(){clearTimeout(t)}).catch(function(){})}});
+</script></head>
 <body><script type="module">
  // 两条路，都是字面量 import —— 打包器照样能静态分析，两个 chunk 互不牵连。
  //

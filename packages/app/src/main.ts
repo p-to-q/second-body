@@ -53,6 +53,8 @@ import { mountLoading } from './shell/loading.ts';
 import { showNotice } from './shell/notice.ts';
 import { isVacantPosition, vacancyOnShow } from './shell/vacancy.ts';
 import { mountNav } from './ui/nav.ts';
+import { announceStageShown } from './ui/page-transition.ts';
+import { adoptPrepaint } from './choose/ring/first-screen.ts';
 import { mountControls, type Controls } from './ui/controls.ts';
 import { cornerColumn } from './ui/corner.ts';
 import { mountPreview, wantsPreview, previewReservedTop } from './ui/preview.ts';
@@ -89,6 +91,8 @@ async function boot(): Promise<void> {
   // 但 600ms 宽限期内一帧都不画 —— 快的时候观众仍然不该看见这个场景。
   // `?loading=0` 返回空实现，所以下面的调用点不需要写 if。
   const loading = mountLoading(flags);
+  // index.html 在第一帧之前按 URL 开上的纸底（docs/47）。展签 / 选择页各自 hold 住之后才放
+  const releasePrepaint = adoptPrepaint();
 
   // 目录（docs/23 §S4）。现场（`?kiosk=1`）下 `flags.nav` 为 false，等于不存在。
   // 挂在这里而不是等选择页结束：慢网上它正好是那几秒里唯一"还有别的可看"的出口。
@@ -261,6 +265,7 @@ async function boot(): Promise<void> {
         // 选择页已经在屏幕上了 —— 观众有事可做，加载态立刻让位。
         // 剩下的预取在后面继续跑，但它不该再挡着任何人。
         loading.finish();
+        releasePrepaint();
         // 机器把一盘东西放到你面前（docs/29 §2.7）。**必须在这里，不能在
         // `chooseTheme` 调用之前** —— 那时候页面还没落定，声音会早于画面，
         // 读作"它自己弹出来了"而不是"它拿给你"。
@@ -271,6 +276,7 @@ async function boot(): Promise<void> {
     });
   } else {
     loading.done('parts');
+    releasePrepaint();
   }
 
   // 血统：前人留在这台机器上的件，有机会进下一个人的候选池（docs/17 §5）。
@@ -1063,6 +1069,7 @@ async function boot(): Promise<void> {
   });
 
   loop.start();
+  announceStageShown();
 
   // ── 右下角那一列（`ui/exits.ts`）────────────────────────────────────────────
   // 选完物种之后观众此前没有任何出口：换物种只能改地址栏，而现场没有地址栏。

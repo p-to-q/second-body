@@ -30,6 +30,7 @@
 import { COPY, setBi } from './i18n.ts';
 import { markNode } from './mark.ts';
 import { returnLabel, safeFrom } from './return-to.ts';
+import { installPageTransitions } from './page-transition.ts';
 
 /**
  * @param backHref 「回到作品」指向哪儿。`/about` 回首页，其余三页回 `/about` ——
@@ -40,6 +41,8 @@ import { returnLabel, safeFrom } from './return-to.ts';
  *   **仍然是左边一格**，横带的结构不变，中间照旧什么都没有。
  */
 export function heroMeta(backHref: string, from: string | null = null): HTMLDivElement {
+  // 横带在的页就是文档页或侧室：换页过渡与悬停预取跟着它（docs/47）
+  installPageTransitions();
   const meta = document.createElement('div');
   meta.className = 'ed-hero__meta';
 

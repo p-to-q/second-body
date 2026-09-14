@@ -22,6 +22,17 @@ import './first-screen.css';
 const CLASS = 'sb-first-screen';
 let holders = 0;
 
+/**
+ * `index.html` 在第一帧之前已经按 URL 把首屏配色开上了（docs/47）。
+ * 这里把那一份登记成一个 holder，交给 `main.ts` 在"有人接手"之后释放 ——
+ * 没有这一步，那个类没有主人：第一个 hold 再释放的角色会把它连同 index.html 那一份一起摘掉。
+ * 类不在（深链、自检）就什么都不做。
+ */
+export function adoptPrepaint(): () => void {
+  if (typeof document === 'undefined' || !document.documentElement.classList.contains(CLASS)) return () => {};
+  return holdFirstScreen();
+}
+
 /** 开住首屏配色。返回释放函数 —— **重复调用同一个释放函数只算一次**。 */
 export function holdFirstScreen(): () => void {
   holders++;
