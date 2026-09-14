@@ -12,6 +12,8 @@ import * as THREE from 'three/webgpu';
 import { buildSkeleton, mediapipeToWorld } from '../../core/src/skeleton.ts';
 import { createStabilizer } from '../../core/src/stabilize.ts';
 import { clampFold, createRefiner } from '../../core/src/refine.ts';
+import { createFramingClassifier, decide, stepToward, type FramingDecision, type FramingPolicy } from '../../core/src/autoframe.ts';
+import { holdLegs } from '../../core/src/leghold.ts';
 import { createVitality } from '../../core/src/vitality.ts';
 import { createBoneEnergy, createMotion } from '../../core/src/motion.ts';
 import { createEvolution } from '../../core/src/evolution.ts';
@@ -20,7 +22,7 @@ import { arcPresent, createArc, type ArcState } from '../../core/src/arc.ts';
 import { makeGenome, toPlaceholderGenome } from '../../core/src/genome.ts';
 import { blendSkeletons, remapSkeleton, type BodyPlan } from '../../core/src/bodyplan.ts';
 import { mulberry32 } from '../../core/src/rng.ts';
-import { CAPTURE, GOVERNOR, NASCENT, REFINE, STAGE } from '../../core/src/tuning.ts';
+import { AUTOFRAME, CAPTURE, GOVERNOR, NASCENT, REFINE, STAGE } from '../../core/src/tuning.ts';
 import type { Genome, MotionFeatures, PartMeta, Presence, Skeleton, SlotKey, SlotPick, Tier } from '../../core/src/types.ts';
 
 import { createCapture, type Capture } from './capture/capture.ts';
@@ -348,8 +350,22 @@ async function boot(): Promise<void> {
   //
   // 挂不挂的判断在 `wantsPreview()` 一处（`?demo=1` 永不挂、`?kiosk=1` 默认不挂），
   // 这里不重写一遍那个条件 —— 和 `flags.nav` 同一条纪律。
+  // ── 4a. 取景模式（`core/src/autoframe.ts`，docs/49 §落地）─────────────────────
+  // 分类器每帧吃 **raw**（和小屏、读数同一份，滤波之前）：它要回答的是"画面里现在是什么样"，
+  // 精化器那 0.67 秒的遮挡保持会让它晚一拍认出"腿不在了"。
+  // 它的结论只给输出侧用 —— 舞台景别、腿、小屏裁切、引导；采集端一个像素都不动（docs/49 §3 用法 A）。
+  const framer = createFramingClassifier({ kiosk: flags.kiosk });
+  /** `?framing=` / 控件条。叠加在分类器上，选 auto 就交回去 */
+  let framingPolicy: FramingPolicy = flags.framing;
+  let framing: FramingDecision = decide(framingPolicy, framer.current);
+  /** 腿混向站姿的权重（线性，`holdLegs` 里套 smoothstep） */
+  let legHold = 0;
+  const reducedMotion = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
+
   const preview = mountPreview({
     flags,
+    // 上半身是正当取景时：「往后退一点」不为腿说话，小屏在人身上做一个小范围的数字裁切
+    framing: () => framing.upperIsIntended,
     // 用 getter：观众按下「用我的摄像头」之后 `capture` 会被整个换掉，
     // 这块屏幕必须跟着换到新的那一个 `<video>` 上。
     // `video` 只有 `WebcamCapture` 有（回放没有摄像头画面），所以按可选字段读 ——
@@ -373,7 +389,7 @@ async function boot(): Promise<void> {
   // 这里不重写一遍那个条件 —— 和 `flags.nav` / `wantsPreview()` 同一条纪律。
   // `live`：从选择页进来时 capture 是回放，录像的每一帧都过 minScore —— 不告诉它，它就对着空场说「有人」。
   // `cameraOn` 在下面才声明，这里只是一个闭包，第一次被调用时它早已初始化
-  const readout = mountReadout({ flags, live: () => cameraOn });
+  const readout = mountReadout({ flags, live: () => cameraOn, upperIsIntended: () => framing.upperIsIntended });
 
   // ── 5. 状态机 ───────────────────────────────────────────────────────────
   const presence = createPresence();
@@ -715,16 +731,23 @@ async function boot(): Promise<void> {
     // 那对身体是对的（抽搐比迟钝更毁体验），对这块屏幕是致命的：
     // 它会在人已经走出画面之后继续显示一副"看得见"的骨架。
     // 这块屏幕唯一的职责就是说实话，所以它站在滤波之前。
+    // 取景模式先判，小屏和读数这一帧就用上同一个结论。吃**原话**（和小屏同一份）：
+    // 它要回答"画面里此刻是什么样"，插值出来的那一份不是画面里有过的样子
+    framing = decide(framingPolicy, framer.update(live, dt));
+    legHold = stepToward(legHold, framing.holdLegs ? 1 : 0, dt, AUTOFRAME.legBlendSeconds);
     preview?.update(live, dt);
 
     if (raw) {
       // 运动特征算在**人的**骨架上：驱动演化的是观众实际动了多少，
       // 而不是重映射之后那具身体动了多少。顺序不能反。
       const cooked = refiner && refineOn ? refiner.apply(raw, dt) : raw;
-      const humanSk = stabilizer.apply(buildSkeleton(mediapipeToWorld(cooked), cooked.world, cooked.t), dt);
+      const trackedSk = stabilizer.apply(buildSkeleton(mediapipeToWorld(cooked), cooked.world, cooked.t), dt);
       // 反折约束放在稳定化**之后**：它靠骨长把远端点转回去，
       // 而骨长要等滚动中位数定下来才可信（放前面就是拿噪声当尺子）。
-      if (refiner && refineOn) clampFold(humanSk);
+      if (refiner && refineOn) clampFold(trackedSk);
+      // 上半身模式：腿换成站在地上的站姿，不被画外的腿点驱动（`core/src/leghold.ts`）。
+      // 放在运动特征**之前**：站着不动的腿不该贡献动能。权重 0 时原样返回同一个对象
+      const humanSk = holdLegs(trackedSk, legHold);
       lastFeatures = motion.update(humanSk, dt);
       // 逐骨能量也算在**人的**骨架上，和 `motion` 同一条理由：
       // docs/44 §3 那条机制说的是"他刚才在用哪根肢体"，不是"那具身体哪根动得多"。
@@ -932,6 +955,14 @@ async function boot(): Promise<void> {
       waiting: slow.phase === 'running',
     }, dt);
 
+    // 景别。中景只给人形：身体方案一开始漂移，"上半身"就不再是一个取景（四足没有上半身），给全景。
+    // 帧循环在降级或无人降帧时镜头不做动画（直接切、跟随冻结）—— 画面不动永远比卡着动好
+    stage.setShot(framing.shot === 'upper' && planDrift() <= 0 ? 'upper' : 'full', {
+      reduced: reducedMotion?.matches ?? false,
+      // 调速器放到「后期」那一级（docs/48 §4 的阶梯第 4 级）才算真的在砍：前三级（墨色采样、
+      // 换件延后、推理降频）不会让一段 1 秒的运镜读成卡顿，那时候照常动
+      hold: loop.stats.degraded !== null || loop.stats.throttled || governor.sheds('post'),
+    });
     stage.update(p, lastFeatures, dt);
     stage.render(renderer);   // 后期链在舞台里；?nopost=1 时它退化成直出
 
@@ -953,6 +984,8 @@ async function boot(): Promise<void> {
         arcForced: director.forced,
         // docs/44 §7 最后一段：现场调速率的人靠这一行，不靠掐表
         theseus: theseus?.state,
+        // 取景模式此刻是什么、为什么、量到了什么（docs/49 §落地：切换必须实时看得见）
+        framing: { reading: framer.current, decision: framing, legHold, shot: stage.shot.progress },
         // `camera` 只有 `WebcamCapture` 有（回放没有摄像头可选），所以按可选字段读 ——
         // 和上面 `instances` 同一个写法，不为一个显示字段去动 `Capture` 契约。
         cam: (capture as { camera?: { hud: string } | null }).camera?.hud,
@@ -991,6 +1024,7 @@ async function boot(): Promise<void> {
     species: theme ?? null,
     refine: refineOn && refiner !== null,
     post: stage.post,
+    framing: framingPolicy,
   });
 
   // ── 控件条（`ui/controls.ts`）──────────────────────────────────────────────
@@ -1016,6 +1050,8 @@ async function boot(): Promise<void> {
           case 'refine': refineOn = v as boolean; if (!refineOn) refiner?.reset(); break;
           // 观众说了算的是"想不想要"；调速器此刻放着「后期」那一级时，要回来的那一刻才真的开
           case 'post': postWanted = v as boolean; stage.setPost(postWanted && !governor.sheds('post')); break;
+          // 取景策略：下一帧 `decide()` 自己读到。分类器不重置 —— 它一直在看，换的只是听不听它
+          case 'framing': framingPolicy = v as FramingPolicy; break;
           case 'sound': if (v !== controlValues().sound) sound.toggleMute(); break;
           case 'species': break;   // 换物种走重载（表里的 reload），热切不到这里
         }

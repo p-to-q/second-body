@@ -31,7 +31,8 @@
 import type { Landmark, RawPose } from '../../../core/src/types.ts';
 import { PREVIEW } from '../../../core/src/tuning.ts';
 import { qualityScale } from '../../../core/src/refine.ts';
-import { CAPTURE, REFINE } from '../../../core/src/tuning.ts';
+import { trustedLandmark } from '../../../core/src/autoframe.ts';
+import { CAPTURE } from '../../../core/src/tuning.ts';
 import type { Flags } from '../shell/kiosk.ts';
 
 /**
@@ -92,6 +93,8 @@ export interface SeeInput {
   camera: boolean;
   /** 最近一次采集结果。null = 这一帧没人 */
   pose: RawPose | null;
+  /** 上半身是正当取景（`FramingDecision.upperIsIntended`）。缺省 false = 这一版之前的行为 */
+  upperIsIntended?: boolean;
 }
 
 // 四个数都在 `core/tuning.ts` 的 `PREVIEW` 块里，各自的理由写在那边。
@@ -99,26 +102,33 @@ export interface SeeInput {
 // 而现场调一个数不该要求人去读一个 UI 文件。
 const { edgeMargin: EDGE_MARGIN, outOfFramePoints: OUT_OF_FRAME_POINTS } = PREVIEW;
 
-/** 哪些点参与出画判定：只看**可信**的点，理由同 `refine.ts` 的遮挡门限 */
-function trusted(l: Landmark | undefined): boolean {
-  if (!l || !Number.isFinite(l.x) || !Number.isFinite(l.y)) return false;
-  const v = l.visibility;
-  // 没有 visibility 字段 = 模型不给这个数（`skeleton.ts` / `refine.ts` 同一条约定）：
-  // 有坐标就当可信，而不是当不可信 —— 当不可信会让整条判据在那些模型版本上**恒为绿**。
-  return typeof v === 'number' && Number.isFinite(v) ? v >= REFINE.occlusionVisibility : true;
-}
+/**
+ * 哪些点参与出画判定：只看**可信**的点，理由同 `refine.ts` 的遮挡门限。
+ * 没有 visibility 字段 = 模型不给这个数（`skeleton.ts` / `refine.ts` 同一条约定）：
+ * 有坐标就当可信，而不是当不可信 —— 当不可信会让整条判据在那些模型版本上**恒为绿**。
+ * 判据本身住在 `core/src/autoframe.ts`：取景分类器和这块小屏必须是同一把尺子。
+ */
+const trusted = trustedLandmark;
 
 /**
  * 有几个**可信**点落在画面外。**导出**是为了左下角读数的「部分出画」告警（`readout-state.ts`）
  * 用这一把尺子，而不是另画一条线 —— 两块仪表对"出画"说法不一，观众会信其中一块、不信另一块。
+ *
+ * `upperIsIntended`：上半身是一个**正当的取景**（取景模式判成上半身，或者有人选了上半身，docs/49 §落地）。
+ * 这时**只从画面下边出去的**点不算出画 —— 画面下边就是这个取景自己选的那条切线：
+ * 腿在它下面，放在腿上、桌上的手也常常在它下面（合成的"坐着的人"第一版只豁免了胯以下，
+ * 六个手指点照样把小屏喊成「往后退一点」）。为它说话就是在纠正一个没有犯的错。
+ * **从上边、左右出去的照样算**：头被切、肩出了边，在任何取景里都是真的出画。
  */
-export function outOfFrame(screen: readonly Landmark[] | undefined): number {
+export function outOfFrame(screen: readonly Landmark[] | undefined, upperIsIntended = false): number {
   if (!screen?.length) return 0;
   let n = 0;
-  for (const l of screen) {
+  for (let i = 0; i < screen.length; i++) {
+    const l = screen[i];
     if (!trusted(l)) continue;
-    if (l.x < -EDGE_MARGIN || l.x > 1 + EDGE_MARGIN
-      || l.y < -EDGE_MARGIN || l.y > 1 + EDGE_MARGIN) n++;
+    const below = l.y > 1 + EDGE_MARGIN;
+    if (upperIsIntended && below && l.x >= -EDGE_MARGIN && l.x <= 1 + EDGE_MARGIN) continue;
+    if (l.x < -EDGE_MARGIN || l.x > 1 + EDGE_MARGIN || l.y < -EDGE_MARGIN || below) n++;
   }
   return n;
 }
@@ -140,7 +150,7 @@ export function seeState(input: SeeInput): SeeReading {
 
   // `screen` 可能没有（回放数据里就常常没有）。没有就跳过这一条，
   // 而不是当成"没出画" —— 少一条判据是事实，编一个"都在画面里"不是。
-  if (pose.screen?.length && outOfFrame(pose.screen) >= OUT_OF_FRAME_POINTS) {
+  if (pose.screen?.length && outOfFrame(pose.screen, input.upperIsIntended) >= OUT_OF_FRAME_POINTS) {
     return { state: 'partial', reason: 'bounds' };
   }
 

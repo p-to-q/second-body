@@ -46,9 +46,11 @@ import {
   type ArcWeights, type LookProfile, type RGB,
 } from './look.ts';
 import {
-  boundsOfPlan, boundsOfSkeleton, contactPoints, fitFrame, lerpBounds, DEFAULT_BOUNDS,
+  boundsOfPlan, boundsOfSkeleton, contactPoints, fitFrame, lerpBounds, DEFAULT_BOUNDS, upperFit, blendFit,
   type BodyBounds,
 } from './framing.ts';
+// `smoothstep` 这个名字已经被 TSL 的节点函数占了（上面那一行），纯数的这一个改个名
+import { smoothstep as ease01, stepShot, SHOT_REST, type Shot, type ShotState } from '../../../core/src/autoframe.ts';
 import { applyScene, isSceneId, pickScene, SCENES, type SceneId } from './scenes.ts';
 import { createInkSampler } from './ink-sampler.ts';
 
@@ -93,6 +95,15 @@ export interface Stage {
    * 这个方法是用真人的高矮胖瘦去**细化**它。
    */
   frame(skeleton: Skeleton | null): void;
+  /**
+   * 景别（docs/49 §落地）：全景（等身）或中景（上半身）。**每帧调都行**，同一个值不重启任何东西。
+   * 走多久、跟不跟随由舞台自己按时间推（`core/src/autoframe.ts` 的 `stepShot`），不靠 CSS 或动画事件。
+   * @param opts.reduced `prefers-reduced-motion`：0.15 秒到位，中景不跟随
+   * @param opts.hold 帧循环在降级：直接切到位、跟随冻结
+   */
+  setShot(shot: Shot, opts?: { reduced?: boolean; hold?: boolean }): void;
+  /** 景别此刻的进度（0 全景 … 1 中景，线性）与跟随偏移（米）。HUD / 截图取证用 */
+  readonly shot: Readonly<ShotState>;
   /** 当前取景依据的包围盒（HUD / 截图取证用） */
   readonly bounds: BodyBounds;
   /** 运行时开关后期（HUD / 现场排查用） */
@@ -423,6 +434,17 @@ export function createStage(opt: StageOptions = {}): Stage {
   let boundsTarget: BodyBounds = { ...DEFAULT_BOUNDS };
   let framingSettled = true;
 
+  // ── 景别（docs/49 §落地）：全景 ↔ 中景，加中景里的小范围跟随 ──
+  let shotWant: Shot = 'full';
+  let shotReduced = false;
+  let shotHold = false;
+  let shotState: ShotState = SHOT_REST;
+  /** 中景按身高取景；身高来自骨架（上半身模式下是站姿身高，`core/src/leghold.ts`），带 framingTau 缓动 */
+  let bodyH = DEFAULT_BOUNDS.height + 0.14;
+  let bodyHTarget = bodyH;
+  /** 中景跟随的目标偏移（米）：x = 头胸的横向位置，y = 颅顶低于站姿身高多少（前倾 / 塌腰为负） */
+  let shotOffset: { x: number; y: number } | null = null;
+
   let aliveMix = 0;
   let gather = 0;
   let particleFade = 1;
@@ -642,7 +664,11 @@ export function createStage(opt: StageOptions = {}): Stage {
   function fitCamera(): void {
     const aspect = viewW / Math.max(1, viewH);
     uAspect.value = aspect;
-    const fit = fitFrame(bounds);
+    // 景别：t = 0 时 `blendFit` 逐字返回全景，等身一毫米不偏（`test/framing.test.ts`）
+    const mix = ease01(shotState.progress);
+    const fit = blendFit(fitFrame(bounds), upperFit(bodyH, bounds.width), mix);
+    fit.centerY += shotState.fy.x * mix;
+    const panX = shotState.fx.x * mix;
     let h = fit.frameHeight;
     if (h * aspect < fit.frameWidth) h = fit.frameWidth / aspect;   // 太窄了就往高了框
 
@@ -663,7 +689,8 @@ export function createStage(opt: StageOptions = {}): Stage {
     const centerY = fit.centerY + bounds.height * look.frameLift;
     const shift = (STAGE.eyeHeight - centerY) / h;
     const full = 1000;
-    camera.setViewOffset(full * aspect, full, 0, shift * full, full * aspect, full);
+    // 中景的横向跟随同样是平移视锥（移轴），不转相机：竖线仍然是竖的，地平线不歪
+    camera.setViewOffset(full * aspect, full, (panX / h) * full, shift * full, full * aspect, full);
     camera.updateProjectionMatrix();
 
     // 聚拢形态跟着身体走（四足的粒子不该聚成一个站着的人影）
@@ -692,7 +719,8 @@ export function createStage(opt: StageOptions = {}): Stage {
     // 而探针读出来的 `uGlow.y` 和手算的完全一致 —— 差的只有这一个符号。
     // 上游文档两种约定都能找到，所以这里以实测为准，别按记忆改回去。
     const toScreenY = (worldY: number): number => 0.5 - (worldY - centerY) / h;
-    uGlow.value.x = 0.5;              // 相机没有横向偏移，身体永远在画面横向中线上
+    // 全景没有横向偏移；中景跟随时身体离开中线多少，晕就跟着挪多少（晕心钉在身体背后）
+    uGlow.value.x = 0.5 - panX / (h * aspect);
     uGlow.value.y = toScreenY(bounds.centerY + bounds.height * look.glowLift);
     // 地平线 = 眼高那条水平视线（地面上无穷远处）。地面镜射天幕时绕它翻折
     uHorizonY.value = toScreenY(STAGE.eyeHeight);
@@ -743,6 +771,17 @@ export function createStage(opt: StageOptions = {}): Stage {
           framingSettled = true;
         }
         fitCamera();
+      }
+
+      // ── 景别过渡与中景跟随（时间驱动；静止时一帧都不重算）──
+      {
+        bodyH += (bodyHTarget - bodyH) * (1 - Math.exp(-step / STAGE.framingTau));
+        const next = stepShot(shotState, { shot: shotWant, offset: shotOffset, reduced: shotReduced, hold: shotHold }, step);
+        const moved = Math.abs(next.progress - shotState.progress) > 1e-6
+          || Math.abs(next.fx.x - shotState.fx.x) > 1e-6 || Math.abs(next.fy.x - shotState.fy.x) > 1e-6
+          || (next.progress > 0 && Math.abs(bodyHTarget - bodyH) > 1e-4);
+        shotState = next;
+        if (moved) fitCamera();
       }
 
       // ── 在场 ──
@@ -842,9 +881,24 @@ export function createStage(opt: StageOptions = {}): Stage {
     get timeScale() { return timeScale; },
     get pulseGain() { return pulse; },
 
+    setShot(shot, opts) {
+      shotWant = shot === 'upper' ? 'upper' : 'full';
+      shotReduced = !!opts?.reduced;
+      shotHold = !!opts?.hold;
+    },
+
+    get shot() { return shotState; },
+
     frame(skeleton) {
       const b = boundsOfSkeleton(skeleton);
       if (b) aimAt(b);
+      // 中景的两个输入：身高，和上半身相对站姿的偏移
+      const J = skeleton?.joints;
+      const head = J?.headCenter, chest = J?.chest;
+      if (skeleton && Number.isFinite(skeleton.height) && skeleton.height > 0.3) bodyHTarget = skeleton.height;
+      shotOffset = head && chest && [...head, ...chest].every(Number.isFinite)
+        ? { x: (head[0] + chest[0]) / 2, y: head[1] + SKELETON.craniumOffset - bodyHTarget }
+        : null;
       // 落地点：拿不到骨架就**保持上一帧**，不要归零 ——
       // 追踪丢一帧就把接触阴影关掉，脚下会闪一下，比没有更显眼
       // 骨架本身不可信（b 为 null）才保持上一帧；骨架可信但**整具身体都离地**时

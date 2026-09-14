@@ -70,6 +70,7 @@ const GROUPS: Group[] = [
       { href: '/dev/sound.html', name: '声音', answers: '四层声音各自在响吗？它们真的跟着信号走吗？' },
       { href: '/dev/choose.html', name: '选择页', answers: '观众在这一屏选的是"变成什么"，还是"点哪一个"？' },
       { href: '/dev/capture.html', name: '采集', answers: '摄像头认到人了吗？坐标和量程对不对？' },
+      { href: '/dev/framing.html', name: '取景模式', answers: '它现在判的是上半身还是全身？为什么？离另一个判断还差多少？' },
       { href: '/dev/degrade.html', name: '降级阶梯', answers: '帧循环炸了会不会一级一级降下去？无人时真的掉到 10fps 吗？' },
       { href: '/dev/record.html', name: 'Pose 录制', answers: '没有真人站在这里的时候，这件作品靠什么活着？', devOnly: true },
       { href: '/dev/anchor.html', name: 'Anchor 渲染', answers: '一个物种的风格是从哪一张图定下来的？', devOnly: true },

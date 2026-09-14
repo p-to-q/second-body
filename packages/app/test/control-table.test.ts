@@ -27,7 +27,7 @@ const C = COPY.controls as unknown as Record<string, Record<string, unknown>>;
 const VALUES: ControlValues = {
   form: 'quadruped', scene: 'tide', act: 'resist',
   outline: true, vitality: false, sound: false,
-  species: 'xeno', refine: true, post: false,
+  species: 'xeno', refine: true, post: false, framing: 'upper',
 };
 
 test('每一条都有：合法的种类与组、不撞车的键、文案', () => {

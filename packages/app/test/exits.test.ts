@@ -24,6 +24,7 @@ const STATE: ControlValues = {
   vitality: false,
   refine: true,
   post: false,
+  framing: 'auto',
   sound: false,
 };
 
