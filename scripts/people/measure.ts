@@ -73,7 +73,8 @@ await send('Page.addScriptToEvaluateOnNewDocument', {
     requestAnimationFrame(f); window.__frames = t; })();`,
 });
 // QUERY=tier=1&theseus=off → 固定档位、关掉换件，两次截图之间才能比
-const common = `theme=porcelain&seed=7&debug=1&arc=900&loading=0&wave=off${process.env.QUERY ? `&${process.env.QUERY}` : ''}`;
+// THEME=athlete → 换一个轻的物种：预算只在轻物种上放得下三具（docs/50 §5.3）
+const common = `theme=${process.env.THEME ?? 'porcelain'}&seed=7&debug=1&arc=900&loading=0&wave=off${process.env.QUERY ? `&${process.env.QUERY}` : ''}`;
 const tag = process.env.TAG ? `-${process.env.TAG}` : '';
 const url = mode === 'infer'
   ? `${base}/?${common}&theseus=off&people=${n}`
