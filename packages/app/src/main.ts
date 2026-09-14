@@ -981,7 +981,10 @@ async function boot(): Promise<void> {
     // 空闲里预编译直出那条路（docs/48 §10）：桶集合稳定、画面不忙、后期开着时才编，编的时候让出主线程。
     // 物种身体到场（第 III 乐章）是另一批网格第一次可见，也算内容变了
     warmPlan.note(creature.stats.buckets * 2 + (speciesBody?.object.visible ? 1 : 0), tMs);
-    if (warmPlan.next(tMs, { postOn: stage.post, calm: governor.jank < GOVERNOR.shedAbove && governor.level < GOVERNOR_LADDER.indexOf('post') })) {
+    // "不忙" = 这一帧自己不是丢帧。**不看调速器走到了第几级**：原来看，结果恰恰在它要放下后期之前
+    // 那几秒（L3）被挡住，一次都没编成（B-prof2：@24.29s 放下后期，那一帧 302ms，其中节点构建 61ms）。
+    // 编译本身逐个对象让出主线程，所以在调速器忙着放级的时候开编是对的 —— 那正是它要赶在前面的时候
+    if (warmPlan.next(tMs, { postOn: stage.post, calm: loop.stats.frameMs < GOVERNOR.jankFloorMs })) {
       warmPlan.started(tMs);
       void stage.warmDirect(renderer).then((ok) => warmPlan.finished(performance.now(), ok));
     }
