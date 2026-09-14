@@ -25,7 +25,7 @@
  *    中英并置不切换（那是设计决定，见 i18n 的文件头）。
  */
 import { COPY, setBi, type BiText } from './i18n.ts';
-import { installPageTransitions } from './page-transition.ts';
+import { installPrefetch } from './page-transition.ts';
 import './type.css';
 import './section-head.css';
 import './nav.css';
@@ -104,8 +104,8 @@ export interface Nav { root: HTMLElement; open(): void; close(): void; }
 export function mountNav(options: NavOptions = {}): Nav | null {
   const { enabled = true, overlay = false, startOpen = false, mount = document.body, onOpenChange } = options;
   if (!enabled || typeof document === 'undefined') return null;
-  // 换页过渡与悬停预取（docs/47）。和目录同一个开关：现场不挂目录，也就不挂这个
-  installPageTransitions();
+  // 悬停预取（docs/47）。和目录同一个开关：现场不挂目录，也就不预取
+  installPrefetch();
 
   // `cleanUrls` 会把 /making.html 变成 /making，两种写法都要认得出"就是这一页"
   const path = location.pathname.replace(/\/+$/, '');

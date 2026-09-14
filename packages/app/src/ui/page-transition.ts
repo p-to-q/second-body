@@ -1,30 +1,22 @@
 /**
- * 换页的那一半 DOM（docs/47）。表在 `ui/transitions.ts`，这里只把它接到平台上。
+ * 换页的那一半 DOM（docs/47）。表在 `ui/transitions.ts`。
  *
- * ## 用的是平台，不是我们自己的动画
+ * 这里只剩两件事：
  *
- * 跨页：CSS 里一行 `@view-transition { navigation: auto }`（`type.css`；首页在 `index.html`
- * 行内，因为它的样式表是脚本带进来的，晚于第一帧）。浏览器在旧页最后一帧和新页第一帧之间
- * 自己做交叉淡化，时长取 `type.css` 那把尺子。这里多做三件事：
+ *  1. **原地交棒**（选择页 → 舞台）：`handOff()` 包一次同文档的 `document.startViewTransition`，
+ *     由 `stageShown()` 决定什么时候交 —— 舞台画出第一帧，或者等满 `HANDOFF_WAIT_MS`。
+ *     有看门狗：最迟 `SETTLE_MS` 之后强制收掉，静止态不许等一个动画跑完。
+ *  2. **悬停预取**（Speculation Rules），把下一页早一点备好。它不是过渡。
  *
- *  1. `pageswap` / `pagereveal` 上查表：这一对要不要过渡、哪几样东西是同一件（给它们起同一个
- *     `view-transition-name`，平台就会把它从旧位置挪到新位置）。表里没有的一对直接跳过。
- *  2. **看门狗。** 最迟 `SETTLE_MS` 之后强制收掉 —— 静止态不许等一个动画跑完。
- *  3. 预取 / 预渲染规则（Speculation Rules），悬停时把下一页备好。
+ * **跨页过渡整个关着**（`transitions.ts` 的文件头，docs/47 §4.3）：跨页快照在无头 Chrome 上
+ * 每一类跳都量出过整帧纯白，原因没查到。所以这里没有跨页过渡的钩子 ——
+ * 没有跨页过渡，它们永远等不到一个 `viewTransition`，留着就是永远不会跑的代码。
  *
- * 原地（选择页 → 舞台）：`handOff()` 包一次 `document.startViewTransition`，
- * 由 `stageShown()` 决定什么时候交棒 —— 舞台画出第一帧，或者等满 `HANDOFF_WAIT_MS`。
- *
- * 不支持的浏览器上这些调用全部不存在，于是每一跳退回原来的一刀切。**没有一条路依赖它们。**
+ * 不支持的浏览器上 `startViewTransition` 不存在，交棒退回原来那条 180ms 淡出。**没有一条路依赖它。**
  */
-import {
-  HANDOFF_WAIT_MS, SETTLE_MS, SHARED_NAME, SHARED_SELECTOR, speculationRules, surfaceOf, transitionFor,
-  type Shared, type Transition,
-} from './transitions.ts';
+import { HANDOFF_WAIT_MS, SETTLE_MS, speculationRules } from './transitions.ts';
 
 interface ViewTransitionLike { finished: Promise<void>; skipTransition(): void }
-type SwapEvent = Event & { viewTransition?: ViewTransitionLike | null; activation?: { entry?: { url?: string } } | null };
-type RevealEvent = Event & { viewTransition?: ViewTransitionLike | null };
 
 const reduced = (): boolean => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -34,102 +26,15 @@ function settle(vt: ViewTransitionLike): void {
   vt.finished.finally(() => clearTimeout(timer)).catch(() => {});
 }
 
-const named: HTMLElement[] = [];
-function nameShared(shared: readonly Shared[]): Shared[] {
-  const done: Shared[] = [];
-  for (const s of shared) {
-    const el = document.querySelector<HTMLElement>(SHARED_SELECTOR[s]);
-    if (!el) continue;                       // 这一页上没有它（比如展签的巨题还没挂上）：它就只是淡掉
-    el.style.setProperty('view-transition-name', SHARED_NAME[s]);
-    named.push(el);
-    done.push(s);
-  }
-  return done;
-}
-/**
- * 旧页上满屏的 GPU 画布，在截图之前藏起来。
- *
- * 2026-09-14 无头 Chrome 实测：从舞台、`/dev/figure`、`/dev/lineup` 离开时，旧页那一张截图
- * 有时整张是纯白（亮度 255、离散度 0）—— 于是深底的舞台先闪一帧白纸再淡到下一页，比一刀切更糟。
- * 藏掉画布之后截到的是深底加角上的字，淡出的是它。画面本身在截图的那一刻就要走了，藏它不损失什么；
- * 从往返缓存回来时在 `pageshow` 里还原。
- */
-const hidden: HTMLElement[] = [];
-function hideGpuCanvases(): void {
-  const area = innerWidth * innerHeight;
-  for (const c of document.querySelectorAll<HTMLElement>('canvas, video')) {
-    const r = c.getBoundingClientRect();
-    // 摄像头那块小屏幕（`<video>`，带实时流）也截成过纯白，不论大小一起藏
-    if ((c.tagName === 'CANVAS' && r.width * r.height < area * 0.25) || c.style.visibility === 'hidden') continue;
-    c.style.visibility = 'hidden';
-    hidden.push(c);
-  }
-}
-
-/**
- * 摄像头开着的舞台。藏掉画面和小屏之后，无头 Chrome 仍然在 2/2 次里把这种页截成纯白
- * （docs/47 §4.3），而同一个舞台用回放驱动时 3/3 次截得对。原因没查到，所以不赌：
- * 摄像头开着就不过渡，退回原来的一刀切 —— 一刀切至少不会先白一下。
- */
-function cameraLive(): boolean {
-  return [...document.querySelectorAll('video')].some((v) => (v.srcObject as MediaStream | null)?.getVideoTracks?.().some((t) => t.readyState === 'live'));
-}
-
-function unname(): void {
-  for (const c of hidden.splice(0)) c.style.visibility = '';
-  for (const el of named.splice(0)) el.style.removeProperty('view-transition-name');
-  document.documentElement.classList.remove('sb-vt-arrived');
-}
-
-const surfaceOfUrl = (url: string): ReturnType<typeof surfaceOf> => {
-  const u = new URL(url, location.href);
-  return surfaceOf(u.pathname, u.search);
-};
-
 let installed = false;
 
 /**
- * 装上。幂等 —— 目录、横带、工作台出口三处都会叫它（一页上可能同时有两样）。
- * **现场（`?kiosk=1`）一处都不挂**，所以现场从不预取、也不查这张表。
+ * 装上悬停预取。幂等 —— 目录、横带、工作台出口三处都会叫它（一页上可能同时有两样）。
+ * **现场（`?kiosk=1`）一处都不挂**，所以现场从不预取。
  */
-export function installPageTransitions(): void {
-  if (installed || typeof window === 'undefined' || typeof document === 'undefined') return;
+export function installPrefetch(): void {
+  if (installed || typeof document === 'undefined') return;
   installed = true;
-  const here = () => surfaceOf(location.pathname, location.search);
-
-  // 旧页：最后一帧被截下来之前
-  addEventListener('pageswap', (event) => {
-    const e = event as SwapEvent;
-    const vt = e.viewTransition;
-    if (!vt) return;
-    const url = e.activation?.entry?.url;
-    const t: Transition | null = url ? transitionFor(here(), surfaceOfUrl(url)) : null;
-    if (!t || t.kind === 'none' || reduced() || cameraLive()) { vt.skipTransition(); return; }
-    hideGpuCanvases();
-    nameShared(t.shared);
-  });
-
-  // 新页：第一帧画出来之前
-  addEventListener('pagereveal', (event) => {
-    const vt = (event as RevealEvent).viewTransition;
-    if (!vt) return;
-    const from = (globalThis as { navigation?: { activation?: { from?: { url?: string } | null } } })
-      .navigation?.activation?.from?.url;
-    const t = from ? transitionFor(surfaceOfUrl(from), here()) : null;
-    if (!t || t.kind === 'none' || reduced()) { vt.skipTransition(); return; }
-    // 巨题从上一页挪过来的时候，这一页自己的「巨题升起」就不该再放一遍（editorial.css 的 ed-rise）
-    if (nameShared(t.shared).includes('title')) document.documentElement.classList.add('sb-vt-arrived');
-    settle(vt);
-    vt.finished.finally(unname).catch(() => {});
-  });
-
-  // 从往返缓存里回来的旧页：名字还挂着，下一次过渡会拿到两个同名元素
-  addEventListener('pageshow', (e) => { if ((e as PageTransitionEvent).persisted) unname(); });
-
-  installSpeculation();
-}
-
-function installSpeculation(): void {
   const supports = (HTMLScriptElement as { supports?: (t: string) => boolean }).supports;
   if (!supports?.('speculationrules')) return;
   // 省流量模式下不替人预取

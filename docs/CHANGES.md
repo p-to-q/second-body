@@ -14,6 +14,16 @@ Forecloses: 这让什么变难或不可能
 
 ---
 
+## 2026-09-14 — 换页：底色在第一帧之前定；跨页过渡关着
+Changed:    `index.html` 在任何脚本之前按 URL 挂首屏配色（`ui/transitions.ts` 的 `groundFor`，抄本由测试逐条对）；
+            选择页等舞台第一帧再同文档交棒；跨页 View Transition 全部 `none`，`@view-transition` 从样式表里拿掉。
+            `vercel.json` 给 `/fonts/*` `/sound/*` 一天缓存。回到大厅带 `?hall=1` 落在选择页。
+Why:        冷开 `/` 先闪 707ms 深底再翻纸（跳变 240）；选择页一帧翻深、中间 ~450ms 无帧（198）。
+            跨页过渡在无头 Chrome 上每一类跳都量出过整帧纯白，两次归因被推翻，原因未明（docs/47 §4.3）。
+Forecloses: 首页的第一帧底色从此由 URL 决定 —— 新增一个"没有 theme 却不进选择页"的入口，必须同时改
+            `groundFor` 和 `index.html` 的抄本（测试会红）。开回跨页过渡必须先在真显示器上量，并改掉那条
+            「跨页过渡整个关着」的测试；`?hall=1` 成了一个会出现在地址栏里的参数。
+
 ## 2026-09-13 — 叠在画面上的字，改成按**角上那块底**翻，不再按正中那团晕
 Changed:    `publishStageInk()` 的输入从 `look.bgBottom` 改成 `look.skyTop`，判据搬进
             `look.ts` 的纯函数 `stageInk()` / `overlayGroundLuma()`，两套墨登记成

@@ -27,14 +27,14 @@
  */
 import './devnav.css';
 import { setBi } from '../src/ui/i18n.ts';
-import { installPageTransitions } from '../src/ui/page-transition.ts';
+import { installPrefetch } from '../src/ui/page-transition.ts';
 import { devNavActions, devNavLink, escapeTarget } from './devnav-state.ts';
 
 function mountDevNav(): void {
   const q = new URLSearchParams(location.search);
   // 和站点目录同一个开关（docs/23 §S9）：海报、截图这种场合要一张干净的画面
   if (q.get('nav') === '0') return;
-  installPageTransitions();
+  installPrefetch();
 
   const nav = document.createElement('nav');
   nav.className = 'sb-devnav';
