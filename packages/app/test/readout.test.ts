@@ -248,7 +248,14 @@ test('readout: 收起时底边那条线变透明而不是删掉 —— 删掉那
   assert.match(collapsed![0], /border-top-color:\s*transparent/);
 });
 
-test('readout: 收起不跨观众留存 —— 刷新就回到展开', () => {
+test('readout: 默认收起 —— 画面上首先该是身体，读数是想看的人自己点开的', () => {
+  // 第一次调用 setOpen 就是那一刻的默认状态；它必须是收着的
+  const first = TS.match(/setOpen\((true|false)\);/);
+  assert.ok(first, '找不到挂载时那一次 setOpen');
+  assert.equal(first![1], 'false', '读数板挂上来是展开的 —— 作品负责人要的是默认收起');
+});
+
+test('readout: 收起不跨观众留存 —— 刷新就回到收起', () => {
   assert.doesNotMatch(TS, /localStorage|sessionStorage|indexedDB|document\.cookie/);
 });
 

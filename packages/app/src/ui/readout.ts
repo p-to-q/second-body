@@ -185,9 +185,10 @@ export function mountReadout(options: ReadoutOptions): Readout | null {
     el.classList.toggle('is-alarm', LEVEL_CLASS[level] === 'is-alarm');
   };
   let shownPresent: boolean | null = null;
-  let open = true;
+  let open = false;
 
-  // 收起**不写进任何存储**：刷新就回到展开（docs/40 §3，跨观众的状态当 bug）
+  // **默认收起**（作品负责人 2026-09-14）：画面上首先该是身体，读数是想看的人自己点开的东西。
+  // 收起**不写进任何存储**：刷新就回到收起（docs/40 §3，跨观众的状态当 bug）
   const setOpen = (next: boolean): void => {
     open = next;
     body.hidden = !next;
@@ -197,7 +198,7 @@ export function mountReadout(options: ReadoutOptions): Readout | null {
     // 重新展开的那一刻立刻画一次，不让观众看见一屏半秒前的旧数
     if (next) since = SAMPLE_SECONDS;
   };
-  setOpen(true);
+  setOpen(false);
   bar.addEventListener('click', () => setOpen(!open));
 
   // **矮视口里两块仪表会撞**：左上角那块屏幕往下长，这块往上长（实测 385px 高的窗口里
