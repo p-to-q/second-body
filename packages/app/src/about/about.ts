@@ -25,6 +25,8 @@ import type { PartLibraryIndex } from '../../../core/src/types.ts';
 import { COPY, setBi, type BiText } from '../ui/i18n.ts';
 import { PLAN_LABEL, orderThemes, planKind, speciesNumber, themeAnchor } from '../ui/species.ts';
 import { clue, type ClueOptions } from '../ui/clue.ts';
+import { setBiLinked } from '../ui/aside.ts';
+import { ASIDES } from '../ui/asides.ts';
 import { markNode } from '../ui/mark.ts';
 import { markShape } from '../ui/marks.ts';
 import '../ui/type.css';
@@ -244,19 +246,32 @@ function arcSection(): HTMLElement {
   );
 }
 
-/** 底下是什么：三层 + 47,000 那条硬主张 */
+/** 一段带旁注的正文（`ui/aside.ts`）：句子里本来就在的几个字通向目录外的那一页 */
+function linkedEl(tag: 'p', site: { text: BiText; phrases: Parameters<typeof setBiLinked>[2] }): HTMLElement {
+  const node = el(tag);
+  setBiLinked(node, site.text, site.phrases);
+  return node;
+}
+
+/**
+ * 底下是什么：三层 + 47,000 那条硬主张。
+ *
+ * 这一节有三处旁注（`ui/asides.ts`，docs/23 §S9.1）：「九种形体」→ 形体并排，
+ * 「不做蒙皮」→ 生命力 A/B，「槽位 × 部件 × 材质」→ 装配台（按 N 从同一个库里再拼一具）。
+ * 三处都是正文里原有的字，一个字没加。
+ */
 function howSection(index: PartLibraryIndex | null): HTMLElement {
-  const layers: [BiText, BiText][] = [
-    [COPY.about.layers.pose, COPY.about.layers.poseNote],
-    [COPY.about.layers.plan, COPY.about.layers.planNote],
-    [COPY.about.layers.express, COPY.about.layers.expressNote],
+  const layers: [BiText, HTMLElement][] = [
+    [COPY.about.layers.pose, biEl('p', COPY.about.layers.poseNote)],
+    [COPY.about.layers.plan, linkedEl('p', ASIDES.aboutPlan)],
+    [COPY.about.layers.express, linkedEl('p', ASIDES.aboutExpress)],
   ];
   const list = el('ul', 'about-list');
   layers.forEach(([name, note], i) => {
-    list.append(el('li', undefined, ord(i), el('div', undefined, biEl('h3', name), biEl('p', note))));
+    list.append(el('li', undefined, ord(i), el('div', undefined, biEl('h3', name), note)));
   });
 
-  const body: Node[] = [list, biEl('h3', COPY.about.combTitle), biEl('p', COPY.about.combBody)];
+  const body: Node[] = [list, biEl('h3', COPY.about.combTitle), linkedEl('p', ASIDES.aboutCombination)];
 
   // 纪律 2：数字现读。读不到就整条不显示 —— 宁可少一节，也不要一个过期的数字
   if (index) {

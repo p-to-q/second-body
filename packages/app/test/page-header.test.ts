@@ -75,9 +75,9 @@ test('四个侧室的横带都来自 mountRoom()，而只有 mountRoom 去调 he
   const src = readFileSync(resolve(SRC, 'rooms/room.ts'), 'utf8');
   assert.match(
     src,
-    /heroMeta\('\/about'\)/,
-    'rooms/room.ts 的「回到作品」必须指向 /about：门开在那一页的正文里，' +
-      '把人送回首页等于把他送到一个他没去过的地方',
+    /heroMeta\('\/about', fromSearch\(location\.search\)\)/,
+    'rooms/room.ts 的「回到作品」默认必须指向 /about（门开在那一页的正文里，' +
+      '把人送回首页等于把他送到一个他没去过的地方），带着合法 ?from= 进来时回它来的那一页（docs/23 §S9.1）',
   );
 });
 

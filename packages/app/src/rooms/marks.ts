@@ -26,6 +26,7 @@ import type { PartLibraryIndex } from '../../../core/src/types.ts';
 import { COPY, setBi } from '../ui/i18n.ts';
 import { PLAN_LABEL, orderThemes, planKind, speciesNumber } from '../ui/species.ts';
 import { markNode, mountRoom } from './room.ts';
+import { ASIDES } from '../ui/asides.ts';
 
 /**
  * 屏幕上一枚记号多大。散点图上它是一个数据点，图例上它是一枚小样；
@@ -45,7 +46,10 @@ async function loadIndex(): Promise<PartLibraryIndex | null> {
   } catch { return null; }
 }
 
-const room = mountRoom({ title: COPY.rooms.marks.title, lede: COPY.rooms.marks.lede });
+// 框定那一句里的「靠整体剪影辨识」是一句主张，形体并排那一页是它的证据（docs/23 §S9.1）
+const room = mountRoom({
+  title: COPY.rooms.marks.title, lede: ASIDES.marksLede.text, ledeAsides: ASIDES.marksLede.phrases,
+});
 
 const index = await loadIndex();
 // 编号和 `/about`、海报、接触表是同一套（`ui/species.ts` 的 orderThemes）。

@@ -27,6 +27,8 @@ import { COPY, setBi, type BiText } from '../ui/i18n.ts';
 import { markNode } from '../ui/mark.ts';
 import { mountNav } from '../ui/nav.ts';
 import { heroMeta } from '../ui/hero.ts';
+import { setBiLinked } from '../ui/aside.ts';
+import { MAKING_TIMELINE_ASIDES } from '../ui/asides.ts';
 
 const M = COPY.making;
 
@@ -118,7 +120,9 @@ function renderTimeline(root: Element): void {
     // 左栏三行：hash / 日期 / 时刻。日期是第二天的条目进来之后加的 ——
     // 整条线只在一天里的时候，一个光秃秃的 14:24 不会有歧义；两天之后它会。
     const body = row(list, [t.hash, t.day, t.time]);
-    biBlock(body, t.text);
+    // 两条时间线的原话里有旁注（`ui/asides.ts`）：「团块身体合入」→ 团块身体台，
+    // 「降级路径审计」→ 降级阶梯。没有旁注的条目走同一个函数，结构与 setBi 相同
+    setBiLinked(el('div', undefined, body), t.text, MAKING_TIMELINE_ASIDES[t.hash] ?? []);
   }
 }
 

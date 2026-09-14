@@ -55,6 +55,8 @@ import { COPY, bi, type BiText, setBi } from '../ui/i18n.ts';
 import { markNode } from '../ui/mark.ts';
 import { mountNav } from '../ui/nav.ts';
 import { heroMeta } from '../ui/hero.ts';
+import { setBiLinked, type AsidePhrase } from '../ui/aside.ts';
+import { PASSPORT_ASIDES } from '../ui/asides.ts';
 
 interface Stamp {
   /** 准入 / 拒入 */
@@ -73,6 +75,11 @@ interface Stamp {
   quote?: BiText;
   /** 后果：这次裁定改变了什么 */
   consequence: BiText;
+  /**
+   * 「后果」那一句里通向目录外页面的短语（`ui/asides.ts`，docs/23 §S9.1）。
+   * 只链原话里已经在的字 —— 章是存证，不为开门改一个字
+   */
+  consequenceAsides?: readonly AsidePhrase[];
   /** 证据：commit / 文件 */
   evidence: string[];
   /**
@@ -118,6 +125,8 @@ const STAMPS: Stamp[] = [
       '没有重新生成素材 —— 重做了架构。身体方案成为可插拔的：人形 / 四足 / 团块 / 矮壮，加上每个物种自己的比例。',
       'No assets were regenerated. The architecture was rebuilt instead: body plans became pluggable — humanoid, quadruped, mass, stub — each species with its own proportions.',
     ),
+    // 「可插拔的」→ 形体并排：那一页就是这句话的后果，几种方案摆成一排
+    consequenceAsides: PASSPORT_ASIDES.stampI,
     evidence: ['docs/18-BODY-PLANS.md', '19880ae feat(rig): A 档身体方案', '4860281 feat(rig): 参数化身体方案'],
   },
   {
@@ -306,7 +315,9 @@ function stampBlock(s: Stamp): HTMLElement {
 
   sec.append(row(s.verdict === 'refused' ? bi('拒绝原因', 'Grounds for refusal')
                                          : bi('保留原因', 'Grounds for admission'), biBlock(s.reason)));
-  sec.append(row(bi('后果', 'Consequence'), biBlock(s.consequence)));
+  const consequence = el('div');
+  setBiLinked(consequence, s.consequence, s.consequenceAsides ?? []);
+  sec.append(row(bi('后果', 'Consequence'), consequence));
 
   const ev = el('ul', 'sb-evidence sb-data');
   for (const e of s.evidence) ev.append(el('li', '', e));

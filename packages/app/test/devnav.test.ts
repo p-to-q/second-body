@@ -73,7 +73,11 @@ test('/dev/ 本身不给「返回工作台」—— 它就是工作台', () => {
 
 test('devnav.ts 用 setBi 写字，不手搭中英两行', () => {
   const src = readFileSync(resolve(DEV, 'devnav.ts'), 'utf8');
-  assert.match(src, /setBi\(a, action === 'workbench' \? COPY\.devnav\.workbench : COPY\.devnav\.exit\)/);
+  // 地址和字都来自 devnav-state 的 devNavLink —— 带 `?from=` 进来时那条出路换成「返回〈来处〉」
+  assert.match(src, /const link = devNavLink\(action, location\.search\)/);
+  assert.match(src, /setBi\(a, link\.label\)/);
+  assert.match(src, /escapeTarget\(location\.pathname, location\.search\)/,
+    'Escape 必须和出口跟着同一个目标（带 from 时回来处）');
   assert.doesNotMatch(src, /textContent\s*=|innerHTML\s*=/, 'devnav.ts 在手写文字，中英并置只走 setBi');
 });
 
