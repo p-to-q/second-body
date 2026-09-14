@@ -1,0 +1,33 @@
+# 线上存档 —— docs/43 §9.3（2026-09-14 重裁）与 docs/45 乙。
+#
+# 这个文件里没有任何秘密：没有 token、没有账号 id。凭证只在 `npx wrangler login`
+# 之后存在部署者自己的机器上，不进仓库。
+#
+# 部署者要做的全部：
+#   cd packages/archive-worker
+#   npx wrangler@4 login
+#   npx wrangler@4 deploy
+# D1 库在第一次 deploy 时由 wrangler 按下面的 database_name 自己建（wrangler 4.x 的
+# 自动开通，默认开启）。如果那一步没有发生，见 docs/45 乙的备用那一行。
+
+name = "smu-archive"
+main = "src/worker.ts"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+# 不收调用日志。Workers Logs 会记下请求的元数据（含来源地址一类的东西）；
+# 这份存档对外说的是「一行里没有 IP」，那么我们自己也不该另开一份带 IP 的日志。
+[observability]
+enabled = false
+
+[[d1_databases]]
+binding = "DB"
+database_name = "smu-archive"
+
+# 全局一个桶，键是常量（worker.ts 的 RATE_KEY），不按 IP 分。
+# limit 必须等于 packages/core/src/tuning.ts 的 ARCHIVE_WORKER.writesPerMinute —— 有测试对齐。
+# namespace_id 是这个账号里随便挑的一个整数，不是凭证。
+[[ratelimits]]
+name = "VISIT_RATE"
+namespace_id = "4301"
+simple = { limit = 20, period = 60 }

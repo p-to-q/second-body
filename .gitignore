@@ -39,4 +39,11 @@ assets/parts/harvest/
 # 不进仓库：体积大，各来源授权不同 —— 只留 SOURCES.md，照着能重新取一遍。
 # 进仓库的是跑出来的 assets/demo/pose-*.json，那才是"录制"。
 assets/capture-src/
-archive/
+
+# 装置那台机器的存档（`npm run kiosk` 默认写 `<仓库根>/archive/visits.jsonl`，docs/45 甲）。
+# **必须带前导 `/`**：不带的话它匹配任何一层叫 archive 的目录，
+# 于是 `packages/archive/` 和 `packages/app/src/archive/` 里新建的源文件会被静静忽略。
+/archive/
+
+# `wrangler dev` 的本机 D1 / 状态（packages/archive-worker）
+.wrangler/

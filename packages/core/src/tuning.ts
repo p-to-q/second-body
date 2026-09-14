@@ -1151,6 +1151,22 @@ export const SLOW_LOOP = {
   lineageServeLimit: 64,
 };
 
+// ── 9b. 线上存档的 Worker（docs/43 §9.3，2026-09-14 重裁） ─────────────────
+/**
+ * `packages/archive-worker/wrangler.toml` 的 `[[ratelimits]]` 读的是字面量，
+ * 没法 import 这里 —— 所以这个数在两处，`test/archive-worker.test.ts` 钉它们相等。
+ */
+export const ARCHIVE_WORKER = {
+  /**
+   * 整个存档每分钟最多收几条（每个 Cloudflare 节点各自计数）。
+   * **全局一个桶，不按人分** —— 按人分就得拿 IP 当键（worker.ts 文件头）。
+   * 20 的量级：一次完整的弧线约九十秒，这一页的真实写入是每天三位数；
+   * 20/分钟是真实峰值的许多倍，又把一次刷量每天能灌进永久存档的行数压在
+   * 每节点每天 28 800 以内（D1 免费档每天十万行写；多个节点同时被刷才可能摸到它）。
+   */
+  writesPerMinute: 20,
+};
+
 // ── 10. 声音（docs/29-SOUND.md） ───────────────────────────────────────────
 /**
  * 声音不是配乐，是**那具身体的声音**。所以这里没有"BGM / 音效"这种分类，
