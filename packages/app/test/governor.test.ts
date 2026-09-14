@@ -139,6 +139,34 @@ test('调速器: 帧间隔看起来还行但长任务不断 —— 照样放级'
   assert.ok(g.level >= 1, `每 400ms 一次长任务应当放级，实际 ${g.level}`);
 });
 
+/**
+ * 2026-09-14 无头 Chrome 实测逼出来的两条（docs/48 §4「第一次上机」）：
+ * 解开帧率的页面跑到 ~400fps，节拍被量成 1.0–1.4ms，一帧 2–3ms 就被当成"丢帧"，
+ * 调速器几秒内把六级全放了。可变刷新率（VRR / ProMotion）的屏上帧间隔同样是抖的。
+ * 丢帧必须同时是**人看得出来**的那种：比节拍慢，而且慢过一个绝对下限。
+ */
+test('调速器: 不锁帧的页面（~400fps，帧间隔 1–3ms 乱跳）—— 0 级，一次都不动', () => {
+  const [g, run] = fresh();
+  let s = 3;
+  const jitter = () => { s = (s * 16807) % 2147483647; return 1 + 2 * (s / 2147483647); };
+  feed(g, run, 30, jitter);
+  assert.equal(run.changes.length, 0, `变化了 ${run.changes.length} 次，节拍 ${g.refreshMs}ms`);
+  assert.ok(g.refreshMs >= GOVERNOR.refreshFloorMs, '节拍不许被量成比任何真实屏幕都快');
+});
+
+test('调速器: 120Hz 屏上偶尔一帧 12ms（人看不出来）—— 0 级', () => {
+  const [g, run] = fresh();
+  feed(g, run, 30, (i) => (i % 5 === 4 ? 12 : 1000 / 120));
+  assert.equal(g.level, 0);
+});
+
+test('调速器: 加了下限之后，60Hz 屏上真的丢帧照样放级', () => {
+  const [g, run] = fresh();
+  feed(g, run, 3, HZ60);
+  feed(g, run, 6, OVERLOAD);
+  assert.ok(g.level >= 1);
+});
+
 test('调速器: reset 回到 0 级', () => {
   const [g, run] = fresh();
   feed(g, run, 3, HZ60);
