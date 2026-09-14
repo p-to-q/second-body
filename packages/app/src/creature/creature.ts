@@ -36,7 +36,8 @@ import {
 } from './shading.ts';
 import { ARC_OFF, arcWeights, rgbToHsl, type ArcWeights } from '../stage/look.ts';
 import { surfaceFor, type SurfaceSpec } from './surface.ts';
-import { graftCurve, REPLACE_SECONDS, replaceRenders } from './replace-event.ts';
+import { crossfadeRenders, REPLACE_SECONDS, replaceRenders } from './replace-event.ts';
+import { passesOf, swapCeiling } from './swap-budget.ts';
 
 export interface CreatureStats {
   instances: number;
@@ -97,6 +98,16 @@ export interface CreatureOptions {
    * 调用方通常传 `resolveShading(themeId, flags.shading)` —— 物种自己声明，URL 可覆盖。
    */
   shading?: ShadingId;
+  /**
+   * 给 `replace()` 留几个交接名额（0 或 1）。`main.ts` 在忒修斯开着的时候给 1。
+   *
+   * 同时在交接的件数上限由 draw call 预算算出来（`swap-budget.ts` 的 `swapCeiling`：
+   * 描边 2，平涂之外 3）。替换是当帧开始、不排队的（替换音同一帧响），
+   * 所以它的名额必须事先空着 —— 否则升档那一批交叉淡入占满之后它只能**叠在上面**，
+   * 那正是 2026-09-14 实测 42/40 draw 的来路之一。
+   * `?theseus=off` 时给 0：没有替换，名额全给交叉淡入。
+   */
+  replaceSlots?: number;
 }
 
 interface Swap {
@@ -339,8 +350,19 @@ export function createCreature(opt: CreatureOptions): Creature {
   }
 
   // ── 换装队列（docs/05 §3） ──────────────────────────────────────────────
+  /** 此刻同时在交接的件数上限（交叉淡入 + 替换）。着色语言会被切换，所以每次现算 */
+  const ceiling = (): number => swapCeiling(passesOf(shading));
+
+  function replacing(): boolean {
+    for (const s of active.values()) if (s.kind === 'replace') return true;
+    return false;
+  }
+
   function pumpQueue() {
-    while (active.size < MORPH.maxConcurrentSwaps && queued.length) {
+    // 没有替换在飞时给它空着一个名额；替换在飞时名额就是它自己占着的那一个
+    const c = ceiling();
+    const reserve = replacing() ? 0 : Math.min(c - 1, Math.max(0, Math.floor(opt.replaceSlots ?? 0)));
+    while (active.size + reserve < c && queued.length) {
       const s = queued.shift()!;
       // 同一个槽位排了两次：后来的覆盖前面的，起点用当前正在播的那个
       const running = active.get(s.key);
@@ -407,17 +429,8 @@ export function createCreature(opt: CreatureOptions): Creature {
         if (s?.kind === 'replace') {
           render[key] = replaceRenders(key, s.from, s.to, s.t, pres);
         } else if (s) {
-          const u = smoothstep(s.t);
-          const list: SlotRender[] = [];
-          if (s.from) list.push({ partId: s.from.partId, materialRole: s.from.materialRole, scale: (1 - u) * pres });
-          // 新件那一半就是 graft 的组装动画 —— 忒修斯替换用的是同一条（`graftCurve`）
-          const g = graftCurve(s.t);
-          list.push({
-            partId: s.to.partId, materialRole: s.to.materialRole,
-            scale: g.scale * pres,
-            offset: g.offset,     // 从轴向外 0.15m 吸附回位
-          });
-          render[key] = list;
+          // 旧件缩没、新件走 graft 的组装曲线；关节那一格是一道波（`replace-event.ts`）
+          render[key] = crossfadeRenders(key, s.from, s.to, s.t, pres);
         } else if (pick) {
           render[key] = [{ partId: pick.partId, materialRole: pick.materialRole, scale: pres }];
         } else {
@@ -515,7 +528,22 @@ export function createCreature(opt: CreatureOptions): Creature {
       const i = queued.findIndex((q) => q.key === slot);
       if (i >= 0) queued.splice(i, 1);
       // 不走 `enqueue`：队列满（升档那一批正在交叉淡入）时它会等，而替换音不等。
-      // 越过 `maxConcurrentSwaps` 最多一件 —— 排期器的 `minGap` 保证替换之间不叠
+      // 它的名额是 `replaceSlots` 事先空出来的，所以正常情况下这里不会满。
+      // 满了只可能是帧卡顿：排期器按弧线秒数发件，这里的动画吃的是被 `TIME.dtMax` 钳过的 dt，
+      // 上一件替换就还差一点没演完。那就让**最快演完的那一件**当帧收尾（先挑替换、再挑交叉淡入）——
+      // genome 里早就是它的新件，收尾只是少画最后几帧，而不是越过预算叠上去。
+      if (!running) {
+        while (active.size >= ceiling()) {
+          let victim: SlotKey | null = null;
+          let best = -Infinity;
+          for (const [k, s] of active) {
+            const score = (s.kind === 'replace' ? 2 : 0) + s.t;
+            if (score > best) { best = score; victim = k; }
+          }
+          if (victim === null) break;
+          active.delete(victim);
+        }
+      }
       active.set(slot, { key: slot, from, to: pick, t: 0, kind: 'replace' });
       void library.preload([pick.partId]);
     },

@@ -11,6 +11,7 @@
 import { createTheseus, type TheseusMachine } from '../../../core/src/theseus.ts';
 import { borrowPart, type BorrowChoice } from '../../../core/src/borrow.ts';
 import type { Genome, PartLibraryIndex, PartMeta, SlotKey, Tier } from '../../../core/src/types.ts';
+import { makeAdmit } from './swap-budget.ts';
 import type { Flags } from '../shell/kiosk.ts';
 
 /**
@@ -56,6 +57,8 @@ export function swapOneSlot(
   const choice = borrowPart({
     slot, genome: g, tier: opt.tier, index: opt.index, rejected: opt.rejected,
     overall: opt.overall ?? 0, seed: borrowSeed >>> 0, grown: opt.grown,
+    // 预算门：换上之后最坏那一帧（稳态 + 一件替换 + 同时交叉淡入）放不下的件不借（`swap-budget.ts`）
+    admit: makeAdmit({ genome: g, index: opt.index, slot, rejected: opt.rejected }),
   });
   if (!choice || choice.pick.partId === g.slots[slot]?.partId) return null;
   opt.onChoice?.(choice);
