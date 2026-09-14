@@ -42,6 +42,39 @@ const top = (m: Map<string, number>, n: number, dt: number) =>
   [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, v]) => `${k}=${(v * dt).toFixed(0)}`).join('  ');
 
 const dt = prof.samples.length ? (t / prof.samples.length) : 0.2;
+
+// 分类：一个样本按它的调用栈落进第一个命中的桶（从栈顶往根找）。docs/48 §10 那张表就是这几类
+const CATS: [string, RegExp][] = [
+  ['warm(compileAsync)', /^compileAsync@/],
+  ['node-build', /^(build|buildAsync|getNodeBuilderState)@three\.webgpu/],
+  ['pipeline', /createRenderPipeline|_getRenderPipeline|createProgram|createShaderModule/],
+  ['glb-decode', /geometryFromScene|toFloatAttribute|toNonIndexed|mergeGeometries|decodeGltfBuffer|parse@GLTF|MeshoptDecoder|loadAsync|_invokeOne|parseAsync/],
+  ['mirror', /mirrorGeometry/],
+  ['upload', /createBuffer|_createBuffer|writeBuffer@three|updateAttribute|createAttribute/],
+  ['gc', /^\(garbage collector\)/],
+  ['assemble/pose', /^(assemble|pose)@/],
+];
+const catOf = (leaf: Node): string => {
+  const names: string[] = [];
+  for (let n: Node | undefined = leaf; n; n = n.parent !== undefined ? byId.get(n.parent) : undefined) names.push(label(n.callFrame));
+  for (const [c, re] of CATS) if (names.some((s) => re.test(s))) return c;
+  return 'other';
+};
+if (process.env.COMPACT === '1') {
+  // OFFSET_MS = 按下那一刻的 performance.now（probe.json 的 click）：换算成页面时刻，才对得上 [governor] / [tier] 行
+  const off = Number(process.env.OFFSET_MS ?? 0);
+  const sum = new Map<string, number>();
+  for (const sp of spans) {
+    const cats = new Map<string, number>();
+    for (const p of sp.pts) cats.set(catOf(p.node), (cats.get(catOf(p.node)) ?? 0) + dt);
+    for (const [k, v] of cats) sum.set(k, (sum.get(k) ?? 0) + v);
+    if (sp.e - sp.s < 50) continue;
+    const parts = [...cats.entries()].sort((a, b) => b[1] - a[1]).filter(([, v]) => v >= 3).map(([k, v]) => `${k}=${v.toFixed(0)}`);
+    console.log(`page @${((sp.s + off) / 1000).toFixed(2)}s ${(sp.e - sp.s).toFixed(0)}ms  ${parts.join(' ')}`);
+  }
+  console.log(`TOTAL over spans ≥${minMs}ms: ${[...sum.entries()].sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v.toFixed(0)}`).join(' ')}`);
+  process.exit(0);
+}
 console.log(`== ${dir}: ${spans.length} busy spans ≥${minMs}ms over ${(t / 1000).toFixed(1)}s (sample ≈${dt.toFixed(2)}ms)`);
 const total = new Map<string, number>();
 for (const sp of spans) {
