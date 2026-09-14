@@ -64,7 +64,8 @@ test('空闲队列: clear 丢掉没做的（换了一个观众），做过的记
   q.add('a', () => { done.push('a'); });
   q.clear();
   q.run(100);
-  assert.deepEqual(done, []);
+  // 用 length 比，不用 deepEqual(done, [])：后者是类型断言，会把 done 收窄成 never[]
+  assert.equal(done.length, 0);
   q.add('a', () => { done.push('a'); });
   q.run(100);
   assert.deepEqual(done, ['a']);
