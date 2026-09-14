@@ -8,7 +8,6 @@ import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
 import { PARTS_DIR } from './ledger.ts';
 import { glbStats } from './glb-stats.ts';
-import { SLOT_FIT } from '../../core/src/tuning.ts';
 import { entryById, isPublic, SIGNATURE_SLOTS } from '../recipes/roster.ts';
 // 名单从 core 拿，不在这里另抄一份。抄一份的那个版本已经出过事：
 // `ui/controls.ts` 抄的那份只写了 `mass`，于是 `swarm` 落在控件条外面。
@@ -19,14 +18,9 @@ const EPS = 2e-3;
 const MAX_TRIS = 5000;
 const MAX_BYTES = 1_500_000;   // docs/02 P5 的单件预算
 
-/** docs/26 §H / §I：uniform 槽位的 girth 必须落在该槽位中位数的这个区间里 */
-const GIRTH_BAND: [number, number] = [0.7, 1.3];
-
-const median = (xs: number[]): number => {
-  const s = xs.slice().sort((a, b) => a - b);
-  const m = s.length >> 1;
-  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
-};
+// docs/26 §H / §I 的 girth 区间与中位数：**唯一定义在 core**（借件也要用它挡越界件，
+// 而 core 不能 import factory）。这里只负责把越界件报成警告。
+import { GIRTH_BAND, girthOutliers } from '../../core/src/girth.ts';
 
 const planKindOf = (t: ThemeDef): string => {
   const bp = t.bodyPlan;
@@ -75,25 +69,12 @@ export async function checkParts(): Promise<number> {
    * 长宽比跑偏的件不会被截成"稍微怪一点"，而是被整件放大成一根杆子。
    *
    * 中位数**每次现算**，不写死（P21 第 2 条：派生数只在派生的那一刻为真）。
-   * 槽位用 `SLOT_FIT` 而不是在这里再抄一张表 —— 抄一张就会有一天对不上。
+   * 槽位集合（uniform、脚除外）、样本下限与中位数都在 `core/src/girth.ts` —— 借件用同一份去挡越界件，
+   * 这里抄一份就会有一天"检查说越界、借件却照借"。
    */
-  const uniformSlots = (Object.keys(SLOT_FIT) as Slot[])
-    .filter((s) => SLOT_FIT[s] === 'uniform')
-    // 脚是例外，而且 §H 那张名单在这一点上已经过期：`assemble.ts` 给脚传了
-    // `axisLength`（脚长从骨长算，见 tuning.ts 的 FOOT），横向又被 girth 归一化回
-    // `SLOT_WIDTH.foot` —— 两个方向都把 localGirth 除干净了，它对成品**没有影响**。
-    // 把它留在检查里只会稳定地报 7 条永远不用管的警告，那就是仪表噪声。
-    .filter((s) => s !== 'foot');
-  for (const slot of uniformSlots) {
-    const girths = index.parts.filter((p) => p.slot === slot).map((p) => p.localGirth);
-    if (girths.length < 3) continue;              // 样本太少，中位数没有意义
-    const mid = median(girths);
-    for (const p of index.parts.filter((x) => x.slot === slot)) {
-      const ratio = p.localGirth / mid;
-      if (ratio >= GIRTH_BAND[0] && ratio <= GIRTH_BAND[1]) continue;
-      warns.push(`${p.id}: girth ${p.localGirth.toFixed(4)} = ${slot} 中位数的 ${ratio.toFixed(2)}×`
-        + `（docs/26 §H 要求 ${GIRTH_BAND[0]}×–${GIRTH_BAND[1]}×；uniform 槽位会把这个比例直接变成尺寸）`);
-    }
+  for (const { part: p, slot, ratio } of girthOutliers(index.parts)) {
+    warns.push(`${p.id}: girth ${p.localGirth.toFixed(4)} = ${slot} 中位数的 ${ratio.toFixed(2)}×`
+      + `（docs/26 §H 要求 ${GIRTH_BAND[0]}×–${GIRTH_BAND[1]}×；uniform 槽位会把这个比例直接变成尺寸；借件不借它）`);
   }
 
   /**

@@ -93,6 +93,23 @@ test('borrow: 策展否掉的件、条目表之外的家族，一件都不借', 
   }
 });
 
+// ── girth 区间（docs/26 §H）──────────────────────────────────────────────────
+test('borrow: girth 越界的件只留给自己的物种，不借给别人', () => {
+  const idx = fixture();
+  // 每个 spine 件 girth 0.3；给 cousin 和 own 各塞一件 0.6（中位数的 2×，越界）
+  idx.parts.push({ ...part('spine.cousin.fat', 'spine', 'cousin'), localGirth: 0.6 });
+  idx.parts.push({ ...part('spine.child.fat', 'spine', 'child'), localGirth: 0.6 });
+  const g = genomeOf(idx);
+  const pools = borrowPools({ slot: 'spine', genome: g, tier: 1, index: idx, rejected: REJECTED });
+  assert.ok(pools[0].some((p) => p.id === 'spine.child.fat'), '越界件被从它自己物种的 d0 里拿掉了 —— 这是借件规矩，不是策展');
+  for (let d = 1; d <= 4; d++) {
+    assert.ok(!pools[d].some((p) => p.id === 'spine.cousin.fat'), `越界件 spine.cousin.fat 出现在 d${d} 里`);
+  }
+  const fatGrown = [{ ...part('slow.visitor.spine', 'spine', 'slow'), localGirth: 0.6 }];
+  const withGrown = borrowPools({ slot: 'spine', genome: g, tier: 1, index: idx, grown: fatGrown });
+  assert.equal(withGrown[4].length, 0, '越界的慢回路件照样被借了');
+});
+
 // ── d4 到货才用，没到货退回 d3 ────────────────────────────────────────────────
 test('borrow: d4 没到货就并进 d3 —— 不等、不卡、不报错', () => {
   const idx = fixture();

@@ -20,6 +20,7 @@ import { swapOneSlot } from '../src/creature/theseus-wire.ts';
 import { REFERENCE_POSE } from '../src/stage/framing.ts';
 import { ROSTER, isPublic } from '../../factory/recipes/roster.ts';
 import { makeGenome } from '../../core/src/genome.ts';
+import { girthOutliers } from '../../core/src/girth.ts';
 import { createTheseus } from '../../core/src/theseus.ts';
 import { createArc } from '../../core/src/arc.ts';
 import { IS_LEFT } from '../../core/src/slots.ts';
@@ -112,6 +113,10 @@ test('theseus 借件（真数据）: 否掉的件、clearance 挡掉的家族一
     }
     const DT = 1 / 20;
     const themes = leaky.themes.map((t) => t.id);
+    // girth 越界件（docs/26 §H，和 check:parts 同一份定义）：借给别的物种一次都不许
+    const outOfBand = new Map(girthOutliers(leaky.parts).map((o) => [o.part.id, o.part.family]));
+    assert.ok([...outOfBand.keys()].some((id) => !rejected.has(id)),
+      '真数据里没有一件"越界且没被否掉"的件 —— 这条规矩在真数据上什么都没证明');
     let lateOwn = 0;
     let events = 0;
     for (let s = 0; s < 60; s++) {
@@ -130,6 +135,9 @@ test('theseus 借件（真数据）: 否掉的件、clearance 挡掉的家族一
             events++;
             assert.ok(!rejected.has(c.pick.partId), `借到了策展否掉的 ${c.pick.partId}`);
             assert.ok(!withheld.has(c.meta.family), `借到了 clearance 挡掉的 ${c.pick.partId}`);
+            const fam = outOfBand.get(c.pick.partId);
+            assert.ok(fam === undefined || fam === theme,
+              `${theme} 借到了 girth 越界的 ${c.pick.partId}（只该留给 ${fam} 自己用）`);
             if (a.overall >= THESEUS.borrowCurve[1] && c.meta.family === theme) lateOwn++;
           },
         });

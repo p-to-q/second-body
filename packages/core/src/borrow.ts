@@ -31,6 +31,7 @@ import { THESEUS as T } from './tuning.ts';
 import { mulberry32 } from './rng.ts';
 import { SLOT_OF_BONE } from './slots.ts';
 import { PLACEHOLDER_PREFIX } from './genome.ts';
+import { girthOutliers } from './girth.ts';
 import type { Genome, PartLibraryIndex, PartMeta, Slot, SlotKey, SlotPick, Tier } from './types.ts';
 
 export type BorrowRing = 0 | 1 | 2 | 3 | 4;
@@ -122,6 +123,11 @@ export function borrowPools(req: Omit<BorrowRequest, 'overall' | 'seed' | 'curve
     !!p && typeof p.id === 'string' && p.slot === slot && fin(p.tier, 99) <= tier
     && !p.id.startsWith(PLACEHOLDER_PREFIX) && p.id !== current && !rejected?.has(p.id);
 
+  // girth 越界件（docs/26 §H，唯一定义在 `girth.ts`，check:parts 读的是同一份）：
+  // **只留给它自己的物种**。借出去它就在每一个物种身上按比例放大 —— 一条被圈在
+  // 一个物种里的警告，被借件变成全名单上看得见的毛病（`spine.coral.a` 0.63× → 躯干约 1.6 倍）
+  const outOfBand = new Set(girthOutliers(index.parts ?? []).map((o) => o.part.id));
+
   const pools: PartMeta[][] = [[], [], [], [], []];
   for (const p of index.parts ?? []) {
     if (!ok(p)) continue;
@@ -129,14 +135,21 @@ export function borrowPools(req: Omit<BorrowRequest, 'overall' | 'seed' | 'curve
     // clearance：条目表里没有的家族一件都不借。条目表整个缺席（占位索引）时不设这道门 ——
     // 那时 `parts` 里只有占位件，上面的 `ok()` 已经把它们全挡掉了
     if (themes.length && !def) continue;
-    if (p.family === theme) pools[0].push(p);
-    else if (chain.has(p.family)) pools[1].push(p);
+    if (p.family === theme) { pools[0].push(p); continue; }
+    if (outOfBand.has(p.id)) continue;
+    if (chain.has(p.family)) pools[1].push(p);
     else if (kind !== undefined && def?.kind === kind) pools[2].push(p);
     else pools[3].push(p);
   }
+  // d4 的中位数按**索引 + 到货件**一起算：到货件本身就是一个样本，
+  // 而判它越不越界的尺子必须和判索引件的是同一把
+  const grownOut = req.grown?.length
+    ? new Set(girthOutliers([...(index.parts ?? []), ...req.grown]).map((o) => o.part.id))
+    : outOfBand;
   for (const p of req.grown ?? []) {
-    // d4 不认条目表（它是这个观众自己的，不是某个物种的），但照样认策展和槽位
-    if (ok({ ...p, tier: 0 as Tier })) pools[4].push(p);
+    // d4 不认条目表（它是这个观众自己的，不是某个物种的），但照样认策展、槽位和 girth 区间 ——
+    // 它不是这个物种自己的件，所以借件那条规矩对它同样成立
+    if (ok({ ...p, tier: 0 as Tier }) && !grownOut.has(p.id)) pools[4].push(p);
   }
   for (const pool of pools) pool.sort((a, b) => a.id.localeCompare(b.id));
   return pools;
