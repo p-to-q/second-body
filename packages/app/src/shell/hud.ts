@@ -4,6 +4,7 @@
  */
 import { BUDGET } from '../../../core/src/tuning.ts';
 import { MOVEMENT_LABELS, MOVEMENT_NUMERALS, type ArcState } from '../../../core/src/arc.ts';
+import type { TheseusState } from '../../../core/src/theseus.ts';
 import { label } from './degrade.ts';
 import type { FrameStats } from './safe-frame.ts';
 
@@ -30,6 +31,28 @@ export interface HudCounts {
   arc?: ArcState;
   /** 弧线此刻被 `?act=` 或右下角那一行按住了 —— 那时候乐章照走，身体不听它的 */
   arcForced?: boolean;
+  /**
+   * 一件一件换掉那条线走到哪儿了（`core/src/theseus.ts`）。docs/44 §7 最后一段：
+   * **现场调速率的人靠它，不靠掐表**。`?theseus=off` 时是 undefined，整行不挂 ——
+   * 一条在功能关掉之后还照常显示的仪表比没有仪表更坏（P21）。
+   */
+  theseus?: TheseusState;
+}
+
+/**
+ * `theseus` 那一行的文本：`12/18 · 借距 d2 · 下一件 ~3.4s`（docs/44 §7）。
+ * 纯函数，所以它和 `formatArcRow` 一样能被单测钉住而不用起一个 DOM。
+ *
+ * 三个数各回答一个现场问题：还剩几件原件、现在借得多远、下一件什么时候到。
+ * 宽限里写「宽限」而不是一个倒计时 —— 那 20 秒不是"还没轮到"，是**故意不换**。
+ */
+export function formatTheseusRow(t: TheseusState): string {
+  const head = `${t.replaced}/${t.slots}`;
+  const next = t.inGrace ? '宽限中'
+    : Number.isFinite(t.nextIn) ? `下一件 ~${t.nextIn.toFixed(1)}s`
+      : '走完';
+  const busy = t.inFlight > 0 ? `  交接 ${t.inFlight}` : '';
+  return `${head} · 借距 d${t.borrowDistance} · ${next}${busy}`;
 }
 
 /**
@@ -88,6 +111,7 @@ export function createHud(opts: { top?: number } = {}): { update(s: FrameStats, 
         // 弧线那一行。**停表的时候颜色要变** —— 一条"照常在走"的弧线和一条
         // 停住的弧线长得一样，这一行就不是仪表了（P21）。
         c.arc ? `<span style="color:${c.arc.running ? '#7fb3d5' : '#e8a33d'}">arc        ${formatArcRow(c.arc, c.arcForced)}</span>` : '',
+        c.theseus ? `<span style="color:#7fb3d5">theseus    ${formatTheseusRow(c.theseus)}</span>` : '',
         s.throttled ? '<span style="color:#e8a33d">idle       无人降帧中</span>' : '',
         s.degraded ? `<span style="color:#e0455a">degraded   ${label(s.degraded)}</span>` : '',
         s.errors ? `<span style="color:#e0455a">errors ${s.errors}  ${s.lastError ?? ''}</span>` : '',
