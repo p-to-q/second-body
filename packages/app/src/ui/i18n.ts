@@ -591,27 +591,64 @@ export const COPY = {
    */
   controls: {
     title: bi('控件', 'Controls'),
-    /** 分组的题。全大写小标签，承担"这一栏管什么"那个角色 */
+    /** 回舞台那条出口上印的名字（`ui/return-to.ts`）：「返回舞台」 */
+    stage: bi('舞台', 'Stage'),
+    /**
+     * 分组的题。全大写小标签，承担"这一栏管什么"那个角色。
+     * 原来的「渲染」拆成两组（2026-09-14）：观众会选的放「看起来」，
+     * 工程上用来做对照的两项放最底下的「对照」—— 一个观众不需要知道时域精化是什么。
+     */
     groups: {
       form: bi('形体', 'Form'),
       scene: bi('画面', 'Scene'),
       act: bi('玩法', 'Act'),
-      render: bi('渲染', 'Render'),
+      look: bi('看起来', 'Look'),
       species: bi('身体', 'Species'),
       random: bi('随机', 'Random'),
+      ab: bi('对照', 'A/B'),
     },
     /** 每组一句：说的是这一栏**在回答什么**，不是它有几个选项 */
     groupNotes: {
       form: bi('同一个你，换一具身体的骨架', 'Same you, a different skeleton'),
       scene: bi('它站在什么地方', 'Where it is standing'),
-      act: bi('它和你是什么关系', 'What it is to you'),
-      render: bi('它为什么看起来像活的', 'Why it reads as alive'),
+      act: bi('它和你是什么关系。弧线会自己走完四段', 'What it is to you. The arc walks all four itself'),
+      look: bi('它为什么看起来像活的', 'Why it reads as alive'),
       species: bi('它是什么物种。换物种要重新建身体', 'Which species. Changing this rebuilds the body'),
+      /** 说清楚这一组是给谁的：关掉它，看它原本在替你挡住什么 */
+      ab: bi('对照用：关掉它，看它原本在补什么', 'For comparison: switch off to see what it covers'),
       /**
        * 说的是**按下去之后能不能走回来**，不是"这个按钮叫随机"。
        * 一个回不去的随机按钮是老虎机 —— 这一句就是它不是老虎机的那句凭据。
        */
-      random: bi('上面五样一起换。地址栏里留得住', 'Rolls all five above. The address bar keeps it'),
+      random: bi('物种、形体、画面、描边一起换。地址栏里留得住', 'Rolls species, form, scene, outline. The address bar keeps it'),
+    },
+
+    /**
+     * 叠加那两组的第一项（`shell/intent.ts`）。它就是"什么都没叠"的样子，
+     * 所以说明写的是**弧线自己会做什么** —— 观众据此知道不点也有东西在走。
+     */
+    arc: {
+      act: { name: bi('跟着弧线', 'Arc'), note: bi('三分钟里自己走完四段', 'Walks through all four on its own') },
+      form: { name: bi('跟着弧线', 'Arc'), note: bi('第 III 段换成物种自己的身体', 'The species body arrives in part III') },
+    },
+    /**
+     * 选项右边的状态词（全透明之后，状态靠墨的强弱 + 线的形状 + 这几个等宽小字说，docs/23 §S4.1）。
+     * 「叠加」那一句**每次都带着撤销的说法**：观众第一次看见它的时候，正是他需要知道怎么撤的时候。
+     */
+    overlayOn: bi('叠加 · 再点一次撤销', 'On top · tap again to release'),
+    arcNow: bi('此刻', 'Now'),
+    /** 换物种 / 进出团块：要重开一次，这一格一直说到页面真的走了 */
+    restarting: bi('重开中', 'Restarting'),
+    /** 面板顶上那一行：弧线此刻在哪一段、叠了什么。不写秒数（docs/40 §5 不给观众看进度） */
+    statusNow: bi('此刻', 'Now'),
+    statusOver: bi('叠加', 'On top'),
+
+    /** 链到工作台的那几条（`ui/control-table.ts` 的 links）。说的是**那一页给你看什么** */
+    links: {
+      lineup: bi('身体方案并排看', 'Body plans side by side'),
+      mass: bi('团块单独看', 'The mass on its own'),
+      vitality: bi('生命力 A/B', 'Vitality A/B'),
+      figure: bi('这个物种拆开看', 'This species, part by part'),
     },
 
     /** 身体方案（docs/18）。说明写的是**剪影**，因为物种靠整体剪影辨识 */
@@ -652,7 +689,7 @@ export const COPY = {
       vitality: { name: bi('跟随延迟', 'Lag'), note: bi('关掉它，整具身体同时到位', 'Off: the whole body arrives at once') },
       refine: { name: bi('时域精化', 'Smoothing'), note: bi('关掉它，抖动直接进画面', 'Off: the jitter comes straight through') },
       post: { name: bi('后期', 'Post'), note: bi('辉光、暗角、颗粒', 'Bloom, vignette, grain') },
-      mute: { name: bi('声音', 'Sound'), note: bi('四层环境声', 'Four layers of ambience') },
+      sound: { name: bi('声音', 'Sound'), note: bi('四层环境声', 'Four layers of ambience') },
       /**
        * 描边。说明写的是**开了之后会看到什么**，而不是"启用卡通着色" ——
        * 观众不需要知道反向外壳，他需要知道这具身体会变成被画出来的。
@@ -672,29 +709,28 @@ export const COPY = {
     random: {
       roll: {
         name: bi('随机一具', 'Roll a new one'),
-        note: bi('物种 · 形体 · 画面 · 玩法 · 描边', 'Species · form · scene · act · outline'),
+        // 玩法不抽：弧线自己会走完四段（`ui/control-table.ts` 里 act 那一条的 roll）
+        note: bi('物种 · 形体 · 画面 · 描边', 'Species · form · scene · outline'),
       },
-      /** 地址栏那一行就是配方。刷新、后退、把链接发给别人，拿到的是同一具 */
-      keeps: bi('抽到的写进地址栏，刷新和后退都回得来', 'The draw goes into the URL — reload and Back both return it'),
+      // 这里原来还有一句 `keeps`（「抽到的写进地址栏…」），和组说明说的是同一件事，删了
     },
 
     /** 物种那一栏 */
     filter: bi('筛物种', 'Filter species'),
-    reload: bi('换物种会重开一次', 'Changing species restarts it'),
 
     /** Key 条。现场手比鼠标快 —— 每个键都要在条上看得见 */
     keys: {
       title: bi('快捷键', 'Keys'),
       toggle: bi('显示 / 藏起这条', 'Show / hide this bar'),
-      form: bi('下一个形体', 'Next form'),
+      form: bi('下一个形体 · 回到弧线', 'Next form · back to arc'),
       scene: bi('下一套画面', 'Next scene'),
-      act: bi('下一个玩法', 'Next act'),
+      act: bi('下一个玩法 · 回到弧线', 'Next act · back to arc'),
       vitality: bi('跟随延迟', 'Lag'),
       refine: bi('时域精化', 'Smoothing'),
       post: bi('后期', 'Post'),
-      mute: bi('声音', 'Sound'),
+      sound: bi('声音', 'Sound'),
       outline: bi('描边', 'Outline'),
-      random: bi('随机一具', 'Roll a new one'),
+      roll: bi('随机一具', 'Roll a new one'),
     },
   },
 

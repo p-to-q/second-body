@@ -3,41 +3,48 @@
  *
  * ## 它解决的那一个问题
  *
- * 这件作品做了四套场景、八种身体方案、跟随延迟、时域精化、四个玩法、
- * 真实网格与生成件两条来路 —— 而**观众和评委看不见其中任何一样**，
- * 因为它们全都只能用 URL 参数切。一个站在屏幕前的人没有地址栏，
- * 一个打开页面的评委不会去读 `docs/06 §6`。能力做了却没有入口，
- * 在现场就等于没做。
+ * 这件作品做了五套场景、九种身体方案、跟随延迟、时域精化、四个玩法 ——
+ * 而**观众和评委看不见其中任何一样**，因为它们全都只能用 URL 参数切。
+ * 能力做了却没有入口，在现场就等于没做。
  *
  * 所以这个文件只有一条纪律：**只暴露真实存在的开关，一个都不编。**
- * 每一项都能在 `shell/kiosk.ts` 的 `readFlags()` 里找到对应的 URL 参数
- * （`?scene=` `?plan=` `?act=` `?vitality=` `?refine=` `?nopost=` `?mute=` `?theme=` `?shading=`）。
- * 没有"即将支持"，没有灰掉的按钮。
+ * 没有"即将支持"，没有灰掉的按钮；这一具身体上没有的项（团块上的描边）整项不出现。
  *
- * ## 三条设计决定
+ * ## 这个文件现在只是视图 + 接线（2026-09-14）
  *
- * 1. **和目录共用右上角，纵向排在它下面，而且两者互斥展开。**
- *    四个角只有右上角能长期占用：左上是 `?debug=1` 的 HUD，左下是 §S4 的物种名，
- *    右下是「用我的摄像头」和 §S0 的降级提示。而右上角已经被目录立了规矩
- *    （`ui/nav.ts`，`pages.css` 也已经按 `sb-has-nav` 为它留位）——
- *    再开第二个控制角，等于告诉观众这块画面上有两个地方可以按。
- *    不重叠靠的不是眼睛，也不再靠互相躲：目录、设置、控件是**同一列里的三节**
- *    （`ui/corner.ts`）。上面一节展开，下面那节自己被推下去 —— 浏览器免费给的。
- *    原来那套（控件条按 3.2rem 下偏、目录一展开就把它整条藏掉）已经删掉：
- *    它每一条都对，但它们全是在为"两个 fixed 抢同一个角"打补丁。
+ * 每一个控件是什么、在哪一组、按什么键、怎么写回 URL、随机抽不抽它 ——
+ * 全在 `ui/control-table.ts` 那一张表里。这里只把表画成面板、把键接到表上。
+ * 状态只有一份，在 host 上（`values()`），面板每秒读一次，不抄。
  *
- * 2. **能热切的一律热切，必须重建的老实重载。**
- *    场景（`stage.setScene`）、玩法（`director.force`）、跟随延迟、时域精化、
- *    后期、声音 —— 全部当场生效，因为它们要么是每帧读一次的开关，要么舞台自己
- *    有交叉淡入。形体在七种骨架之间也热切，因为 `remapSkeleton` 是纯函数、
- *    每帧调用一次。**只有两件事必须重载**：换物种（要重新预取零件、重建基因组）
- *    和进出「团块」（`createMassBody` 是开机时决定的一条完全不同的表达路径）。
- *    重载时把**当前全部状态写回 URL**，不只是那一个变化的参数 ——
- *    否则演示到一半换个物种，刚调好的场景和玩法全没了。
+ * ## 默认开着什么、谁能改、在哪改（docs/23 §S4.1 的同一张表）
  *
- * 3. **每个控件旁边一句短说明，说的是"按下去会发生什么"。**
- *    一个写着「逆光」的按钮只说得出它叫什么。说明必须短：它是刻在面板上的丝印，
- *    不是帮助文档。文案全部在 `ui/i18n.ts` 的 `COPY.controls`，中英并置不切换。
+ *   描边       物种自己声明（「线」开，其余关）   观众 · O      「看起来」
+ *   跟随延迟   开                               观众 · D      「看起来」
+ *   声音       开                               观众 · M      「看起来」
+ *   时域精化   开                               对照 · R      「对照」（最底下）
+ *   后期       开                               对照 · P      「对照」
+ *   忒修斯换件 开                               ?theseus=off  不在面板上
+ *   弧线       开，自己走完四段                  叠加 · A / F  「玩法」「形体」第一项
+ *   读数       收起                             观众点开       左下角，不在面板上
+ *
+ * ## 四条设计决定
+ *
+ * 1. **没有一个按钮能锁住系统**（作品负责人 2026-09-14）。玩法和形体是弧线自己拥有的，
+ *    按它们是**叠加**（`shell/intent.ts`）：弧线在底下照走，再点一次亮着的那一项就拿掉，
+ *    第一项「跟着弧线」就是"什么都没叠"。其余每一项是一个变量的开 / 关或一个普通值。
+ *    所以这个文件里碰不到导演、也按不住它 —— `test/controls-panel.test.ts` 钉住。
+ *
+ * 2. **和目录共用右上角，纵向排在它下面，而且两者互斥展开。**
+ *    目录、设置、控件是**同一列里的三节**（`ui/corner.ts`）。上面一节展开，下面那节被推下去。
+ *    面板的上限还要让开右下角那一列（`--sb-exits-h`，由 `ui/exits.ts` 写出来）。
+ *
+ * 3. **能热切的一律热切，必须重建的老实重载。** 只有两件事重载：换物种、进出 B 档身体
+ *    （表里的 `reload`）。重载时把**当前全部状态**写回 URL（表里的 `stagePatch`），
+ *    叠加只在开着的时候写 —— 以前这里写的是"弧线此刻在演哪一段"，重载一次弧线就被钉住了。
+ *
+ * 4. **每个控件旁边一句短说明，说的是"按下去会发生什么"。** 文案全部在 `ui/i18n.ts` 的
+ *    `COPY.controls`，中英并置不切换。有一台仪器把这件事讲得更清楚的，组底下一条安静的链接，
+ *    去程带着这一屏的回程（`ui/stage-url.ts`），工作台顶上那条出口把人送回同一屏。
  *
  * ## 为什么长成这样
  *
@@ -45,11 +52,13 @@
  * 选项之间用细横线分区，键位用等宽字 —— 这是 `type.css` 已经立好的语言。
  * 它应该读起来像一台设备的面板，不像一个网页的设置弹窗。
  */
-import { BODY_PLANS, PLANS_WITHOUT_PARTS } from '../../../core/src/bodyplan.ts';
-import { SHADING_IDS, type ShadingId } from '../creature/shading.ts';
-import { randomPatch, SEED_MAX } from './random-url.ts';
 import type { ThemeDef } from '../../../core/src/types.ts';
-import { SCENE_IDS } from '../stage/scenes.ts';
+import { randomPatch, SEED_MAX } from './random-url.ts';
+import {
+  CONTROLS, GROUPS, available, cycleNext, needsReload, optionsOf, rollSlots, stagePatch,
+  type ControlDef, type ControlValues, type StageContext, type ValueId,
+} from './control-table.ts';
+import { workbenchHref } from './stage-url.ts';
 import { COPY, setBi, type BiText } from './i18n.ts';
 import type { Nav } from './nav.ts';
 import './type.css';
@@ -58,64 +67,38 @@ import './controls.css';
 
 /** 和目录、`ui/page.ts` 同一个数：进场 4 秒后淡下去 */
 const FADE_AFTER_MS = 4000;
+/** 「刚按下」那一下有多长。只是一个类名的去留，没有过渡 —— 静止态不依赖它（controls.css 文件头） */
+const FLASH_MS = 150;
 
-/**
- * 形体按钮就是 `BODY_PLANS`，一个不多一个不少。
- *
- * 这里原来是 `[...BODY_PLANS, 'mass']` —— 因为当时 `BODY_PLANS` 只有七个，
- * 团块是手写补上去的。代价是 `swarm`（同一档的另一个方案，`field`／「场」
- * 线上真的在用）**两边都不在**，于是调试面板上按不出来，只能靠 `?plan=swarm`
- * 重载。手写补一个就会漏掉第二个，这就是那一次。
- */
-const FORM_IDS: readonly string[] = BODY_PLANS;
-/** 进出这一档要重载（另一条身体实现，热切不出来）。名单在 core，别在这里抄 */
-const isBodyImpl = (id: string): boolean =>
-  (PLANS_WITHOUT_PARTS as readonly string[]).includes(id);
-
-/** 玩法。id 来自 `acts/index.ts` 的 `ACTS`，顺序照抄，不在这里另排 */
 type CopyPair = { name: BiText; note: BiText };
-const pick = <T extends Record<string, CopyPair>>(t: T, id: string): CopyPair | null =>
-  (Object.prototype.hasOwnProperty.call(t, id) ? t[id] : null);
+const C = COPY.controls;
+/** 按表里的 id 取文案。表和文案的对应由 `test/control-table.test.ts` 钉住，这里缺了就跳过那一项 */
+const copyBook = C as unknown as Record<string, Record<string, CopyPair | BiText> | undefined>;
+const pairOf = (book: string, id: string): CopyPair | null => {
+  const t = copyBook[book];
+  return t && Object.prototype.hasOwnProperty.call(t, id) ? (t[id] as CopyPair) : null;
+};
+const textOf = (book: string, id: string): BiText | null => pairOf(book, id) as unknown as BiText | null;
 
 export interface ControlsHost {
-  /** 当前物种 id 与全部候选（`parts.json` 的 themes） */
-  themeId: string | null;
+  /** 物种候选（`parts.json` 的 themes） */
   themes: readonly ThemeDef[];
-
-  /** 形体。`setPlan` 只在**两边都不是 B 档（团块/点场）**时被调用，其余走重载 */
-  planId(): string;
-  setPlan(id: string): void;
-
-  sceneId(): string;
-  setScene(id: string): void;
-
-  actId(): string | null;
-  actIds: readonly string[];
-  setAct(id: string): boolean;
-
-  vitality(): boolean;
-  setVitality(on: boolean): void;
-  refine(): boolean;
-  setRefine(on: boolean): void;
-  post(): boolean;
-  setPost(on: boolean): void;
-  /** 返回切换之后是不是静音（`sound.toggleMute()` 的返回值原样传过来） */
-  toggleMute(): boolean;
-  muted(): boolean;
-  /**
-   * 描边 / 平涂（`creature/shading.ts`）。**团块身体上这一对是 `null`** ——
-   * 它没有部件，也就没有可以套外壳的网格，那时这一项整个不出现。
-   * 不给一个按了没反应的按钮，是这个文件唯一的那条纪律。
-   */
-  shading?: (() => ShadingId) | null;
-  setShading?: ((id: ShadingId) => void) | null;
+  /** 开机就定了的事实：哪一种身体实现、物种自己的方案 */
+  context: StageContext;
+  /** 这一屏此刻的全部值。**只读 host，不抄** */
+  values(): ControlValues;
+  /** 写一个值。叠加传 `null` = 拿掉 */
+  set<K extends ValueId>(id: K, value: ControlValues[K]): void;
+  /** 叠加底下弧线此刻走到的那一项（玩法：导演演的那段；形体：身体此刻的方案） */
+  arcValue(id: 'act' | 'form'): string | null;
+  /** 会话种子：回舞台时回的必须是同一具身体 */
+  seed(): number;
 }
 
 export interface ControlsOptions {
   /**
    * 挂不挂。调用方传 `readFlags().nav` —— 和目录同一个判断，
    * 所以现场（`?kiosk=1`）和 `?nav=0` 下这条一个像素都不会出现。
-   * 装置画面上不该有控制台，这一点不给第二个开关去分歧。
    */
   enabled?: boolean;
   host: ControlsHost;
@@ -124,71 +107,49 @@ export interface ControlsOptions {
   mount?: HTMLElement;
   /**
    * 「随机」那一下的**熵**从哪来。默认 `crypto.getRandomValues` 抽一个 uint32。
-   *
-   * 为什么它是一个参数而不是一行代码：AGENTS.md 的不变量写着"所有随机性都经由
-   * 注入的 Rng 到达，模块里不许裸用 Math.random()"。这里注入的不是 Rng 本身 ——
-   * 抽签的 Rng 是 `mulberry32(seed)`，纯的、在 `random-url.ts` 里、可测 ——
-   * 注入的是**那一个种子**，也就是整条链上唯一一处非确定性。它和 `main.ts` 里
-   * 那个会话种子（`// 仅此一处`）是同一类东西，区别只是这一个当场就被写进 URL，
-   * 于是它非确定的那一瞬间只有一帧长。
+   * 注入的是**那一个种子** —— 整条链上唯一一处非确定性（AGENTS.md：随机性经由注入到达）。
    */
   newSeed?: () => number;
 }
 
 export interface Controls {
   root: HTMLElement;
-  /**
-   * 目录展开 / 收起了。控件条据此整条让位 —— 见文件头第 1 条。
-   * 由 `main.ts` 把 `mountNav({ onOpenChange })` 接到这里：目录先挂、控件条后挂，
-   * 所以这条线只能是"后者提供一个方法，前者回头调它"。
-   */
   dispose(): void;
 }
 
 /**
- * 把当前**全部**可表达状态写回 URL，再换一个参数，然后重载。
- *
- * 为什么要连没变的一起写：重载是为了重建身体，不是为了重置演示。
- * 只带上 `?plan=mass` 的话，刚切到「夜潮 + 抵抗 + 关掉跟随延迟」的那一屏
- * 会在重载之后变回默认 —— 现场演示到这里就断了。
+ * 把当前**全部**可表达状态写回 URL，再叠上 `patch`，然后重载。
+ * 重载是为了重建身体，不是为了重置演示 —— 所以没变的也一起写（表里的 `stagePatch`）。
  */
 function reloadWith(host: ControlsHost, patch: Record<string, string | null>): void {
   const q = new URLSearchParams(location.search);
-  const set = (k: string, v: string | null): void => {
+  for (const [k, v] of Object.entries({ ...stagePatch(host.values()), ...patch })) {
     if (v === null) q.delete(k);
     else q.set(k, v);
-  };
-  // 当前状态。物种必须带上，否则重载会掉回选择页 —— 那是另一段体验，不是"换个身体"
-  if (host.themeId) set('theme', host.themeId);
-  set('plan', host.planId());
-  set('scene', host.sceneId());
-  const act = host.actId();
-  if (act) set('act', act);
-  set('vitality', host.vitality() ? '1' : '0');
-  set('refine', host.refine() ? '1' : '0');
-  set('nopost', host.post() ? null : '1');
-  set('mute', host.muted() ? '1' : null);
-  // 描边**故意不带走**。它和上面几项不一样：那些是"这一屏怎么演"，
-  // 而描边是**物种自己的声明**（`creature/shading.ts` 的那张表）——
-  // 把它带过去等于把「线」的身份套到下一个物种头上。`?shading=` 照常管用，那是显式的。
-  for (const [k, v] of Object.entries(patch)) set(k, v);
+  }
   location.assign(`${location.pathname}?${q.toString()}`);
 }
 
-/** 一个选项按钮：中英并置的名字 + 一句短说明。没有图标，没有圆角 */
-function option(copy: CopyPair, onPick: () => void): HTMLButtonElement {
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.className = 'sb-ctl-opt';
+/** 一个选项按钮：中英并置的名字 + 一句短说明 + 右边一个状态词。没有图标，没有圆角 */
+function option(copy: CopyPair, onPick: () => void): { el: HTMLButtonElement; state: HTMLSpanElement } {
+  const el = document.createElement('button');
+  el.type = 'button';
+  el.className = 'sb-ctl-opt';
   const name = document.createElement('span');
   name.className = 'sb-ctl-opt-name sb-bi-inline';
   setBi(name, copy.name);
   const note = document.createElement('span');
   note.className = 'sb-ctl-opt-note';
   setBi(note, copy.note);
-  b.append(name, note);
-  b.addEventListener('click', onPick);
-  return b;
+  const state = document.createElement('span');
+  state.className = 'sb-ctl-state';
+  el.append(name, note, state);
+  el.addEventListener('click', () => {
+    el.classList.add('is-flash');
+    setTimeout(() => el.classList.remove('is-flash'), FLASH_MS);
+    onPick();
+  });
+  return { el, state };
 }
 
 function group(title: BiText, note: BiText, key: string | null): HTMLElement {
@@ -200,18 +161,22 @@ function group(title: BiText, note: BiText, key: string | null): HTMLElement {
   label.className = 'sb-label';
   label.textContent = `${title.zh} · ${title.en}`;
   head.append(label);
-  if (key) {
-    const k = document.createElement('span');
-    k.className = 'sb-ctl-key';
-    k.textContent = key;
-    head.append(k);
-  }
+  if (key) head.append(keyCap(key));
   const sub = document.createElement('p');
   sub.className = 'sb-ctl-note';
   setBi(sub, note);
   sec.append(head, sub);
   return sec;
 }
+
+function keyCap(key: string): HTMLSpanElement {
+  const k = document.createElement('span');
+  k.className = 'sb-ctl-key';
+  k.textContent = key;
+  return k;
+}
+
+const stateText = (t: BiText | null): string => (t ? `${t.zh} · ${t.en}` : '');
 
 export function mountControls(options: ControlsOptions): Controls | null {
   const {
@@ -220,7 +185,6 @@ export function mountControls(options: ControlsOptions): Controls | null {
   } = options;
   if (!enabled || typeof document === 'undefined') return null;
 
-  const C = COPY.controls;
   const root = document.createElement('aside');
   root.className = 'sb-ctl';
 
@@ -229,243 +193,269 @@ export function mountControls(options: ControlsOptions): Controls | null {
   toggle.className = 'sb-ctl-toggle';
   toggle.setAttribute('aria-expanded', 'false');
   setBi(toggle, C.title);
+  /** 收起时节题后面那个小字：有叠加开着就写「叠加 N」—— 面板关着也看得出这一屏被人推过 */
+  const overTag = document.createElement('span');
+  overTag.className = 'sb-ctl-toggle-over';
+  toggle.append(overTag);
 
   const panel = document.createElement('div');
   panel.className = 'sb-ctl-panel';
   panel.hidden = true;
 
-  /** 每一组各自登记一个"把高亮刷新到当前状态"的函数。状态只有一份，在 host 上 */
-  const syncs: (() => void)[] = [];
-  const markCurrent = (row: HTMLElement, isOn: (i: number) => boolean): void => {
-    syncs.push(() => {
-      const kids = Array.from(row.children) as HTMLElement[];
-      kids.forEach((el, i) => {
-        const on = isOn(i);
-        el.classList.toggle('is-on', on);
-        el.setAttribute('aria-pressed', String(on));
-      });
-    });
+  const themeIds = host.themes.map((t) => t.id);
+  const here = CONTROLS.filter((c) => available(c, host.context));
+  /** 每个控件各自登记一个"把高亮刷新到当前状态"的函数。状态只有一份，在 host 上 */
+  const syncs: ((v: ControlValues) => void)[] = [];
+  /** 已经在重开了：面板不再刷新、不再接按键，直到页面真的走了（「重开中」那一格要一直说下去） */
+  let pending = false;
+  const sync = (): void => {
+    if (pending) return;
+    const v = host.values();
+    for (const f of syncs) f(v);
   };
-  const sync = (): void => { for (const f of syncs) f(); };
+  const mark = (el: HTMLElement, on: boolean): void => {
+    el.classList.toggle('is-on', on);
+    el.setAttribute('aria-pressed', String(on));
+  };
+  const valueOf = (c: ControlDef, v: ControlValues): unknown => (c.id === 'roll' ? null : v[c.id]);
 
-  const addRow = (sec: HTMLElement, cls = ''): HTMLElement => {
+  const status = document.createElement('p');
+  status.className = 'sb-ctl-status';
+  status.setAttribute('aria-live', 'polite');
+
+  function markPending(from: HTMLElement | null): void {
+    pending = true;
+    root.classList.add('is-pending');
+    panel.setAttribute('aria-busy', 'true');
+    status.textContent = stateText(C.restarting);
+    if (!from) return;
+    from.classList.add('is-pending');
+    const s = from.querySelector('.sb-ctl-state');
+    if (s) s.textContent = stateText(C.restarting);
+  }
+
+  /** 一个控件换值：要重建身体的走重载，其余热切。`from` = 按下去的那一格（键盘触发时没有） */
+  function apply(c: ControlDef, next: unknown, from: HTMLElement | null = null): void {
+    if (pending || c.id === 'roll') return;
+    if (needsReload(c, host.context, next)) {
+      markPending(from);
+      const w = c.url?.write(next);
+      const patch: Record<string, string | null> = c.url && w !== undefined ? { [c.url.param]: w } : {};
+      // 换物种时形体叠加不带过去：那是按在上一个物种身上的
+      for (const k of c.reloadClears ?? []) patch[k] = null;
+      reloadWith(host, patch);
+      return;
+    }
+    host.set(c.id, next as never);
+    sync();
+  }
+
+  /**
+   * 重掷一次。**一次重载，不是六次热切**：它抽的里面有物种和形体，本来就必须重建。
+   * 池子从表来（`rollSlots`），抽签是纯的（`ui/random-url.ts`）。`location.assign` 留下一条历史 ——
+   * 浏览器的后退键就是这个按钮的撤销键。
+   */
+  function roll(from: HTMLElement | null = null): void {
+    if (pending) return;
+    markPending(from);
+    reloadWith(host, randomPatch(newSeed() % SEED_MAX, rollSlots(themeIds)));
+  }
+
+  const renderOverlay = (c: ControlDef & { id: 'act' | 'form' }, sec: HTMLElement): void => {
     const row = document.createElement('div');
-    row.className = `sb-ctl-row${cls ? ` ${cls}` : ''}`;
+    row.className = 'sb-ctl-row';
+    const choices: (string | null)[] = [null, ...optionsOf(c, themeIds)];
+    const arcCopy = pairOf('arc', c.id);
+    for (const choice of choices) {
+      const copy = choice === null ? arcCopy : pairOf(c.id, choice);
+      if (!copy) continue;
+      // 点亮着的那一项 = 拿掉叠加；点「跟着弧线」= 拿掉叠加；点别的 = 换成它
+      const o = option(copy, () => {
+        const now = host.values()[c.id];
+        apply(c, choice === null || choice === now ? null : choice, o.el);
+      });
+      const { el, state } = o;
+      syncs.push((v) => {
+        const now = v[c.id];
+        // 叠加（你推的）和弧线此刻（它自己走到的）是两件事：落在不同格子上时两个记号同时在
+        const over = choice !== null && choice === now;
+        const atArc = choice !== null && choice === host.arcValue(c.id);
+        mark(el, choice === now);
+        el.classList.toggle('is-over', over);
+        el.classList.toggle('is-now', atArc);
+        if (atArc) el.setAttribute('aria-current', 'true');
+        else el.removeAttribute('aria-current');
+        state.textContent = over ? stateText(C.overlayOn) : atArc ? stateText(C.arcNow) : '';
+      });
+      row.append(el);
+    }
     sec.append(row);
-    return row;
   };
 
-  // ── 1. 形体 ───────────────────────────────────────────────────────────────
-  // **放第一组是刻意的。** 一个评委只按一个控件的话，应该是这一个：
-  // 他站在原地不动，按下「四足」，自己的手臂变成前腿 —— 那一下同时说完了
-  // "它用你的身体活过来"和"它不是你"。场景只改变它在哪，玩法要看几秒才读得出来，
-  // 而形体在一帧之内就把这件作品的命题演示完了。
-  const formSec = group(C.groups.form, C.groupNotes.form, 'F');
-  const formRow = addRow(formSec);
-  for (const id of FORM_IDS) {
-    const copy = pick(C.form, id);
-    if (!copy) continue;
-    formRow.append(option(copy, () => setForm(id)));
-  }
-  markCurrent(formRow, (i) => FORM_IDS[i] === host.planId());
+  const renderChoice = (c: ControlDef, sec: HTMLElement): void => {
+    const row = document.createElement('div');
+    row.className = 'sb-ctl-row';
+    for (const choice of optionsOf(c, themeIds)) {
+      const copy = pairOf(c.id, choice);
+      if (!copy) continue;
+      const o = option(copy, () => apply(c, choice, o.el));
+      const { el } = o;
+      syncs.push((v) => mark(el, valueOf(c, v) === choice));
+      row.append(el);
+    }
+    sec.append(row);
+  };
 
-  // ── 2. 画面 ───────────────────────────────────────────────────────────────
-  const sceneSec = group(C.groups.scene, C.groupNotes.scene, 'S');
-  const sceneRow = addRow(sceneSec);
-  for (const id of SCENE_IDS) {
-    const copy = pick(C.scene, id);
-    if (!copy) continue;
-    sceneRow.append(option(copy, () => { host.setScene(id); sync(); }));
-  }
-  markCurrent(sceneRow, (i) => SCENE_IDS[i] === host.sceneId());
-
-  // ── 3. 玩法 ───────────────────────────────────────────────────────────────
-  // id 从 director 那边传进来，不在这里重排：加一个玩法只该改 `acts/index.ts` 一处。
-  const actSec = group(C.groups.act, C.groupNotes.act, 'A');
-  const actRow = addRow(actSec);
-  const actIds = host.actIds.filter((id) => pick(C.act, id));
-  for (const id of actIds) {
-    const copy = pick(C.act, id)!;
-    actRow.append(option(copy, () => { host.setAct(id); sync(); }));
-  }
-  markCurrent(actRow, (i) => actIds[i] === host.actId());
-
-  // ── 4. 渲染 ───────────────────────────────────────────────────────────────
-  // 四个开关形状一样：读一个 boolean，写一个 boolean，右边写「开 / 关」。
-  const renderSec = group(C.groups.render, C.groupNotes.render, null);
-  const renderRow = addRow(renderSec, 'sb-ctl-row--toggles');
-  const toggles: { copy: CopyPair; key: string; get(): boolean; flip(): void }[] = [
-    { copy: C.render.vitality, key: 'D', get: () => host.vitality(), flip: () => host.setVitality(!host.vitality()) },
-    { copy: C.render.refine, key: 'R', get: () => host.refine(), flip: () => host.setRefine(!host.refine()) },
-    { copy: C.render.post, key: 'P', get: () => host.post(), flip: () => host.setPost(!host.post()) },
-    { copy: C.render.mute, key: 'M', get: () => !host.muted(), flip: () => { host.toggleMute(); } },
-  ];
-  // 描边只在"这具身体有网格可套"时才出现（见 ControlsHost.shading）。
-  // 它放在最后：前四项说的都是"它为什么像活的"，这一项说的是"它是被画出来的"。
-  const readShading = host.shading;
-  const writeShading = host.setShading;
-  if (readShading && writeShading) {
-    toggles.push({
-      copy: C.render.outline,
-      key: 'O',
-      get: () => readShading() === 'toon',
-      flip: () => { writeShading(readShading() === 'toon' ? 'physical' : 'toon'); },
+  /** 物种：29 条不平铺，一个筛选框 + 一列可滚的名字。浏览行为，所以放在演示那几组后面 */
+  const renderThemes = (c: ControlDef, sec: HTMLElement): void => {
+    const filter = document.createElement('input');
+    filter.type = 'search';
+    filter.className = 'sb-ctl-filter';
+    filter.placeholder = `${C.filter.zh} · ${C.filter.en}`;
+    filter.setAttribute('aria-label', C.filter.zh);
+    const list = document.createElement('div');
+    list.className = 'sb-ctl-species';
+    const rows: { el: HTMLElement; hay: string }[] = [];
+    for (const t of host.themes) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'sb-ctl-sp';
+      const name = document.createElement('span');
+      name.className = 'sb-ctl-opt-name sb-bi-inline';
+      setBi(name, { zh: t.name, en: t.nameEn });
+      const note = document.createElement('span');
+      note.className = 'sb-ctl-opt-note';
+      if (t.tagline) setBi(note, { zh: t.tagline, en: t.taglineEn ?? '' });
+      b.append(name, note);
+      b.addEventListener('click', () => apply(c, t.id, b));
+      list.append(b);
+      rows.push({ el: b, hay: `${t.id} ${t.name} ${t.nameEn} ${t.tagline ?? ''}`.toLowerCase() });
+      syncs.push((v) => b.classList.toggle('is-on', valueOf(c, v) === t.id));
+    }
+    filter.addEventListener('input', () => {
+      const q = filter.value.trim().toLowerCase();
+      for (const r of rows) r.el.hidden = q !== '' && !r.hay.includes(q);
     });
-  }
-  for (const t of toggles) {
-    const b = option(t.copy, () => { t.flip(); sync(); });
-    const state = document.createElement('span');
-    state.className = 'sb-ctl-state';
-    b.append(state);
-    const k = document.createElement('span');
-    k.className = 'sb-ctl-key';
-    k.textContent = t.key;
-    b.querySelector('.sb-ctl-opt-name')?.append(k);
-    syncs.push(() => {
-      const on = t.get();
-      b.classList.toggle('is-on', on);
-      b.setAttribute('aria-pressed', String(on));
-      const s = on ? COPY.controls.on : COPY.controls.off;
-      state.textContent = `${s.zh} · ${s.en}`;
-    });
-    renderRow.append(b);
+    sec.append(filter, list);
+  };
+
+  /** 同一组里的开关排成一张两栏的表，每格右边写「开 / 关」，名字后面一个键帽 */
+  const renderToggles = (cs: readonly ControlDef[], sec: HTMLElement): void => {
+    const row = document.createElement('div');
+    row.className = 'sb-ctl-row sb-ctl-row--toggles';
+    for (const c of cs) {
+      const copy = pairOf('render', c.id);
+      if (!copy) continue;
+      const o = option(copy, () => apply(c, !valueOf(c, host.values()), o.el));
+      const { el, state } = o;
+      if (c.key) el.querySelector('.sb-ctl-opt-name')?.append(keyCap(c.key));
+      syncs.push((v) => {
+        const on = Boolean(valueOf(c, v));
+        mark(el, on);
+        state.textContent = stateText(on ? C.on : C.off);
+      });
+      row.append(el);
+    }
+    sec.append(row);
+  };
+
+  /** 组底下那几条安静的链接。href 跟着这一屏走，点下去那一刻再写一次 */
+  const renderLinks = (cs: readonly ControlDef[], sec: HTMLElement): void => {
+    const links = cs.flatMap((c) => c.links ?? []);
+    if (!links.length) return;
+    const box = document.createElement('div');
+    box.className = 'sb-ctl-links';
+    for (const link of links) {
+      const label = textOf('links', link.page.replace(/^\/dev\/|\.html$/g, ''));
+      if (!label) continue;
+      const a = document.createElement('a');
+      a.className = 'sb-ctl-link';
+      setBi(a, label);
+      const refresh = (v: ControlValues): void => { a.href = workbenchHref(link, v, host.seed()); };
+      a.addEventListener('click', () => refresh(host.values()));
+      syncs.push(refresh);
+      box.append(a);
+    }
+    sec.append(box);
+  };
+
+  // ── 面板：按组从表里筛出来，一组一节 ──────────────────────────────────────────
+  const sections: HTMLElement[] = [];
+  for (const g of GROUPS) {
+    const cs = here.filter((c) => c.group === g);
+    if (!cs.length) continue;
+    // 一组只有一个带键的非开关控件时，键帽挂在组题上（开关的键帽挂在各自格子里）
+    const headKey = cs.length === 1 && cs[0].kind !== 'toggle' ? cs[0].key : null;
+    const sec = group(C.groups[g], C.groupNotes[g], headKey);
+    if (g === 'ab') sec.classList.add('sb-ctl-group--ab');
+    const toggles = cs.filter((c) => c.kind === 'toggle');
+    if (toggles.length) renderToggles(toggles, sec);
+    for (const c of cs) {
+      if (c.kind === 'overlay') renderOverlay(c as ControlDef & { id: 'act' | 'form' }, sec);
+      else if (c.kind === 'choice' && c.options === 'themes') renderThemes(c, sec);
+      else if (c.kind === 'choice') renderChoice(c, sec);
+      else if (c.kind === 'action') {
+        const row = document.createElement('div');
+        row.className = 'sb-ctl-row';
+        const o = option(C.random.roll, () => roll(o.el));
+        row.append(o.el);
+        sec.append(row);
+      }
+    }
+    renderLinks(cs, sec);
+    sections.push(sec);
   }
 
-  // ── 5. 身体（物种）──────────────────────────────────────────────────────────
-  // 29 条不平铺：一个筛选框 + 一列可滚的名字。这一组放最后，因为它是**浏览**行为
-  // 而不是演示行为 —— 而且它是唯一一个会重开一次的组，前面四组全部当场生效。
-  const spSec = group(C.groups.species, C.groupNotes.species, null);
-  const filter = document.createElement('input');
-  filter.type = 'search';
-  filter.className = 'sb-ctl-filter';
-  filter.placeholder = `${C.filter.zh} · ${C.filter.en}`;
-  filter.setAttribute('aria-label', C.filter.zh);
-  const spList = document.createElement('div');
-  spList.className = 'sb-ctl-species';
-  const spRows: { el: HTMLElement; hay: string }[] = [];
-  for (const t of host.themes) {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'sb-ctl-sp';
-    const name = document.createElement('span');
-    name.className = 'sb-ctl-opt-name sb-bi-inline';
-    setBi(name, { zh: t.name, en: t.nameEn });
-    const note = document.createElement('span');
-    note.className = 'sb-ctl-opt-note';
-    if (t.tagline) setBi(note, { zh: t.tagline, en: t.taglineEn ?? '' });
-    b.append(name, note);
-    b.addEventListener('click', () => reloadWith(host, { theme: t.id, plan: null }));
-    spList.append(b);
-    spRows.push({ el: b, hay: `${t.id} ${t.name} ${t.nameEn} ${t.tagline ?? ''}`.toLowerCase() });
-    syncs.push(() => b.classList.toggle('is-on', t.id === host.themeId));
-  }
-  filter.addEventListener('input', () => {
-    const q = filter.value.trim().toLowerCase();
-    for (const r of spRows) r.el.hidden = q !== '' && !r.hay.includes(q);
-  });
-  spSec.append(filter, spList);
-
-  // ── 6. 随机 ───────────────────────────────────────────────────────────────
-  // **放在控件条里，不放在选择页旁边。** 三条理由，都不是"这里有地方"：
-  //
-  //  1. 它抽的五样东西全在上面那五组里。一个按钮该和它作用的对象在一起 ——
-  //     放到选择页旁边，它就只剩下"随机选个物种"，而那一页早就有随机了
-  //     （docs/23 §S2 的 30 秒无操作自动选中），再加一个按钮是把同一件事说两遍。
-  //  2. 选择页上**根本没有控件条**：它挂在观众选完物种、身体已经在了之后
-  //     （main.ts 第 4b 节前后），实测那一页 `document.querySelector('.sb-ctl')`
-  //     是 null。所以"放在选择页旁边"不是换个位置，是另建一套。
-  //  3. 而且选择页那一下是**观众的选择**（docs/23 §S2：「选中，没有确认按钮」）。
-  //     在一个只关于"你要变成谁"的页面上放一个替观众掷骰子的按钮，和那一页
-  //     的立意是反的。随机属于**之后**那个可以来回试的场合。
-  //
-  // 放在最后一组：它是"把上面全部重掷一次"，读起来该在它作用的东西后面。
-  const randSec = group(C.groups.random, C.groupNotes.random, 'X');
-  const randRow = addRow(randSec);
-  randRow.append(option(C.random.roll, () => roll()));
-  const randNote = document.createElement('p');
-  randNote.className = 'sb-ctl-note';
-  setBi(randNote, C.random.keeps);
-  randSec.append(randNote);
-
-  // ── Key 条 ────────────────────────────────────────────────────────────────
-  // 现场和演示时手比鼠标快。每个键都要在这里看得见 —— 一个没有写出来的快捷键
-  // 等于不存在。**刻意避开 1–9 / ↑↓ / Enter / 空格**：选择页在用（docs/23 §S2）。
+  // ── Key 条：从表里推。一个没有写出来的快捷键等于不存在 ────────────────────────
+  // **刻意避开 1–9 / ↑↓ / Enter / 空格**：选择页在用（docs/23 §S2），表的测试钉住
   const keys = document.createElement('footer');
   keys.className = 'sb-ctl-keys';
   const keyLabel = document.createElement('span');
   keyLabel.className = 'sb-label';
   keyLabel.textContent = `${C.keys.title.zh} · ${C.keys.title.en}`;
   keys.append(keyLabel);
-  const KEY_ROWS: [string, BiText][] = [
+  const keyRows: [string, BiText | null][] = [
     ['`', C.keys.toggle],
-    ['F', C.keys.form],
-    ['S', C.keys.scene],
-    ['A', C.keys.act],
-    ['D', C.keys.vitality],
-    ['R', C.keys.refine],
-    ['P', C.keys.post],
-    ['M', C.keys.mute],
-    ...(readShading && writeShading ? [['O', C.keys.outline] as [string, BiText]] : []),
-    ['X', C.keys.random],
+    ...here.flatMap((c): [string, BiText | null][] => (c.key ? [[c.key, textOf('keys', c.id)]] : [])),
   ];
-  for (const [k, text] of KEY_ROWS) {
+  for (const [k, text] of keyRows) {
+    if (!text) continue;
     const row = document.createElement('div');
     row.className = 'sb-ctl-keyrow';
-    const cap = document.createElement('span');
-    cap.className = 'sb-ctl-key';
-    cap.textContent = k;
     const what = document.createElement('span');
     what.className = 'sb-ctl-opt-note';
     setBi(what, text);
-    row.append(cap, what);
+    row.append(keyCap(k), what);
     keys.append(row);
   }
 
-  panel.append(formSec, sceneSec, actSec, renderSec, spSec, randSec, keys);
+  // ── 顶上那一行：弧线此刻在哪一段、叠了什么。不写秒数和乐章号（docs/40 §5 不给观众看进度） ──
+  const nameOf = (book: string, id: string | null): string | null => {
+    const p = id ? pairOf(book, id) : null;
+    return p ? `${p.name.zh} ${p.name.en}` : null;
+  };
+  syncs.push((v) => {
+    const now = nameOf('act', host.arcValue('act'));
+    const over = [nameOf('act', v.act), nameOf('form', v.form)].filter((s): s is string => s !== null);
+    status.textContent = [
+      now && `${C.statusNow.zh} · ${C.statusNow.en}  ${now}`,
+      over.length ? `${C.statusOver.zh} · ${C.statusOver.en}  ${over.join(' / ')}` : null,
+    ].filter(Boolean).join('   ');
+    overTag.textContent = over.length ? `${C.statusOver.zh} ${over.length}` : '';
+  });
+
+  panel.append(status, ...sections, keys);
   root.append(toggle, panel);
   mount.append(root);
 
   // ── 行为 ──────────────────────────────────────────────────────────────────
-
   /**
-   * 重掷一次。**一次重载，不是六次热切。**
-   *
-   * 走 `reloadWith` 而不是挨个调 host 的 setter，是因为它抽的里面有物种和形体 ——
-   * 那两样本来就必须重建（见文件头第 2 条）。既然总要重载一次，那就让这一次
-   * 把全部参数一起带走，而不是先热切四样、再为第五样重载、把前四样丢掉。
-   *
-   * `randomPatch` 是纯的（`ui/random-url.ts`），所以"同一个 seed 给同一具身体"
-   * 这条性质是可测的；这里只负责给它一个新种子、把结果交给 `reloadWith`。
-   * `reloadWith` 用的是 `location.assign`，会**留下一条历史** —— 所以浏览器
-   * 的后退键就是这个按钮的撤销键，不需要再造一个。
+   * 面板顶在视口里的位置，写给 controls.css 的 max-height。它会挪：上面目录、设置两节展开收起，窗口变了。
+   * 原来 CSS 里猜的是 3.4rem，无头 Chrome 实测面板底仍然压右下角那一列 8.28px —— 量出来，不猜。
    */
-  function roll(): void {
-    const patch = randomPatch(newSeed() % SEED_MAX, {
-      themes: host.themes.map((t) => t.id),
-      forms: FORM_IDS,
-      scenes: SCENE_IDS,
-      acts: actIds,
-      // 团块没有网格可套外壳，这一项对它无意义 —— 和控件条上那个开关同一条判断。
-      // 不过 `?shading=` 落在一具团块身上只是被忽略，不会出错，所以这里不必分支：
-      // 抽到什么就写什么，下一屏是不是团块由 `plan` 那一格决定。
-      shadings: SHADING_IDS,
-    });
-    reloadWith(host, patch);
-  }
-
-  /** 形体：骨架重映射之间热切；进出 B 档（团块 / 点场）是另一条身体实现，必须重建 */
-  function setForm(id: string): void {
-    const now = host.planId();
-    if (id === now) return;
-    if (isBodyImpl(id) || isBodyImpl(now)) { reloadWith(host, { plan: id }); return; }
-    host.setPlan(id);
-    sync();
-  }
-
-  const cycle = (ids: readonly string[], now: string | null, use: (id: string) => void): void => {
-    if (!ids.length) return;
-    const i = Math.max(0, ids.indexOf(now ?? ''));
-    use(ids[(i + 1) % ids.length]!);
+  const publishTop = (): void => {
+    if (panel.hidden) return;
+    panel.style.setProperty('--sb-ctl-top', `${Math.round(panel.getBoundingClientRect().top)}px`);
   };
 
   let open = false;
@@ -475,9 +465,9 @@ export function mountControls(options: ControlsOptions): Controls | null {
     toggle.setAttribute('aria-expanded', String(next));
     root.classList.toggle('is-open', next);
     root.classList.remove('is-faded');
-    // 两条都在右上角：这一条展开，目录就收起来。不重叠不靠运气（见文件头第 1 条）
+    // 两条都在右上角：这一条展开，目录就收起来。不重叠不靠运气（见文件头第 2 条）
     if (next) nav?.close();
-    if (next) sync();
+    if (next) { publishTop(); sync(); }
   };
   toggle.addEventListener('click', () => setOpen(!open));
 
@@ -489,6 +479,7 @@ export function mountControls(options: ControlsOptions): Controls | null {
     if (!next) setOpen(false);
   };
 
+  const byKey = new Map(here.flatMap((c) => (c.key ? [[c.key.toLowerCase(), c] as const] : [])));
   const onKey = (e: KeyboardEvent): void => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     // 正在筛物种的时候，`s` 是一个字母不是一个快捷键
@@ -497,22 +488,13 @@ export function mountControls(options: ControlsOptions): Controls | null {
     const k = e.key.toLowerCase();
     if (k === 'escape' && open) { setOpen(false); return; }
     if (k === '`' || k === 'h') { setShown(!shown); return; }
-    if (k === 'f') { cycle(FORM_IDS, host.planId(), setForm); return; }
-    if (k === 's') { cycle(SCENE_IDS, host.sceneId(), (id) => { host.setScene(id); sync(); }); return; }
-    if (k === 'a') { cycle(actIds, host.actId(), (id) => { host.setAct(id); sync(); }); return; }
-    if (k === 'd') { host.setVitality(!host.vitality()); sync(); return; }
-    if (k === 'r') { host.setRefine(!host.refine()); sync(); return; }
-    if (k === 'p') { host.setPost(!host.post()); sync(); return; }
-    // `x`：和上面五组的键一样避开 1–9 / ↑↓ / Enter / 空格（选择页在用）
-    if (k === 'x') { roll(); return; }
-    if (k === 'o' && readShading && writeShading) {
-      writeShading(readShading() === 'toon' ? 'physical' : 'toon');
-      sync();
-      return;
-    }
-    // `m` 不在这里处理：`sound/sound.ts` 自己已经绑了它（docs/29）。
-    // 两处都绑的结果是按一下切两次，也就是什么都没发生 —— 这里只负责把状态刷新出来。
-    if (k === 'm') { setTimeout(sync, 0); return; }
+    const c = byKey.get(k);
+    if (!c) return;
+    // 声音的 `m` 由 `sound/sound.ts` 自己绑着（docs/29）。两处都绑 = 按一下切两次 = 什么都没发生
+    if (c.keyBoundElsewhere) { setTimeout(sync, 0); return; }
+    if (pending) return;
+    if (c.kind === 'action') { roll(); return; }
+    apply(c, cycleNext(c, valueOf(c, host.values()), themeIds));
   };
   addEventListener('keydown', onKey);
 
@@ -522,17 +504,14 @@ export function mountControls(options: ControlsOptions): Controls | null {
   };
   addEventListener('pointerdown', onAway, true);
 
-  // 每秒把高亮刷一次。两条理由，都不是"保险起见"：
-  //  1. 玩法会自己换 —— 导演按 weight 随机选角，没人点过任何按钮。
-  //  2. 有些状态要过一帧才成立。`stage.setPost(true)` 只是把开关翻过来，
-  //     后期链要等下一次 `render()` 才重建，`stage.post` 在那之前仍然是 false ——
-  //     点击当下读到的是"关"，一秒后这一次轮询把它纠正过来。
-  // 1 秒足够：它是一个状态指示，不是一个动画。
-  const poll = setInterval(sync, 1000);
+  // 每秒把高亮刷一次。理由都不是"保险起见"：
+  //  1. 弧线会自己换段 —— 「弧线此刻」那个词要跟着走，没人点过任何按钮。
+  //  2. 有些状态要过一帧才成立（`stage.setPost(true)` 要等下一次 render 才重建后期链）。
+  const poll = setInterval(() => { sync(); publishTop(); }, 1000);
+  addEventListener('resize', publishTop);
   sync();
 
-  // 进场 4 秒后淡下去，和目录、和 `ui/page.ts` 的浮层页头同一个数、同一条规矩
-  // （docs/23 §S4「观众只需要知道一次」）。鼠标碰上去它自己回来，在 CSS 里。
+  // 进场 4 秒后淡下去（docs/23 §S4「观众只需要知道一次」）。鼠标碰上去它自己回来，在 CSS 里。
   setTimeout(() => { if (!open) root.classList.add('is-faded'); }, FADE_AFTER_MS);
 
   return {
@@ -541,6 +520,7 @@ export function mountControls(options: ControlsOptions): Controls | null {
       clearInterval(poll);
       removeEventListener('keydown', onKey);
       removeEventListener('pointerdown', onAway, true);
+      removeEventListener('resize', publishTop);
       root.remove();
     },
   };

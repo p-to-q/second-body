@@ -14,6 +14,7 @@ import type { PartLibrary } from '../assets/library.ts';
 import type { BodyInstance } from '../creature/body.ts';
 import type { Stage } from '../stage/stage.ts';
 import type { Flags } from '../shell/kiosk.ts';
+import { NO_INTENT, lineOverlay, type Intent } from '../shell/intent.ts';
 
 export interface World {
   readonly t: number;
@@ -38,6 +39,11 @@ export interface World {
   readonly library: PartLibrary;
   readonly capture: Capture;
   readonly flags: Flags;
+  /**
+   * 观众叠在弧线上的东西（`shell/intent.ts`）。导演**每帧读**它，不接受命令 ——
+   * 所以控件条上没有一个按钮能把导演按住。
+   */
+  readonly intent: Intent;
   readonly rng: Rng;
   morph(tier?: Tier): void;
   note(s: string): void;
@@ -46,10 +52,15 @@ export interface World {
 /** 导演递给玩法的那一点上下文 */
 export interface ActContext {
   /**
-   * 被 `force()` 按住了（`?act=` / 控件条 / 「把身体还回去」）。
-   * 一条线上的玩法据此决定采样点：按住 = 钉在自己的地名上，否则跟着 `arc.overall` 走。
+   * 被 `force()` 按住了。现在只剩「把身体还回去」（右下角那一行 / `?act=untether`）走这条：
+   * 它是一个再按一次就松开的开关，不是弧线上的点。按住 = 钉在自己的地名上。
    */
   pinned: boolean;
+  /**
+   * 观众的玩法叠加落在第几个地名（`shell/intent.ts`）。`null` / 缺省 = 跟着 `arc.overall` 走。
+   * 弧线在底下照走，拿掉叠加的那一帧就回到 `overall`。
+   */
+  point?: MovementIndex | null;
 }
 
 export interface Act {
@@ -95,9 +106,9 @@ export function lineFor(actId: string | null, overall: number, pinned: boolean):
 export function playLine(w: World, dt: number, movement: MovementIndex, ctx?: ActContext): void {
   const sk = w.skeleton;
   if (!sk) return;
-  const pin = ctx?.pinned ? movement : null;
+  const pin = ctx?.pinned ? movement : ctx?.point ?? null;
   const live = w.arc && Number.isFinite(w.arc.overall) ? w.arc.overall : pointOf(movement);
-  const overall = pin === null ? live : pointOf(movement);
+  const overall = pin === null ? live : pointOf(pin);
   // 换钉点、或者弧线往回走了（归零 = 换了一个人）：朝向直接到位，不慢慢追
   const snap = pin !== lastPin || overall < lastOverall - 1e-3;
   lastPin = pin;
@@ -116,7 +127,11 @@ export interface Director {
   readonly currentId: string | null;
   /** 被禁用的 act id 和原因，给 HUD / 日志看 */
   readonly disabled: ReadonlyMap<string, string>;
-  /** 强制切到某个 act（?act=<id> 与调试用）。强制之后弧线不再插手，直到 `release()` */
+  /**
+   * 强制切到某个 act。强制之后弧线不再插手，直到 `release()`。
+   * **控件条不许调它**（`test/controls-panel.test.ts`）：观众的玩法选择是叠加（`World.intent`）。
+   * 留给「把身体还回去」—— 那是一个自己带解除键的开关。
+   */
   force(id: string, w: World): boolean;
   /**
    * 交回给弧线。右下角那一行「把身体拿回来」走这条 ——
@@ -188,7 +203,10 @@ export function createDirector(acts: readonly Act[], fallbackId = 'follow'): Dir
       }
       if (!current && fallback && !disabled.has(fallback.id)) switchTo(fallback, w);
 
-      if (current) guard(current, 'update', () => current!.update(w, dt, { pinned: forced }));
+      // 叠加只换采样点，不换演员：弧线说该演哪一段就演哪一段（`currentId` 照走），
+      // 线在叠加的那个地名上采样。「还回去」按住时叠加让路 —— 那一场不跟随任何人
+      const point = forced ? null : lineOverlay(w.intent ?? NO_INTENT);
+      if (current) guard(current, 'update', () => current!.update(w, dt, { pinned: forced, point }));
       for (const a of ambient) {
         if (disabled.has(a.id)) continue;
         if (a.canEnter && guard(a, 'canEnter', () => a.canEnter!(w)) !== true) continue;

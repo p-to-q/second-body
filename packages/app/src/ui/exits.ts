@@ -44,15 +44,22 @@
  * 而此前那几行 `--sb-size-small` 的灰字在现场基本读不出来。
  */
 import { COPY, setBi, type BiText } from './i18n.ts';
-import { hallSearch, type StageState } from './exits-url.ts';
+import { hallSearch } from './exits-url.ts';
+import type { ControlValues } from './control-table.ts';
 import './type.css';
 import './exits.css';
 
-export { HANDED_BACK_ACT, hallSearch, type StageState } from './exits-url.ts';
+export { HANDED_BACK_ACT, hallSearch } from './exits-url.ts';
+
+/**
+ * 这一列的高度写到根上，右上角的控件面板据此给它让位（`controls.css` 的 max-height）。
+ * 和 `ui/readout.ts` 的 `--sb-readout-h` 同一个写法：面板展开滚到底时曾经压在这一列上。
+ */
+const HEIGHT_VAR = '--sb-exits-h';
 
 export interface ExitsHost {
-  /** 当前这一屏的全部状态，交给 `hallSearch()` 带走 */
-  state(): StageState;
+  /** 当前这一屏的全部状态（和控件条同一份），交给 `hallSearch()` 带走 */
+  state(): ControlValues;
   /** 身体现在是不是已经"还回去了"（不再跟随） */
   handedBack(): boolean;
   /** 还回去 / 收回来。返回**切换之后**的真实状态 —— 玩法可能被 Director 禁用了 */
@@ -148,9 +155,21 @@ export function mountExits(options: ExitsOptions): Exits | null {
   const poll = setInterval(sync, 1000);
   sync();
 
+  // 高度会变：摄像头那一行换字（「开着，它在看你」比「关着」长）、窄屏折行。量一次就过期
+  const html = document.documentElement;
+  const publishHeight = (): void => { html.style.setProperty(HEIGHT_VAR, `${root.offsetHeight}px`); };
+  publishHeight();
+  const resize = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(publishHeight);
+  resize?.observe(root);
+
   return {
     root,
     sync,
-    dispose() { clearInterval(poll); root.remove(); },
+    dispose() {
+      clearInterval(poll);
+      resize?.disconnect();
+      html.style.removeProperty(HEIGHT_VAR);
+      root.remove();
+    },
   };
 }

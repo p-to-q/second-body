@@ -11,27 +11,29 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { hallSearch, type StageState } from '../src/ui/exits-url.ts';
+import { hallSearch } from '../src/ui/exits-url.ts';
+import type { ControlValues } from '../src/ui/control-table.ts';
 import { parseExits, readFlags } from '../src/shell/kiosk.ts';
 
-const STATE: StageState = {
-  themeId: 'xeno',
-  planId: 'quadruped',
-  sceneId: 'tide',
-  actId: 'resist',
+const STATE: ControlValues = {
+  species: 'xeno',
+  form: 'quadruped',
+  scene: 'tide',
+  act: 'resist',
+  outline: true,
   vitality: false,
   refine: true,
   post: false,
-  muted: true,
+  sound: false,
 };
 
-const params = (search: string, s: StageState = STATE): URLSearchParams =>
+const params = (search: string, s: ControlValues = STATE): URLSearchParams =>
   new URLSearchParams(hallSearch(search, s));
 
 test('回大厅: theme 必须被删掉 —— 留着它重载会直接跳过选择页，按钮等于没用', () => {
   const q = params('?theme=xeno&plan=quadruped');
   assert.equal(q.get('theme'), null);
-  assert.equal(q.get('plan'), null, 'plan 是那个物种的身材，不能带到下一个物种头上');
+  assert.equal(q.get('plan'), null, '形体叠加是这一个人按的，不能带到下一个物种头上');
 });
 
 test('回大厅: 这一屏怎么演的全部状态一条不少地带过去', () => {
@@ -39,7 +41,7 @@ test('回大厅: 这一屏怎么演的全部状态一条不少地带过去', () 
   // 重载是为了重新选物种，不是为了重置演示。
   const q = params('?theme=xeno');
   assert.equal(q.get('scene'), 'tide');
-  assert.equal(q.get('act'), 'resist');
+  assert.equal(q.get('act'), 'resist', '开着的玩法叠加照常带走');
   assert.equal(q.get('vitality'), '0');
   assert.equal(q.get('refine'), '1');
   assert.equal(q.get('nopost'), '1', 'post 关着 → 必须写 ?nopost=1');
@@ -47,22 +49,22 @@ test('回大厅: 这一屏怎么演的全部状态一条不少地带过去', () 
 });
 
 test('回大厅: 开着的那几项不留垃圾参数（nopost / mute 是"有才写"）', () => {
-  const q = params('?nopost=1&mute=1', { ...STATE, post: true, muted: false });
+  const q = params('?nopost=1&mute=1', { ...STATE, post: true, sound: true });
   assert.equal(q.get('nopost'), null);
   assert.equal(q.get('mute'), null);
 });
 
-test('回大厅: 没有当前玩法时不写 act=null 这种脏值', () => {
-  const q = params('', { ...STATE, actId: null });
+test('回大厅: 没有叠加时不写 act，而且把地址栏里旧的 act= 删掉', () => {
+  // 以前这里写的是"弧线此刻在演的那一段"—— 于是回大厅之后下一个人的弧线被钉在那一段。
+  const q = params('?act=echo', { ...STATE, act: null });
   assert.equal(q.get('act'), null);
-  assert.ok(!hallSearch('', { ...STATE, actId: null }).includes('act='));
+  assert.ok(!hallSearch('', { ...STATE, act: null }).includes('act='));
 });
 
 test('回大厅: 「归还」这一场不许被带回大厅', () => {
   // 实测踩到过：还着身体的时候按「回到大厅」，URL 里躺着 act=untether，
   // 于是**下一个观众选完物种，身体根本不跟他** —— 他只会以为这件作品坏了。
-  // 玩法照常带走，唯独这一个不：它是这一个人按出来的一场，不是这一屏的演法。
-  const q = params('?act=untether', { ...STATE, actId: 'untether' });
+  const q = params('?act=untether', { ...STATE, act: 'untether' });
   assert.equal(q.get('act'), null);
 });
 

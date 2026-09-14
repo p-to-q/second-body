@@ -17,7 +17,6 @@ import { createBoneEnergy, createMotion } from '../../core/src/motion.ts';
 import { createEvolution } from '../../core/src/evolution.ts';
 import { createPresence } from '../../core/src/presence.ts';
 import { arcPresent, createArc, type ArcState } from '../../core/src/arc.ts';
-import { speciesDrift } from '../../core/src/line.ts';
 import { makeGenome, toPlaceholderGenome } from '../../core/src/genome.ts';
 import { blendSkeletons, remapSkeleton, type BodyPlan } from '../../core/src/bodyplan.ts';
 import { mulberry32 } from '../../core/src/rng.ts';
@@ -53,6 +52,8 @@ import { cornerColumn } from './ui/corner.ts';
 import { mountPreview, wantsPreview, previewReservedTop } from './ui/preview.ts';
 import { mountReadout } from './ui/readout.ts';
 import { HANDED_BACK_ACT, mountExits } from './ui/exits.ts';
+import type { ControlValues } from './ui/control-table.ts';
+import { bodyAt, intentFromFlags, setOverlay, type Intent } from './shell/intent.ts';
 import { createHud } from './shell/hud.ts';
 import { createSound } from './sound/sound.ts';
 import { createCues } from './sound/cues.ts';
@@ -311,15 +312,16 @@ async function boot(): Promise<void> {
   // datafication，「它借你的动作站立」—— 借的是**你的**动作，那就必须先有一具
   // 能读成"你"的身体。一面四条腿的镜子不是镜子。
   //
-  // `?plan=` 仍然覆盖一切，而且**立刻**生效（不等第 III 乐章）：它是调试参数，
-  // look dev 要的是一个开场就站定的靶子，不是一条要等 85 秒的弧线。
-  // 控件条热切方案走的是同一个 `planOverride` —— 人手按下的一律赢过弧线。
+  // `?plan=` 仍然**立刻**生效（不等第 III 乐章）：look dev 要的是一个开场就站定的靶子。
+  // 但它和控件条按下的形体一样是一条**叠加**（`shell/intent.ts`），不再是永远赢过弧线的覆盖 ——
+  // 再点一次就拿掉，身体回到弧线（作品负责人 2026-09-14：没有一个按钮能锁住系统）。
   const speciesPlan: BodyPlan = themeDef?.bodyPlan ?? 'rig';
-  let planOverride: BodyPlan | null = flags.plan;
+  /** 观众叠在弧线上的东西。按钮只增删它，导演和身体到场每帧自己读；人一走回到 URL 写的那一份 */
+  let intent: Intent = intentFromFlags(flags);
   const kindOf = (p: BodyPlan | null): string =>
     (p === null ? 'rig' : typeof p === 'string' ? p : (p.kind ?? 'rig'));
   /** 这一帧实际用的方案（弧线还没到第 III 乐章时是 `rig`，见 `planDrift()`） */
-  const activePlan = (): BodyPlan => planOverride ?? speciesPlan;
+  const activePlan = (): BodyPlan => (intent.form as BodyPlan | undefined) ?? speciesPlan;
 
   // ── 4b. 左上角那块小屏幕（`ui/preview.ts`）────────────────────────────────
   // **挂在这里，不是更早。** 它要显示摄像头画面，而这件作品有一条硬规矩：
@@ -439,7 +441,7 @@ async function boot(): Promise<void> {
   // 才到场（见下面 `arcBody`），在那之前站在台上的必须是一具人形 ——
   // 而"人形"对它们来说就是这一团跟着人骨架走的未分化的体。
   // `?plan=mass` 强制时不需要它（那时物种身体开场就在）。
-  const nascent = !NASCENT.enabled || (planOverride !== null && (isMass || isSwarm))
+  const nascent = !NASCENT.enabled || (intent.form !== undefined && (isMass || isSwarm))
     ? null
     : createNascent({ creature, library, theme: theme ?? undefined });
   /** 第 I / II 乐章那一具：人形。团块开场 → tier ≥ 1 长出刚体件 */
@@ -450,14 +452,11 @@ async function boot(): Promise<void> {
   /**
    * 物种的身体方案到场了没有。第 III 乐章（`NOT ME` / simulacrum）那一刻 ——
    * **它出现的那一刻因此有了意义：那正是 simulacrum 成立的证据**（docs/40 §1）。
-   * `?plan=` / 控件条按下的一律立刻到场（调试要的是靶子不是弧线）。
+   * 形体叠加开着时立刻到场；拿掉就回到弧线。两条都在 `bodyAt()` 里，`test/intent.test.ts` 钉住。
    */
-  const SPECIES_ARRIVES_AT = 2;
-  const speciesArrived = (): boolean =>
-    planOverride !== null || arcState.movement >= SPECIES_ARRIVES_AT;
+  const speciesArrived = (): boolean => bodyAt(intent, arcState).arrived;
   /** 拓扑漂移的进度 0..1：第 III 乐章开头到第 III 个地名之间从人形漂到物种身体（`core/src/line.ts`） */
-  const planDrift = (): number =>
-    (planOverride !== null ? 1 : speciesArrived() ? speciesDrift(arcState.overall) : 0);
+  const planDrift = (): number => bodyAt(intent, arcState).drift;
 
   /**
    * ── 第 III 乐章那一次到场（B 档物种）─────────────────────────────────────
@@ -505,7 +504,7 @@ async function boot(): Promise<void> {
     },
     dispose() { humanBody.dispose(); speciesBody.dispose(); },
   };
-  if (speciesBody) speciesBody.object.visible = planOverride !== null;
+  if (speciesBody) speciesBody.object.visible = intent.form !== undefined;
 
   let seed = flags.seed ?? (Math.random() * 0xffffffff) >>> 0;   // 会话级种子，仅此一处
 
@@ -599,6 +598,8 @@ async function boot(): Promise<void> {
     get genome() { return isMass || isSwarm ? null : creature.genome; },
     // getter：capture 会在运行中被换掉（回放 → 摄像头），玩法必须看到当前那一个
     get capture() { return capture; },
+    // getter：按钮会把整份叠加换成新的一份（它是不可变的），导演每帧读到的必须是当前那一份
+    get intent() { return intent; },
     creature: body, stage, library, flags,
     rng: mulberry32(seed),
     morph,
@@ -821,7 +822,9 @@ async function boot(): Promise<void> {
       morph(tier);
       // 上一个人可能把身体还回去了（右下角那一行）。下一个人站上去必须被跟随，
       // 否则他看到的是一具从第一秒就不理他的身体 —— docs/40 §3 点名的那个 bug。
-      if (director.forced && flags.act === null) director.release(world);
+      if (director.forced && flags.act !== HANDED_BACK_ACT) director.release(world);
+      // 上一个人叠上去的玩法 / 形体同理：回到开机时 URL 写的那一份（通常是什么都没叠）
+      intent = intentFromFlags(flags);
       if (hud) console.info('[arc] 归零 —— 下一位从第 I 乐章开始');
     }
 
@@ -835,7 +838,12 @@ async function boot(): Promise<void> {
       jerk: lastFeatures?.jerk ?? 0,
       energy: lastFeatures?.energy ?? 0,
       // 音色跟着身体吃的那一组三个数滑，不跟着乐章的名字跳（`sound/timbre.ts`，docs/44 §6）
-      line: lineFor(director.currentId, arcState.overall, director.forced),
+      // 玩法叠加开着时，身体在叠加的那个地名上采样 —— 声音跟着身体，也在那一点（「还回去」时叠加让路）
+      line: lineFor(
+        (!director.forced && intent.act) || director.currentId,
+        arcState.overall,
+        director.forced || (!director.forced && intent.act !== undefined),
+      ),
       waiting: slow.phase === 'running',
     }, dt);
 
@@ -876,46 +884,54 @@ async function boot(): Promise<void> {
     }
   });
 
-  if (flags.act && !director.force(flags.act, world)) {
-    console.warn(`[main] ?act=${flags.act} 不存在或已被禁用，按正常流程选`);
+  // `?act=` 里弧线上的四个点开机就是叠加（上面的 `intentFromFlags`）。
+  // 只有「还回去」那一场走 force —— 它是右下角那一行的开关，再按一次就松开
+  if (flags.act === HANDED_BACK_ACT && !director.force(flags.act, world)) {
+    console.warn(`[main] ?act=${flags.act} 已被禁用，按正常流程选`);
   }
 
+  /** 这一屏此刻的全部值。控件条、回大厅、回舞台读的是同一份（`ui/control-table.ts`），不抄 */
+  const controlValues = (): ControlValues => ({
+    form: intent.form ?? null,
+    scene: stage.sceneId,
+    act: intent.act ?? null,
+    outline: shading === 'toon',
+    vitality: vitalityOn,
+    sound: !(sound.state === 'off' || sound.state === 'muted'),
+    species: theme ?? null,
+    refine: refineOn && refiner !== null,
+    post: stage.post,
+  });
+
   // ── 控件条（`ui/controls.ts`）──────────────────────────────────────────────
-  // 这件作品的能力此前全部只能用 URL 参数切，等于观众和评委看不见。
-  // 这里只是把**已经存在的**开关接出去：一个都不新增，一个都不编。
+  // 这里只是把**已经存在的**变量接出去：每个控件是什么在表里，这里只管读写哪个变量。
   // 现场（`?kiosk=1`）下 `flags.nav` 为 false，这一整条不挂 —— 和目录同一个判断。
   controls = mountControls({
     enabled: flags.nav,
     mount: corner,
     nav,
     host: {
-      themeId: theme ?? null,
       themes: library.index.themes ?? [],
-      planId: () => kindOf(activePlan()),
-      // 只在"两边都不是团块"时会被调到（controls.ts 的 setForm 负责那条判断）。
-      // 换方案时把比例也一起丢掉是对的：比例是**那个物种**的身材，
-      // 而观众此刻要看的正是"换一具身体会怎样"。
-      // 人手按下的方案是**覆盖**，不是"改物种"：它立刻生效并且一直压着弧线，
-      // 和 `?plan=` 走同一个变量。调参的人要的是一个站定的靶子。
-      setPlan: (id) => { planOverride = id; },
-      sceneId: () => stage.sceneId,
-      setScene: (id) => stage.setScene(id),
-      actId: () => director.currentId,
-      actIds: ACTS.filter((a) => a.kind === 'body').map((a) => a.id),
-      setAct: (id) => director.force(id, world),
-      vitality: () => vitalityOn,
-      setVitality: (on) => { vitalityOn = on; if (!on) vitality.reset(); },
-      refine: () => refineOn && refiner !== null,
-      setRefine: (on) => { refineOn = on; if (!on) refiner?.reset(); },
-      post: () => stage.post,
-      setPost: (on) => stage.setPost(on),
-      // 团块身体没有部件、也就没有可以套外壳的网格（docs/18 的两种表达）。
-      // 这时候不给这一项，而不是给一个按了没反应的按钮 ——
-      // 控件条只暴露真实存在的开关（`ui/controls.ts` 文件头的那一条纪律）。
-      shading: massBody ? null : () => shading,
-      setShading: massBody ? null : (id) => { shading = id; creature.setShading(id); },
-      toggleMute: () => sound.toggleMute(),
-      muted: () => sound.state === 'off' || sound.state === 'muted',
+      context: { bootPlan: planKind, speciesPlan: kindOf(speciesPlan) },
+      values: controlValues,
+      set: (id, value) => {
+        const v = value as unknown;
+        switch (id) {
+          // 叠加：只换一份新的 intent。导演和身体到场下一帧自己读到，不给它们发任何命令
+          case 'act': case 'form': intent = setOverlay(intent, id, v as string | null); break;
+          case 'scene': stage.setScene(v as string); break;
+          // 团块 / 点场上表里不给这一项（`available`），不会走到这里
+          case 'outline': shading = v ? 'toon' : 'physical'; creature.setShading(shading); break;
+          case 'vitality': vitalityOn = v as boolean; if (!vitalityOn) vitality.reset(); break;
+          case 'refine': refineOn = v as boolean; if (!refineOn) refiner?.reset(); break;
+          case 'post': stage.setPost(v as boolean); break;
+          case 'sound': if (v !== controlValues().sound) sound.toggleMute(); break;
+          case 'species': break;   // 换物种走重载（表里的 reload），热切不到这里
+        }
+      },
+      // 叠加底下弧线此刻在哪：玩法 = 导演演的那段；形体 = 物种到场了没有
+      arcValue: (id) => (id === 'act' ? director.currentId : speciesArrived() ? kindOf(speciesPlan) : 'rig'),
+      seed: () => seed,
     },
   });
 
@@ -944,18 +960,8 @@ async function boot(): Promise<void> {
   const exits = mountExits({
     enabled: flags.exits,
     host: {
-      // 一次重载要带走的全部状态。字段和控件条的 `reloadWith` 逐条对应 ——
-      // 少带一条，演示到一半回大厅再选一个物种，刚调好的那一屏就没了。
-      state: () => ({
-        themeId: theme ?? null,
-        planId: kindOf(activePlan()),
-        sceneId: stage.sceneId,
-        actId: director.currentId,
-        vitality: vitalityOn,
-        refine: refineOn && refiner !== null,
-        post: stage.post,
-        muted: sound.state === 'off' || sound.state === 'muted',
-      }),
+      // 一次重载要带走的全部状态 —— 和控件条是**同一份**，不再逐条抄一遍
+      state: controlValues,
       // 「还回去」= 换一个玩法，仅此而已。摄像头照开、采集照跑、骨架照算，
       // 只是这一场不用观众的那一份（`acts/untether.ts` 的文件头）。
       handedBack: () => director.currentId === HANDED_BACK_ACT,
@@ -986,7 +992,7 @@ async function boot(): Promise<void> {
 
   console.info(
     `[main] running · theme=${theme} · seed=${seed} · ` +
-    `plan=${planKind}${planOverride === null && planKind !== 'rig' ? '(第 III 乐章到场)' : ''} · ` +
+    `plan=${planKind}${intent.form === undefined && planKind !== 'rig' ? '(第 III 乐章到场)' : ''} · ` +
     `arc=${arc.total}s · theseus=${theseus ? (flags.theseus.rate === 1 ? 'on' : `×${flags.theseus.rate}`) : 'off'} · ` +
     `capture=${entry || flags.demo ? 'replay' : 'webcam'} · ` +
     `acts=${ACTS.map((a) => a.id).join(',')} · sound=${sound.state}`,
