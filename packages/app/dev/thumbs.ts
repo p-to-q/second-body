@@ -24,10 +24,16 @@ import type { PartMeta } from '../../core/src/types.ts';
 export const THUMB = 96;
 const DPR = Math.min(devicePixelRatio || 1, 2);
 
-const INK = '#9aa0a6';
-const RULE = '#2a3038';
-const SOCKET_A = '#e0455a';   // 底，和原来的接触表同一套颜色约定
-const SOCKET_B = '#5b93d6';   // 顶
+/**
+ * 剪影的墨。**从页面取，不在这里定义颜色** —— 这个文件被两张展出页 import（`/parts` `/lineage`），
+ * 而展出页上颜色只许在一处承担语义（docs/26 §F）。canvas 读不到 CSS 变量，
+ * 但读得到 body 继承下来的那个 `color`（type.css 里是 `--sb-ink-dim`），它跟着底色翻。
+ *
+ * 两个 socket 以前是红点（底）和蓝点（顶）：灰度下是两个一模一样的点，
+ * 也就是说"哪头是 A"全靠色相。现在用 `ui/marks.ts` 那两支笔来分 ——
+ * socketA（底）实心，socketB（顶）空心圈。
+ */
+const inkOf = (): string => getComputedStyle(document.body).color;
 
 // ── 一个 renderer，全页共用 ────────────────────────────────────────────────
 
@@ -99,27 +105,35 @@ function drawSilhouette(ctx: CanvasRenderingContext2D, meta: PartMeta): void {
   const x = (w - bw) / 2;
   const y = (w - bh) / 2;
 
-  ctx.strokeStyle = RULE;
+  const ink = inkOf();
+  const R = 2.6;
+
+  // 外框：最淡的一档墨（原来是 --sb-rule 的写死值）
+  ctx.strokeStyle = ink;
+  ctx.fillStyle = ink;
   ctx.lineWidth = 1;
+  ctx.globalAlpha = 0.35;
   ctx.strokeRect(Math.round(x) + 0.5, Math.round(y) + 0.5, Math.round(bw), Math.round(bh));
 
-  // 中轴：+Y。这是 docs/04 里那条唯一的约定，画出来比写出来管用
-  ctx.strokeStyle = INK;
+  // 中轴：+Y。这是 docs/04 里那条唯一的约定，画出来比写出来管用。
+  // 停在顶端那个空心圈的外沿 —— 穿进圈里，空心就读不出来了
   ctx.globalAlpha = 0.45;
   ctx.beginPath();
-  ctx.moveTo(w / 2, y);
+  ctx.moveTo(w / 2, y + R + 1);
   ctx.lineTo(w / 2, y + bh);
   ctx.stroke();
   ctx.globalAlpha = 1;
 
-  const dot = (cy: number, color: string) => {
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.arc(w / 2, cy, 2.6, 0, Math.PI * 2);
-    ctx.fill();
-  };
-  dot(y + bh, SOCKET_A);   // socketA 在底
-  dot(y, SOCKET_B);        // socketB 在顶
+  // socketA 在底：实心（只填不描）
+  ctx.beginPath();
+  ctx.arc(w / 2, y + bh, R, 0, Math.PI * 2);
+  ctx.fill();
+
+  // socketB 在顶：空心（只描不填）
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.arc(w / 2, y, R, 0, Math.PI * 2);
+  ctx.stroke();
 }
 
 // ── 真件渲染 ───────────────────────────────────────────────────────────────
