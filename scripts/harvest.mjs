@@ -44,6 +44,11 @@ const EPS = 2e-3, MAX_TRIS = 5000, MAX_BYTES = 1_500_000;
 const MENAGERIE_SHA = '8161bba264d7fa7c99ca301e91e7fb44737676ad';   // 2026-09-13
 const BODYPARTS_SHA = 'fd527e6f4daf732fd814314d9257df5877b844bc';   // 2026-09-13
 const MENAGERIE = `https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/${MENAGERIE_SHA}`;
+// Menagerie 之外的两条路（docs/42 §3）。同样钉整串 SHA —— 短 SHA 在上游再多几次提交之后可能变得有歧义。
+const RLG_SHA = '3bd1111011ea8c9813a66bf5cc21f31067f2e1ef';     // RobotLocomotion/models · 2026-09-03
+const LIMX_SHA = '5b97add1f3b461c9ed26ff2ff2f5025cc6ee4316';    // limxdynamics/tron1-robot-description · 2026-08-10
+const RLG = `https://raw.githubusercontent.com/RobotLocomotion/models/${RLG_SHA}`;
+const LIMX = `https://raw.githubusercontent.com/limxdynamics/tron1-robot-description/${LIMX_SHA}`;
 
 /**
  * 来源清单。
@@ -182,7 +187,60 @@ const ORIGINS = {
     license: 'MIT',
     caveat: '—',
   },
+  'stretch3': {
+    dir: 'hello_robot_stretch_3',
+    robot: 'Hello Robot Stretch 3',
+    holder: 'Hello Robot Inc.（Menagerie 子目录 LICENSE 为 Apache-2.0）',
+    license: 'Apache-2.0',
+    // §4(b)：再分发衍生件要注明改动 —— ATTRIBUTION.md「我们做了什么改动」那一节就是这句话的落点。
+    // 子目录与仓库根都没有 NOTICE 文件（2026-09-14 在钉住的 SHA 上查过），§4(d) 不适用。
+    caveat: '注明改动（Apache-2.0 §4(b)）；无 NOTICE 文件',
+  },
+  // ── Menagerie 之外：`meshRoot` / `licenseUrl` 显式给出，不从 `dir` 推 ──
+  'atlas': {
+    dir: 'atlas',
+    meshRoot: `${RLG}/atlas/meshes`,
+    licenseUrl: `${RLG}/atlas/LICENSE.TXT`,
+    repo: `RobotLocomotion/models@${RLG_SHA.slice(0, 7)}`,
+    robot: 'Boston Dynamics Atlas（DRC / v5 描述模型）',
+    // 版权人**不是** Boston Dynamics。这份几何是 DRC 时代的描述模型，也不是 2025 年那台电动 Atlas
+    // （docs/42 §3 保留意见、§7 第 5 条）。两件事都要写出来，不能含糊成「Atlas 的原厂几何」。
+    holder: 'Robot Locomotion Group @ MIT CSAIL',
+    license: 'BSD-3-Clause',
+    caveat: '非背书（MIT 名义）；版权人非 Boston Dynamics；液压 DRC/v5 一代，非 2025 电动版',
+  },
+  'wl_p311d': {
+    dir: 'wheellegged/WL_P311D',
+    meshRoot: `${LIMX}/wheellegged/WL_P311D/meshes`,
+    licenseUrl: `${LIMX}/LICENSE`,
+    repo: `limxdynamics/tron1-robot-description@${LIMX_SHA.slice(0, 7)}`,
+    robot: 'LimX Dynamics WL_P311D 轮足四足（代 W1）',
+    holder: 'LimX Dynamics',
+    license: 'Apache-2.0',
+    // W1 本身没有描述文件（docs/42 §3）。和 Cassie 代 Digit 同类：同厂、同一个"腿末端是轮子"的拓扑。
+    caveat: '代用件，不是 W1；注明改动（Apache-2.0 §4(b)）；无 NOTICE 文件；realsense_d435.stl 是第三方件，不取',
+  },
 };
+
+const meshRootOf = (o) => o.meshRoot ?? `${MENAGERIE}/${o.dir}/assets`;
+const licenseUrlOf = (o) => o.licenseUrl ?? `${MENAGERIE}/${o.dir}/LICENSE`;
+const repoOf = (o) => o.repo ?? `mujoco_menagerie@${MENAGERIE_SHA.slice(0, 7)}`;
+const displayDirOf = (o) => (o.meshRoot ? o.meshRoot.slice(o.meshRoot.indexOf(o.dir)) : `${o.dir}/assets`);
+
+/**
+ * **授权门，可执行的那一半。** 注释里的 ✅/🟡 是判定，这里是核对：
+ * 取到的 LICENSE 原文必须**认得出**是 BSD-3 / Apache-2.0 / MIT 之一，
+ * 而且必须和 ORIGINS 里声明的那一种一致。认不出 = 不取，不是「大概没事」（docs/42 §3）。
+ * 为什么要核对"一致"：声明写 Apache、原文却是另一份，说明有人抄错了目录 ——
+ * 那正是「记录说 Spot、身上穿 ANYmal」的同一类错。
+ */
+function licenseKind(text) {
+  if (/Apache License\s+Version 2\.0/.test(text)) return 'Apache-2.0';
+  if (/Permission is hereby granted, free of charge/.test(text)) return 'MIT';
+  if (/Redistribution and use in source and binary forms/.test(text)
+    && /Neither the name/.test(text) && !/advertising materials/i.test(text)) return 'BSD-3-Clause';
+  return null;
+}
 
 /**
  * 槽位的对称性。和 `recipes/catalog.ts` 的 SLOTS 表逐字一致 ——
@@ -288,7 +346,11 @@ const ADOPTED = [
   { id: 'joint.digitigrade.real',    slot: 'joint',    family: 'digitigrade', origin: 'cassie', asset: 'hip-roll.obj',   why: '关节。髋 roll 壳，girth 0.929 ≈ joint 中位数 0.993' },
 ];
 
-const adoptedUrl = (a) => `${MENAGERIE}/${ORIGINS[a.origin].dir}/assets/${a.asset}`;
+/** 一个 link 可以是几份文件（Menagerie 按材质拆 OBJ），`asset` 因此可以是数组 */
+const assetsOf = (a) => [a.asset].flat();
+const adoptedUrls = (a) => assetsOf(a).map((f) => `${meshRootOf(ORIGINS[a.origin])}/${f}`);
+/** 写进 `source.model`。以来源根开头，`check:parts` 拿它比 `machine.source` */
+const adoptedUrl = (a) => adoptedUrls(a).join(' + ');
 
 const args = process.argv.slice(2);
 const has = (f) => args.includes(f);
@@ -298,7 +360,7 @@ const picked = SOURCES.filter((s) => !only || s.id === only);
 if (has('--list')) {
   for (const s of SOURCES) console.log(`${s.id.padEnd(24)} ${s.license}\n${' '.repeat(25)}${s.url}\n${' '.repeat(25)}${s.note}\n`);
   console.log('── 入库件（--adopt）─────────────────────────────');
-  for (const a of ADOPTED) console.log(`${a.id.padEnd(28)} ${ORIGINS[a.origin].license.padEnd(24)} ${a.asset}`);
+  for (const a of ADOPTED) console.log(`${a.id.padEnd(28)} ${ORIGINS[a.origin].license.padEnd(24)} ${assetsOf(a).join(' + ')}`);
   process.exit(0);
 }
 
@@ -314,6 +376,34 @@ async function download(src) {
   mkdirSync(HARVEST, { recursive: true });
   writeFileSync(path, Buffer.from(await r.arrayBuffer()));
   return path;
+}
+
+/**
+ * 入库件的下载：几份文件逐个取；`.gltf` 连同它外挂的 `.bin` 一起取，
+ * 并把 buffer 的 uri 改写成本地文件名（原料按件 id 命名，上游的 `r_hand.bin` 会撞名）。
+ * 贴图不取 —— `readGltfGeometry` 读之前就把贴图引用摘掉了。
+ */
+async function downloadAdopted(a) {
+  const urls = adoptedUrls(a);
+  const out = [];
+  for (let i = 0; i < urls.length; i++) {
+    const id = urls.length > 1 ? `${a.id}.${i}` : a.id;
+    const path = await download({ id, url: urls[i] });
+    if (path.endsWith('.gltf')) {
+      const json = JSON.parse(readFileSync(path, 'utf8'));
+      for (const [k, b] of (json.buffers ?? []).entries()) {
+        if (!b.uri || b.uri.startsWith('data:')) continue;
+        const local = `${id}.${k}.bin`;
+        if (b.uri !== local) {
+          await download({ id: `${id}.${k}`, url: urls[i].replace(/[^/]*$/, b.uri), ext: '.bin' });
+          b.uri = local;
+        }
+      }
+      writeFileSync(path, JSON.stringify(json));
+    }
+    out.push(path);
+  }
+  return out.length === 1 ? out[0] : out;
 }
 
 /** 验收：用和 check:parts 同一套数字，对取件池独立跑一遍。 */
@@ -445,22 +535,38 @@ async function adopt() {
 
   // 1) 原始 LICENSE 原文随件入库（docs/33 §4 第 1 条）。
   //    BSD-3 的第 1/2 条要求再分发时保留版权声明与免责声明 —— 保留的方式就是把原文放在这里。
+  //    `--family=a,b`：只取这几个物种。其余已入库件的 glb 一个字节不碰，索引按 id 合并。
+  const families = args.find((x) => x.startsWith('--family='))?.slice(9).split(',');
+  const todo = ADOPTED.filter((a) => !families || families.includes(a.family));
+  const origins = new Set(todo.map((a) => a.origin));
   mkdirSync(LICENSES, { recursive: true });
   for (const [key, o] of Object.entries(ORIGINS)) {
+    if (!origins.has(key)) continue;
     const path = resolve(LICENSES, `${key}.LICENSE.txt`);
-    if (existsSync(path)) continue;
-    const url = `${MENAGERIE}/${o.dir}/LICENSE`;
-    const r = await fetch(url);
-    if (!r.ok) throw new Error(`取不到 ${o.robot} 的 LICENSE：${r.status} ${url}`);
-    writeFileSync(path, `# ${o.robot} · ${o.license}\n# 原文取自 ${url}\n\n${await r.text()}`);
-    console.log(`  ✓ LICENSE  ${key}`);
+    const url = licenseUrlOf(o);
+    let text;
+    if (existsSync(path)) text = readFileSync(path, 'utf8');
+    else {
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`取不到 ${o.robot} 的 LICENSE：${r.status} ${url}`);
+      text = await r.text();
+    }
+    // 授权门：认不出、或者和声明的不是同一种 → 这台机器一件都不取
+    const kind = licenseKind(text);
+    if (!kind || !o.license.startsWith(kind)) {
+      throw new Error(`${o.robot}: LICENSE 原文认作 ${kind ?? '（认不出）'}，声明是 ${o.license} —— 只收 BSD-3-Clause / Apache-2.0 / MIT 且必须一致（${url}）`);
+    }
+    if (!existsSync(path)) {
+      writeFileSync(path, `# ${o.robot} · ${o.license}\n# 原文取自 ${url}\n\n${text}`);
+      console.log(`  ✓ LICENSE  ${key}（${kind}）`);
+    }
   }
 
   // 2) 逐件取 + 规范化，直接写进 assets/parts/
   const metas = [];
-  for (const a of ADOPTED) {
+  for (const a of todo) {
     try {
-      const raw = await download({ id: a.id, url: adoptedUrl(a) });
+      const raw = await downloadAdopted(a);
       const { meta, warnings } = await normalizeOne(a.id, raw, {
         outDir: PARTS,
         file: `${a.id}.glb`,
@@ -505,7 +611,7 @@ function attribution(allMetas) {
 
   const rows = ADOPTED.map((a) => {
     const o = ORIGINS[a.origin];
-    return `| \`${a.id}\` | ${o.robot} | \`${o.dir}/assets/${a.asset}\` | ${o.license} | ${a.why} |`;
+    return `| \`${a.id}\` | ${o.robot} | ${assetsOf(a).map((f) => `\`${displayDirOf(o)}/${f}\``).join(' + ')} | ${o.license} | ${a.why} |`;
   }).join('\n');
 
   return `# 署名与许可 —— \`assets/parts/\` 里的真实网格
@@ -523,16 +629,23 @@ function attribution(allMetas) {
 
 ## 来源钉死在 commit SHA
 
-全部取自 MuJoCo Menagerie，**\`${MENAGERIE_SHA}\`**。
-指向分支的后果不是报错，是来源在脚下变，而 \`check:parts\` 照样 0 错。
-重新取一遍：\`node scripts/harvest.mjs --adopt\`。
+三个仓库，各钉一串 SHA：
 
-| 来源 | 版权 | 授权 | 附加条件 |
-|---|---|---|---|
-${Object.values(ORIGINS).map((o) => `| ${o.robot} | ${o.holder} | ${o.license} | ${o.caveat} |`).join('\n')}
+- MuJoCo Menagerie **\`${MENAGERIE_SHA}\`**
+- RobotLocomotion/models **\`${RLG_SHA}\`**
+- limxdynamics/tron1-robot-description **\`${LIMX_SHA}\`**
+
+指向分支的后果不是报错，是来源在脚下变，而 \`check:parts\` 照样 0 错。
+重新取一遍：\`node scripts/harvest.mjs --adopt\`（只取某几个物种：\`--adopt --family=athlete,wheelleg\`）。
+
+| 来源 | 仓库 | 版权 | 授权 | 附加条件 |
+|---|---|---|---|---|
+${Object.values(ORIGINS).map((o) => `| ${o.robot} | ${repoOf(o)} | ${o.holder} | ${o.license} | ${o.caveat} |`).join('\n')}
 
 **非背书条款是真的。** 说「这是 G1 的躯干几何」是描述，可以；
-暗示 Unitree / ANYbotics 与本作品有合作或赞助关系，不行。本作品与上述任何公司无关。
+暗示 Unitree / ANYbotics / Boston Dynamics / MIT / Hello Robot / LimX 与本作品有合作或赞助关系，不行。
+本作品与上述任何公司或机构无关。**代用件就写代用**：\`wheelleg\` 身上是 WL_P311D 不是 W1，
+\`digitigrade\` 身上是 Cassie 不是 Digit，\`athlete\` 身上是 DRC 那一代 Atlas 的描述模型。
 
 ## 我们做了什么改动
 
@@ -555,7 +668,7 @@ ${rows}
 
 ## 被换下来的生成件（${retired.length} 件）
 
-这三个物种原来的 Rodin 生成件**文件一件都没删**，还在 \`assets/parts/\` 里，
+这些物种原来的 Rodin 生成件**文件一件都没删**，还在 \`assets/parts/\` 里，
 只是不再进 \`parts.json\`（规则在 \`packages/factory/src/index-parts.ts\`：
 一个物种只要有一件真实网格，它的生成件就整批不进索引）。
 
