@@ -12,12 +12,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  borrowDistance, buildSchedule, createTheseus, quietSlotKeys, scaleDrift, slotWeights,
+  borrowDistance, buildSchedule, createTheseus, movementOfEvent, quietSlotKeys, scaleDrift,
+  slotWeights,
 } from '../src/theseus.ts';
 import type { TheseusMachine, TheseusReplacement } from '../src/theseus.ts';
 import { ARC, FRAMING, MORPH, THESEUS } from '../src/tuning.ts';
 import { ALL_SLOT_KEYS } from '../src/slots.ts';
-import { createArc } from '../src/arc.ts';
+import { createArc, movementBounds } from '../src/arc.ts';
 import { mulberry32 } from '../src/rng.ts';
 
 const DT = 1 / 60;
@@ -36,6 +37,8 @@ interface RunResult {
 function session(seed: number, seconds = ARC.total, opt: {
   present?: boolean;
   energy?: Record<string, number> | null;
+  /** 整具身体的运动量（`MotionFeatures.energy`）。不给 = 站着不动 */
+  overallEnergy?: number;
   rate?: number;
 } = {}): RunResult {
   const present = opt.present ?? true;
@@ -46,7 +49,9 @@ function session(seed: number, seconds = ARC.total, opt: {
   let maxInFlight = 0;
   for (let i = 0; i < Math.round(seconds / DT); i++) {
     const a = arc.update(present, DT);
-    const s = t.update({ elapsed: a.elapsed, present, energy: opt.energy ?? null }, DT);
+    const s = t.update({
+      elapsed: a.elapsed, present, energy: opt.energy ?? null, overallEnergy: opt.overallEnergy,
+    }, DT);
     if (s.fired) fired.push(s.fired);
     if (s.inFlight > maxInFlight) maxInFlight = s.inFlight;
     borrow.push(s.borrowDistance);
@@ -204,6 +209,127 @@ test('theseus: 它拿走你正在用的那一部分 —— motionBias 的方向�
   assert.ok(w[iR] > w[iL],
     `动得最多的 handR 权重 ${w[iR]} 不高于没动的 handL ${w[iL]} —— motionBias 的方向反了`);
   assert.ok(Math.abs(w[iR] / w[iL] - (1 + THESEUS.motionBiasGain)) < 1e-6);
+});
+
+// ── §3 的裁定：动作**也**改速率（`motionRateGain`）────────────────────────────
+//
+// 实测出来的 `MotionFeatures.energy`（合成骨架，1.7m，60fps）：
+//   完全静止 0.000 · 轻微自然晃动 0.014 · 单手挥 1.5Hz 0.185 ·
+//   整具左右摇摆 0.25m 0.286 · 双臂 2Hz 大幅挥手 0.774
+// 所以"一个真的在动的人"读的是 0.3 上下，不是几。下面的能量取值全从这张表来。
+const STILL = 0;
+const ENERGETIC = 0.3;      // 参考值：也正好是 MOTION.stillnessSpeedRef
+const FLAILING = 5;         // 比实测最大值（0.77）还大六倍 —— "一直在蹦的人"的上界
+
+const FIRST_BOUND = movementBounds(ARC.total, ARC.beats)[0];
+
+test('theseus: 站着不动的人走的是基准速率，不是更慢的 —— 裁定的第 1 条硬线', () => {
+  // ⚠️ 这一条的基准**必须**是 `buildSchedule` 排出来的那张表，不能是"另一种写法的
+  // 站着不动"。第一版写的是"不喂运动量"和"喂 0"两条路对比 —— 它们当然一致，
+  // 于是把"加速项给每个人都白送一点"这种改法照样放过去了（实测：变异之后全绿）。
+  // 排期表是唯一一个不受加速项影响的参照物，所以对比只能对着它。
+  for (const seed of [3, 17, 400]) {
+    for (const e of [undefined, STILL]) {
+      const { fired, machine } = session(seed, ARC.total, { overallEnergy: e });
+      const plan = machine.schedule;
+      assert.equal(fired.length, plan.length, `seed ${seed} energy=${e}`);
+      for (let i = 0; i < fired.length; i++) {
+        // 不早于排期：加速项在站着不动的人身上必须是恒等
+        assert.ok(fired[i].at >= plan[i] - 1e-9,
+          `seed ${seed} energy=${e}: 第 ${i + 1} 件排在 ${plan[i].toFixed(3)}s，` +
+          `却在 ${fired[i].at.toFixed(3)}s 就换了 —— 站着不动的人被加速了`);
+        // 也不晚于排期（帧量化 + minGap 复位最多差几帧）：**加速只能加，不能减**
+        assert.ok(fired[i].at <= plan[i] + 3 * DT,
+          `seed ${seed} energy=${e}: 第 ${i + 1} 件排在 ${plan[i].toFixed(3)}s，` +
+          `拖到 ${fired[i].at.toFixed(3)}s 才换 —— 站着不动的人走的是更慢的速率`);
+      }
+      assert.ok(fired.length >= 25, `seed ${seed}: 只换了 ${fired.length} 件`);
+      assert.equal(ALL_SLOT_KEYS.filter((k) => machine.isReplaced(k)).length, 18, `seed ${seed}`);
+    }
+  }
+});
+
+test('theseus: 一直在蹦的人也不会在第一乐章里被拆光 —— 裁定的第 2 条硬线', () => {
+  for (let seed = 1; seed <= 30; seed++) {
+    const hot = session(seed, ARC.total, { overallEnergy: FLAILING });
+    const cold = session(seed, ARC.total, { overallEnergy: STILL });
+
+    // ⚠️ 先钉住"这一条看得见它要看的东西"。docs/44 §10.5 里两道绿着的坏闸
+    // 都是栽在这一步上的：不先证明加速真的在这一场里发生过，
+    // 下面那个上限就可能只是在断言"加速根本没接上"。
+    const hotLast = hot.fired[hot.fired.length - 1].at;
+    const coldLast = cold.fired[cold.fired.length - 1].at;
+    assert.ok(hotLast < coldLast - 10,
+      `seed ${seed}: 一直在蹦也只把最后一件从 ${coldLast.toFixed(1)}s 提到 ${hotLast.toFixed(1)}s —— ` +
+      '加速没在这一场里生效，下面的上限断言等于没断言');
+
+    const inFirst = hot.fired.filter((f) => f.at < FIRST_BOUND).length;
+    assert.ok(inFirst <= THESEUS.perBeat[0],
+      `seed ${seed}: 第一乐章里换了 ${inFirst} 件（额度 ${THESEUS.perBeat[0]} 件）—— ` +
+      '"那是我"还没立住就被拆光了（docs/44 §2 / docs/26 §E）');
+    assert.ok(hot.fired[0].at >= THESEUS.graceSeconds,
+      `seed ${seed}: 第一件落在 ${hot.fired[0].at.toFixed(2)}s，加速把宽限挖穿了`);
+    // 加速只改疏密，不改总数，也不改"一件原件都不剩"
+    // （个别种子的基准排期本来就只有 25 件 —— 第 26 件被 minGap 推出 180 秒之外，
+    //  在 `buildSchedule` 里就丢掉了。所以这里比的是"和站着不动的人一样多"，
+    //  而不是硬写 26：那是排期的性质，不是加速的性质）
+    assert.equal(hot.fired.length, cold.fired.length, `seed ${seed}: 加速把件数改了`);
+    assert.equal(ALL_SLOT_KEYS.filter((k) => hot.machine.isReplaced(k)).length, 18, `seed ${seed}`);
+    // 密了也不许下暴雨：minGap 和三件并发那两道闸照样管用
+    assert.ok(hot.maxInFlight <= THESEUS.maxConcurrent, `seed ${seed}`);
+    for (let i = 1; i < hot.fired.length; i++) {
+      assert.ok(hot.fired[i].at - hot.fired[i - 1].at >= THESEUS.minGap - 1e-6, `seed ${seed} 第 ${i} 件`);
+    }
+  }
+});
+
+test('theseus: 加速是单调的 —— 动得越多，排期只会更早，一件都不会更晚', () => {
+  const ladder = [STILL, 0.185, ENERGETIC, 0.774, FLAILING];
+  for (let seed = 1; seed <= 12; seed++) {
+    const runs = ladder.map((e) => session(seed, ARC.total, { overallEnergy: e }).fired);
+    const n = runs[0].length;
+    for (const r of runs) assert.equal(r.length, n, `seed ${seed}: 加速把件数改了`);
+    for (let i = 1; i < ladder.length; i++) {
+      for (let k = 0; k < n; k++) {
+        assert.ok(runs[i][k].at <= runs[i - 1][k].at + 1e-6,
+          `seed ${seed}: energy 从 ${ladder[i - 1]} 提到 ${ladder[i]} 之后，` +
+          `第 ${k + 1} 件反而从 ${runs[i - 1][k].at.toFixed(2)}s 退到 ${runs[i][k].at.toFixed(2)}s —— ` +
+          '加速项减速了');
+      }
+    }
+    // 阶梯顶端必须真的动过，否则上面那串 `<=` 在"加速完全没接"时也全绿
+    assert.ok(runs[ladder.length - 1][n - 1].at < runs[0][n - 1].at - 10,
+      `seed ${seed}: 整条阶梯一动没动`);
+  }
+});
+
+test('theseus: 倍速就是 1 + motionRateGain × energy —— 0.8 这个数的来路本身', () => {
+  // §2 那张表里最小的一档：III 段 5.6s/件 → IV 段 4.5s/件。
+  // 动得多的人在一段之内体验到的应该是**下一段的疏密**，不是这条线里没有过的节奏。
+  const want = 1 + THESEUS.motionRateGain * ENERGETIC;
+  assert.ok(Math.abs(want - 5.6 / 4.5) < 0.02,
+    `motionRateGain=${THESEUS.motionRateGain} 在 energy=0.3 时给出 ${want.toFixed(3)} 倍速，` +
+    `而 §2 那张表的 III→IV 是 ${(5.6 / 4.5).toFixed(3)} 倍 —— 数和它的理由对不上了`);
+
+  // 再从行为上验一遍：一段之内，每一件距段首的偏移被压成 1/倍速
+  const bounds = movementBounds(ARC.total, ARC.beats);
+  const floorOf = (k: number) => Math.max(THESEUS.graceSeconds, k <= 0 ? 0 : bounds[k - 1]);
+  const ratios: number[] = [];
+  for (let seed = 1; seed <= 10; seed++) {
+    const hot = session(seed, ARC.total, { overallEnergy: ENERGETIC }).fired;
+    const cold = session(seed, ARC.total, { overallEnergy: STILL }).fired;
+    for (let i = 0; i < cold.length; i++) {
+      const floor = floorOf(movementOfEvent(i));
+      const base = cold[i].at - floor;
+      if (base < 8) continue;              // 贴着段首的那几件偏移太小，比值全是量化噪声
+      ratios.push((hot[i].at - floor) / base);
+    }
+  }
+  const mean = ratios.reduce((a, b) => a + b, 0) / ratios.length;
+  assert.ok(ratios.length > 50, `只取到 ${ratios.length} 个样本`);
+  assert.ok(Math.abs(mean - 1 / want) < 0.03,
+    `一段之内的偏移被压成了 ${mean.toFixed(3)}，而 1/(1+${THESEUS.motionRateGain}×${ENERGETIC}) = ` +
+    `${(1 / want).toFixed(3)} —— 加速的**强度**和 tuning 里写的那个数对不上`);
 });
 
 // ── §10 第 5 条 ──────────────────────────────────────────────────────────────
