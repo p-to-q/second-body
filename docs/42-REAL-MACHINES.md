@@ -319,9 +319,9 @@ machine?: {
 ## 8. 取件记录（2026-09-14）—— 「实·有几何」六条全部落地
 
 §7 裁完之后，第一档六条里还剩三条只有路没有件：`athlete` / `manipulator` / `wheelleg`。
-这一节是取件那一轮的记录。落地提交：「adopt real geometry for athlete, wheelleg and manipulator」（件、LICENSE、索引），
-取件代码在它前面几个提交（`harvest.mjs` 的 `ORIGINS` 支持 Menagerie 之外的来源、`.gltf` 外挂 `.bin`、
-一个 link 多份 OBJ），joint 面数上限在它后面一个提交。**Menagerie 的 SHA 没有动**，仍是 `8161bba`。
+这一节是取件那一轮的记录。落地提交：`bbc32ca`（件、LICENSE、索引），
+取件代码在它前面的 `3a46c85` / `c5d5c9d` / `4528e78`（`harvest.mjs` 的 `ORIGINS` 支持 Menagerie 之外的来源、`.gltf` 外挂 `.bin`、
+一个 link 多份 OBJ），joint 面数上限在 `0a64b95` / `71c8007`。**Menagerie 的 SHA 没有动**，仍是 `8161bba`。
 
 ### 授权 —— 在钉住的 SHA 上重新取原文核过
 
