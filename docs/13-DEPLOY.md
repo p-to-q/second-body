@@ -189,10 +189,11 @@ Upstash for Redis → Create，区域选离 `useeme.ptoq.io` 的读者最近的�
 
 ## 6. 上线检查单
 
-> 2026-09-14 过了一遍，证据在每一条后面。本机 headless Chrome 跑的是 `main@5e1f97d` 的 `npm run build`，
-> 线上 `useeme.ptoq.io` 的入口 `main-19JEOrZT.js` 与这一版逐字相同。**没有真人、没有真摄像头、没有真 GPU 的那几条照实写了没验。**
+> 2026-09-14 过了两遍，证据在每一条后面。第一遍是 `main@5e1f97d`；第二遍是乐章边界、读数、控件三条合并之后的 main
+> （首屏 98 个请求 2.06 MB、无摄像头权限 0 错、无 WebGPU 0 错，结论与第一遍相同）。线上入口与推上去的构建逐字相同时才算过。
+> **没有真人、没有真摄像头、没有真 GPU 的那几条照实写了没验。**
 
-- [x] `npm run check` 通过 —— core 222/0，app 399/0，check:parts 247 件 0 错
+- [x] `npm run check` 通过 —— 第二遍：core 227/0，app 436/0，check:parts 247 件 0 错
 - [x] `dist` 首屏 < 3 MB —— 走完标签页 → 选择页 → 舞台，100 个请求 2.06 MB
 - [x] 部件真的解出来了 —— meshopt 测试是门，过了。**没验**：线上 `?debug=1` 的 loaded 数（headless 没有真 GPU）
 - [x] 无摄像头权限时不白屏 —— **行为和这一条原文不同，以代码为准**：不进 demo 回放，舞台照常跑，
