@@ -58,7 +58,7 @@ import { mountLoading } from './shell/loading.ts';
 import { showNotice } from './shell/notice.ts';
 import { isVacantPosition, vacancyOnShow } from './shell/vacancy.ts';
 import { mountNav } from './ui/nav.ts';
-import { announceStageShown, registerFreezable } from './ui/page-transition.ts';
+import { announceStageShown, registerFreezable, revealSettled } from './ui/page-transition.ts';
 import { adoptPrepaint } from './choose/ring/first-screen.ts';
 import { mountControls, type Controls } from './ui/controls.ts';
 import { cornerColumn } from './ui/corner.ts';
@@ -112,6 +112,9 @@ async function boot(): Promise<void> {
   //
   // **它必须在目录之前建**：目录要不要挂上来就铺开，答案就是"展签在不在"，
   // 而那个答案只有它知道。用它的返回值，不要在这里把它的条件重写一遍。
+  // 从别的页淡进来的那 240ms 里不起 WebGPU（环在 mountEntry 里、舞台在下面）：着色器编译卡住合成器，
+  // 淡入就一帧都画不出来（docs/47 §4.3）。没有过渡时当场落定，现场开机不受影响
+  await revealSettled();
   const entry = mountEntry(flags);
 
   // 右上角那一列：目录 → 设置 → 控件，三节同流（`ui/corner.ts`）。

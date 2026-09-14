@@ -17,7 +17,7 @@
  * 不支持的浏览器上这些调用全不存在，每一跳退回一刀切 —— 第一帧的底色仍然是对的。
  */
 import {
-  HANDOFF_WAIT_MS, SETTLE_MS, SHARED_ATTR, SHARED_NAME, speculationRules, surfaceOf, transitionFor,
+  HANDOFF_WAIT_MS, SETTLE_MS, SHARED_ATTR, SHARED_NAME, framesSteady, speculationRules, surfaceOf, transitionFor,
   type Shared, type Transition,
 } from './transitions.ts';
 
@@ -248,13 +248,33 @@ export function morph(from: HTMLElement, to: Shared, update: () => void): boolea
   return true;
 }
 
+/**
+ * 这一页的跨页过渡落定了（或者根本没有）。`index.html` 行内那几行在第一帧之前就开始记；
+ * 别的页没有那几行，当场落定。**只推迟 GPU 那一类重活**，DOM 照常建 —— 它本来就在过渡底下长出来。
+ */
+export function revealSettled(): Promise<void> {
+  return (globalThis as { sbRevealSettled?: Promise<void> }).sbRevealSettled ?? Promise.resolve();
+}
+
 let shownResolve: () => void = () => {};
 const shown = new Promise<void>((resolve) => { shownResolve = resolve; });
 
-/** 舞台的帧循环已经开跑：再过两帧（第一帧真的交到屏幕上）就算"画出来了" */
+/**
+ * 舞台的帧循环已经开跑：从这里看帧间隔，稳住了（`framesSteady`）才算"画出来了"。
+ * 只**看**帧，不参与帧循环 —— 一个并排的 rAF，稳住或数满 `STEADY_GIVE_UP` 帧就停。
+ */
+const STEADY_GIVE_UP = 240;
 export function announceStageShown(): void {
   if (typeof requestAnimationFrame !== 'function') { shownResolve(); return; }
-  requestAnimationFrame(() => requestAnimationFrame(() => shownResolve()));
+  const dts: number[] = [];
+  let last = -1;
+  const tick = (now: number): void => {
+    if (last >= 0) dts.push(now - last);
+    last = now;
+    if (framesSteady(dts) || dts.length >= STEADY_GIVE_UP) { shownResolve(); return; }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
 }
 
 /** 舞台画出来了，或者等满 `capMs` —— 先到哪个算哪个。交棒不许依赖舞台起得来 */

@@ -54,6 +54,22 @@ export const SETTLE_MS = MOTION.moveMs * 3;
 export const HANDOFF_WAIT_MS = 5000;
 
 /**
+ * 舞台"画稳了"：连续这么多帧、每帧间隔都不超过 `STEADY_FRAME_MS`。
+ *
+ * 为什么不是"画出第一帧"就交棒（docs/47 §4.3）：舞台头几帧在编译着色器，一帧几百毫秒，
+ * GPU 进程被占住，合成器跟着停 —— 240ms 的淡入在有头 Chrome 上一帧都没画出来，读作一刀切。
+ * 等到帧间隔稳在 30fps 以内再交，卡片多停几百毫秒，换来的是淡入真的被画出来。
+ */
+export const STEADY_FRAMES = 3;
+export const STEADY_FRAME_MS = 34;
+
+/** 最近几帧的间隔（毫秒，按时间先后）够不够稳。纯函数 */
+export function framesSteady(intervals: readonly number[]): boolean {
+  if (intervals.length < STEADY_FRAMES) return false;
+  return intervals.slice(-STEADY_FRAMES).every((dt) => dt > 0 && dt <= STEADY_FRAME_MS);
+}
+
+/**
  * 站里的几种面。`label` 包括展签和选择页（同一个文档里的两个阶段，底色都是纸），
  * `kiosk` 是现场模式下的选择页，`stage` 是舞台（URL 里有 `theme`）。
  */
