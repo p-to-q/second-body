@@ -112,6 +112,7 @@ test('回到大厅落在选择页，不是展签；仍然不问摄像头（回�
   const { hallSearch } = await import('../src/ui/exits-url.ts');
   const q = new URLSearchParams(hallSearch('?theme=xeno&scene=tide', {
     species: 'xeno', form: null, scene: 'tide', act: null, outline: false, vitality: true, refine: true, post: true, sound: true,
+    framing: 'auto',
   }));
   assert.equal(q.get('hall'), '1');
   assert.equal(q.get('theme'), null);
