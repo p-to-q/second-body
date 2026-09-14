@@ -420,7 +420,8 @@ async function boot(): Promise<void> {
   // 和 `bodyPlan` 同一条路数 —— 「线」这个物种的辨识度全在那一圈描边上，
   // 而描边是着色属性不是几何属性（docs/12），所以它只能在这里被决定。
   let shading: ShadingId = resolveShading(theme, flags.shading);
-  const creature = createCreature({ library, shading });
+  // 忒修斯开着时给替换空着一个交接名额：它当帧开始、不排队，名额满了就只能越过 draw call 预算叠上去
+  const creature = createCreature({ library, shading, replaceSlots: flags.theseus.on ? 1 : 0 });
   const massBody = isMass ? createMassBody({ library, theme: theme ?? undefined }) : null;
   const swarmBody = isSwarm ? createSwarmBody({ library, theme: theme ?? undefined }) : null;
   // 开场那一具：tier 0 是一个还没分化出零件的团块，tier ≥ 1 才长出刚体件。

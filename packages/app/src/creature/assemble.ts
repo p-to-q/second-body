@@ -51,6 +51,12 @@ export interface SlotRender {
   /** 垂直于轴向外挪多少米，方向由 `angle`（绕轴的弧度）定。墨屑用它散开 */
   lateral?: number;
   angle?: number;
+  /**
+   * 只画在 `JOINT_CAPS` 下标落在 `[lo, hi)` 里的那几处盖片上（骨头件忽略）。
+   * 缺省 = 每一处都画。关节那一格的交接是一道**波**，不是十三处同时交接 ——
+   * 同时交接会把那一格的实例和面数一起乘上去（`replace-event.ts` 的 `waveRenders`）。
+   */
+  caps?: readonly [number, number];
 }
 
 /** 垂直于 `dir` 的一个方向，绕轴转 `angle`。退化（dir 贴着 Z）时换一根参考轴 */
@@ -273,7 +279,8 @@ function place(
   const pelvis = joints['pelvis'] ?? [0, 0, 0];
   const jointRenders = opt.render?.['joint'] ?? defaultRender(genome, 'joint');
 
-  for (const capDef of JOINT_CAPS) {
+  for (let ci = 0; ci < JOINT_CAPS.length; ci++) {
+    const capDef = JOINT_CAPS[ci];
     if (out.length >= cap) return out;
     const p = joints[capDef.joint];
     if (!p) continue;
@@ -293,6 +300,7 @@ function place(
 
     for (const r of jointRenders) {
       if (out.length >= cap) return out;
+      if (r.caps && (ci < r.caps[0] || ci >= r.caps[1])) continue;
       const meta = lib.metaOf(r.partId);
       const s = Math.max(0, Math.min(1, finite(r.scale ?? 1, 1)));
       if (s <= 1e-3) continue;

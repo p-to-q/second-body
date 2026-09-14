@@ -93,6 +93,13 @@ export interface BorrowRequest {
   /** 慢回路为这个观众生成、已经到货的件（d4 池）。空 = d4 退回 d3 */
   grown?: readonly PartMeta[];
   curve?: readonly number[];
+  /**
+   * 调用方的预算否决：返回 false 的候选件**五个圈里都不出现**（d0 也一样）。
+   * core 不知道一件件会被画成几个实例、替换那一下要叠几份 —— 那是 app 的事
+   * （`app/src/creature/swap-budget.ts`）。缺省 = 不设这道门。
+   * 否决掉的件只是"不在池子里"，退路顺序照旧；全否掉 = 这一件不发生（P3）。
+   */
+  admit?: (candidate: PartMeta) => boolean;
 }
 
 export interface BorrowChoice {
@@ -121,7 +128,8 @@ export function borrowPools(req: Omit<BorrowRequest, 'overall' | 'seed' | 'curve
 
   const ok = (p: PartMeta): boolean =>
     !!p && typeof p.id === 'string' && p.slot === slot && fin(p.tier, 99) <= tier
-    && !p.id.startsWith(PLACEHOLDER_PREFIX) && p.id !== current && !rejected?.has(p.id);
+    && !p.id.startsWith(PLACEHOLDER_PREFIX) && p.id !== current && !rejected?.has(p.id)
+    && (!req.admit || req.admit(p));
 
   // girth 越界件（docs/26 §H，唯一定义在 `girth.ts`，check:parts 读的是同一份）：
   // **只留给它自己的物种**。借出去它就在每一个物种身上按比例放大 —— 一条被圈在

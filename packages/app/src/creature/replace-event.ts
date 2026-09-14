@@ -2,20 +2,23 @@
  * 忒修斯替换那一下**长什么样**（`docs/44-THESEUS.md` §7）。纯函数：不碰 three，只出 `SlotRender[]`。
  *
  *   1. 旧件碎开：几片墨屑（旧件自己的几何，缩小）从骨轴向外散、缩没；
- *   2. 新件装上：**原样**是 graft 的组装动画 —— `graftCurve()` 就是 `creature.ts` 里
- *      交叉淡入的那一半新件，这里不另画一条曲线；
+ *   2. 新件装上：**原样**是 graft 的组装动画 —— `graftCurve()` 就是交叉淡入里新件那一半，
+ *      这里不另画一条曲线（`crossfadeRenders` 也调它）；
  *   3. **描边不断**：旧件的"芯"保持原大，直到新件长到八成以上才让位。
  *      描边是每个实例自己的外壳，互相重叠的实例外壳彼此遮住，只剩并集的外沿 ——
  *      所以只要这一格在任何一刻都有一件足够大的实体，轮廓就是连续的。
  *      交叉淡入做不到这一点：中点两件各剩一半大，轮廓在那一刻塌成一个洞。
  *
- * 为什么是同一个桶里的实例而不是一个新网格：描边模式 36/40 draw call，
- * 墨屑用旧件的桶，新件本来就要一个桶 —— 这一下的 draw call 和交叉淡入完全一样。
- * 实例数会涨（关节盖片那一格涨得最多），上限写在 `THESEUS.shards` 的注释里。
+ * **这一下的预算**（`swap-budget.ts` 算，`test/swap-budget.test.ts` 守）：
+ *  - draw call：墨屑和芯用旧件的桶，新件本来就要一个桶 —— 和交叉淡入一样**加一个桶**。
+ *    描边模式下 18 桶已经是 36/40，所以同时在交接的件数上限是 2，不是 3。
+ *  - 面数：一件实例的面数和它画得多大**无关**，0.42 倍的墨屑也是整件几何。
+ *    骨头件那一格最坏是 1 + 片数 + 1 份几何；关节那一格是一道波（`waveRenders`），
+ *    任何一刻只有 `THESEUS.jointWave` 处在交接 —— 十三处同时交接曾把 porcelain 推到 338k / 250k。
  */
 import { MORPH, THESEUS } from '../../../core/src/tuning.ts';
 import type { SlotKey, SlotPick } from '../../../core/src/types.ts';
-import type { SlotRender } from './assemble.ts';
+import { JOINT_CAPS, type SlotRender } from './assemble.ts';
 
 /**
  * 替换那一下有多长（秒）。**就是 graft 的组装动画的长度**，不另立一个数；
@@ -26,7 +29,7 @@ export const REPLACE_SECONDS = MORPH.crossfade;
 const clamp01 = (x: number): number => (x < 0 ? 0 : x > 1 ? 1 : x);
 const smoothstep = (x: number): number => { const t = clamp01(x); return t * t * (3 - 2 * t); };
 
-/** graft 的组装动画（`creature.ts` 交叉淡入里新件那一半）：从轴向外 `assembleOffset` 吸附回位 */
+/** graft 的组装动画（交叉淡入里新件那一半）：从轴向外 `assembleOffset` 吸附回位 */
 export function graftCurve(t: number): { scale: number; offset: number } {
   const u = smoothstep(t);
   return { scale: u, offset: (1 - u) * MORPH.assembleOffset };
@@ -57,22 +60,59 @@ export function shardAt(t: number): { scale: number; lateral: number } {
   };
 }
 
-/** 一件骨头件碎几片；关节盖片每一处 1 片（实例上限，见 `THESEUS.shards`） */
+/** 一件骨头件碎几片；关节盖片每一处 1 片 */
 export const shardCount = (key: SlotKey): number =>
   key === 'joint' ? 1 : Math.max(0, Math.floor(THESEUS.shards));
 
 /** 黄金角：几片墨屑绕骨轴散开时互不重叠，而且不需要随机数（P1） */
 const GOLDEN = Math.PI * (3 - Math.sqrt(5));
 
+/** 一次交接波及几处：关节那一格是全部盖片，骨头件是它自己一件 */
+const JOINT_COUNT = JOINT_CAPS.length;
+
 /**
- * t ∈ [0,1] 时这一格要画的全部实例。`pres` 是在场缩放（和交叉淡入同一个乘法）。
- * 顺序：芯、墨屑、新件。
+ * 关节波里第 `i` 处（共 `n` 处）在总进度 t 时的局部进度。
+ * 波前走过 `n - 1 + w` 个单位：第 i 处在 [i, i + w] 那一段里从 0 走到 1，
+ * 于是任何一刻落在 (0, 1) 里的最多 `w` 处。t = 0 全是旧件，t = 1 全是新件。
  */
-export function replaceRenders(
-  key: SlotKey, from: SlotPick | null, to: SlotPick, t: number, pres = 1,
+export function capPhase(i: number, n: number, t: number, w = THESEUS.jointWave): number {
+  const width = Math.max(1, Math.min(n, Math.floor(Number.isFinite(w) ? w : 1)));
+  return clamp01((clamp01(t) * (n - 1 + width) - i) / width);
+}
+
+/**
+ * 把"一处"的交接铺成一道波：交接完的一段画新件、没轮到的一段画旧件，
+ * 正在交接的每一处单独画 `at(局部进度)`。每一条都带 `caps` 区间，`assemble()` 按它过滤。
+ */
+function waveRenders(
+  t: number, from: SlotPick | null, to: SlotPick, pres: number,
+  at: (u: number) => SlotRender[],
+): SlotRender[] {
+  const out: SlotRender[] = [];
+  const n = JOINT_COUNT;
+  let i = 0;
+  while (i < n) {
+    const u = capPhase(i, n, t);
+    let j = i + 1;
+    let list: SlotRender[];
+    if (u <= 0 || u >= 1) {
+      while (j < n && capPhase(j, n, t) === u) j++;
+      const pick = u <= 0 ? from : to;
+      list = pick ? [{ partId: pick.partId, materialRole: pick.materialRole, scale: pres }] : [];
+    } else {
+      list = at(u);
+    }
+    for (const r of list) out.push({ ...r, caps: [i, j] });
+    i = j;
+  }
+  return out;
+}
+
+/** 一处（一件骨头件，或一处盖片）的替换：芯、墨屑、新件 */
+function replaceOne(
+  key: SlotKey, from: SlotPick | null, to: SlotPick, tt: number, pres: number,
 ): SlotRender[] {
   const list: SlotRender[] = [];
-  const tt = clamp01(t);
   if (from) {
     const core = coreScale(tt);
     if (core > 0) list.push({ partId: from.partId, materialRole: from.materialRole, scale: core * pres });
@@ -94,4 +134,38 @@ export function replaceRenders(
   const g = graftCurve(tt);
   list.push({ partId: to.partId, materialRole: to.materialRole, scale: g.scale * pres, offset: g.offset });
   return list;
+}
+
+/**
+ * t ∈ [0,1] 时这一格要画的全部实例。`pres` 是在场缩放（和交叉淡入同一个乘法）。
+ * 顺序：芯、墨屑、新件。关节那一格是一道波，见 `capPhase`。
+ */
+export function replaceRenders(
+  key: SlotKey, from: SlotPick | null, to: SlotPick, t: number, pres = 1,
+): SlotRender[] {
+  const tt = clamp01(t);
+  if (key === 'joint') return waveRenders(tt, from, to, pres, (u) => replaceOne(key, from, to, u, pres));
+  return replaceOne(key, from, to, tt, pres);
+}
+
+/** 一处的交叉淡入：旧件缩没、新件走 graft 的组装曲线 */
+function crossfadeOne(from: SlotPick | null, to: SlotPick, tt: number, pres: number): SlotRender[] {
+  const list: SlotRender[] = [];
+  if (from) list.push({ partId: from.partId, materialRole: from.materialRole, scale: (1 - smoothstep(tt)) * pres });
+  const g = graftCurve(tt);
+  list.push({ partId: to.partId, materialRole: to.materialRole, scale: g.scale * pres, offset: g.offset });
+  return list;
+}
+
+/**
+ * 升档 / 慢回路 / 降级走的交叉淡入（`creature.remorph()` / `graft()`）。
+ * 从 `creature.ts` 里搬出来，是为了预算守卫能数到它真实画了几份几何 ——
+ * 关节那一格和替换一样是一道波：十三处同时交叉淡入是 26 份几何。
+ */
+export function crossfadeRenders(
+  key: SlotKey, from: SlotPick | null, to: SlotPick, t: number, pres = 1,
+): SlotRender[] {
+  const tt = clamp01(t);
+  if (key === 'joint') return waveRenders(tt, from, to, pres, (u) => crossfadeOne(from, to, u, pres));
+  return crossfadeOne(from, to, tt, pres);
 }
