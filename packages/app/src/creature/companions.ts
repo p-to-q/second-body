@@ -69,6 +69,8 @@ export interface CompanionResult {
   primaryX: number;
   /** 台上身体（主 + 伴随，含正在溶掉的）横向占多宽（米），给舞台取景 */
   groupWidth: number;
+  /** 伴随身体里最高那一具的头顶高度（米）。没有伴随身体 = 0 */
+  groupHeight: number;
   /** 此刻在台上的身体数（含正在溶掉的） */
   visible: number;
 }
@@ -138,6 +140,11 @@ export function createCompanions(opts: { seed: () => number }): Companions {
         const detected = bodied.has(id) && !!t && t.missing === 0;
         const p = e.presence.update(detected, dt);
         if (detected && t) {
+          // 丢了一阵又被认回来：这个人的时间状态清掉，不在"之前"和"之后"之间插值（和主身体同一条，docs/50 §2.4）
+          if (t.reacquired) {
+            e.pipes.refiner?.reset(); e.pipes.stabilizer.reset(); e.pipes.vitality.reset();
+            e.motion.reset(); e.classifier.reset(); e.legHold = 0;
+          }
           const raw = t.pose;
           const cooked = e.pipes.refiner && ctx.refineOn ? e.pipes.refiner.apply(raw, dt) : raw;
           const tracked = e.pipes.stabilizer.apply(buildSkeleton(mediapipeToWorld(cooked), cooked.world, cooked.t), dt);
@@ -165,14 +172,24 @@ export function createCompanions(opts: { seed: () => number }): Companions {
       const companions: Companion[] = [];
       // 舞台取景的包围盒按左右对称算（`stage/framing.ts`），所以宽度 = 离中线最远那一具 × 2 + 一个身位
       let far = Math.abs(primaryX.x);
+      let tall = 0;
       view.clear();
       for (const e of entries.values()) {
         view.set(e.id, { presence: e.retiring >= 0 ? 'LEAVING' : e.presence.current.state, legHold: e.legHold, x: e.x.x });
         if (!e.skeleton || e.id === frame.primary) continue;
         companions.push(e.companion);
         far = Math.max(far, Math.abs(e.x.x));
+        for (const k in e.skeleton.joints) {
+          const y = e.skeleton.joints[k][1];
+          if (Number.isFinite(y) && y > tall) tall = y;
+        }
       }
-      return { companions, primaryX: primaryX.x, groupWidth: companions.length ? 2 * far + PEOPLE.minGap : 0, visible: 1 + companions.length };
+      return {
+        companions, primaryX: primaryX.x,
+        groupWidth: companions.length ? 2 * far + PEOPLE.minGap : 0,
+        groupHeight: companions.length ? tall : 0,
+        visible: 1 + companions.length,
+      };
     },
     takePipes(id) {
       const e = entries.get(id);

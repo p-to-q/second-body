@@ -168,6 +168,31 @@ test('走出画面 2 秒又回来（原地附近）：还是原来的 id；走�
   assert.notEqual(gone[gone.length - 1].primary, gone[20].primary, '墓地过期：下一位是新的人');
 });
 
+test('两个人并排、先后离开又回来（离开的时间有交叠）：id 不串到对方身上', () => {
+  // A 在 0.5，B 在 0.28（中心只隔 ~2 个躯干）。A 在 1.0–2.6s 不见，B 在 1.2–2.8s 不见：两个人同时在墓地里
+  const frames = run(HZ * 5, (_k, t) => {
+    const out: PersonSpec[] = [];
+    if (!(t > 1.0 && t < 2.6)) out.push({ cx: 0.5, s: 0.45, width: 1.0 });
+    if (!(t > 1.2 && t < 2.8)) out.push({ cx: 0.28, s: 0.43, width: 0.9 });
+    return out;
+  }, { cap: 2 });
+  const a = idNear(frames[15], 0.5)!, b = idNear(frames[15], 0.28)!;
+  assert.notEqual(a, b);
+  const end = frames[frames.length - 1];
+  assert.equal(idNear(end, 0.5), a, 'A 回来还是 A');
+  assert.equal(idNear(end, 0.28), b, 'B 回来还是 B');
+});
+
+test('reacquired：丢了一阵又被配上的那一帧为真，其余帧为假', () => {
+  const frames = run(HZ * 3, (_k, t) => (t > 1 && t < 1.5 ? [] : [{ cx: 0.5 }]), { cap: 1 });
+  const flagged = frames.map((f, k) => [k, f.tracks[0]?.reacquired] as const).filter(([, r]) => r);
+  assert.equal(flagged.length, 1, `标了 ${flagged.length} 帧`);
+  assert.ok(Math.abs(flagged[0][0] * DT - 1.5) < 0.1, `第 ${flagged[0][0]} 帧`);
+  // 每 6 帧丢 1 帧（< tentativeGrace）不算：那是抖动，不是一次重新看见
+  const flicker = run(HZ * 2, (k) => (k % 6 === 0 ? [] : [{ cx: 0.5 }]), { cap: 1 });
+  assert.ok(flicker.every((f) => !f.tracks[0]?.reacquired), '单帧丢失不许清掉时间状态');
+});
+
 // ── 谁拿到身体 ─────────────────────────────────────────────────────────────────
 
 test('人数到顶：第四个人擦肩走过，场上三具身体一个都不换', () => {

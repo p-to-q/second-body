@@ -148,6 +148,12 @@ export interface PersonTrack {
   moved: boolean;
   /** 从墓地里认回来的次数 */
   reattached: number;
+  /**
+   * **这一帧**是丢了一阵之后重新配上（丢失超过 `tentativeGrace`，或从墓地认回来）。
+   * 消费者据此清掉这个人的时间状态（姿态时钟、精化、稳定、生命力）：之前和之后之间不许插值 ——
+   * 中间可能隔着一次换姿势，甚至是另一个人被认成了他（docs/50 §2.4）。
+   */
+  reacquired: boolean;
   selected: boolean;
   primary: boolean;
 }
@@ -185,6 +191,7 @@ interface Internal {
   missing: number;
   cost: number;
   reattached: number;
+  reacquired: boolean;
 }
 
 interface Ghost {
@@ -273,7 +280,7 @@ export function createPeopleTracker(opts: { cap?: number; aspect?: number } = {}
       id: nextId++, state: 'tentative', pose: o.pose,
       cx: o.cx, cy: o.cy, vx: 0, vy: 0, scale: o.scale, area: o.area, desc: o.desc,
       birthCx: o.cx, birthCy: o.cy, birthScale: o.scale, birthDesc: o.desc,
-      moved: false, seen: 0, age: 0, missing: 0, cost: Number.NaN, reattached: 0,
+      moved: false, seen: 0, age: 0, missing: 0, cost: Number.NaN, reattached: 0, reacquired: false,
     };
   }
 
@@ -287,6 +294,7 @@ export function createPeopleTracker(opts: { cap?: number; aspect?: number } = {}
       t.vy = lim(t.vy + ((o.cy - t.cy) / span - t.vy) * k);
     } else { t.vx = 0; t.vy = 0; }
     t.cx = o.cx; t.cy = o.cy; t.scale = o.scale; t.area = o.area; t.desc = o.desc; t.pose = o.pose;
+    t.reacquired = t.missing > PEOPLE.tentativeGrace;
     t.missing = 0;
     t.cost = cost;
     t.seen = leak(t.seen, true, dt);
@@ -353,7 +361,7 @@ export function createPeopleTracker(opts: { cap?: number; aspect?: number } = {}
       .slice().sort((a, b) => a.id - b.id)
       .map((t) => ({
         id: t.id, state: t.state, pose: t.pose, cx: t.cx, cy: t.cy, scale: t.scale, area: t.area,
-        age: t.age, missing: t.missing, cost: t.cost, moved: t.moved, reattached: t.reattached,
+        age: t.age, missing: t.missing, cost: t.cost, moved: t.moved, reattached: t.reattached, reacquired: t.reacquired,
         selected: selected.includes(t.id), primary: t.id === primary,
       }));
     current = { tracks: out, selected: selected.slice(), primary };
@@ -388,6 +396,7 @@ export function createPeopleTracker(opts: { cap?: number; aspect?: number } = {}
         if (matchedT.has(i)) { survivors.push(t); return; }
         t.missing += dt;
         t.cost = Number.NaN;
+        t.reacquired = false;
         t.seen = leak(t.seen, false, dt);
         if (t.state === 'tentative') { if (t.missing <= PEOPLE.tentativeGrace) survivors.push(t); return; }
         if (t.missing <= PEOPLE.graceSeconds) { survivors.push(t); return; }
@@ -398,26 +407,35 @@ export function createPeopleTracker(opts: { cap?: number; aspect?: number } = {}
       for (const g of ghosts) g.since += dt;
       ghosts = ghosts.filter((g) => g.since <= PEOPLE.reattachSeconds);
 
-      // 没配上的观测：先去墓地认亲，认不上才是新人
-      obs.forEach((o, i) => {
-        if (matchedO.has(i) || tracks.length >= MAX_TRACKS) return;
-        let bestG = -1, bestD = Infinity;
+      // 没配上的观测：先去墓地认亲，认不上才是新人。
+      // 认亲按**全局**最近的一对先配（不是按观测顺序先到先得）：两个人先后离开又回来时，先回来的那个不许抢走另一个人的 id
+      const free = obs.map((_, i) => i).filter((i) => !matchedO.has(i));
+      const pairs: Array<[number, number, number]> = [];
+      for (const oi of free) {
+        const o = obs[oi];
         ghosts.forEach((g, gi) => {
           const d = Math.hypot((o.cx - g.cx) * aspect, o.cy - g.cy) / Math.max(PEOPLE.minScale, g.scale);
           const r = Math.abs(Math.log(o.scale / Math.max(PEOPLE.minScale, g.scale)));
-          if (d <= PEOPLE.reattachTorso && r <= PEOPLE.gateScale && d < bestD) { bestD = d; bestG = gi; }
+          const p = descriptorDistance(o.desc, g.desc);
+          if (d <= PEOPLE.reattachTorso && r <= PEOPLE.gateScale && !(Number.isFinite(p) && p > PEOPLE.reattachPose)) pairs.push([d, oi, gi]);
         });
-        if (bestG >= 0) {
-          const g = ghosts[bestG];
-          ghosts.splice(bestG, 1);
-          const t = born(o);
-          nextId--;   // 认回来的不占新号
-          Object.assign(t, { id: g.id, state: 'confirmed' as const, moved: g.moved, reattached: g.reattached + 1, seen: PEOPLE.birthSeconds });
-          tracks.push(t);
-        } else {
-          tracks.push(born(o));
-        }
-      });
+      }
+      pairs.sort((a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2]);
+      const usedO = new Set<number>(), usedG = new Set<number>();
+      for (const [, oi, gi] of pairs) {
+        if (usedO.has(oi) || usedG.has(gi) || tracks.length >= MAX_TRACKS) continue;
+        usedO.add(oi); usedG.add(gi);
+        const g = ghosts[gi];
+        const t = born(obs[oi]);
+        nextId--;   // 认回来的不占新号
+        Object.assign(t, { id: g.id, state: 'confirmed' as const, moved: g.moved, reattached: g.reattached + 1, seen: PEOPLE.birthSeconds, reacquired: true });
+        tracks.push(t);
+      }
+      ghosts = ghosts.filter((_, gi) => !usedG.has(gi));
+      for (const oi of free) {
+        if (usedO.has(oi) || tracks.length >= MAX_TRACKS) continue;
+        tracks.push(born(obs[oi]));
+      }
       tracks.sort((a, b) => a.id - b.id);
 
       select(dt);

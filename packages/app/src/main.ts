@@ -759,6 +759,11 @@ async function boot(): Promise<void> {
     const crowd = people ? people.tracker.update(capture.latestAll?.() ?? (capture.latest() ? [capture.latest()!] : []), dt) : null;
     if (people) people.frame = crowd;
     const live = crowd ? (crowd.tracks.find((t) => t.id === crowd.primary && t.missing === 0)?.pose ?? null) : capture.latest();
+    // 主身体的人丢了一阵又被认回来：姿态时钟和滤波器不许在"之前"和"之后"之间插值（docs/50 §2.4）——
+    // 中间可能隔着一次换姿势，甚至是另一个人被认成了他。插过去的结果是一具摊在地上的星形（2026-09-14 无头取证撞到的）
+    if (people && crowd?.tracks.some((t) => t.primary && t.reacquired)) {
+      poseClock.reset(); refiner?.reset(); stabilizer.reset(); vitality.reset();
+    }
     if (people && crowd && crowd.primary !== people.primary) {
       // 交接（docs/50 §3.3）：上一个主身体变成一具正在溶掉的伴随身体，停在他最后的样子和站位上；
       // 接班的人自己那一套滤波器换进主通道（他的身体已经在台上，不从零热身，也不吃上一个人的骨长）
@@ -818,7 +823,7 @@ async function boot(): Promise<void> {
     }) : null;
     if (people) {
       creature.setCompanions(crowdOut?.companions ?? []);
-      stage.setGroupWidth(crowdOut?.groupWidth ?? 0);
+      stage.setGroup(crowdOut?.groupWidth ?? 0, crowdOut?.groupHeight ?? 0);
     }
 
     if (raw) {
@@ -1011,7 +1016,7 @@ async function boot(): Promise<void> {
       groundSense.reset();   // 换了一个人：下一次观测重新立基准，不在进场那一帧砸一下
       swapGate.reset();      // 闸里压着的那件属于上一个人（调速器本身不归零：机器还是那台机器）
       // 多人：所有人都走了才会走到这里（在场判定看的是"任何一具身体的人"）。身份、伴随身体、交接状态一起收
-      if (people) { people.tracker.reset(); people.bodies.reset(); people.primary = null; people.frame = null; creature.setCompanions([]); stage.setGroupWidth(0); }
+      if (people) { people.tracker.reset(); people.bodies.reset(); people.primary = null; people.frame = null; creature.setCompanions([]); stage.setGroup(0, 0); }
       lastSkeleton = null;
       evoTier = 0;
       tier = (flags.tier ?? 0) as Tier;
