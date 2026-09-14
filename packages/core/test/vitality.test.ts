@@ -144,3 +144,49 @@ test('关掉之后原样返回同一个对象 —— A/B 必须是真的关掉',
     assert.equal(v.apply(input, null, 1 / 60), input);
   } finally { (VITALITY as { enabled: boolean }).enabled = was; }
 });
+
+/**
+ * **骨盆在两个水平方向上都不落后，而且贴地不拖着它走 —— 前提是输入守贴地契约。**
+ *
+ * 上面那条「骨盆必须是实时的」只量 x，而且喂的是 `POSE` —— 它经 `buildSkeleton` 之后
+ * 最低的脚在 90mm 高处，是**悬空**的。`vitality` 第 4 步按契约把输出贴回地面，
+ * 整具骨架（连骨盆）往下挪 90mm。那条测试看不见，因为那 90mm 全在 y 上。
+ *
+ * `/dev/vitality.html` 看见了，印成「骨盆落后 90.97 mm（应当 ≈ 0）」，
+ * 侧室那条线据此拒绝过展出那一页（docs/23 §S9.1）。2026-09-14 在 node 里逐帧拆开：
+ * 水平 0.00mm，竖直 = 目标脚悬空的高度 + 约 2mm。真实输入来自稳定器、永远贴地，
+ * 所以线上从来没有那 90mm —— 是靶场的目标不守契约。
+ *
+ * 这一条把拆开的结论钉住：**贴地的**甩臂目标，走 10 秒，骨盆 x/z 都实时、竖直挪动 < 5mm。
+ * 哪天有人让延迟真的漏进骨盆（水平），或者让贴地按错的关节拽（竖直），它会红。
+ */
+test('骨盆 x/z 都实时，贴地不拖着它走 —— 输入按稳定器契约贴地时', () => {
+  const floor = (() => {
+    const j = sk().joints;
+    return Math.min(j.footIdxL[1], j.footIdxR[1], j.ankleL[1], j.ankleR[1]);
+  })();
+  const grounded = (t: number): Skeleton => {
+    const s = Math.sin(t * 2.1);
+    const j: Record<string, Vec3> = {};
+    for (const k in POSE) j[k] = [POSE[k][0], POSE[k][1] - floor, POSE[k][2]];
+    const swing = (k: string, amt: number) => {
+      j[k] = [j[k][0] + s * amt, j[k][1] + Math.abs(s) * amt * 0.5, j[k][2] + s * amt * 0.6];
+    };
+    swing('chest', 0.05); swing('neck', 0.07); swing('headCenter', 0.09);
+    swing('shoulderL', 0.10); swing('elbowL', 0.26); swing('wristL', 0.46); swing('handTipL', 0.52);
+    swing('shoulderR', 0.08); swing('elbowR', 0.20); swing('wristR', 0.36); swing('handTipR', 0.41);
+    return buildSkeleton(j, [], t);
+  };
+  const v = createVitality();
+  let maxH = 0, maxV = 0;
+  for (let i = 1; i <= 600; i++) {
+    const tgt = grounded(i / 60);
+    const out = v.apply(tgt, null, 1 / 60);
+    if (i < 120) continue;
+    const a = out.joints.pelvis, b = tgt.joints.pelvis;
+    maxH = Math.max(maxH, Math.hypot(a[0] - b[0], a[2] - b[2]));
+    maxV = Math.max(maxV, Math.abs(a[1] - b[1]));
+  }
+  assert.ok(maxH < 1e-6, `骨盆水平落后 ${(maxH * 1000).toFixed(3)}mm —— 延迟漏进了根部`);
+  assert.ok(maxV < 0.005, `骨盆竖直挪了 ${(maxV * 1000).toFixed(2)}mm —— 贴地拽错了关节，或者输入没贴地`);
+});
