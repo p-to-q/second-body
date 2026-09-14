@@ -45,6 +45,7 @@ import { enterKiosk, readFlags } from './shell/kiosk.ts';
 import { mountCameraButton, mountEntry } from './shell/entry.ts';
 import { mountLoading } from './shell/loading.ts';
 import { showNotice } from './shell/notice.ts';
+import { isVacantPosition, vacancyOnShow } from './shell/vacancy.ts';
 import { mountNav } from './ui/nav.ts';
 import { mountControls, type Controls } from './ui/controls.ts';
 import { cornerColumn } from './ui/corner.ts';
@@ -67,6 +68,14 @@ const flags = readFlags();
 const PARTS_INDEX_SHARE = 0.15;
 
 async function boot(): Promise<void> {
+  // ── 0−. 点名的是一个**故意空着的位置** ───────────────────────────────────
+  // 不是拼错的 id（那一类照家规当没写过，见下面第 4 节）。这一个名字指着花名册上
+  // 一件真的东西，而它之所以空着本身就是内容。它没有身体可以装配，但它有一处
+  // 已经在展出的说明 —— 《共生护照》第四枚章。理由与边界写在 `shell/vacancy.ts`。
+  // 放在这里是为了在启动一整套渲染器之前就把人送过去；现场（`?kiosk=1`）不走这条。
+  const vacancy = flags.kiosk ? null : vacancyOnShow(flags.theme ?? themeFromUrl());
+  if (vacancy) { location.replace(vacancy); return; }
+
   // ── 0. 加载态（docs/23 §S0）─────────────────────────────────────────────
   // 在这之前，从打开 URL 到身体出现之间观众看到的是一块黑屏。它挂在最前面，
   // 但 600ms 宽限期内一帧都不画 —— 快的时候观众仍然不该看见这个场景。
@@ -190,7 +199,12 @@ async function boot(): Promise<void> {
   // 画面上是一具借来的身体，而地址栏里写着那个拼错的名字（`?plan=quadrupd` 的同胞）。
   // 条目表读不到时**认**这个 id —— 和 `chooseTheme()` 同一条（没有资产也要能开发，ADR-4）。
   const known = library.index.themes ?? [];
-  if (theme && known.length > 0 && !known.some((t) => t.id === theme)) {
+  if (theme && isVacantPosition(theme)) {
+    // 只有现场会走到这里 —— 网页版在 boot 开头就送去护照那一枚章了。
+    // 说法和下面那一条**必须不一样**：这一个不是"查无此人"，是"这里没有人"。
+    console.warn(`[main] ?theme=${theme} 是一个故意空着的位置（docs/14 §2）—— 没有身体可装配，照常进选择页`);
+    theme = null;
+  } else if (theme && known.length > 0 && !known.some((t) => t.id === theme)) {
     console.warn(`[main] ?theme=${theme} 不在物种表里 —— 按没写过处理（进选择页）`);
     theme = null;
   }
