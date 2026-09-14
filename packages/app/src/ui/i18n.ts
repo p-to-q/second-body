@@ -896,9 +896,14 @@ export const COPY = {
 
     /** 数字。`value` 一律是从 git / 文件系统点出来的原样，不做四舍五入 */
     numbers: [
-      { value: '249', label: bi('次提交', 'Commits'), note: bi('第一条 09-12 14:24，最后一条 09-13 22:56', 'First at 09-12 14:24, last at 09-13 22:56') },
-      { value: '62', label: bi('次合并', 'Merges'), note: bi('分支合回来，以及主线合进分支', 'Branches merged back, and main merged in') },
-      { value: '28', label: bi('条并行分支', 'Parallel branches'), note: bi('每条是一个代理的一间工作室', 'One worktree, one agent, one room') },
+      // 这四个数**都只数黑客松那一段**：09-12 14:24 的第一条，到 09-13 10:24 的
+      // 最后一条，20 小时。仓库今天还在长（写这一行时 268 条），但这一页数的是
+      // 那场比赛，不是这个仓库的一生 —— 一个跨过截止时间还在涨的数字，
+      // 说的已经不是同一件事了。四个数必须同源，否则「149 条提交里 38 次合并」
+      // 这种话自己就打自己：它们要么一起数那 20 小时，要么一起数到今天。
+      { value: '149', label: bi('次提交', 'Commits'), note: bi('黑客松 20 小时：09-12 14:24 到 09-13 10:24', 'The 20-hour hackathon: 09-12 14:24 to 09-13 10:24') },
+      { value: '38', label: bi('次合并', 'Merges'), note: bi('分支合回来，以及主线合进分支', 'Branches merged back, and main merged in') },
+      { value: '23', label: bi('条并行分支', 'Parallel branches'), note: bi('每条是一个代理的一间工作室', 'One worktree, one agent, one room') },
       { value: '5', label: bi('个并行 worktree', 'Worktrees at once'), note: bi('git 一次把五个当成嵌入仓库吞了进去（480a48f）', 'Five got swallowed as embedded repos in one go — 480a48f') },
       { value: '7', label: bi('条契约裁决', 'Contract rulings'), note: bi('分三次报上来，三次都没在下游打补丁', 'Three reports, zero downstream patches') },
       { value: '432', label: bi('个测试', 'Tests'), note: bi('core 182 + app 250，全过', 'core 182 + app 250, all green') },
@@ -1210,8 +1215,8 @@ export const COPY = {
     ],
 
     footer: bi(
-      '人类署名 2 人；249 条提交里有 185 条写着代理的共同署名。每一条都写着它是谁和谁一起做的。',
-      'Two human authors; of 249 commits, 185 carry an agent’s co-author line. Every one records who made it with whom.',
+      '人类署名 2 人；黑客松那 149 条提交里有 122 条写着代理的共同署名。每一条都写着它是谁和谁一起做的。',
+      'Two human authors; of the hackathon’s 149 commits, 122 carry an agent’s co-author line. Every one records who made it with whom.',
     ),
   },
 } as const;
