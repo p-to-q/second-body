@@ -22,7 +22,8 @@ type Verdict = 'keep' | 'reject' | null;
 mountPageHead({
   title: '部件读片',
   titleEn: 'Parts contact sheet',
-  note: '行是槽位、列是物种。红点在底、蓝点在顶；外框绿 = 保留，红 = 不合格，灰 = 未评。点一格换一档。',
+  // 一行放得下：浮层页头折成两行会压到下面的读数（无头截图实测）
+  note: '外框绿 = 保留，红 = 不合格，灰 = 未评。点一格换一档。',
   overlay: true,
 });
 
