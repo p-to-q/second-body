@@ -1,24 +1,29 @@
 /**
  * 取景模式 —— 「只露上半身的笔记本观众」和「退后让我看全身的人」之间，**实时**怎么切。纯函数。
  *
- * 来路与裁定写在 `docs/49-AUTO-FRAMING.md` §落地。这里只放三件可证伪的东西：
+ * 来路与裁定写在 `docs/49-AUTO-FRAMING.md` §5（落地）与 §6（问题定义与修正）。这里放五件可证伪的东西：
  *
  *  1. **分类器** `createFramingClassifier()`：一帧 `RawPose` + `dt` → `full` / `upper` / `stepping-back`，
  *     带滞回、漏桶式的连续成立、切换冷却。**它不裁任何图**（docs/49 §3 用法 A 的反馈环），
  *     读的是 MediaPipe 在整幅画面上给出的可见度和位置。
- *  2. **跟随** `stepFollow()`：死区 + 二次过渡带 + 帧率无关的临界阻尼弹簧 + 夹住范围。
- *     舞台相机的中景跟随和小屏的数字裁切共用这一个。
- *  3. **小屏裁切** `stepCrop()`：只在上半身模式、一切正常时放大跟随；任何告警**当帧**退回整幅（诚实规则）。
+ *  2. **一个控制器** `stepFollow()`：目标去抖（One Euro）→ 速度前馈（有上限）→ 夹住范围 → 稳定延迟 →
+ *     死区 + 二次过渡带 → 帧率无关的临界阻尼弹簧 → 限速。舞台中景跟随、小屏裁切、身体的横向根偏移**共用这一个**，
+ *     各自只是参数不同（docs/49 §6.5 那张对照表里每一条"采纳"都落在这个函数的一个参数上，不是一个特例）。
+ *  3. **景别** `stepShot()`：全景 ↔ 中景按时间走完，任何状态下都不一帧切（减少动态是写明的例外）。
+ *  4. **小屏裁切** `stepCrop()`：只在上半身模式、一切正常时放大跟随；任何告警 0.2 秒内限速退回整幅（诚实规则）。
+ *  5. **横向** `lateralEvidence()` / `stepLateral()`：躯干在画面里的横坐标 → 身体的有界横向根偏移；出了左右边时报哪一侧。
  *
  * 三条硬规矩（出过事或被研究否掉过的）：
- *  - 模式只由**输出侧**消费：舞台相机的景别、腿要不要换成站姿、小屏的裁切、引导文案。
+ *  - 模式只由**输出侧**消费：舞台相机的景别、腿要不要换成站姿、小屏的裁切、引导文案、身体的横向位置。
  *    采集端一个像素都不动。
  *  - 没有时钟、没有随机：时间全部从 `dt` 来（AGENTS.md 不变量）。
  *  - 结论要能读出来：每一次读数都带 `why` 和证据，HUD 与 `/dev/framing.html` 直接显示它。
  */
 import type { Landmark, RawPose } from './types.ts';
-import { AUTOFRAME, CAPTURE, PREVIEW, REFINE } from './tuning.ts';
+import { AUTOFRAME, CAPTURE, PEOPLE, PREVIEW, REFINE } from './tuning.ts';
 import { qualityScale } from './refine.ts';
+import { MIRROR_X } from './skeleton.ts';
+import { oneEuroStep, type OneEuroState } from './filter.ts';
 
 /** 分类器判出来的状态。`stepping-back` 是过渡态：人正在往后退，景别先给全景，腿先别急着放开 */
 export type FramingMode = 'full' | 'upper' | 'stepping-back';
@@ -43,6 +48,7 @@ export type FramingWhy =
 // ── 证据 ────────────────────────────────────────────────────────────────────
 
 const NOSE = 0;
+const EYE_L = 2, EYE_R = 5, EAR_L = 7, EAR_R = 8;
 const SHOULDER_L = 11, SHOULDER_R = 12;
 const HIP_L = 23, HIP_R = 24;
 /** 膝 · 踝。脚跟脚尖不算：它们在画面底边上最先被裁，也最先被桌子挡，是最不稳定的四个点 */
@@ -64,6 +70,29 @@ export function trustedLandmark(l: Landmark | undefined): boolean {
 export function inFrame(l: Landmark): boolean {
   const m = PREVIEW.edgeMargin;
   return l.x >= -m && l.x <= 1 + m && l.y >= -m && l.y <= 1 + m;
+}
+
+/**
+ * 躯干长（画面高度单位，x 按宽高比折算）。**全仓库只有这一份量法**：多人跟踪（`people.ts`）和横向根偏移都用它。
+ * 取「肩中点到胯中点」和「肩宽 × `PEOPLE.torsoPerShoulder`」里**大的那个**：弯腰 / 蹲下时躯干的投影缩到几分之一，
+ * 侧身时肩宽缩到几分之一，两件事很少同时发生（开合跳录像里只看躯干长，尺度一帧从 0.16 掉到 0.04，2026-09-14 实测）。
+ * 胯给 null = 胯在画外（笔记本前坐着）：只按肩宽折算。
+ */
+export function torsoScale(sL: Landmark, sR: Landmark, hL: Landmark | null, hR: Landmark | null, aspect = 16 / 9): number {
+  const byShoulder = Math.hypot((sL.x - sR.x) * aspect, sL.y - sR.y) * PEOPLE.torsoPerShoulder;
+  if (!hL || !hR) return byShoulder;
+  const mx = (sL.x + sR.x) / 2, my = (sL.y + sR.y) / 2;
+  const hx = (hL.x + hR.x) / 2, hy = (hL.y + hR.y) / 2;
+  return Math.max(Math.hypot((mx - hx) * aspect, my - hy), byShoulder);
+}
+
+/**
+ * 画面里的横坐标 → 舞台上的 x（米）。**全仓库只有这一份折算**（多人站位 `lineup()` 与单人的横向根偏移共用）：
+ * 偏离中线 `(cx − 0.5)·aspect` 个画面高度，一个躯干长 = `scale` 个画面高度 = `PEOPLE.torsoMeters` 米；
+ * 乘 `MIRROR_X`（docs/04 §1 唯一定义处）：观众往自己右边走，身体往屏幕右边走。
+ */
+export function imageToStageX(cx: number, scale: number, aspect = 16 / 9): number {
+  return MIRROR_X * (cx - 0.5) * aspect * (PEOPLE.torsoMeters / Math.max(PEOPLE.minScale, scale));
 }
 
 /** 一帧里分类器看到的全部东西。HUD 和工作台页直接显示它 */
@@ -116,7 +145,7 @@ export function frameEvidence(pose: RawPose | null, aspect = 16 / 9): FramingEvi
   // 头在不在：鼻子或任一只耳朵可信地在画内。**光数"画外的可信点"不够** ——
   // MediaPipe 给出了上边的头的可见度往往只有 0.1–0.3，于是它们根本不算可信点，
   // 一个头被整个切掉的人会被数成"画外 0 个"。合成时间线第一版就是这么漏的。
-  const headIn = [NOSE, 7, 8].some((i) => trustedLandmark(screen[i]) && inFrame(screen[i]));
+  const headIn = [NOSE, EAR_L, EAR_R].some((i) => trustedLandmark(screen[i]) && inFrame(screen[i]));
   const upper = shouldersOk && headIn && upperOut < PREVIEW.outOfFramePoints;
 
   const d = (a: Landmark, b: Landmark): number => Math.hypot((a.x - b.x) * aspect, a.y - b.y);
@@ -154,10 +183,21 @@ export interface FramingReading {
   trend: number;
   /** 冷却还剩多少秒 */
   cooldown: number;
+  /** 这一帧摄像头自己在取景（`capture/cam-framing.ts` 读到 `faceFraming` 开着）。缺省 false */
+  cameraFraming?: boolean;
+}
+
+/** 每帧可变的外部事实。缺省 = 这一版之前的行为 */
+export interface ClassifierFrame {
+  /**
+   * 摄像头 / 系统自己在取景（Center Stage、Studio Effects、W3C `faceFraming`，docs/49 §6.3 三）。
+   * 那时腿不在是预期：进上半身走快档；**不用尺度趋势判退后**（摄像头自己在缩放，尺度不再说明人在动）。
+   */
+  cameraFraming?: boolean;
 }
 
 export interface FramingClassifier {
-  update(pose: RawPose | null, dt: number): FramingReading;
+  update(pose: RawPose | null, dt: number, frame?: ClassifierFrame): FramingReading;
   readonly current: FramingReading;
   reset(): void;
 }
@@ -188,7 +228,8 @@ export function createFramingClassifier(opts: ClassifierOptions = {}): FramingCl
   /** 尺度窗口：[还剩几秒过期, 肩宽, 躯干] */
   let windowS: Array<[number, number, number]> = [];
   let last: [number, number] | null = null;
-  let current: FramingReading = { mode, why, inMode, evidence: null, trend: NaN, cooldown };
+  let cam = false;
+  let current: FramingReading = { mode, why, inMode, evidence: null, trend: NaN, cooldown, cameraFraming: false };
 
   function go(next: FramingMode, because: FramingWhy, cool = true): void {
     if (next === mode) return;
@@ -216,13 +257,14 @@ export function createFramingClassifier(opts: ClassifierOptions = {}): FramingCl
   }
 
   function read(ev: FramingEvidence | null, trend: number): FramingReading {
-    current = { mode, why, inMode, evidence: ev, trend, cooldown };
+    current = { mode, why, inMode, evidence: ev, trend, cooldown, cameraFraming: cam };
     return current;
   }
 
   return {
-    update(pose, dtIn) {
+    update(pose, dtIn, frame) {
       const dt = Number.isFinite(dtIn) && dtIn > 0 ? Math.min(dtIn, 0.25) : 0;
+      cam = frame?.cameraFraming === true;
       inMode += dt;
       cooldown = Math.max(0, cooldown - dt);
       const ev = frameEvidence(pose, aspect);
@@ -257,11 +299,13 @@ export function createFramingClassifier(opts: ClassifierOptions = {}): FramingCl
 
       const legsOut = ev.legs <= T.legsOutMax;
       const legsIn = ev.legs >= T.legsInMin;
-      const shrinking = Number.isFinite(trend) && trend <= 1 - T.stepBackShrink;
+      // 摄像头自己在缩放时，尺度变小不说明人在往后退
+      const shrinking = !cam && Number.isFinite(trend) && trend <= 1 - T.stepBackShrink;
 
       if (mode === 'full') {
-        const need = opts.kiosk ? T.enterUpperSecondsKiosk
-          : present <= T.firstWindowSeconds ? T.enterUpperFirstSeconds : T.enterUpperSeconds;
+        // 摄像头在取景：腿被它裁掉是预期，现场的"全身优先"也让位 —— 等 3 秒只是在让观众看一双坏腿
+        const need = cam || (!opts.kiosk && present <= T.firstWindowSeconds) ? T.enterUpperFirstSeconds
+          : opts.kiosk ? T.enterUpperSecondsKiosk : T.enterUpperSeconds;
         toUpper = leak(toUpper, legsOut, dt);
         if (toUpper >= need && cooldown <= 0) go('upper', 'legs-out');
       } else if (mode === 'upper') {
@@ -278,9 +322,9 @@ export function createFramingClassifier(opts: ClassifierOptions = {}): FramingCl
     },
     get current() { return current; },
     reset() {
-      mode = 'full'; why = 'start'; inMode = 0; cooldown = 0; present = 0; absent = 0;
+      mode = 'full'; why = 'start'; inMode = 0; cooldown = 0; present = 0; absent = 0; cam = false;
       toUpper = toStep = toFull = toAbnormal = 0; windowS = []; last = null;
-      current = { mode, why, inMode, evidence: null, trend: NaN, cooldown };
+      current = { mode, why, inMode, evidence: null, trend: NaN, cooldown, cameraFraming: false };
     },
   };
 }
@@ -297,10 +341,14 @@ export interface FramingDecision {
   upperIsIntended: boolean;
 }
 
-export function decide(policy: FramingPolicy, r: Pick<FramingReading, 'mode'>): FramingDecision {
+/**
+ * @param frame.cameraFraming 摄像头自己在取景：腿被它裁掉，往后退救不了 —— 引导不为画面下边说话，**任何策略下**都是
+ */
+export function decide(policy: FramingPolicy, r: Pick<FramingReading, 'mode'>, frame?: ClassifierFrame): FramingDecision {
+  const cam = frame?.cameraFraming === true;
   if (policy === 'full') {
     // 强制全景只管景别。腿照样听分类器：选了全景的笔记本观众不该因此拿到一双坏腿
-    return { policy, mode: r.mode, shot: 'full', holdLegs: r.mode !== 'full', upperIsIntended: false };
+    return { policy, mode: r.mode, shot: 'full', holdLegs: r.mode !== 'full', upperIsIntended: cam };
   }
   if (policy === 'upper') return { policy, mode: r.mode, shot: 'upper', holdLegs: true, upperIsIntended: true };
   return {
@@ -308,7 +356,7 @@ export function decide(policy: FramingPolicy, r: Pick<FramingReading, 'mode'>): 
     shot: r.mode === 'upper' ? 'upper' : 'full',
     // 退后中腿还没进画，先别放开；进画了才是 full
     holdLegs: r.mode !== 'full',
-    upperIsIntended: r.mode === 'upper',
+    upperIsIntended: r.mode === 'upper' || cam,
   };
 }
 
@@ -316,9 +364,19 @@ export function decide(policy: FramingPolicy, r: Pick<FramingReading, 'mode'>): 
 export const isFramingPolicy = (v: unknown): v is FramingPolicy =>
   typeof v === 'string' && (FRAMING_POLICIES as readonly string[]).includes(v);
 
-// ── 跟随：死区 + 过渡带 + 临界阻尼弹簧 + 夹住 ────────────────────────────────
+// ── 控制器：去抖 → 前馈 → 夹住 → 稳定延迟 → 死区 → 临界阻尼弹簧 → 限速 ─────────
 
-export interface Follow { x: number; v: number }
+export interface Follow {
+  x: number;
+  v: number;
+  /** 目标的 One Euro 状态（参数里有 `jitter` 才有） */
+  f?: OneEuroState;
+  /** 目标速度估计（单位/秒）与上一帧的目标（参数里有 `lead` 才有） */
+  tv?: number;
+  tp?: number;
+  /** 稳定计时：目标在死区外连续成立了多久（漏桶，参数里有 `settle` 才有） */
+  st?: number;
+}
 
 export interface FollowParams {
   deadZone: number;
@@ -327,6 +385,18 @@ export interface FollowParams {
   omega: number;
   /** |x| 的上限 */
   range: number;
+  /** 速度上限（单位/秒）。临界阻尼从静止起步本来就慢，**大距离**时峰值速度 ≈ 0.37·ω·距离，要靠它压住 */
+  maxSpeed?: number;
+  /**
+   * 稳定延迟（秒）：目标在死区外**连续成立**这么久（漏桶）才开始动；已经在动的不再等。
+   * 人换个姿势、侧一下身，镜头不追；人真的挪了位置，停稳之后才跟过去（ChromiumOS 1 秒稳定期的思路，缩短了）。
+   */
+  settle?: number;
+  /** 速度前馈（秒）：目标 += 目标速度 × lead，夹在 ±`leadMax`。快速横穿时少落后一截；停下时最多冲过 `leadMax` */
+  lead?: number;
+  leadMax?: number;
+  /** 目标去抖（One Euro，`filter.ts` 同一份数学）。检测抖动在进弹簧之前就被压掉，死区不用开得那么大 */
+  jitter?: { minCutoff: number; beta: number };
 }
 
 /**
@@ -341,17 +411,45 @@ export function deadZone(e: number, d: number, n: number): number {
   return Math.sign(e) * out;
 }
 
+/** 前馈的速度估计用多长的时间常数（秒）。短：停下时前馈很快撤掉；长：推理 30Hz 的台阶不被当成速度 */
+const LEAD_TAU = 0.15;
+
 /**
- * 一步跟随。**闭式解**，不是欧拉积分：同一段时间切成 60 步和切成 20 步，落到同一个位置
- *（帧率无关 —— 降帧时镜头不会追得更慢或者更弹）。
+ * 一步跟随。弹簧部分是**闭式解**，不是欧拉积分：同一段时间切成 60 步和切成 20 步，落到同一个位置
+ *（帧率无关 —— 降帧时镜头不会追得更慢或者更弹）。去抖、前馈、稳定延迟是一阶的近似，参数缺省时整条退回原来那个弹簧。
+ * 目标不是有限数 = **冻结**：弹簧只把余速耗掉（跟丢、光不够时用它，不往任何地方漂）。
  */
 export function stepFollow(s: Follow, target: number, dt: number, p: FollowParams): Follow {
   const x0 = Number.isFinite(s.x) ? s.x : 0;
   const v0 = Number.isFinite(s.v) ? s.v : 0;
   const t = Number.isFinite(dt) && dt > 0 ? dt : 0;
-  const goal = Number.isFinite(target) ? Math.max(-p.range, Math.min(p.range, target)) : x0;
-  // 死区作用在"离目标多远"上：人在死区里晃，目标就是自己，弹簧只把余速耗掉
-  const aim = x0 + deadZone(goal - x0, p.deadZone, p.band);
+  let f = s.f, tv = s.tv ?? 0, tp = s.tp, st = s.st ?? 0;
+  let goal = Number.isFinite(target) ? target : NaN;
+  if (Number.isFinite(goal)) {
+    if (p.jitter) { f = oneEuroStep(f, goal, t, p.jitter); goal = f.x; }
+    if (p.lead) {
+      const raw = tp !== undefined && Number.isFinite(tp) && t > 0 ? (goal - tp) / t : 0;
+      tv += (raw - tv) * (t > 0 ? 1 - Math.exp(-t / LEAD_TAU) : 0);
+      tp = goal;
+      const m = p.leadMax ?? Infinity;
+      goal += Math.max(-m, Math.min(m, tv * p.lead));
+    }
+    goal = Math.max(-p.range, Math.min(p.range, goal));
+  } else {
+    tv = 0; tp = undefined;
+  }
+
+  let aim = x0;
+  if (Number.isFinite(goal)) {
+    const e = goal - x0;
+    // 死区作用在"离目标多远"上：人在死区里晃，目标就是自己，弹簧只把余速耗掉
+    if (p.settle) {
+      st = leak(st, Math.abs(e) > p.deadZone, t);
+      if (st >= p.settle || Math.abs(v0) > 1e-3) aim = x0 + deadZone(e, p.deadZone, p.band);
+    } else {
+      aim = x0 + deadZone(e, p.deadZone, p.band);
+    }
+  }
   const w = Math.max(1e-6, p.omega);
   const e0 = x0 - aim;
   const k = Math.exp(-w * t);
@@ -360,7 +458,17 @@ export function stepFollow(s: Follow, target: number, dt: number, p: FollowParam
   let v = (v0 - w * c * t) * k;
   if (x > p.range) { x = p.range; v = Math.min(0, v); }
   if (x < -p.range) { x = -p.range; v = Math.max(0, v); }
-  return { x, v };
+  // 限速放在夹住之后：范围突然收窄时（景别推近、窗口变窄），位置按限速收回去，而不是一帧被夹过去
+  if (p.maxSpeed && t > 0) {
+    const lim = p.maxSpeed * t;
+    if (x - x0 > lim) { x = x0 + lim; v = Math.min(v, p.maxSpeed); }
+    else if (x0 - x > lim) { x = x0 - lim; v = Math.max(v, -p.maxSpeed); }
+  }
+  const out: Follow = { x, v };
+  if (p.jitter && f) out.f = f;
+  if (p.lead) { out.tv = tv; out.tp = tp; }
+  if (p.settle) out.st = st;
+  return out;
 }
 
 /** 线性地朝 0 / 1 走，`seconds` 走完全程。景别和腿的混合都用它，外面再套 smoothstep */
@@ -390,13 +498,14 @@ export const SHOT_REST: ShotState = { progress: 0, fx: { x: 0, v: 0 }, fy: { x: 
 
 export interface ShotInput {
   shot: Shot;
-  /** 上半身相对静止站姿的偏移（米）：x = 胸口横向，y = 头的高度差。null = 这一帧没有骨架 */
+  /** 上半身相对静止站姿的偏移（米）：x = 头胸相对骨盆的横向（前倾），y = 头的高度差。null = 这一帧没有骨架 */
   offset: { x: number; y: number } | null;
   /** `prefers-reduced-motion` */
   reduced: boolean;
   /**
-   * 帧循环在降级 / 无人降帧（治理那条线在砍工作量）。**保持当前镜头，不做动画**：
-   * 景别变化直接切到位，跟随冻结。画面不动永远比画面卡着动好。
+   * 帧循环在降级 / 无人降帧（治理那条线在砍工作量）：**跟随冻结**，景别照常按时间走完。
+   * §5.4 原来的裁定是"直接切到位"，docs/49 §6.2 查出它正是"没有过渡"的一个根因：
+   * 一段按时间推的 1 秒运镜在低帧率下是几步大一点的台阶，一帧切才是真的跳。
    */
   hold: boolean;
 }
@@ -407,19 +516,19 @@ export interface ShotInput {
  */
 export function stepShot(s: ShotState, input: ShotInput, dt: number): ShotState {
   const target = input.shot === 'upper' ? 1 : 0;
-  if (input.hold) return { progress: target, fx: { x: s.fx.x, v: 0 }, fy: { x: s.fy.x, v: 0 } };
-  const secs = input.reduced ? AUTOFRAME.shotSecondsReduced : AUTOFRAME.shotSeconds;
-  const progress = stepToward(s.progress, target, dt, secs);
   const T = AUTOFRAME;
-  // 减少动态：中景不跟随，偏移收回 0（一个固定机位的中景）。全景同样收回 0 —— 等身机位是不动的
-  const follow = target === 1 && !input.reduced && input.offset;
+  const secs = input.reduced ? T.shotSecondsReduced : T.shotSeconds;
+  const progress = stepToward(s.progress, target, dt, secs);
+  // 减少动态：中景不跟随，偏移收回 0（一个固定机位的中景）。写明的例外：这一下允许是一次切
+  if (input.reduced) return { progress, fx: { x: 0, v: 0 }, fy: { x: 0, v: 0 } };
+  if (input.hold) return { progress, fx: { ...s.fx, v: 0 }, fy: { ...s.fy, v: 0 } };
+  const follow = target === 1 && input.offset;
   const gx = follow ? input.offset!.x : 0;
   const gy = follow ? input.offset!.y : 0;
-  if (input.reduced) return { progress, fx: { x: 0, v: 0 }, fy: { x: 0, v: 0 } };
-  // 回全景时不要死区：死区会让偏移停在离 0 还有 4cm 的地方，下一次进中景就从一个旧偏移起步
-  const base = follow
-    ? { deadZone: T.followDeadZone, band: T.followBand, omega: T.followOmega }
-    : { deadZone: 0, band: 1e-6, omega: T.followOmega };
+  // 回全景时不要死区也不要稳定延迟：死区会让偏移停在离 0 还有 4cm 的地方，下一次进中景就从一个旧偏移起步
+  const base: Omit<FollowParams, 'range'> = follow
+    ? { deadZone: T.followDeadZone, band: T.followBand, omega: T.followOmega, maxSpeed: T.followMaxSpeed, settle: T.followSettleSeconds, jitter: T.followJitter }
+    : { deadZone: 0, band: 1e-6, omega: T.followOmega, maxSpeed: T.followMaxSpeed };
   return {
     progress,
     fx: stepFollow(s.fx, gx, dt, { ...base, range: T.followRangeX }),
@@ -436,57 +545,228 @@ export interface Crop {
   cx: Follow;
   cy: Follow;
   z: Follow;
+  /** 上半身取景里人（的头肩）量不到多久了（秒）。量不到时先停在原处，`previewLostHoldSeconds` 之后才慢慢放回整幅 */
+  lost?: number;
 }
 
 export const CROP_FULL: Crop = { zoom: 1, cx: { x: 0.5, v: 0 }, cy: { x: 0.5, v: 0 }, z: { x: 1, v: 0 } };
 
 export interface CropInput {
-  /** 上半身是正当取景（`FramingDecision.upperIsIntended`） */
+  /** 上半身是正当取景（`FramingDecision.upperIsIntended`），而且没有减少动态、画里没有别的有身体的人 */
   active: boolean;
   /**
-   * 诚实规则：出画、退后中、任何告警（小屏的状态不是 `ok`）→ **当帧**退回整幅。
+   * 诚实规则：出画、退后中、任何告警（小屏的状态不是 `ok`）→ 退回整幅，`previewSnapSeconds` 内**限速**走完。
    * 让画框的边重新可见，那正是「往后退一点」的证据（docs/49 §3 用法 B）。
    */
   snap: boolean;
   /** 这一帧的 screen 坐标（原始，滤波之前 —— 和小屏同一份） */
   screen: readonly Landmark[] | undefined;
+  /** 分辨率下限给出的放大上限（`cropZoomLimit()`）。缺省 = `previewZoom` */
+  maxZoom?: number;
 }
 
-/** 上半身的中心：两肩中点和鼻子之间（可信点的平均）。量不到 = null */
-export function upperCenter(screen: readonly Landmark[] | undefined): { x: number; y: number } | null {
+/**
+ * 放大倍数的分辨率下限：裁出来的那块在源画面里至少还有「显示高度 × `previewMinSourcePerDisplayPx`」个像素。
+ * 480p 的摄像头放进 1080 屏上 216px 高（×2 dpr）的小屏，1.3× 已经在放大像素 —— 那时就不放大。
+ */
+export function cropZoomLimit(sourceHeight: number, displayHeight: number): number {
+  const T = AUTOFRAME;
+  if (!(sourceHeight > 0) || !(displayHeight > 0)) return T.previewZoom;
+  return Math.max(1, Math.min(T.previewZoom, sourceHeight / (displayHeight * T.previewMinSourcePerDisplayPx)));
+}
+
+/**
+ * 上半身取景的目标：横向在两肩中点（肩不全时退到头），**眼睛落在窗口上三分之一**（`previewEyeLine`，头顶留白的通行规矩）。
+ * 量不到（头一个都不在画内、肩和头加起来不到两个）= null。
+ */
+export function cropTarget(screen: readonly Landmark[] | undefined, zoom: number = AUTOFRAME.previewZoom): { x: number; y: number } | null {
   if (!screen?.length) return null;
-  const pts = [NOSE, SHOULDER_L, SHOULDER_R].map((i) => screen[i]).filter((l): l is Landmark => trustedLandmark(l) && inFrame(l));
-  if (pts.length < 2) return null;
-  return {
-    x: pts.reduce((a, l) => a + l.x, 0) / pts.length,
-    // 往下挪一点：上半身取景要把胸口放在中心附近，而不是把鼻子放在正中
-    y: pts.reduce((a, l) => a + l.y, 0) / pts.length + 0.08,
-  };
+  const ok = (i: number): boolean => trustedLandmark(screen[i]) && inFrame(screen[i]);
+  const head = [NOSE, EYE_L, EYE_R, EAR_L, EAR_R].filter(ok).map((i) => screen[i]);
+  const shoulders = ok(SHOULDER_L) && ok(SHOULDER_R);
+  if (!head.length || (!shoulders && head.length < 2)) return null;
+  const eyeY = head.reduce((a, l) => a + l.y, 0) / head.length;
+  const x = shoulders ? (screen[SHOULDER_L].x + screen[SHOULDER_R].x) / 2 : head.reduce((a, l) => a + l.x, 0) / head.length;
+  return { x, y: eyeY + (0.5 - AUTOFRAME.previewEyeLine) / Math.max(1, zoom) };
 }
 
 export function stepCrop(c: Crop, input: CropInput, dt: number): Crop {
-  if (input.snap) return CROP_FULL;
   const T = AUTOFRAME;
-  const center = input.active ? upperCenter(input.screen) : null;
-  const wantZoom = input.active && center ? T.previewZoom : 1;
-  const z = stepFollow(
-    { x: c.z.x - 1, v: c.z.v }, wantZoom - 1, dt,
-    { deadZone: 0, band: 1e-6, omega: T.previewOmega, range: Math.max(0, T.previewZoom - 1) },
-  );
-  const zoom = 1 + z.x;
-  // 窗口不许伸出画面：中心夹在 [0.5/zoom, 1 − 0.5/zoom]。用 range 表达成"离 0.5 最多多远"
-  const range = Math.max(0, 0.5 - 0.5 / Math.max(1, T.previewZoom));
-  const p = { deadZone: T.previewDeadZone, band: T.previewBand, omega: T.previewOmega, range };
-  const gx = center ? center.x - 0.5 : 0;
-  const gy = center ? center.y - 0.5 : 0;
-  const fx = stepFollow({ x: c.cx.x - 0.5, v: c.cx.v }, gx, dt, p);
-  const fy = stepFollow({ x: c.cy.x - 0.5, v: c.cy.v }, gy, dt, p);
+  const t = Number.isFinite(dt) && dt > 0 ? dt : 0;
+  const cap = Math.max(1, Math.min(T.previewZoom, Number.isFinite(input.maxZoom) ? input.maxZoom! : T.previewZoom));
+  let zoom: number, z: Follow, fx: Follow, fy: Follow;
+  let lost = 0;
+  if (input.snap) {
+    // 诚实规则：退回整幅，但按时间限速走完，不是当帧。窗口中心不追任何东西，只被下面那个随放大倍数收窄的夹子带回中间
+    zoom = Math.max(1, c.zoom - ((T.previewZoom - 1) / Math.max(1e-3, T.previewSnapSeconds)) * t);
+    z = { x: zoom, v: 0 };
+    fx = { x: c.cx.x - 0.5, v: 0 };
+    fy = { x: c.cy.x - 0.5, v: 0 };
+  } else {
+    const target = input.active ? cropTarget(input.screen, cap) : null;
+    lost = input.active && !target ? (c.lost ?? 0) + t : 0;
+    // 跟丢：先停在原处（NaN = 冻结），过了保持期再放回整幅 —— 一帧没检出不该让小屏一缩一放
+    const holding = lost > 0 && lost < T.previewLostHoldSeconds;
+    const zf = stepFollow(
+      { ...c.z, x: c.z.x - 1 }, target ? cap - 1 : holding ? NaN : 0, t,
+      { deadZone: 0, band: 1e-6, omega: T.previewZoomOmega, range: Math.max(0, T.previewZoom - 1), maxSpeed: T.previewZoomMaxSpeed },
+    );
+    zoom = 1 + zf.x;
+    z = { ...zf, x: zoom };
+    const p: FollowParams = {
+      deadZone: T.previewDeadZone, band: T.previewBand, omega: T.previewOmega,
+      // 窗口不许伸出画面：中心夹在 [0.5/zoom, 1 − 0.5/zoom]。用 range 表达成"离 0.5 最多多远"
+      range: Math.max(0, 0.5 - 0.5 / Math.max(1, T.previewZoom)),
+      maxSpeed: T.previewMaxSpeed, settle: T.previewSettleSeconds,
+      lead: T.previewLead, leadMax: T.previewLeadMax, jitter: T.previewJitter,
+    };
+    const g = (v: number | undefined): number => (target ? v! - 0.5 : holding ? NaN : 0);
+    fx = stepFollow({ ...c.cx, x: c.cx.x - 0.5 }, g(target?.x), t, p);
+    fy = stepFollow({ ...c.cy, x: c.cy.x - 0.5 }, g(target?.y), t, p);
+  }
   const lim = 0.5 - 0.5 / zoom;
   const clamp = (v: number): number => Math.max(-lim, Math.min(lim, v));
-  return {
-    zoom,
-    cx: { x: 0.5 + clamp(fx.x), v: fx.v },
-    cy: { x: 0.5 + clamp(fy.x), v: fy.v },
-    z: { x: zoom, v: z.v },
-  };
+  const out: Crop = { zoom, cx: { ...fx, x: 0.5 + clamp(fx.x) }, cy: { ...fy, x: 0.5 + clamp(fy.x) }, z };
+  if (lost > 0) out.lost = lost;
+  return out;
+}
+
+// ── 横向：躯干在画面里的位置 → 身体的横向根偏移 ─────────────────────────────
+
+/** 观众**自己的**左右（= 镜像显示上的左右）。画面 x 是摄像头原图，没有镜像：观众往右走，画面 x 变小 */
+export type Side = 'left' | 'right';
+
+export interface LateralEvidence {
+  /** 根的画面横坐标（原图 0..1）：胯中点；胯没有坐标时退到两肩中点。**只看胯**：前倾时胯不动，迈步时胯才动 */
+  x: number;
+  /** 躯干长（画面高度单位，`torsoScale()`） */
+  scale: number;
+  /** 躯干宽度里越过左 / 右边的比例，两边取大的那个 */
+  out: number;
+  /** 哪一侧出了画（观众自己的左右）。两边都出 = null：那是离得太近，不是走偏了 */
+  side: Side | null;
+  /** 追踪质量够（`qualityScale ≥ 1`）。不够 = 冻结，不往一个坏光下的坐标漂 */
+  quality: boolean;
+}
+
+/**
+ * 一帧 → 横向证据。`null` = 没有横向证据：没有人、没有 `screen`（回放录制）、躯干点里可信地在画内的不到两个
+ *（一个几乎整个在画外、全靠 MediaPipe 外推出来的躯干，位置不作数）。
+ *
+ * 越界按**坐标**算，不按可信点数：MediaPipe 对画外的点给低可见度，数可信点的话半个人出了左边也数不出一个（docs/49 §6.2 S4）。
+ */
+export function lateralEvidence(pose: RawPose | null | undefined, aspect = 16 / 9): LateralEvidence | null {
+  const score = Number.isFinite(pose?.score) ? pose!.score : 0;
+  if (!pose || score <= CAPTURE.minScore) return null;
+  const s = pose.screen;
+  if (!s?.length) return null;
+  const has = (l: Landmark | undefined): l is Landmark => !!l && Number.isFinite(l.x) && Number.isFinite(l.y);
+  const sL = s[SHOULDER_L], sR = s[SHOULDER_R], hL = s[HIP_L], hR = s[HIP_R];
+  if (!has(sL) || !has(sR)) return null;
+  const hips = has(hL) && has(hR);
+  const torso = hips ? [sL, sR, hL, hR] : [sL, sR];
+  if (torso.filter((l) => trustedLandmark(l) && inFrame(l)).length < 2) return null;
+  const x = hips ? (hL.x + hR.x) / 2 : (sL.x + sR.x) / 2;
+  const scale = torsoScale(sL, sR, hips ? hL : null, hips ? hR : null, aspect);
+  const xs = torso.map((l) => l.x * aspect);
+  const lo = Math.min(...xs), hi = Math.max(...xs);
+  // 侧身时躯干宽度缩到几乎为 0：分母给一个按躯干长折算的下限，免得一点抖动就是"一半出画"
+  const width = Math.max(hi - lo, AUTOFRAME.lateralMinTorsoWidth * scale, 1e-6);
+  const m = PREVIEW.edgeMargin;
+  const outL = Math.max(0, -m * aspect - lo) / width;
+  const outR = Math.max(0, hi - (1 + m) * aspect) / width;
+  const f = AUTOFRAME.lateralSideFraction;
+  const edge = outL >= f && outR < f ? 0 : outR >= f && outL < f ? 1 : null;
+  // 画面的哪条边 → 观众的哪一侧：按 MIRROR_X 折，和身体往哪边走同一个符号（docs/04 §1 唯一定义处）
+  const side: Side | null = edge === null ? null : MIRROR_X * (edge - 0.5) > 0 ? 'right' : 'left';
+  return { x, scale, out: Math.max(outL, outR), side, quality: qualityScale(score) >= 1 };
+}
+
+/** 横向根偏移此刻在做什么。HUD 与工作台原样显示 */
+export type LateralWhy = 'follow' | 'hold-edge' | 'hold-lost' | 'hold-light' | 'hold-jump' | 'center' | 'yield';
+
+export interface LateralState {
+  /** 身体的横向根偏移（米），弹簧状态 */
+  x: Follow;
+  /** 弹簧此刻追的目标（米，夹住之前） */
+  target: number;
+  /** 最后一次被接受的根的画面横坐标与尺度（换人判断用）。NaN = 还没有 */
+  accepted: number;
+  scale: number;
+  /** 一帧跳得太远的那个新位置，和它稳定了多久 */
+  pending: number;
+  pendingFor: number;
+  /** 没有横向证据多久了（秒） */
+  lost: number;
+  side: Side | null;
+  why: LateralWhy;
+}
+
+export const LATERAL_REST: LateralState = {
+  x: { x: 0, v: 0 }, target: 0, accepted: NaN, scale: NaN, pending: NaN, pendingFor: 0, lost: 0, side: null, why: 'center',
+};
+
+export interface LateralInput {
+  evidence: LateralEvidence | null;
+  /** 舞台此刻看得见的横向余量（米，`stage/framing.ts` 的 `lateralRoom()`，随景别连续变化） */
+  room: number;
+  /**
+   * false = 让位：台上有伴随身体时站位归 docs/50 的 `lineup()`，这里弹回 0。两者都是弹簧，叠加连续。
+   */
+  enabled: boolean;
+  aspect?: number;
+}
+
+/**
+ * 一步横向根偏移。镜子：观众往自己左边走，身体往屏幕左边走；相机不跟（docs/49 §3 用法 C）。
+ *
+ * - 出了左右边 / 光不够：**停在最后那个位置**（不追一个外推出来的、坏光下的坐标）；
+ * - 没有横向证据（整个人出画、被挡住、回放）：停 `lateralHoldSeconds`，然后回中线；
+ * - 根的画面 x 一帧跳过 `lateralJump`，或尺度一帧跳过 `identityJump`：当成换人（`numPoses = 1` 时 MediaPipe 在两个人之间跳、
+ *   或者身后的人被认成了主角）—— 停着，新位置稳定 `lateralJumpConfirmSeconds` 才跟；来回跳就一直停着。
+ * 不吃减少动态：那是观众自己的动作，和他抬手是同一类（docs/49 §6.3 一）。
+ */
+export function stepLateral(s: LateralState, input: LateralInput, dt: number): LateralState {
+  const T = AUTOFRAME;
+  const t = Number.isFinite(dt) && dt > 0 ? dt : 0;
+  const ev = input.evidence;
+  const aspect = input.aspect ?? 16 / 9;
+  let { target, accepted, scale, pending, pendingFor, lost } = s;
+  let why: LateralWhy;
+  let goal: number;
+  if (!input.enabled) {
+    target = 0; accepted = NaN; scale = NaN; pending = NaN; pendingFor = 0; lost = 0;
+    why = 'yield'; goal = 0;
+  } else if (!ev) {
+    lost += t;
+    pending = NaN; pendingFor = 0;
+    if (lost >= T.lateralHoldSeconds) { target = 0; accepted = NaN; scale = NaN; why = 'center'; goal = 0; } else { why = 'hold-lost'; goal = NaN; }
+  } else if (ev.side || !ev.quality) {
+    lost = 0;
+    why = ev.side ? 'hold-edge' : 'hold-light';
+    goal = NaN;
+  } else {
+    lost = 0;
+    const jumped = Number.isFinite(accepted)
+      && (Math.abs(ev.x - accepted) > T.lateralJump || (Number.isFinite(scale) && Math.abs(ev.scale / scale - 1) > T.identityJump));
+    let accept = !jumped;
+    if (jumped) {
+      if (Number.isFinite(pending) && Math.abs(ev.x - pending) <= T.lateralJump) pendingFor += t;
+      else { pending = ev.x; pendingFor = 0; }
+      accept = pendingFor >= T.lateralJumpConfirmSeconds;
+    }
+    if (accept) {
+      accepted = ev.x; scale = ev.scale; pending = NaN; pendingFor = 0;
+      target = imageToStageX(ev.x, ev.scale, aspect);
+      why = 'follow'; goal = target;
+    } else {
+      why = 'hold-jump'; goal = NaN;
+    }
+  }
+  const x = stepFollow(s.x, goal, t, {
+    deadZone: T.lateralDeadZone, band: T.lateralBand, omega: T.lateralOmega,
+    range: Math.max(0, Number.isFinite(input.room) ? input.room : 0),
+    maxSpeed: T.lateralMaxSpeed, lead: T.lateralLead, leadMax: T.lateralLeadMax, jitter: T.lateralJitter,
+  });
+  return { x, target, accepted, scale, pending, pendingFor, lost, side: ev?.side ?? null, why };
 }
