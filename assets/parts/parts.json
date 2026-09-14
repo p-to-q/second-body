@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-09-13T15:28:01.413Z",
+  "generatedAt": "2026-09-14T07:06:31.016Z",
   "units": "meters",
   "convention": {
     "axis": "+Y",
@@ -90,7 +90,7 @@
         "geometry": "real",
         "source": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/boston_dynamics_spot/",
         "license": "BSD-3-Clause",
-        "note": "描述包由 Clearpath Robotics 发布；非背书：不得以 Boston Dynamics 的名义为本作品背书"
+        "note": "描述包由 Clearpath Robotics 发布；非背书条款同样适用"
       }
     },
     {
@@ -168,10 +168,10 @@
       "machine": {
         "name": "Atlas",
         "maker": "Boston Dynamics",
-        "geometry": "generated",
-        "source": "https://raw.githubusercontent.com/RobotLocomotion/models/3bd1111/atlas/meshes/",
+        "geometry": "real",
+        "source": "https://raw.githubusercontent.com/RobotLocomotion/models/3bd1111011ea8c9813a66bf5cc21f31067f2e1ef/atlas/meshes/",
         "license": "BSD-3-Clause",
-        "note": "几何还没取，身上是生成件。取之前要写清两件事：版权人是 MIT CSAIL 的 Robot Locomotion Group 而不是 Boston Dynamics；那是 DRC/v5 液压那一代，不是 tagline 唤起的 2025 电动版（docs/42 §7 第 5 条）"
+        "note": "版权人是 MIT CSAIL Robot Locomotion Group，非 Boston Dynamics；DRC/v5 液压那一代，非 2025 电动版"
       }
     },
     {
@@ -202,7 +202,7 @@
         "name": "NEO",
         "maker": "1X Technologies",
         "geometry": "generated",
-        "note": "无公开描述文件；而且**即使拿到也不该换** —— NEO 的全部意义是那件针织外套，而这条流水线第一件事就是丢掉贴图统一套材质，换真网格反而会减少辨识度（docs/42 §4 末）"
+        "note": "无公开描述文件；即使拿到也不该换 —— 它的意义在那件针织外套上"
       }
     },
     {
@@ -231,7 +231,7 @@
         "geometry": "real",
         "source": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/unitree_g1/",
         "license": "BSD-3-Clause（Unitree 变体）",
-        "note": "非背书：不得以 Unitree 的名义为本作品背书"
+        "note": "非背书条款：不得以 Unitree 的名义为本作品背书"
       }
     },
     {
@@ -263,7 +263,7 @@
         "geometry": "real",
         "source": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/agility_cassie/",
         "license": "MIT",
-        "note": "Digit 本身没有可再分发的描述文件，几何取自同厂同拓扑的 Cassie（docs/33 §2 A）"
+        "note": "几何取自同厂同拓扑的 Cassie —— Digit 本身没有可再分发的描述文件"
       }
     },
     {
@@ -293,10 +293,10 @@
       "machine": {
         "name": "W1",
         "maker": "LimX Dynamics",
-        "geometry": "generated",
-        "source": "https://raw.githubusercontent.com/limxdynamics/tron1-robot-description/5b97add/wheellegged/WL_P311D/meshes/",
+        "geometry": "real",
+        "source": "https://raw.githubusercontent.com/limxdynamics/tron1-robot-description/5b97add1f3b461c9ed26ff2ff2f5025cc6ee4316/wheellegged/WL_P311D/meshes/",
         "license": "Apache-2.0",
-        "note": "W1 本身没有描述文件，路探到的是同厂轮足四足 WL_P311D，算代用件（docs/42 §7 第 6 条）。几何还没取"
+        "note": "代用件：几何取自同厂轮足四足 WL_P311D，不是 W1"
       }
     },
     {
@@ -326,7 +326,7 @@
         "name": "BDX Droid",
         "maker": "Disney Research",
         "geometry": "generated",
-        "note": "只有社区复刻（Open Duck Mini，Apache-2.0）。复刻品不是那台机器，比生成件更远不是更近（docs/42 §7 第 7 条）"
+        "note": "只有社区复刻件 —— 复刻不是那台机器"
       }
     },
     {
@@ -450,7 +450,7 @@
         "name": "Ballie",
         "maker": "Samsung",
         "geometry": "generated",
-        "note": "只有第三方商业素材"
+        "note": "只有第三方商业素材，来源不可核"
       }
     },
     {
@@ -480,10 +480,10 @@
       "machine": {
         "name": "Stretch 3",
         "maker": "Hello Robot",
-        "geometry": "generated",
+        "geometry": "real",
         "source": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/",
         "license": "Apache-2.0",
-        "note": "Apache-2.0 多一条「注明改动」。几何还没取，身上是生成件"
+        "note": "Apache-2.0：再分发注明改动，见 assets/parts/ATTRIBUTION.md"
       }
     },
     {
@@ -514,7 +514,7 @@
         "name": "Waymo Driver",
         "maker": "Waymo",
         "geometry": "generated",
-        "note": "Waymo Open Dataset 是传感器数据不是网格，且另有条款"
+        "note": "Open Dataset 是传感器数据不是网格，且另有条款"
       }
     },
     {
@@ -892,6 +892,33 @@
   ],
   "parts": [
     {
+      "id": "clavicle.athlete.atlas",
+      "slot": "clavicle",
+      "tier": 1,
+      "file": "clavicle.athlete.atlas.glb",
+      "family": "athlete",
+      "localGirth": 0.9808,
+      "triCount": 556,
+      "aabb": {
+        "min": [
+          -0.32853175450910976,
+          0,
+          -0.4904171880245369
+        ],
+        "max": [
+          0.32853175450910976,
+          1,
+          0.4904171880245369
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/RobotLocomotion/models/3bd1111011ea8c9813a66bf5cc21f31067f2e1ef/atlas/meshes/r_clav.gltf",
+        "recipeId": "clavicle.athlete.atlas"
+      }
+    },
+    {
       "id": "clavicle.compact.real",
       "slot": "clavicle",
       "tier": 1,
@@ -1058,6 +1085,33 @@
       }
     },
     {
+      "id": "clavicle.manipulator.stretch",
+      "slot": "clavicle",
+      "tier": 1,
+      "file": "clavicle.manipulator.stretch.glb",
+      "family": "manipulator",
+      "localGirth": 0.5494,
+      "triCount": 4999,
+      "aabb": {
+        "min": [
+          -0.27469710379345075,
+          0,
+          -0.13173314615314188
+        ],
+        "max": [
+          0.27469710379345075,
+          1,
+          0.13173314615314188
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/link_arm_l0_0.obj + https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/link_arm_l0_1.obj + https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/link_arm_l0_2.obj",
+        "recipeId": "clavicle.manipulator.stretch"
+      }
+    },
+    {
       "id": "clavicle.patrol.real",
       "slot": "clavicle",
       "tier": 1,
@@ -1168,6 +1222,33 @@
       }
     },
     {
+      "id": "clavicle.wheelleg.limx",
+      "slot": "clavicle",
+      "tier": 1,
+      "file": "clavicle.wheelleg.limx.glb",
+      "family": "wheelleg",
+      "localGirth": 0.8466,
+      "triCount": 4952,
+      "aabb": {
+        "min": [
+          -0.30259102145451217,
+          0,
+          -0.4232764671773431
+        ],
+        "max": [
+          0.30259102145451217,
+          1,
+          0.4232764671773431
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/limxdynamics/tron1-robot-description/5b97add1f3b461c9ed26ff2ff2f5025cc6ee4316/wheellegged/WL_P311D/meshes/RF_hip.STL",
+        "recipeId": "clavicle.wheelleg.limx"
+      }
+    },
+    {
       "id": "clavicle.xeno.a",
       "slot": "clavicle",
       "tier": 1,
@@ -1224,31 +1305,30 @@
       }
     },
     {
-      "id": "foot.athlete.a",
+      "id": "foot.athlete.atlas",
       "slot": "foot",
       "tier": 1,
-      "file": "foot.athlete.a.glb",
+      "file": "foot.athlete.atlas.glb",
       "family": "athlete",
-      "localGirth": 0.8945,
-      "triCount": 2802,
+      "localGirth": 0.5319,
+      "triCount": 540,
       "aabb": {
         "min": [
-          -0.44726240634918213,
+          -0.16463209936826687,
           0,
-          -0.2586522698402405
+          -0.2659688100833155
         ],
         "max": [
-          0.44726240634918213,
+          0.16463209936826687,
           1,
-          0.2586522698402405
+          0.2659688100833155
         ]
       },
       "symmetry": "mirror",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 41089,
-        "recipeId": "foot.athlete.a"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/RobotLocomotion/models/3bd1111011ea8c9813a66bf5cc21f31067f2e1ef/atlas/meshes/r_foot.gltf",
+        "recipeId": "foot.athlete.atlas"
       }
     },
     {
@@ -1754,31 +1834,30 @@
       }
     },
     {
-      "id": "foot.manipulator.a",
+      "id": "foot.manipulator.stretch",
       "slot": "foot",
       "tier": 1,
-      "file": "foot.manipulator.a.glb",
+      "file": "foot.manipulator.stretch.glb",
       "family": "manipulator",
-      "localGirth": 0.5201,
-      "triCount": 2946,
+      "localGirth": 0.9453,
+      "triCount": 4999,
       "aabb": {
         "min": [
-          -0.2384178787469864,
+          -0.4726554155095065,
           0,
-          -0.26002562046051025
+          -0.23744926297799615
         ],
         "max": [
-          0.2384178787469864,
+          0.4726554155095065,
           1,
-          0.26002562046051025
+          0.23744926297799615
         ]
       },
       "symmetry": "mirror",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 48926,
-        "recipeId": "foot.manipulator.a"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/base_link_0.obj + https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/base_link_2.obj + https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/base_link_3.obj + https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/base_link_4.obj + https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/base_link_5.obj + https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/base_link_6.obj + https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/base_link_7.obj",
+        "recipeId": "foot.manipulator.stretch"
       }
     },
     {
@@ -2004,6 +2083,33 @@
       }
     },
     {
+      "id": "foot.wheelleg.limx",
+      "slot": "foot",
+      "tier": 1,
+      "file": "foot.wheelleg.limx.glb",
+      "family": "wheelleg",
+      "localGirth": 0.9993,
+      "triCount": 5000,
+      "aabb": {
+        "min": [
+          -0.49963377788628804,
+          0,
+          -0.0794091616565447
+        ],
+        "max": [
+          0.49963377788628804,
+          1,
+          0.0794091616565447
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/limxdynamics/tron1-robot-description/5b97add1f3b461c9ed26ff2ff2f5025cc6ee4316/wheellegged/WL_P311D/meshes/LH_wheel.STL",
+        "recipeId": "foot.wheelleg.limx"
+      }
+    },
+    {
       "id": "foot.xeno.a",
       "slot": "foot",
       "tier": 1,
@@ -2057,6 +2163,33 @@
         "model": "Gen-2.5-Low",
         "seed": 23561,
         "recipeId": "foot.xeno.b"
+      }
+    },
+    {
+      "id": "foreArm.athlete.atlas",
+      "slot": "foreArm",
+      "tier": 1,
+      "file": "foreArm.athlete.atlas.glb",
+      "family": "athlete",
+      "localGirth": 0.6506,
+      "triCount": 196,
+      "aabb": {
+        "min": [
+          -0.3252967925046541,
+          0,
+          -0.2598040711691641
+        ],
+        "max": [
+          0.3252967925046541,
+          1,
+          0.2598040711691641
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/RobotLocomotion/models/3bd1111011ea8c9813a66bf5cc21f31067f2e1ef/atlas/meshes/r_farm.gltf",
+        "recipeId": "foreArm.athlete.atlas"
       }
     },
     {
@@ -2226,6 +2359,33 @@
       }
     },
     {
+      "id": "foreArm.manipulator.stretch",
+      "slot": "foreArm",
+      "tier": 1,
+      "file": "foreArm.manipulator.stretch.glb",
+      "family": "manipulator",
+      "localGirth": 0.209,
+      "triCount": 2472,
+      "aabb": {
+        "min": [
+          -0.10449537644581439,
+          0,
+          -0.10449537644581439
+        ],
+        "max": [
+          0.10449537644581439,
+          1,
+          0.10449537644581439
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/link_arm_l1_0.obj + https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/link_arm_l1_1.obj",
+        "recipeId": "foreArm.manipulator.stretch"
+      }
+    },
+    {
       "id": "foreArm.patrol.real",
       "slot": "foreArm",
       "tier": 1,
@@ -2336,6 +2496,33 @@
       }
     },
     {
+      "id": "foreArm.wheelleg.limx",
+      "slot": "foreArm",
+      "tier": 1,
+      "file": "foreArm.wheelleg.limx.glb",
+      "family": "wheelleg",
+      "localGirth": 0.8498,
+      "triCount": 5000,
+      "aabb": {
+        "min": [
+          -0.08398693807794427,
+          0,
+          -0.42492446668904693
+        ],
+        "max": [
+          0.08398693807794427,
+          1,
+          0.42492446668904693
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/limxdynamics/tron1-robot-description/5b97add1f3b461c9ed26ff2ff2f5025cc6ee4316/wheellegged/WL_P311D/meshes/LF_calf.STL",
+        "recipeId": "foreArm.wheelleg.limx"
+      }
+    },
+    {
       "id": "foreArm.xeno.a",
       "slot": "foreArm",
       "tier": 1,
@@ -2389,6 +2576,33 @@
         "model": "Gen-2.5-Low",
         "seed": 48487,
         "recipeId": "foreArm.xeno.b"
+      }
+    },
+    {
+      "id": "hand.athlete.atlas",
+      "slot": "hand",
+      "tier": 1,
+      "file": "hand.athlete.atlas.glb",
+      "family": "athlete",
+      "localGirth": 0.6583,
+      "triCount": 292,
+      "aabb": {
+        "min": [
+          -0.32914212469862975,
+          0,
+          -0.3130283516953032
+        ],
+        "max": [
+          0.32914212469862975,
+          1,
+          0.3130283516953032
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/RobotLocomotion/models/3bd1111011ea8c9813a66bf5cc21f31067f2e1ef/atlas/meshes/r_hand.gltf",
+        "recipeId": "hand.athlete.atlas"
       }
     },
     {
@@ -2558,6 +2772,33 @@
       }
     },
     {
+      "id": "hand.manipulator.stretch",
+      "slot": "hand",
+      "tier": 1,
+      "file": "hand.manipulator.stretch.glb",
+      "family": "manipulator",
+      "localGirth": 0.7479,
+      "triCount": 4992,
+      "aabb": {
+        "min": [
+          -0.24483474227118748,
+          0,
+          -0.37394329660939357
+        ],
+        "max": [
+          0.24483474227118748,
+          1,
+          0.37394329660939357
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/link_SG3_gripper_body.obj",
+        "recipeId": "hand.manipulator.stretch"
+      }
+    },
+    {
       "id": "hand.patrol.real",
       "slot": "hand",
       "tier": 1,
@@ -2668,6 +2909,33 @@
       }
     },
     {
+      "id": "hand.wheelleg.limx",
+      "slot": "hand",
+      "tier": 1,
+      "file": "hand.wheelleg.limx.glb",
+      "family": "wheelleg",
+      "localGirth": 0.9993,
+      "triCount": 5000,
+      "aabb": {
+        "min": [
+          -0.49963377788628804,
+          0,
+          -0.0794091616565447
+        ],
+        "max": [
+          0.49963377788628804,
+          1,
+          0.0794091616565447
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/limxdynamics/tron1-robot-description/5b97add1f3b461c9ed26ff2ff2f5025cc6ee4316/wheellegged/WL_P311D/meshes/LF_wheel.STL",
+        "recipeId": "hand.wheelleg.limx"
+      }
+    },
+    {
       "id": "hand.xeno.a",
       "slot": "hand",
       "tier": 1,
@@ -2724,31 +2992,30 @@
       }
     },
     {
-      "id": "head.athlete.a",
+      "id": "head.athlete.atlas",
       "slot": "head",
       "tier": 1,
-      "file": "head.athlete.a.glb",
+      "file": "head.athlete.atlas.glb",
       "family": "athlete",
-      "localGirth": 0.9581,
-      "triCount": 2996,
+      "localGirth": 0.7511,
+      "triCount": 935,
       "aabb": {
         "min": [
-          -0.1980711668729782,
+          -0.35721915341654714,
           0,
-          -0.47906365990638733
+          -0.37554551835688343
         ],
         "max": [
-          0.1980711668729782,
+          0.35721915341654714,
           1,
-          0.47906365990638733
+          0.37554551835688343
         ]
       },
       "symmetry": "none",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 18427,
-        "recipeId": "head.athlete.a"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/RobotLocomotion/models/3bd1111011ea8c9813a66bf5cc21f31067f2e1ef/atlas/meshes/head.gltf",
+        "recipeId": "head.athlete.atlas"
       }
     },
     {
@@ -3254,31 +3521,30 @@
       }
     },
     {
-      "id": "head.manipulator.a",
+      "id": "head.manipulator.stretch",
       "slot": "head",
       "tier": 1,
-      "file": "head.manipulator.a.glb",
+      "file": "head.manipulator.stretch.glb",
       "family": "manipulator",
-      "localGirth": 0.9578,
-      "triCount": 2874,
+      "localGirth": 0.6939,
+      "triCount": 4982,
       "aabb": {
         "min": [
-          -0.4392052888870239,
+          -0.3469649342326121,
           0,
-          -0.47888055443763733
+          -0.13515121921445356
         ],
         "max": [
-          0.4392052888870239,
+          0.3469649342326121,
           1,
-          0.47888055443763733
+          0.13515121921445356
         ]
       },
       "symmetry": "none",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 49724,
-        "recipeId": "head.manipulator.a"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/link_head_1.obj + https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/link_head_2.obj + https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/link_head_3.obj + https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/link_head_4.obj + https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/link_head_5.obj + https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/link_head_6.obj + https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/link_head_7.obj + https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/link_head_8.obj + https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/link_head_9.obj + https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/link_head_10.obj + https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/link_head_11.obj",
+        "recipeId": "head.manipulator.stretch"
       }
     },
     {
@@ -3504,6 +3770,33 @@
       }
     },
     {
+      "id": "head.wheelleg.limx",
+      "slot": "head",
+      "tier": 1,
+      "file": "head.wheelleg.limx.glb",
+      "family": "wheelleg",
+      "localGirth": 0.8475,
+      "triCount": 4952,
+      "aabb": {
+        "min": [
+          -0.30289620654927213,
+          0,
+          -0.423764763328959
+        ],
+        "max": [
+          0.30289620654927213,
+          1,
+          0.423764763328959
+        ]
+      },
+      "symmetry": "none",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/limxdynamics/tron1-robot-description/5b97add1f3b461c9ed26ff2ff2f5025cc6ee4316/wheellegged/WL_P311D/meshes/LF_hip.STL",
+        "recipeId": "head.wheelleg.limx"
+      }
+    },
+    {
       "id": "head.xeno.a",
       "slot": "head",
       "tier": 1,
@@ -3560,31 +3853,30 @@
       }
     },
     {
-      "id": "joint.athlete.a",
+      "id": "joint.athlete.atlas",
       "slot": "joint",
       "tier": 1,
-      "file": "joint.athlete.a.glb",
+      "file": "joint.athlete.atlas.glb",
       "family": "athlete",
-      "localGirth": 0.9854,
-      "triCount": 2914,
+      "localGirth": 1,
+      "triCount": 48,
       "aabb": {
         "min": [
-          -0.4926753342151642,
+          -0.3497116000854518,
           0,
-          -0.21272049844264984
+          -0.5
         ],
         "max": [
-          0.4926753342151642,
+          0.3497116000854518,
           1,
-          0.21272049844264984
+          0.5
         ]
       },
       "symmetry": "none",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 30663,
-        "recipeId": "joint.athlete.a"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/RobotLocomotion/models/3bd1111011ea8c9813a66bf5cc21f31067f2e1ef/atlas/meshes/r_talus.gltf",
+        "recipeId": "joint.athlete.atlas"
       }
     },
     {
@@ -4090,31 +4382,30 @@
       }
     },
     {
-      "id": "joint.manipulator.a",
+      "id": "joint.manipulator.stretch",
       "slot": "joint",
       "tier": 1,
-      "file": "joint.manipulator.a.glb",
+      "file": "joint.manipulator.stretch.glb",
       "family": "manipulator",
-      "localGirth": 0.9938,
-      "triCount": 2884,
+      "localGirth": 0.8112,
+      "triCount": 1492,
       "aabb": {
         "min": [
-          -0.4969175457954407,
+          -0.4055757316812647,
           0,
-          -0.27165353298187256
+          -0.28092287972655416
         ],
         "max": [
-          0.4969175457954407,
+          0.4055757316812647,
           1,
-          0.27165353298187256
+          0.28092287972655416
         ]
       },
       "symmetry": "none",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 29776,
-        "recipeId": "joint.manipulator.a"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/link_wrist_yaw.obj + https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/link_DW3_wrist_yaw_bottom.stl",
+        "recipeId": "joint.manipulator.stretch"
       }
     },
     {
@@ -4340,6 +4631,33 @@
       }
     },
     {
+      "id": "joint.wheelleg.limx",
+      "slot": "joint",
+      "tier": 1,
+      "file": "joint.wheelleg.limx.glb",
+      "family": "wheelleg",
+      "localGirth": 0.85,
+      "triCount": 1482,
+      "aabb": {
+        "min": [
+          -0.2867824335459456,
+          0,
+          -0.4249855037079989
+        ],
+        "max": [
+          0.2867824335459456,
+          1,
+          0.4249855037079989
+        ]
+      },
+      "symmetry": "none",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/limxdynamics/tron1-robot-description/5b97add1f3b461c9ed26ff2ff2f5025cc6ee4316/wheellegged/WL_P311D/meshes/RH_hip.STL",
+        "recipeId": "joint.wheelleg.limx"
+      }
+    },
+    {
       "id": "joint.xeno.a",
       "slot": "joint",
       "tier": 1,
@@ -4396,31 +4714,30 @@
       }
     },
     {
-      "id": "shin.athlete.a",
+      "id": "shin.athlete.atlas",
       "slot": "shin",
       "tier": 1,
-      "file": "shin.athlete.a.glb",
+      "file": "shin.athlete.atlas.glb",
       "family": "athlete",
-      "localGirth": 0.3466,
-      "triCount": 2904,
+      "localGirth": 0.3025,
+      "triCount": 1494,
       "aabb": {
         "min": [
-          -0.17222119867801666,
+          -0.1512649922177801,
           0,
-          -0.17328937351703644
+          -0.1282540360728782
         ],
         "max": [
-          0.17222119867801666,
+          0.1512649922177801,
           1,
-          0.17328937351703644
+          0.1282540360728782
         ]
       },
       "symmetry": "mirror",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 62985,
-        "recipeId": "shin.athlete.a"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/RobotLocomotion/models/3bd1111011ea8c9813a66bf5cc21f31067f2e1ef/atlas/meshes/r_lleg.gltf",
+        "recipeId": "shin.athlete.atlas"
       }
     },
     {
@@ -4926,31 +5243,30 @@
       }
     },
     {
-      "id": "shin.manipulator.a",
+      "id": "shin.manipulator.stretch",
       "slot": "shin",
       "tier": 1,
-      "file": "shin.manipulator.a.glb",
+      "file": "shin.manipulator.stretch.glb",
       "family": "manipulator",
-      "localGirth": 0.3348,
-      "triCount": 2894,
+      "localGirth": 0.0297,
+      "triCount": 60,
       "aabb": {
         "min": [
-          -0.1666971892118454,
+          -0.014831995605334635,
           0,
-          -0.16739913821220398
+          -0.014831995605334635
         ],
         "max": [
-          0.1666971892118454,
+          0.014831995605334635,
           1,
-          0.16739913821220398
+          0.014831995605334635
         ]
       },
       "symmetry": "mirror",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 19702,
-        "recipeId": "shin.manipulator.a"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/link_mast.obj",
+        "recipeId": "shin.manipulator.stretch"
       }
     },
     {
@@ -5176,6 +5492,33 @@
       }
     },
     {
+      "id": "shin.wheelleg.limx",
+      "slot": "shin",
+      "tier": 1,
+      "file": "shin.wheelleg.limx.glb",
+      "family": "wheelleg",
+      "localGirth": 0.8495,
+      "triCount": 5000,
+      "aabb": {
+        "min": [
+          -0.08398693807794427,
+          0,
+          -0.4247413556321909
+        ],
+        "max": [
+          0.08398693807794427,
+          1,
+          0.4247413556321909
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/limxdynamics/tron1-robot-description/5b97add1f3b461c9ed26ff2ff2f5025cc6ee4316/wheellegged/WL_P311D/meshes/LH_calf.STL",
+        "recipeId": "shin.wheelleg.limx"
+      }
+    },
+    {
       "id": "shin.xeno.a",
       "slot": "shin",
       "tier": 1,
@@ -5232,31 +5575,30 @@
       }
     },
     {
-      "id": "spine.athlete.a",
+      "id": "spine.athlete.atlas",
       "slot": "spine",
       "tier": 1,
-      "file": "spine.athlete.a.glb",
+      "file": "spine.athlete.atlas.glb",
       "family": "athlete",
-      "localGirth": 0.8599,
-      "triCount": 2958,
+      "localGirth": 0.7259,
+      "triCount": 4998,
       "aabb": {
         "min": [
-          -0.42995786666870117,
+          -0.3629566331980346,
           0,
-          -0.2661295235157013
+          -0.32584612567522203
         ],
         "max": [
-          0.42995786666870117,
+          0.3629566331980346,
           1,
-          0.2661295235157013
+          0.32584612567522203
         ]
       },
       "symmetry": "none",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 46036,
-        "recipeId": "spine.athlete.a"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/RobotLocomotion/models/3bd1111011ea8c9813a66bf5cc21f31067f2e1ef/atlas/meshes/utorso.gltf",
+        "recipeId": "spine.athlete.atlas"
       }
     },
     {
@@ -5790,31 +6132,30 @@
       }
     },
     {
-      "id": "spine.manipulator.a",
+      "id": "spine.manipulator.stretch",
       "slot": "spine",
       "tier": 1,
-      "file": "spine.manipulator.a.glb",
+      "file": "spine.manipulator.stretch.glb",
       "family": "manipulator",
-      "localGirth": 0.8433,
-      "triCount": 2836,
+      "localGirth": 0.7454,
+      "triCount": 4993,
       "aabb": {
         "min": [
-          -0.4216260612010956,
+          -0.3727225562303537,
           0,
-          -0.25999510288238525
+          -0.26273384807885986
         ],
         "max": [
-          0.4216260612010956,
+          0.3727225562303537,
           1,
-          0.25999510288238525
+          0.26273384807885986
         ]
       },
       "symmetry": "none",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 56827,
-        "recipeId": "spine.manipulator.a"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/link_lift_0.obj + https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/link_lift_2.obj + https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/link_lift_3.obj + https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/link_lift_4.obj + https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/link_lift_5.obj + https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/link_lift_6.obj + https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/link_lift_7.obj + https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/link_lift_8.obj + https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/link_lift_9.obj",
+        "recipeId": "spine.manipulator.stretch"
       }
     },
     {
@@ -6040,31 +6381,30 @@
       }
     },
     {
-      "id": "spine.wheelleg.a",
+      "id": "spine.wheelleg.limx",
       "slot": "spine",
       "tier": 1,
-      "file": "spine.wheelleg.a.glb",
+      "file": "spine.wheelleg.limx.glb",
       "family": "wheelleg",
-      "localGirth": 0.8329,
-      "triCount": 2854,
+      "localGirth": 0.5881,
+      "triCount": 4928,
       "aabb": {
         "min": [
-          -0.4164682924747467,
+          -0.294045838801233,
           0,
-          -0.26075810194015503
+          -0.1489455854976043
         ],
         "max": [
-          0.4164682924747467,
+          0.294045838801233,
           1,
-          0.26075810194015503
+          0.1489455854976043
         ]
       },
       "symmetry": "none",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 47722,
-        "recipeId": "spine.wheelleg.a"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/limxdynamics/tron1-robot-description/5b97add1f3b461c9ed26ff2ff2f5025cc6ee4316/wheellegged/WL_P311D/meshes/base_link.STL",
+        "recipeId": "spine.wheelleg.limx"
       }
     },
     {
@@ -6121,6 +6461,33 @@
         "model": "Gen-2.5-Low",
         "seed": 49786,
         "recipeId": "spine.xeno.b"
+      }
+    },
+    {
+      "id": "thigh.athlete.atlas",
+      "slot": "thigh",
+      "tier": 1,
+      "file": "thigh.athlete.atlas.glb",
+      "family": "athlete",
+      "localGirth": 0.5108,
+      "triCount": 2464,
+      "aabb": {
+        "min": [
+          -0.2554094058046205,
+          0,
+          -0.1794030579546495
+        ],
+        "max": [
+          0.2554094058046205,
+          1,
+          0.1794030579546495
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/RobotLocomotion/models/3bd1111011ea8c9813a66bf5cc21f31067f2e1ef/atlas/meshes/r_uleg.gltf",
+        "recipeId": "thigh.athlete.atlas"
       }
     },
     {
@@ -6290,6 +6657,33 @@
       }
     },
     {
+      "id": "thigh.manipulator.stretch",
+      "slot": "thigh",
+      "tier": 1,
+      "file": "thigh.manipulator.stretch.glb",
+      "family": "manipulator",
+      "localGirth": 0.0297,
+      "triCount": 60,
+      "aabb": {
+        "min": [
+          -0.014831995605334635,
+          0,
+          -0.014831995605334635
+        ],
+        "max": [
+          0.014831995605334635,
+          1,
+          0.014831995605334635
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/link_mast.obj",
+        "recipeId": "thigh.manipulator.stretch"
+      }
+    },
+    {
       "id": "thigh.patrol.real",
       "slot": "thigh",
       "tier": 1,
@@ -6400,6 +6794,33 @@
       }
     },
     {
+      "id": "thigh.wheelleg.limx",
+      "slot": "thigh",
+      "tier": 1,
+      "file": "thigh.wheelleg.limx.glb",
+      "family": "wheelleg",
+      "localGirth": 0.3245,
+      "triCount": 4968,
+      "aabb": {
+        "min": [
+          -0.15260780663472395,
+          0,
+          -0.16225165562913907
+        ],
+        "max": [
+          0.15260780663472395,
+          1,
+          0.16225165562913907
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/limxdynamics/tron1-robot-description/5b97add1f3b461c9ed26ff2ff2f5025cc6ee4316/wheellegged/WL_P311D/meshes/LH_thigh.STL",
+        "recipeId": "thigh.wheelleg.limx"
+      }
+    },
+    {
       "id": "thigh.xeno.a",
       "slot": "thigh",
       "tier": 1,
@@ -6456,31 +6877,30 @@
       }
     },
     {
-      "id": "upperArm.athlete.a",
+      "id": "upperArm.athlete.atlas",
       "slot": "upperArm",
       "tier": 1,
-      "file": "upperArm.athlete.a.glb",
+      "file": "upperArm.athlete.atlas.glb",
       "family": "athlete",
-      "localGirth": 0.3101,
-      "triCount": 2810,
+      "localGirth": 0.8339,
+      "triCount": 546,
       "aabb": {
         "min": [
-          -0.1550387591123581,
+          -0.4169286172063356,
           0,
-          -0.14862968027591705
+          -0.3564256721701712
         ],
         "max": [
-          0.1550387591123581,
+          0.4169286172063356,
           1,
-          0.14862968027591705
+          0.3564256721701712
         ]
       },
       "symmetry": "mirror",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 37991,
-        "recipeId": "upperArm.athlete.a"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/RobotLocomotion/models/3bd1111011ea8c9813a66bf5cc21f31067f2e1ef/atlas/meshes/r_uarm.gltf",
+        "recipeId": "upperArm.athlete.atlas"
       }
     },
     {
@@ -6986,31 +7406,30 @@
       }
     },
     {
-      "id": "upperArm.manipulator.a",
+      "id": "upperArm.manipulator.stretch",
       "slot": "upperArm",
       "tier": 1,
-      "file": "upperArm.manipulator.a.glb",
+      "file": "upperArm.manipulator.stretch.glb",
       "family": "manipulator",
-      "localGirth": 0.3209,
-      "triCount": 2856,
+      "localGirth": 0.2673,
+      "triCount": 2268,
       "aabb": {
         "min": [
-          -0.16047121584415436,
+          -0.1336252937406537,
           0,
-          -0.1507660448551178
+          -0.1336252937406537
         ],
         "max": [
-          0.16047121584415436,
+          0.1336252937406537,
           1,
-          0.1507660448551178
+          0.1336252937406537
         ]
       },
       "symmetry": "mirror",
       "source": {
-        "provider": "hyper3d",
-        "model": "Gen-2.5-Low",
-        "seed": 2160,
-        "recipeId": "upperArm.manipulator.a"
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/link_arm_l4_0.obj + https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/assets/link_arm_l4_1.obj",
+        "recipeId": "upperArm.manipulator.stretch"
       }
     },
     {
@@ -7233,6 +7652,33 @@
         "model": "Gen-2.5-Low",
         "seed": 35049,
         "recipeId": "upperArm.softwear.a"
+      }
+    },
+    {
+      "id": "upperArm.wheelleg.limx",
+      "slot": "upperArm",
+      "tier": 1,
+      "file": "upperArm.wheelleg.limx.glb",
+      "family": "wheelleg",
+      "localGirth": 0.3204,
+      "triCount": 4976,
+      "aabb": {
+        "min": [
+          -0.1508377330851161,
+          0,
+          -0.16017639698477126
+        ],
+        "max": [
+          0.1508377330851161,
+          1,
+          0.16017639698477126
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/limxdynamics/tron1-robot-description/5b97add1f3b461c9ed26ff2ff2f5025cc6ee4316/wheellegged/WL_P311D/meshes/LF_thigh.STL",
+        "recipeId": "upperArm.wheelleg.limx"
       }
     },
     {

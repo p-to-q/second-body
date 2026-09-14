@@ -158,8 +158,8 @@ const MENAGERIE = 'https://raw.githubusercontent.com/google-deepmind/mujoco_mena
  *               `porcelain` 在这一档是 docs/42 §7 第 1 条的裁定 —— 它是形态空间的原点，
  *               原点不该同时是一件产品。
  *
- * `geometry: 'generated'` 而 `source` 在的那几条（athlete / wheelleg / manipulator）说的是
- * 第三件事：**路已经探到，件还没取。** 取了就把这一格改成 'real'，`check:parts` 当场验。
+ * athlete / wheelleg / manipulator 曾经是 `geometry: 'generated'` 而 `source` 在 ——
+ * 「路已经探到，件还没取」。2026-09-14 取了，三格改成 'real'，`check:parts` 当场验过。
  */
 const MACHINE: Record<string, ThemeDef['machine']> = {
   compact: {
@@ -183,28 +183,27 @@ const MACHINE: Record<string, ThemeDef['machine']> = {
     // Digit 自己没有可用授权（docs/33 §2 A，docs/42 复核仍然成立）。
     note: '几何取自同厂同拓扑的 Cassie —— Digit 本身没有可再分发的描述文件',
   },
+  // 下面三条 2026-09-14 取件，从 'generated' 升到 'real'。source 钉整串 SHA，和 harvest.mjs 同一个数。
   athlete: {
-    name: 'Atlas', maker: 'Boston Dynamics', geometry: 'generated',
-    source: 'https://raw.githubusercontent.com/RobotLocomotion/models/3bd1111/atlas/meshes/',
+    name: 'Atlas', maker: 'Boston Dynamics', geometry: 'real',
+    source: 'https://raw.githubusercontent.com/RobotLocomotion/models/3bd1111011ea8c9813a66bf5cc21f31067f2e1ef/atlas/meshes/',
     license: 'BSD-3-Clause',
-    // 取之前要把两件事写进 ATTRIBUTION：版权人是 MIT CSAIL 的 Robot Locomotion Group
-    // 而不是 Boston Dynamics；那是 DRC/v5 液压那一代，不是 tagline 唤起的 2025 电动版
-    // （docs/42 §3 的保留意见、§7 第 5 条）。还有一条技术前提：那批网格是 .gltf + 外挂 .bin。
-    note: '几何还没取；版权人是 MIT CSAIL，且是 DRC/v5 液压那一代',
+    // 版权人是 MIT CSAIL 的 Robot Locomotion Group 而不是 Boston Dynamics；
+    // 那是 DRC/v5 液压那一代，不是 tagline 唤起的 2025 电动版（docs/42 §3、§7 第 5 条）。
+    note: '版权人是 MIT CSAIL Robot Locomotion Group，非 Boston Dynamics；DRC/v5 液压那一代，非 2025 电动版',
   },
   wheelleg: {
-    name: 'W1', maker: 'LimX Dynamics', geometry: 'generated',
-    source: 'https://raw.githubusercontent.com/limxdynamics/tron1-robot-description/5b97add/wheellegged/WL_P311D/meshes/',
+    name: 'W1', maker: 'LimX Dynamics', geometry: 'real',
+    source: 'https://raw.githubusercontent.com/limxdynamics/tron1-robot-description/5b97add1f3b461c9ed26ff2ff2f5025cc6ee4316/wheellegged/WL_P311D/meshes/',
     license: 'Apache-2.0',
-    // W1 本身没有描述文件（逐个仓库查过 45 个）。和 Cassie 代 Digit 同类，
-    // 而这一次更有必要：它是全 roster 里唯一零自有件的条目，缺的正是一个轮子（docs/42 §7 第 6 条）。
-    note: '几何还没取；路探到的是同厂轮足四足 WL_P311D，代用件',
+    // W1 本身没有描述文件（逐个仓库查过 45 个）。和 Cassie 代 Digit 同类（docs/42 §7 第 6 条）。
+    note: '代用件：几何取自同厂轮足四足 WL_P311D，不是 W1',
   },
   manipulator: {
-    name: 'Stretch 3', maker: 'Hello Robot', geometry: 'generated',
+    name: 'Stretch 3', maker: 'Hello Robot', geometry: 'real',
     source: `${MENAGERIE}/hello_robot_stretch_3/`,
     license: 'Apache-2.0',
-    note: '几何还没取；Apache-2.0 多一条「注明改动」',
+    note: 'Apache-2.0：再分发注明改动，见 assets/parts/ATTRIBUTION.md',
   },
 
   // ── 实·无几何：真机存在，没有任何一份授权干净的几何（docs/42 §3 逐个 URL 查过）──

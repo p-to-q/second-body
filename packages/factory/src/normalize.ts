@@ -12,7 +12,7 @@ import { resolve } from 'node:path';
 import { RECIPES, recipeById } from '../recipes/catalog.ts';
 import { load, save, RAW_DIR, PARTS_DIR } from './ledger.ts';
 import { glbStats } from './glb-stats.ts';
-import { readMeshFile, isImportableMesh } from './mesh-import.ts';
+import { readMeshFile, isImportableMesh, isGltfJson, readGltfGeometry } from './mesh-import.ts';
 import type { PartMeta, Slot, Tier, Vec3 } from '../../core/src/types.ts';
 
 const MAX_TRIS = 5000;
@@ -229,15 +229,26 @@ export interface NormalizeOverrides {
   family?: string;
   symmetry?: 'mirror' | 'none';
   source?: PartMeta['source'];
+  /**
+   * 这一件的面数上限（缺省 = 单件预算 MAX_TRIS）。
+   * 为什么需要：单件预算管的是**一件**，而一具身体是三十来个实例 ——
+   * 一个物种每件都顶着 5000 面（CAD 减面总是减到刚好进线），整具再乘描边的 2 倍，
+   * 就越过 `BUDGET.maxTriangles`（`outline-budget.test.ts`）。只能压得比预算更低，不能更高。
+   */
+  maxTris?: number;
 }
 
-export async function normalizeOne(id: string, rawFile: string, over: NormalizeOverrides = {}): Promise<NormalizeResult> {
+export async function normalizeOne(id: string, rawFile: string | string[], over: NormalizeOverrides = {}): Promise<NormalizeResult> {
   const recipe = recipeById(id);
   const outDir = over.outDir ?? PARTS_DIR;
   const warnings: string[] = [];
-  // 唯一的入口差异：STL/OBJ（厂商公开的机器人 CAD）先转成 Document，其余照旧走 io.read。
+  // 唯一的入口差异：STL/OBJ（厂商公开的机器人 CAD）先转成 Document；`.gltf` + 外挂 `.bin`
+  // （RobotLocomotion 的 Atlas）去掉贴图引用后读；其余照旧走 io.read。
   // glb 这条路一个字节都没变 —— 198 件已入库资产的行为不受影响。
-  const doc = isImportableMesh(rawFile) ? readMeshFile(rawFile) : await io.read(rawFile);
+  const files = [rawFile].flat();
+  const doc = files.every(isImportableMesh) ? readMeshFile(files)
+    : isGltfJson(files[0]) ? await readGltfGeometry(files[0])
+    : await io.read(files[0]);
 
   // 1) 结构清理：烘掉节点变换，合并成单 mesh
   await doc.transform(flatten(), dedup(), join(), weld(), prune());
@@ -257,17 +268,19 @@ export async function normalizeOne(id: string, rawFile: string, over: NormalizeO
     .reduce((s, p) => s + Math.floor(((p.getIndices()?.getCount() ?? p.getAttribute('POSITION')?.getCount()) ?? 0) / 3), 0);
   // Rodin 不保证遵守 quality_override：实测 50 件里有 2 件返回了未减面的原始网格
   // （1.5M / 439k tris）。所以减面不是可选的优化，是流水线必须兜住的一步（docs/07 §5 U11）。
-  if (triCountOf() > MAX_TRIS) {
+  // 覆盖项只能压得更低（见 NormalizeOverrides.maxTris）；不传时与以前逐字相同
+  const limit = Math.min(MAX_TRIS, over.maxTris ?? MAX_TRIS);
+  if (triCountOf() > limit) {
     await MeshoptSimplifier.ready;
     const before = triCountOf();
     const mergedVerts = weldTolerant(doc);      // 必须先焊接，否则 meshopt 收不动
     if (mergedVerts) warnings.push(`容差焊接合并了 ${mergedVerts} 个顶点`);
     // 逐级放宽误差预算，直到进预算为止。硬表面件放宽到 0.2 也还能看。
     for (const error of [0.005, 0.02, 0.05, 0.1, 0.2]) {
-      await doc.transform(weld(), simplify({ simplifier: MeshoptSimplifier, ratio: MAX_TRIS / triCountOf(), error }));
-      if (triCountOf() <= MAX_TRIS) { warnings.push(`减面 ${before}→${triCountOf()} (error=${error})`); break; }
+      await doc.transform(weld(), simplify({ simplifier: MeshoptSimplifier, ratio: limit / triCountOf(), error }));
+      if (triCountOf() <= limit) { warnings.push(`减面 ${before}→${triCountOf()} (error=${error})`); break; }
     }
-    if (triCountOf() > MAX_TRIS) warnings.push(`simplify 未达标: ${before}→${triCountOf()} tris，需要人工处理`);
+    if (triCountOf() > limit) warnings.push(`simplify 未达标: ${before}→${triCountOf()} tris，需要人工处理`);
   }
 
   // 4) 主轴 → +Y

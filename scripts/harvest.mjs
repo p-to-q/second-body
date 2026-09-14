@@ -44,6 +44,11 @@ const EPS = 2e-3, MAX_TRIS = 5000, MAX_BYTES = 1_500_000;
 const MENAGERIE_SHA = '8161bba264d7fa7c99ca301e91e7fb44737676ad';   // 2026-09-13
 const BODYPARTS_SHA = 'fd527e6f4daf732fd814314d9257df5877b844bc';   // 2026-09-13
 const MENAGERIE = `https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/${MENAGERIE_SHA}`;
+// Menagerie 之外的两条路（docs/42 §3）。同样钉整串 SHA —— 短 SHA 在上游再多几次提交之后可能变得有歧义。
+const RLG_SHA = '3bd1111011ea8c9813a66bf5cc21f31067f2e1ef';     // RobotLocomotion/models · 2026-09-03
+const LIMX_SHA = '5b97add1f3b461c9ed26ff2ff2f5025cc6ee4316';    // limxdynamics/tron1-robot-description · 2026-08-10
+const RLG = `https://raw.githubusercontent.com/RobotLocomotion/models/${RLG_SHA}`;
+const LIMX = `https://raw.githubusercontent.com/limxdynamics/tron1-robot-description/${LIMX_SHA}`;
 
 /**
  * 来源清单。
@@ -182,7 +187,60 @@ const ORIGINS = {
     license: 'MIT',
     caveat: '—',
   },
+  'stretch3': {
+    dir: 'hello_robot_stretch_3',
+    robot: 'Hello Robot Stretch 3',
+    holder: 'Hello Robot Inc.（Menagerie 子目录 LICENSE 为 Apache-2.0）',
+    license: 'Apache-2.0',
+    // §4(b)：再分发衍生件要注明改动 —— ATTRIBUTION.md「我们做了什么改动」那一节就是这句话的落点。
+    // 子目录与仓库根都没有 NOTICE 文件（2026-09-14 在钉住的 SHA 上查过），§4(d) 不适用。
+    caveat: '注明改动（Apache-2.0 §4(b)）；无 NOTICE 文件',
+  },
+  // ── Menagerie 之外：`meshRoot` / `licenseUrl` 显式给出，不从 `dir` 推 ──
+  'atlas': {
+    dir: 'atlas',
+    meshRoot: `${RLG}/atlas/meshes`,
+    licenseUrl: `${RLG}/atlas/LICENSE.TXT`,
+    repo: `RobotLocomotion/models@${RLG_SHA.slice(0, 7)}`,
+    robot: 'Boston Dynamics Atlas（DRC / v5 描述模型）',
+    // 版权人**不是** Boston Dynamics。这份几何是 DRC 时代的描述模型，也不是 2025 年那台电动 Atlas
+    // （docs/42 §3 保留意见、§7 第 5 条）。两件事都要写出来，不能含糊成「Atlas 的原厂几何」。
+    holder: 'Robot Locomotion Group @ MIT CSAIL',
+    license: 'BSD-3-Clause',
+    caveat: '非背书（MIT 名义）；版权人非 Boston Dynamics；液压 DRC/v5 一代，非 2025 电动版',
+  },
+  'wl_p311d': {
+    dir: 'wheellegged/WL_P311D',
+    meshRoot: `${LIMX}/wheellegged/WL_P311D/meshes`,
+    licenseUrl: `${LIMX}/LICENSE`,
+    repo: `limxdynamics/tron1-robot-description@${LIMX_SHA.slice(0, 7)}`,
+    robot: 'LimX Dynamics WL_P311D 轮足四足（代 W1）',
+    holder: 'LimX Dynamics',
+    license: 'Apache-2.0',
+    // W1 本身没有描述文件（docs/42 §3）。和 Cassie 代 Digit 同类：同厂、同一个"腿末端是轮子"的拓扑。
+    caveat: '代用件，不是 W1；注明改动（Apache-2.0 §4(b)）；无 NOTICE 文件；realsense_d435.stl 是第三方件，不取',
+  },
 };
+
+const meshRootOf = (o) => o.meshRoot ?? `${MENAGERIE}/${o.dir}/assets`;
+const licenseUrlOf = (o) => o.licenseUrl ?? `${MENAGERIE}/${o.dir}/LICENSE`;
+const repoOf = (o) => o.repo ?? `mujoco_menagerie@${MENAGERIE_SHA.slice(0, 7)}`;
+const displayDirOf = (o) => (o.meshRoot ? o.meshRoot.slice(o.meshRoot.indexOf(o.dir)) : `${o.dir}/assets`);
+
+/**
+ * **授权门，可执行的那一半。** 注释里的 ✅/🟡 是判定，这里是核对：
+ * 取到的 LICENSE 原文必须**认得出**是 BSD-3 / Apache-2.0 / MIT 之一，
+ * 而且必须和 ORIGINS 里声明的那一种一致。认不出 = 不取，不是「大概没事」（docs/42 §3）。
+ * 为什么要核对"一致"：声明写 Apache、原文却是另一份，说明有人抄错了目录 ——
+ * 那正是「记录说 Spot、身上穿 ANYmal」的同一类错。
+ */
+function licenseKind(text) {
+  if (/Apache License\s+Version 2\.0/.test(text)) return 'Apache-2.0';
+  if (/Permission is hereby granted, free of charge/.test(text)) return 'MIT';
+  if (/Redistribution and use in source and binary forms/.test(text)
+    && /Neither the name/.test(text) && !/advertising materials/i.test(text)) return 'BSD-3-Clause';
+  return null;
+}
 
 /**
  * 槽位的对称性。和 `recipes/catalog.ts` 的 SLOTS 表逐字一致 ——
@@ -286,9 +344,72 @@ const ADOPTED = [
   // heel-spring（girth 0.401）当关节会被放大 2.5 倍，18 个关节全变成大平板（截过图）。
   // hip-roll 的壳 0.929 ≈ 槽位中位数 0.993，是这台机器上唯一接近各向同性的件。
   { id: 'joint.digitigrade.real',    slot: 'joint',    family: 'digitigrade', origin: 'cassie', asset: 'hip-roll.obj',   why: '关节。髋 roll 壳，girth 0.929 ≈ joint 中位数 0.993' },
+
+  // ── athlete = Atlas（DRC / v5 描述模型）──────────────────────────────────
+  // 2026-09-14 取件。girth 是规范化之后当场量的，中位数取当时 parts.json 的值。
+  // 版权人是 MIT CSAIL 不是 Boston Dynamics；液压那一代不是电动版 —— 写在 ORIGINS.caveat 与 machine.note。
+  { id: 'spine.athlete.atlas',    slot: 'spine',    family: 'athlete', origin: 'atlas', asset: 'utorso.gltf', why: '上躯干。Atlas 那副背着液压泵的宽胸 —— 剪影里最先被认出来的一块；girth 0.726 ≈ spine 中位数 0.842 的 0.86×' },
+  { id: 'head.athlete.atlas',     slot: 'head',     family: 'athlete', origin: 'atlas', asset: 'head.gltf',   why: '头。MultiSense 传感器头，没有脸；girth 0.751 ≈ head 中位数的 0.80×' },
+  { id: 'clavicle.athlete.atlas', slot: 'clavicle', family: 'athlete', origin: 'atlas', asset: 'r_clav.gltf', why: '锁骨连杆。真机就叫 clav' },
+  { id: 'upperArm.athlete.atlas', slot: 'upperArm', family: 'athlete', origin: 'atlas', asset: 'r_uarm.gltf', why: '上臂' },
+  { id: 'foreArm.athlete.atlas',  slot: 'foreArm',  family: 'athlete', origin: 'atlas', asset: 'r_farm.gltf', why: '前臂' },
+  { id: 'hand.athlete.atlas',     slot: 'hand',     family: 'athlete', origin: 'atlas', asset: 'r_hand.gltf', why: '手（腕法兰端）；girth 0.658 ≈ hand 中位数的 1.05×' },
+  { id: 'thigh.athlete.atlas',    slot: 'thigh',    family: 'athlete', origin: 'atlas', asset: 'r_uleg.gltf', why: '大腿' },
+  { id: 'shin.athlete.atlas',     slot: 'shin',     family: 'athlete', origin: 'atlas', asset: 'r_lleg.gltf', why: '小腿' },
+  { id: 'foot.athlete.atlas',     slot: 'foot',     family: 'athlete', origin: 'atlas', asset: 'r_foot.gltf', why: '脚' },
+  { id: 'joint.athlete.atlas',    slot: 'joint',    family: 'athlete', origin: 'atlas', asset: 'r_talus.gltf', why: '关节。踝的万向节块 —— 它本来就是一个关节；girth 1.000 ≈ joint 中位数的 1.01×' },
+
+  // ── wheelleg = LimX WL_P311D（代 W1）──────────────────────────────────────
+  // 只有五种网格（机身 / 髋 / 大腿 / 小腿 / 轮），十个槽位在同一台机器上挑，不去别的机器借（docs/26 §H）。
+  // 前后腿用不同文件（LF / LH），和 Spot 那次一样。
+  { id: 'spine.wheelleg.limx',    slot: 'spine',    family: 'wheelleg', origin: 'wl_p311d', asset: 'base_link.STL', why: '机身。girth 0.588 ≈ spine 中位数的 0.70×，贴着 §H 带的下沿 —— 选它而不是髋座，是因为这台机器的剪影就是一块扁机身挂四条轮腿' },
+  { id: 'head.wheelleg.limx',     slot: 'head',     family: 'wheelleg', origin: 'wl_p311d', asset: 'LF_hip.STL',    why: '头（代）。这台机器没有头，用前左髋 HAA 执行器座当 sensor pod；girth 0.848 ≈ head 中位数的 0.90×' },
+  { id: 'clavicle.wheelleg.limx', slot: 'clavicle', family: 'wheelleg', origin: 'wl_p311d', asset: 'RF_hip.STL',    why: '肩座。前右髋座 —— 腿从机身伸出去的那一节' },
+  { id: 'upperArm.wheelleg.limx', slot: 'upperArm', family: 'wheelleg', origin: 'wl_p311d', asset: 'LF_thigh.STL',  why: '前腿大腿' },
+  { id: 'foreArm.wheelleg.limx',  slot: 'foreArm',  family: 'wheelleg', origin: 'wl_p311d', asset: 'LF_calf.STL',   why: '前腿小腿' },
+  { id: 'hand.wheelleg.limx',     slot: 'hand',     family: 'wheelleg', origin: 'wl_p311d', asset: 'LF_wheel.STL',  why: '前轮。四足里前腿的末端就是手 —— 这台机器的手是轮子。girth 0.999 超出 hand 带（≈1.6×），只给自己用、不外借' },
+  { id: 'thigh.wheelleg.limx',    slot: 'thigh',    family: 'wheelleg', origin: 'wl_p311d', asset: 'LH_thigh.STL',  why: '后腿大腿' },
+  { id: 'shin.wheelleg.limx',     slot: 'shin',     family: 'wheelleg', origin: 'wl_p311d', asset: 'LH_calf.STL',   why: '后腿小腿' },
+  { id: 'foot.wheelleg.limx',     slot: 'foot',     family: 'wheelleg', origin: 'wl_p311d', asset: 'LH_wheel.STL',  why: '后轮。**这一格就是 docs/42 说这条线上真正缺的那个轮子**' },
+  // maxTris：joint 一具身体里有 14 个实例。每件 4984 面时整具 149,448 面，描边翻倍 298,896 > BUDGET.maxTriangles
+  // 250,000（outline-budget.test.ts 当场红）。压到 1500 面，整具回到其它物种的量级。
+  { id: 'joint.wheelleg.limx',    slot: 'joint',    family: 'wheelleg', origin: 'wl_p311d', asset: 'RH_hip.STL', maxTris: 1500, why: '关节。后右髋 HAA 执行器座；girth 0.847 ≈ joint 中位数的 0.86×。轮子当关节会让 18 个关节全变成轮子，读不出哪里在滚' },
+
+  // ── manipulator = Hello Robot Stretch 3 ─────────────────────────────────
+  // 身体方案是 column：两条腿的六节串成桅杆，手臂是顶端的分支（core/bodyplan.ts）。
+  // 一个 link 在 Menagerie 里按材质拆成几份 OBJ，按 stretch.xml 的 visual geom 整个取。
+  // 不取的：base_link_8（22 MB）、link_head_0（11.5 MB）—— docs/42 §4 已经说过避开它们。
+  { id: 'spine.manipulator.stretch', slot: 'spine', family: 'manipulator', origin: 'stretch3',
+    asset: ['link_lift_0.obj', 'link_lift_2.obj', 'link_lift_3.obj', 'link_lift_4.obj', 'link_lift_5.obj', 'link_lift_6.obj', 'link_lift_7.obj', 'link_lift_8.obj', 'link_lift_9.obj'],
+    why: '升降滑架。套在桅杆上、伸出手臂的那一块 —— column 方案里躯干就在桅杆顶上；girth 0.745 ≈ spine 中位数的 0.88×' },
+  { id: 'head.manipulator.stretch', slot: 'head', family: 'manipulator', origin: 'stretch3',
+    asset: ['link_head_1.obj', 'link_head_2.obj', 'link_head_3.obj', 'link_head_4.obj', 'link_head_5.obj', 'link_head_6.obj', 'link_head_7.obj', 'link_head_8.obj', 'link_head_9.obj', 'link_head_10.obj', 'link_head_11.obj'],
+    why: '头。桅杆顶上那个装相机的头罩（不含 11.5 MB 的 link_head_0）；girth 0.694 ≈ head 中位数的 0.74×' },
+  { id: 'clavicle.manipulator.stretch', slot: 'clavicle', family: 'manipulator', origin: 'stretch3',
+    asset: ['link_arm_l0_0.obj', 'link_arm_l0_1.obj', 'link_arm_l0_2.obj'], why: '伸缩臂最内一节，连着滑架' },
+  { id: 'upperArm.manipulator.stretch', slot: 'upperArm', family: 'manipulator', origin: 'stretch3',
+    asset: ['link_arm_l4_0.obj', 'link_arm_l4_1.obj'], why: '伸缩臂外套管' },
+  { id: 'foreArm.manipulator.stretch', slot: 'foreArm', family: 'manipulator', origin: 'stretch3',
+    asset: ['link_arm_l1_0.obj', 'link_arm_l1_1.obj'], why: '伸缩臂内套管 —— 比上一节细，套筒一节套一节的读法在这里' },
+  { id: 'hand.manipulator.stretch', slot: 'hand', family: 'manipulator', origin: 'stretch3',
+    asset: 'link_SG3_gripper_body.obj', why: '夹爪本体。girth 0.748 超出 hand 带（≈1.2×），只给自己用、不外借' },
+  { id: 'thigh.manipulator.stretch', slot: 'thigh', family: 'manipulator', origin: 'stretch3',
+    asset: 'link_mast.obj', why: '桅杆。column 方案里腿骨串成桅杆，而这台机器真的只有一根桅杆' },
+  { id: 'shin.manipulator.stretch', slot: 'shin', family: 'manipulator', origin: 'stretch3',
+    asset: 'link_mast.obj', why: '桅杆（同一件）。桅杆是一根铝型材，拆两节是拓扑要求，不是机器的' },
+  { id: 'foot.manipulator.stretch', slot: 'foot', family: 'manipulator', origin: 'stretch3',
+    asset: ['base_link_0.obj', 'base_link_2.obj', 'base_link_3.obj', 'base_link_4.obj', 'base_link_5.obj', 'base_link_6.obj', 'base_link_7.obj'],
+    why: '底盘（不含 22 MB 的 base_link_8）。桅杆底端落在它上面 —— 轮式底盘就是这个物种的脚' },
+  // maxTris：同 wheelleg 那一条 —— 14 个实例 × 4998 面让整具描边后到 239,294，离 250,000 只剩 4%。
+  { id: 'joint.manipulator.stretch', slot: 'joint', family: 'manipulator', origin: 'stretch3', maxTris: 1500,
+    asset: ['link_wrist_yaw.obj', 'link_DW3_wrist_yaw_bottom.stl'], why: '关节。腕 yaw 关节 —— 它本来就是一个关节；girth 0.815 ≈ joint 中位数的 0.82×' },
 ];
 
-const adoptedUrl = (a) => `${MENAGERIE}/${ORIGINS[a.origin].dir}/assets/${a.asset}`;
+/** 一个 link 可以是几份文件（Menagerie 按材质拆 OBJ），`asset` 因此可以是数组 */
+const assetsOf = (a) => [a.asset].flat();
+const adoptedUrls = (a) => assetsOf(a).map((f) => `${meshRootOf(ORIGINS[a.origin])}/${f}`);
+/** 写进 `source.model`。以来源根开头，`check:parts` 拿它比 `machine.source` */
+const adoptedUrl = (a) => adoptedUrls(a).join(' + ');
 
 const args = process.argv.slice(2);
 const has = (f) => args.includes(f);
@@ -298,7 +419,7 @@ const picked = SOURCES.filter((s) => !only || s.id === only);
 if (has('--list')) {
   for (const s of SOURCES) console.log(`${s.id.padEnd(24)} ${s.license}\n${' '.repeat(25)}${s.url}\n${' '.repeat(25)}${s.note}\n`);
   console.log('── 入库件（--adopt）─────────────────────────────');
-  for (const a of ADOPTED) console.log(`${a.id.padEnd(28)} ${ORIGINS[a.origin].license.padEnd(24)} ${a.asset}`);
+  for (const a of ADOPTED) console.log(`${a.id.padEnd(28)} ${ORIGINS[a.origin].license.padEnd(24)} ${assetsOf(a).join(' + ')}`);
   process.exit(0);
 }
 
@@ -314,6 +435,34 @@ async function download(src) {
   mkdirSync(HARVEST, { recursive: true });
   writeFileSync(path, Buffer.from(await r.arrayBuffer()));
   return path;
+}
+
+/**
+ * 入库件的下载：几份文件逐个取；`.gltf` 连同它外挂的 `.bin` 一起取，
+ * 并把 buffer 的 uri 改写成本地文件名（原料按件 id 命名，上游的 `r_hand.bin` 会撞名）。
+ * 贴图不取 —— `readGltfGeometry` 读之前就把贴图引用摘掉了。
+ */
+async function downloadAdopted(a) {
+  const urls = adoptedUrls(a);
+  const out = [];
+  for (let i = 0; i < urls.length; i++) {
+    const id = urls.length > 1 ? `${a.id}.${i}` : a.id;
+    const path = await download({ id, url: urls[i] });
+    if (path.endsWith('.gltf')) {
+      const json = JSON.parse(readFileSync(path, 'utf8'));
+      for (const [k, b] of (json.buffers ?? []).entries()) {
+        if (!b.uri || b.uri.startsWith('data:')) continue;
+        const local = `${id}.${k}.bin`;
+        if (b.uri !== local) {
+          await download({ id: `${id}.${k}`, url: urls[i].replace(/[^/]*$/, b.uri), ext: '.bin' });
+          b.uri = local;
+        }
+      }
+      writeFileSync(path, JSON.stringify(json));
+    }
+    out.push(path);
+  }
+  return out.length === 1 ? out[0] : out;
 }
 
 /** 验收：用和 check:parts 同一套数字，对取件池独立跑一遍。 */
@@ -445,22 +594,38 @@ async function adopt() {
 
   // 1) 原始 LICENSE 原文随件入库（docs/33 §4 第 1 条）。
   //    BSD-3 的第 1/2 条要求再分发时保留版权声明与免责声明 —— 保留的方式就是把原文放在这里。
+  //    `--family=a,b`：只取这几个物种。其余已入库件的 glb 一个字节不碰，索引按 id 合并。
+  const families = args.find((x) => x.startsWith('--family='))?.slice(9).split(',');
+  const todo = ADOPTED.filter((a) => !families || families.includes(a.family));
+  const origins = new Set(todo.map((a) => a.origin));
   mkdirSync(LICENSES, { recursive: true });
   for (const [key, o] of Object.entries(ORIGINS)) {
+    if (!origins.has(key)) continue;
     const path = resolve(LICENSES, `${key}.LICENSE.txt`);
-    if (existsSync(path)) continue;
-    const url = `${MENAGERIE}/${o.dir}/LICENSE`;
-    const r = await fetch(url);
-    if (!r.ok) throw new Error(`取不到 ${o.robot} 的 LICENSE：${r.status} ${url}`);
-    writeFileSync(path, `# ${o.robot} · ${o.license}\n# 原文取自 ${url}\n\n${await r.text()}`);
-    console.log(`  ✓ LICENSE  ${key}`);
+    const url = licenseUrlOf(o);
+    let text;
+    if (existsSync(path)) text = readFileSync(path, 'utf8');
+    else {
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`取不到 ${o.robot} 的 LICENSE：${r.status} ${url}`);
+      text = await r.text();
+    }
+    // 授权门：认不出、或者和声明的不是同一种 → 这台机器一件都不取
+    const kind = licenseKind(text);
+    if (!kind || !o.license.startsWith(kind)) {
+      throw new Error(`${o.robot}: LICENSE 原文认作 ${kind ?? '（认不出）'}，声明是 ${o.license} —— 只收 BSD-3-Clause / Apache-2.0 / MIT 且必须一致（${url}）`);
+    }
+    if (!existsSync(path)) {
+      writeFileSync(path, `# ${o.robot} · ${o.license}\n# 原文取自 ${url}\n\n${text}`);
+      console.log(`  ✓ LICENSE  ${key}（${kind}）`);
+    }
   }
 
   // 2) 逐件取 + 规范化，直接写进 assets/parts/
   const metas = [];
-  for (const a of ADOPTED) {
+  for (const a of todo) {
     try {
-      const raw = await download({ id: a.id, url: adoptedUrl(a) });
+      const raw = await downloadAdopted(a);
       const { meta, warnings } = await normalizeOne(a.id, raw, {
         outDir: PARTS,
         file: `${a.id}.glb`,
@@ -468,6 +633,7 @@ async function adopt() {
         tier: 1,                       // 见 ADOPTED 上方注释：真实件不是细节升级，它就是这个物种
         family: a.family,
         symmetry: SYM[a.slot],
+        maxTris: a.maxTris,              // 缺省 = 单件预算；joint 这种一具身体十几个实例的槽位要压得更低
         source: { provider: 'harvest', model: adoptedUrl(a), recipeId: a.id },
       });
       metas.push(meta);
@@ -505,7 +671,7 @@ function attribution(allMetas) {
 
   const rows = ADOPTED.map((a) => {
     const o = ORIGINS[a.origin];
-    return `| \`${a.id}\` | ${o.robot} | \`${o.dir}/assets/${a.asset}\` | ${o.license} | ${a.why} |`;
+    return `| \`${a.id}\` | ${o.robot} | ${assetsOf(a).map((f) => `\`${displayDirOf(o)}/${f}\``).join(' + ')} | ${o.license} | ${a.why} |`;
   }).join('\n');
 
   return `# 署名与许可 —— \`assets/parts/\` 里的真实网格
@@ -523,16 +689,23 @@ function attribution(allMetas) {
 
 ## 来源钉死在 commit SHA
 
-全部取自 MuJoCo Menagerie，**\`${MENAGERIE_SHA}\`**。
-指向分支的后果不是报错，是来源在脚下变，而 \`check:parts\` 照样 0 错。
-重新取一遍：\`node scripts/harvest.mjs --adopt\`。
+三个仓库，各钉一串 SHA：
 
-| 来源 | 版权 | 授权 | 附加条件 |
-|---|---|---|---|
-${Object.values(ORIGINS).map((o) => `| ${o.robot} | ${o.holder} | ${o.license} | ${o.caveat} |`).join('\n')}
+- MuJoCo Menagerie **\`${MENAGERIE_SHA}\`**
+- RobotLocomotion/models **\`${RLG_SHA}\`**
+- limxdynamics/tron1-robot-description **\`${LIMX_SHA}\`**
+
+指向分支的后果不是报错，是来源在脚下变，而 \`check:parts\` 照样 0 错。
+重新取一遍：\`node scripts/harvest.mjs --adopt\`（只取某几个物种：\`--adopt --family=athlete,wheelleg\`）。
+
+| 来源 | 仓库 | 版权 | 授权 | 附加条件 |
+|---|---|---|---|---|
+${Object.values(ORIGINS).map((o) => `| ${o.robot} | ${repoOf(o)} | ${o.holder} | ${o.license} | ${o.caveat} |`).join('\n')}
 
 **非背书条款是真的。** 说「这是 G1 的躯干几何」是描述，可以；
-暗示 Unitree / ANYbotics 与本作品有合作或赞助关系，不行。本作品与上述任何公司无关。
+暗示 Unitree / ANYbotics / Boston Dynamics / MIT / Hello Robot / LimX 与本作品有合作或赞助关系，不行。
+本作品与上述任何公司或机构无关。**代用件就写代用**：\`wheelleg\` 身上是 WL_P311D 不是 W1，
+\`digitigrade\` 身上是 Cassie 不是 Digit，\`athlete\` 身上是 DRC 那一代 Atlas 的描述模型。
 
 ## 我们做了什么改动
 
@@ -555,7 +728,7 @@ ${rows}
 
 ## 被换下来的生成件（${retired.length} 件）
 
-这三个物种原来的 Rodin 生成件**文件一件都没删**，还在 \`assets/parts/\` 里，
+这些物种原来的 Rodin 生成件**文件一件都没删**，还在 \`assets/parts/\` 里，
 只是不再进 \`parts.json\`（规则在 \`packages/factory/src/index-parts.ts\`：
 一个物种只要有一件真实网格，它的生成件就整批不进索引）。
 

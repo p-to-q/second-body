@@ -61,17 +61,17 @@
 | 3 | `patrol` | 巡逻 | **Boston Dynamics Spot** | 实·有几何 | **真网格 10/10，但取自 ANYmal C** | `docs/31 §1` 第 7 行 = Spot；`harvest.mjs` `ADOPTED` = `anymal_c`。见 §0 第二条 |
 | 4 | `xeno` | 异形 | 无 | **虚** | 生成件 10/10 | `reference`：「生物机械造型传统」= 电影美术。`docs/31 §3` 明列为孤儿 |
 | 5 | `coral` | 珊瑚 | 无 | **虚** | 生成件 10/10 | `reference: '—'`，注释写「最接近原作」。**故意**不像任何东西 |
-| 6 | `athlete` | 运动员 | **Boston Dynamics Atlas** | 实·有几何 | 生成件 6/6 | `docs/31 §1` 第 1 行；tagline「身体是人，运动不是」。**本页新找到几何**，见 §3 |
+| 6 | `athlete` | 运动员 | **Boston Dynamics Atlas** | 实·有几何 | **真网格 10/10 已落地（2026-09-14，DRC/v5，版权人 MIT CSAIL）** | `docs/31 §1` 第 1 行；tagline「身体是人，运动不是」。取件见 §8 |
 | 7 | `softwear` | 穿衣的 | 1X NEO | 实·无几何 | 生成件 5/6 | `docs/31 §1` 第 4 行；tagline「一个住在家里的陌生室友」。**即使有 CAD 也不该换**，见 §4 末 |
 | 8 | `compact` | 小人 | **Unitree G1** | 实·有几何 | **真网格 10/10 已落地** | `harvest.mjs` `ADOPTED`；`docs/26 §I` 专门为它写过裁定 |
 | 9 | `digitigrade` | 鸟腿 | Agility **Digit** | 实·有几何（代） | **真网格 10/10 已落地，取自 Cassie** | Digit 无授权（`docs/33 §2 A`，本页复核仍然成立），同厂同拓扑的 Cassie 是 MIT |
-| 10 | `wheelleg` | 轮足 | LimX **W1** | 实·有几何（代） | 生成件 **0/6**（唯一自有件被 reject） | `docs/31 §1` 第 9 行标「产品已下架」；`docs/39` 判「名不副实 —— 画面上没有轮子」。**本页新找到同厂代件**，见 §3 |
+| 10 | `wheelleg` | 轮足 | LimX **W1** | 实·有几何（代） | **真网格 10/10 已落地（2026-09-14），取自同厂 WL_P311D** | `docs/31 §1` 第 9 行标「产品已下架」；`docs/39` 判「名不副实 —— 画面上没有轮子」。现在四条腿末端都是轮子，见 §8 |
 | 11 | `droid` | 小怪物 | Disney **BDX** | 实·无几何（有复刻） | 生成件 6/6 | `docs/31 §1` 第 10 行且「建议不喂」。只有社区复刻品，见 §3 |
 | 12 | `petbot` | 宠物 | Sony **aibo** | 实·无几何 | 生成件 6/6 | `docs/31 §1` 第 11 行 |
 | 13 | `furball` | 毛球 | Casio **Moflin** | 实·无几何 | 生成件 6/6 | `docs/31 §1` 第 12 行 |
 | 14 | `screenface` | 桌宠 | KEYi **Loona** | 实·无几何 | 生成件 6/6 | `docs/31 §1` 第 13 行 |
 | 15 | `orb` | 球 | Samsung **Ballie** | 实·无几何 | 生成件 6/6 | `docs/31 §1` 第 14 行 |
-| 16 | `manipulator` | 移动机械臂 | Hello Robot **Stretch** | 实·有几何 | 生成件 6/6 | `docs/31 §1` 第 15 行；`docs/33 §6` 已建议换。**Menagerie 里有整机**，见 §3 |
+| 16 | `manipulator` | 移动机械臂 | Hello Robot **Stretch** | 实·有几何 | **真网格 10/10 已落地（2026-09-14，Stretch 3）** —— 件是真的，剪影还不是，见 §8 | `docs/31 §1` 第 15 行；`docs/33 §6` 已建议换 |
 | 17 | `autonomous` | 无人车 | **Waymo** | 实·无几何 | 生成件 5/6（`spine` 被 reject） | `docs/31 §1` 第 16 行 |
 | 18 | `field` | 场 | 无 | **虚** | `source: 'procedural'`，不实例化任何件 | tagline「身体消失，只剩运动」。给它几何等于取消它 |
 
@@ -315,6 +315,80 @@ machine?: {
 ```
 
 `id` 不动 —— `docs/39 §4.7` 记着改 id 会让已经发出去的 seed 码失效。
+
+## 8. 取件记录（2026-09-14）—— 「实·有几何」六条全部落地
+
+§7 裁完之后，第一档六条里还剩三条只有路没有件：`athlete` / `manipulator` / `wheelleg`。
+这一节是取件那一轮的记录。落地提交：`bbc32ca`（件、LICENSE、索引），
+取件代码在它前面的 `3a46c85` / `c5d5c9d` / `4528e78`（`harvest.mjs` 的 `ORIGINS` 支持 Menagerie 之外的来源、`.gltf` 外挂 `.bin`、
+一个 link 多份 OBJ），joint 面数上限在 `0a64b95` / `71c8007`。**Menagerie 的 SHA 没有动**，仍是 `8161bba`。
+
+### 授权 —— 在钉住的 SHA 上重新取原文核过
+
+| 机器 | 来源（整串 SHA） | LICENSE 原文 | 判定 |
+|---|---|---|---|
+| Atlas → `athlete` | `RobotLocomotion/models@3bd1111011ea8c9813a66bf5cc21f31067f2e1ef` `/atlas/meshes/` | `atlas/LICENSE.TXT`，BSD-3-Clause，© 2012-2022 Robot Locomotion Group @ CSAIL | ✅ 取 |
+| LimX WL_P311D → `wheelleg` | `limxdynamics/tron1-robot-description@5b97add1f3b461c9ed26ff2ff2f5025cc6ee4316` `/wheellegged/WL_P311D/meshes/` | 仓库根 `LICENSE`，Apache-2.0；无 NOTICE | ✅ 取 |
+| Stretch 3 → `manipulator` | `mujoco_menagerie@8161bba` `/hello_robot_stretch_3/assets/` | 子目录 `LICENSE`，Apache-2.0；无 NOTICE | ✅ 取 |
+
+三条都过。**授权门以前只写在注释里**（`ORIGINS` 的 ✅/🟡），这一轮把它变成了代码：
+`--adopt` 取到 LICENSE 原文之后必须认得出是 BSD-3 / Apache-2.0 / MIT，而且和 `ORIGINS.license` 声明的一致，
+否则整台机器一件都不取。原文随件入库：`assets/parts/licenses/{atlas,wl_p311d,stretch3}.LICENSE.txt`。
+
+### 件、面数、字节
+
+所有件 ≤ `BUDGET.maxPartTris` 5000、远低于 `maxPartBytes` 1.5 MB。超过 5000 面的原始网格由 `normalize.ts` 的容差焊接 + 减面兜住
+（LimX 的 `base_link` 132,464 → 4,928）。
+
+**单件预算够，整具不够。** 第一次落地时 `outline-budget.test.ts` 当场红：`joint` 一具身体里有 14 个实例，
+LimX 每件都减到刚好 4984 面，整具 149,448 面，描边翻倍 298,896 > `BUDGET.maxTriangles` 250,000；
+Stretch 同理到 239,294（没红，但只剩 4%）。修法不动预算：`normalizeOne` 多一个只许往低压的 `maxTris`，
+这两个物种的 `joint` 压到 1500 面。之后整具最坏是 wheelleg 100,420 面（描边 200,840）、manipulator 70,563 面（141,126）。
+
+| 物种 | 件 | 三角形（逐件） | 入库 | 下载原料 |
+|---|---|---|---|---|
+| `athlete` | 10 | spine 4998 · thigh 2464 · shin 1494 · head 935 · clavicle 556 · upperArm 546 · foot 540 · hand 292 · foreArm 196 · joint 48（共 12,069） | 118 KB | 0.5 MB |
+| `wheelleg` | 10 | spine 4928 · head 4952 · clavicle 4952 · upperArm 4976 · foreArm 5000 · hand 5000 · thigh 4968 · shin 5000 · foot 5000 · joint 1482（共 46,258） | 225 KB | 17.9 MB |
+| `manipulator` | 10 | spine 4993 · head 4982 · clavicle 4999 · hand 4992 · foot 4999 · foreArm 2472 · upperArm 2268 · joint 1492 · thigh/shin 60（共 31,317） | 189 KB | 22.5 MB |
+
+`manipulator` 故意没取 `base_link_8.obj`（22 MB）和 `link_head_0.obj`（11.5 MB），§4 说过避开它们；
+代价是底盘和头罩各少一份材质分件。`wheelleg` 没取第三方的 `realsense_d435.stl`。
+
+### girth —— 两件落在 §H 带外
+
+中位数按落地后的 `parts.json` 现算：head 0.934 · spine 0.841 · hand 0.634 · joint 0.991。
+
+| 件 | girth | 比 | 为什么还是它 |
+|---|---|---|---|
+| `spine.wheelleg.limx` | 0.588 | **0.698×** | 这台机器的剪影就是一块扁机身挂四条轮腿；髋座（0.85×）在带内，但它不是机身 |
+| `hand.wheelleg.limx` | 0.999 | **1.58×** | 四足的前腿末端就是手，而这台机器的腿末端是轮子 |
+
+其余 28 件（带内槽位 12 件）全部在 0.74×–1.18× 之间。越界件照 `core/src/girth.ts` 只给自己的物种用，**不借给别人**。
+`check:parts`：247 件，0 错，12 警告（上面两条是新增的，其余十条是既有的）。
+
+### 被换下的件
+
+照 `patrol` 那次的规矩：生成件**一件不删**。`index-parts.ts` 那条规则（一个 family 只要有一件真实网格，
+它的生成件整批不进索引）自动把 `athlete` 6 件、`manipulator` 6 件、`wheelleg` 1 件退出索引；
+文件还在 `assets/parts/`，名单在 `ATTRIBUTION.md` 末尾。`curation.json` 没有改 ——
+它的 `reject` 是「用眼睛看过剔掉的」，这些件不是。
+
+### 渲染 —— 它们读不读得出是那台机器
+
+`/dev/figure.html?theme=<id>&still=120&angle=…`，无头 Chrome + WebGPU，逐个串行。
+截图在 `scratch/evidence/real-machines-2026-09-14/`（gitignore，脚本 `still.ts` 同目录）。三具都是 `✓ 槽位齐全`，控制台无警告。
+
+- **`athlete`：读得出，是 DRC 那一代。** 正面：背包式的宽上躯干、方盒子传感器头、骨架感的四肢 —— 就是 2013–2015 年那台液压 Atlas。
+  它**不是** tagline 唤起的 2025 电动版，这一条 §3 已经写过，现在画面上也是这样。手偏小、偏细。
+- **`wheelleg`：正面读得出，侧面不行。** 正面是一只扁机身、四条黄腿、每条腿末端一个轮子的轮足四足 ——
+  `docs/39` 那句「画面上没有轮子」不再成立。侧面有两处毛病：代头（前左髋执行器座）**悬在机身前面**，
+  前腿和机身之间**断开一段**。这是 `quadruped` 方案的插座摆位和一块 0.70× 的长机身叠出来的，不是件的问题；
+  没有在这一轮修（`core/bodyplan.ts` 和 `SLOT_WIDTH` 不在这条线的范围里）。
+- **`manipulator`：件是 Stretch 的，剪影不是。** A 姿态下是一根细杆身体、两条下垂的手臂，看不出是 Stretch；
+  `?pose=open` 两臂平伸时，升降滑架 + 头罩 + 两条伸缩臂**开始像** Stretch 那条水平伸出的臂。
+  桅杆读成一摞木板（0.030 的铝型材被 stretch 槽位撑到 `SLOT_WIDTH`），底盘在最下面几乎看不见（脚按骨长算，太小）。
+  **诚实的判定：这一条「实·有几何」在记录上成立，在画面上还没有成立。** 要成立缺的是 `column` 方案的比例或槽位宽度，
+  不是换件。
 
 ---
 
