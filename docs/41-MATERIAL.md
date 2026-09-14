@@ -225,6 +225,31 @@ other                          ▁▁▁▁▁▁██████████�
 成本：外壳材质按线宽缓存，目前全场两档 = **两条 GPU 管线**。
 外壳 mesh 的数量没变，**draw call 一次都没多**（§4 那张表就是改后测的）。
 
+### 墨的轻重起伏（2026-09-14）
+
+作品负责人：描边已经很好，但读起来像机器描的，要"稍微淡一点，或者稍微稀一点"，
+**在原有不错的基础上调整**。恒宽 + 硬边 + 一个平墨色，正是手画的线**不是**的样子。
+
+做法：`TOON.outlineWeightVariation = 0.5`、`outlineWeightFrequency = 1.2`。
+外壳宽 = 槽位宽 × (1 − 0.5·n)，n ∈ [0,1] 是三支正弦的平均 —— **只会变细，不会变粗**。
+于是"有起伏"和"淡一点"是同一件事，而手和脚永远不超过它们那一档 0.40（上面那次修的是形状，墨一加粗碎片就回来）。
+
+**起伏读 `positionGeometry`（部件自己的坐标），不读 `positionLocal`。** 这一条纠正了派活时的判断：
+在 `positionNode` 里 `positionLocal` 已经是实例变换之后的坐标（见 `shading.ts`「推挤为什么写在 positionNode 上」），
+用它驱动起伏的话，手一抬墨就沿着手臂流动 —— 那读起来是渲染错误，不是笔触。
+部件规范化后主轴长 1（docs/03 §6），所以频率的单位是"每件几次"，不是"每米几次"。
+
+没有做的两条，和为什么：
+- **墨色不动。** 两种改法里起伏已经把平均宽度降了约四分之一；再抬墨色会和第 IV 乐章的
+  `setOutlineTint()` 抢同一个量（那一句的起点就是 `TOON.outlineColor`）。
+- **不按视线方向加重。** 起伏已经够，而那一条要读视空间法线，外壳在转台上会整圈换重 —— 先不加一个会动的变量。
+
+实测（同 seed 12345 / tier 2 / A-pose / angle 0.35，身体框内近黑像素）：
+porcelain 196,796 → 196,004（−0.4%）· patrol 275,102 → 266,612（−3.1%）· char.line 104,929 → 103,756（−1.1%）。
+**关掉（`outlineWeightVariation = 0`）走原来那一句着色器**：porcelain / patrol 与改前逐像素相同；
+char.line 有 3 个像素差 ≤ 7/255，而两次关掉的渲染彼此逐像素相同 —— 那是两次 Chrome 会话之间的差，不是着色器。
+守它的测试是 `test/ink-hand.test.ts`（5 条，每条都先红过）。
+
 ---
 
 ## 7 · 只是规格，还没做的
@@ -265,5 +290,8 @@ headless Chrome + `--virtual-time-budget`。`?arc=` 缺省是**不给**（弧线
 | `ink-compare-hand.png` / `ink-compare-foot.png` | 同机位裁切对照（左改前 / 右改后）：脚上那几片脱落的黑渣没有了 |
 | `ink-before-torso.png` / `ink-after-torso.png` | 躯干：**逐像素相同**（差图里这一区为 0） |
 | `ink-after-{xeno,compact,coral}.png` | 换物种验一遍：36 draw，墨在，没有新的碎片 |
+| `outline-hand-{before,a50f12,off}-{porcelain,patrol,char.line}.png` | 墨的轻重起伏（§6 末节）：改前 / 起伏 0.5 / 关掉。关掉那一组与改前逐像素对照 |
+| `outline-hand-sbs-v1-*.png` / `outline-hand-crop-v1-*.png` | 同机位左右并排 / 2× 裁切：同一条线，更轻、沿走向有轻重；patrol 爪关节处的碎渣少了 |
+| `outline-hand-crop-arc95.png` | 第 IV 乐章（arc 0.95）：换了色的墨照样带着起伏，`setOutlineTint()` 与起伏互不干扰 |
 
 **没有取证图的判断，按 §7 第 4 条算未验证。**

@@ -30,7 +30,7 @@
  * > 在那之前这张表是唯一的落点，删掉它「线」就又变回白胖子。
  */
 import * as THREE from 'three/webgpu';
-import { float, normalLocal, positionLocal } from 'three/tsl';
+import { add, float, mul, normalLocal, positionGeometry, positionLocal, sin } from 'three/tsl';
 import { TOON } from '../../../core/src/tuning.ts';
 
 /** `physical` = 此前所有物种走的那条 PBR 路径；`toon` = 平涂 + 反向外壳描边 */
@@ -227,11 +227,69 @@ export function createOutlineMaterial(meters: number = TOON.outlineMeters): THRE
     // 外壳只画背面：正面被填充网格挡住，剩下能看见的正是剪影外那一圈
     side: THREE.BackSide,
   });
-  m.positionNode = positionLocal.add(normalLocal.normalize().mul(float(w)));
+  m.positionNode = outlinePositionNode(w, TOON.outlineWeightVariation, TOON.outlineWeightFrequency);
   m.name = `toon-outline@${key}`;
   outlineMaterials.set(key, m);
   return m;
 }
+
+/**
+ * 墨的轻重起伏写成一段**对"数"泛型的算式**：同一份代码，喂 JS 数字给测试量边界，
+ * 喂 TSL 节点给着色器。于是测试量到的就是着色器算的，不是一份照抄的副本 ——
+ * 副本会和本体各自漂，而这条的全部意义是"不许变粗"，漂不起。
+ */
+export interface InkOps<T> {
+  num(v: number): T;
+  add(a: T, b: T): T;
+  mul(a: T, b: T): T;
+  sin(a: T): T;
+}
+
+/**
+ * 这一点的墨宽乘数，∈ [1 − amount, 1]。**只会变细。**
+ *
+ * `n` 是三支不同走向、不同疏密的正弦的平均，映到 [0,1]：
+ * 两支主要沿主轴（y）走 —— 线沿着走向有轻重，这是手画线最先被认出来的那一点；
+ * 一支绕着截面（x/z）走 —— 同一根肢体左右两条边的墨不一样重。
+ * 频率比取无理数（黄金比）是为了不出现一眼看得出的周期。
+ *
+ * @param x,y,z 部件**自己**的几何坐标（规范化后主轴长 1），不是实例变换之后的
+ */
+export function inkWeight<T>(
+  o: InkOps<T>, x: T, y: T, z: T, amount: number, cyclesPerPart: number,
+): T {
+  const f = o.num(2 * Math.PI * cyclesPerPart);
+  const along1 = o.sin(o.add(o.mul(f, o.add(y, o.mul(o.num(0.35), x))), o.num(1.3)));
+  const along2 = o.sin(o.add(o.mul(o.mul(f, o.num(1.618)), o.add(y, o.mul(o.num(-0.5), z))), o.num(4.1)));
+  const around = o.sin(o.add(o.mul(o.mul(f, o.num(2.6)), o.add(x, z)), o.num(2.2)));
+  // n = 0.5 + (s1+s2+s3)/6 ∈ [0,1]；乘数 = 1 − amount·n
+  const n = o.add(o.num(0.5), o.mul(o.num(1 / 6), o.add(o.add(along1, along2), around)));
+  return o.add(o.num(1), o.mul(o.num(-amount), n));
+}
+
+/** JS 数字那一份：测试和探针用 */
+export const INK_NUMBERS: InkOps<number> = {
+  num: (v) => v, add: (a, b) => a + b, mul: (a, b) => a * b, sin: Math.sin,
+};
+
+/* eslint-disable @typescript-eslint/no-explicit-any -- TSL 节点的静态类型在 r186 里是一张联合网，泛型走 any */
+const INK_NODES: InkOps<any> = {
+  num: (v) => float(v), add: (a, b) => add(a, b), mul: (a, b) => mul(a, b), sin: (a) => sin(a),
+};
+
+/**
+ * 外壳的顶点位置。`amount` 不是正数时**原样返回原来那一句**（恒宽），
+ * 不是乘一个 1 —— 关掉之后的着色器和 2026-09-14 之前逐字相同。
+ */
+export function outlinePositionNode(w: number, amount: number, cyclesPerPart: number): any {
+  const a = Number.isFinite(amount) ? Math.min(0.9, amount) : 0;
+  if (!(a > 0)) return positionLocal.add(normalLocal.normalize().mul(float(w)));
+  // 起伏读的是 positionGeometry（部件自己的坐标），推挤仍然沿 positionLocal / normalLocal
+  // （实例变换之后的）走 —— 两者分工见上面「推挤为什么写在 positionNode 上」
+  const k = inkWeight(INK_NODES, positionGeometry.x, positionGeometry.y, positionGeometry.z, a, cyclesPerPart);
+  return positionLocal.add(normalLocal.normalize().mul(float(w).mul(k)));
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 /**
  * 把墨色推向一个颜色（`t` = 推多少，0 = 原样的墨）。给 `null` 或 0 就是复位。
