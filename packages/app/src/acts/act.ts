@@ -7,8 +7,8 @@
 import type {
   EvolutionState, Genome, MotionFeatures, Presence, Rng, Skeleton, Tier,
 } from '../../../core/src/types.ts';
-import type { ArcState, MovementIndex } from '../../../core/src/arc.ts';
-import { createLineSampler, lineAt, pointOf } from '../../../core/src/line.ts';
+import { ARC_ACTS, type ArcState, type MovementIndex } from '../../../core/src/arc.ts';
+import { createLineSampler, lineAt, pointOf, type LineParams } from '../../../core/src/line.ts';
 import type { Capture } from '../capture/capture.ts';
 import type { PartLibrary } from '../assets/library.ts';
 import type { BodyInstance } from '../creature/body.ts';
@@ -74,6 +74,19 @@ export interface Act {
 const line = createLineSampler();
 let lastPin: MovementIndex | null = null;
 let lastOverall = 0;
+
+/**
+ * 名字为 `actId` 的那个玩法此刻在这条线上取哪一组数 —— **和 `playLine` 喂给身体的是同一点**：
+ * 被按住就钉在自己的地名，否则跟着 `arc.overall` 走。不在这条线上的（`untether`）是 null。
+ *
+ * 给声音用（`sound/timbre.ts`）：音色要跟着身体吃的那一组数滑，不能跟着名字跳。
+ */
+export function lineFor(actId: string | null, overall: number, pinned: boolean): LineParams | null {
+  const movement = ARC_ACTS.indexOf(actId as (typeof ARC_ACTS)[number]);
+  if (movement < 0) return null;
+  const live = Number.isFinite(overall) ? overall : pointOf(movement as MovementIndex);
+  return lineAt(pinned ? pointOf(movement as MovementIndex) : live);
+}
 
 /**
  * 在这条线上演一帧。`movement` 是调用它的那个玩法自己的地名：

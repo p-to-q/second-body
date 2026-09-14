@@ -28,6 +28,8 @@ import {
 } from '../src/sound/cues.ts';
 import type { LayerId } from '../src/sound/graph.ts';
 import type { PresenceState, Tier } from '../../core/src/types.ts';
+import { lineAt, pointOf } from '../../core/src/line.ts';
+import type { MovementIndex } from '../../core/src/arc.ts';
 import './sound.css';
 
 mountPageHead({
@@ -55,7 +57,7 @@ const el = <K extends keyof HTMLElementTagNameMap>(
 
 const signal: SoundSignal = {
   presence: 'ALIVE', transition: 1, speed: 0, jerk: 0, energy: 0,
-  actId: 'follow', waiting: false,
+  line: lineAt(pointOf(0)), waiting: false,
 };
 
 const sound = createSound({ muted: new URLSearchParams(location.search).get('mute') === '1', seed: 0x50554e44 });
@@ -125,13 +127,16 @@ slider(motionBlock, 'speed', 2, (v) => { signal.speed = v; });
 slider(motionBlock, 'jerk', 20, (v) => { signal.jerk = v; });
 slider(motionBlock, 'energy', 3, (v) => { signal.energy = v; });
 
-const actBlock = block(left, '玩法（改的是身体层的音色）');
+// 音色跟着那条线滑（`sound/timbre.ts`）：四个按钮钉在四个地名上，滑块在地名之间走
+const actBlock = block(left, '那条线（改的是身体层的音色）');
+const ACT_POINTS = ['follow', 'echo', 'resist', 'facing'];
 choices(actBlock, [
   { id: 'follow', label: 'follow 跟随' },
   { id: 'echo', label: 'echo 回声' },
   { id: 'resist', label: 'resist 迟滞' },
   { id: 'facing', label: 'facing 对视' },
-], (id) => { signal.actId = id; }, 'follow');
+], (id) => { signal.line = lineAt(pointOf(ACT_POINTS.indexOf(id) as MovementIndex)); }, 'follow');
+slider(actBlock, 'overall', 1, (v) => { signal.line = lineAt(v); });
 
 const eventBlock = block(right, '第三层 · 事件（tierChanged）');
 const tierRow = el('div', 'sb-sound-btns');

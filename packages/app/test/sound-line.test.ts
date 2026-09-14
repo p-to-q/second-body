@@ -13,9 +13,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createArc } from '../../core/src/arc.ts';
-import { lineAt, pointOf } from '../../core/src/line.ts';
 import { SOUND } from '../../core/src/tuning.ts';
 import { timbreOf, type BodyTimbre } from '../src/sound/timbre.ts';
+import { lineFor } from '../src/acts/act.ts';
 import type { SoundSignal } from '../src/sound/signal.ts';
 
 const KEYS: (keyof BodyTimbre)[] = ['tilt', 'q', 'gain', 'tau', 'detune', 'echo'];
@@ -27,9 +27,8 @@ const RANGE: BodyTimbre = {
 };
 
 /** `main.ts` 递给 `sound.update` 的那一份（只取音色用得到的字段） */
-const signalAt = (actId: string, overall: number, pinned = false) =>
-  ({ actId, line: lineAt(pinned ? pointOf(['follow', 'echo', 'resist', 'facing'].indexOf(actId) as 0) : overall) }) as
-    Pick<SoundSignal, 'actId'> & { line: ReturnType<typeof lineAt> };
+const signalAt = (actId: string, overall: number, pinned = false): Pick<SoundSignal, 'line'> =>
+  ({ line: lineFor(actId, overall, pinned) });
 
 test('音色：弧线走一整场，没有一帧跳 —— 乐章换名字的那一帧耳朵里也没有台阶', () => {
   const arc = createArc();
@@ -68,7 +67,7 @@ test('音色：四个地名上仍然是它们自己 —— 连续化不许把「
 });
 
 test('音色：`untether`（把身体还回去）没有线，走基线 —— 和改之前一样', () => {
-  const t = timbreOf({ actId: 'untether', line: null } as unknown as Pick<SoundSignal, 'actId'>);
+  const t = timbreOf(signalAt('untether', 0.5));
   assert.deepEqual(t, { tilt: 1, q: 1, gain: 1, tau: 1, detune: 0, echo: 0 });
 });
 

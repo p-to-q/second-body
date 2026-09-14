@@ -11,6 +11,8 @@
  * 每个场景只回答一个问题（和 `/dev/` 下其它页面同一条规矩：越窄越早知道是谁的锅）。
  */
 import { SOUND } from '../../../core/src/tuning.ts';
+import { lineAt, pointOf } from '../../../core/src/line.ts';
+import type { MovementIndex } from '../../../core/src/arc.ts';
 import { mulberry32 } from '../../../core/src/rng.ts';
 import type { Tier } from '../../../core/src/types.ts';
 import { buildSoundGraph, type EventKind } from './graph.ts';
@@ -29,19 +31,23 @@ export interface Scenario {
 
 const base = (over: Partial<SoundSignal>): SoundSignal => ({
   presence: 'ALIVE', transition: 1, speed: 0, jerk: 0, energy: 0,
-  actId: 'follow', waiting: false, ...over,
+  line: lineAt(pointOf(0)), waiting: false, ...over,
 });
 
 /** 一段 0 → 峰 → 0 的运动，四个玩法共用同一条曲线，好并排比 */
 const sweep = (t: number, seconds: number): number =>
   Math.sin(Math.PI * Math.min(1, Math.max(0, t / seconds))) * 1.25;
 
-const actScenario = (actId: string, proves: string): Scenario => ({
-  id: `act-${actId}`,
-  proves,
-  seconds: 9,
-  signal: (t) => base({ actId, speed: sweep(t, 9), jerk: sweep(t, 9) * 8 }),
-});
+/** 四个地名各取那一点上的线 —— 和 `?act=` 钉住时身体吃的是同一组数 */
+const actScenario = (actId: string, proves: string): Scenario => {
+  const line = lineAt(pointOf(['follow', 'echo', 'resist', 'facing'].indexOf(actId) as MovementIndex));
+  return {
+    id: `act-${actId}`,
+    proves,
+    seconds: 9,
+    signal: (t) => base({ line, speed: sweep(t, 9), jerk: sweep(t, 9) * 8 }),
+  };
+};
 
 export const SCENARIOS: readonly Scenario[] = [
   {

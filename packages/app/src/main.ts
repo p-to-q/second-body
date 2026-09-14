@@ -58,7 +58,7 @@ import { createSound } from './sound/sound.ts';
 import { createCues } from './sound/cues.ts';
 import { createGroundSense } from './sound/ground.ts';
 import { COPY } from './ui/i18n.ts';
-import { ACTS, createDirector, type World } from './acts/index.ts';
+import { ACTS, createDirector, lineFor, type World } from './acts/index.ts';
 
 const flags = readFlags();
 
@@ -823,7 +823,8 @@ async function boot(): Promise<void> {
       speed: lastFeatures?.speed ?? 0,
       jerk: lastFeatures?.jerk ?? 0,
       energy: lastFeatures?.energy ?? 0,
-      actId: director.currentId,
+      // 音色跟着身体吃的那一组三个数滑，不跟着乐章的名字跳（`sound/timbre.ts`，docs/44 §6）
+      line: lineFor(director.currentId, arcState.overall, director.forced),
       waiting: slow.phase === 'running',
     }, dt);
 
