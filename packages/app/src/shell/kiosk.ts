@@ -4,6 +4,7 @@
  */
 import { BODY_PLANS, type BodyPlanId } from '../../../core/src/bodyplan.ts';
 import { FRAMING_POLICIES, isFramingPolicy, type FramingPolicy } from '../../../core/src/autoframe.ts';
+import { CAM_FRAMING_FLAGS, isCamFramingFlag, type CamFramingFlag } from '../capture/cam-framing.ts';
 import { PEOPLE } from '../../../core/src/tuning.ts';
 import { ACTS } from '../acts/index.ts';
 import { isCamFlag } from '../capture/camera-select.ts';
@@ -176,6 +177,17 @@ export interface Flags {
    */
   framing: FramingPolicy;
   /**
+   * ?camframing=auto|on|off 摄像头自带的取景（`capture/cam-framing.ts`，docs/49 §6.3 三）。默认 auto。
+   *
+   * - `auto` 不请求任何东西，只读 `getSettings().faceFraming`：系统或摄像头自己开着时，腿被裁掉不算出画。
+   * - `on`   在 track 报能力时请求 `faceFraming: true`（桌面演示；它对准脸，会裁腿 —— 所以不是默认）。
+   * - `off`  在 track 报能力时请求 `false`，撤掉系统级默认打开。
+   *
+   * 浏览器不支持时静默忽略，永不挡摄像头启动。**不进控件条**：稳定版 Chrome 不暴露这个约束，按下去什么都不会发生。
+   * 认不出来的值按没写过处理并喊一声 —— 规矩和 `?framing=` 一样。
+   */
+  camframing: CamFramingFlag;
+  /**
    * ?hall=1  从舞台「回到大厅」回来：直接进选择页，不再立展签（`shell/entry.ts`）。
    * 仍然用回放起步、不问摄像头 —— 和按过「开始」一模一样，只是不用再按一次。
    */
@@ -214,6 +226,17 @@ function resolvePeople(raw: string | null, kiosk: boolean): number {
 }
 
 /** 同一个坏值只喊一次 —— `readFlags()` 一次启动会被调好几处 */
+const warnedCamFraming = new Set<string>();
+
+function resolveCamFraming(raw: string | null): CamFramingFlag {
+  if (isCamFramingFlag(raw)) return raw;
+  if (raw !== null && !warnedCamFraming.has(raw)) {
+    warnedCamFraming.add(raw);
+    console.warn(`[kiosk] ?camframing=${raw} 认不出来，只认 ${CAM_FRAMING_FLAGS.join(' / ')} —— 按没写过处理（auto）`);
+  }
+  return 'auto';
+}
+
 const warnedFraming = new Set<string>();
 
 function resolveFraming(raw: string | null): FramingPolicy {
@@ -513,6 +536,7 @@ export function readFlags(search = location.search): Flags {
     gl: resolveGl(q.get('gl')),
     worker: q.get('worker') !== 'off',
     framing: resolveFraming(q.get('framing')),
+    camframing: resolveCamFraming(q.get('camframing')),
     hall: q.get('hall') === '1',
     people: resolvePeople(q.get('people'), q.get('kiosk') === '1'),
   };

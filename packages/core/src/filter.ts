@@ -24,27 +24,32 @@ export interface Scalar1D {
   reset(): void;
 }
 
-export function oneEuro(p: OneEuroParams = {}): Scalar1D {
-  const minCutoff = p.minCutoff ?? 1.0;
-  const beta = p.beta ?? 0.02;
-  const dCutoff = p.dCutoff ?? 1.0;
-  let xPrev: number | null = null;
-  let dxPrev = 0;
+/** One Euro 的状态，拿出来成一个值：纯函数的控制器（`autoframe.ts` 的 `stepFollow`）要把它存在自己的状态里 */
+export interface OneEuroState { x: number; dx: number }
 
+/**
+ * One Euro 的一步，**纯函数**。`s` 为 undefined = 第一个样本（原样返回）。
+ * 输入不可信时保持上一个值（P2）。`oneEuro()` 那个带闭包的版本就是它包一层 —— 两份数学不许各写各的。
+ */
+export function oneEuroStep(s: OneEuroState | undefined, value: number, dtIn: number, p: OneEuroParams = {}): OneEuroState {
+  if (!Number.isFinite(value)) return s ?? { x: 0, dx: 0 };
+  if (!s) return { x: value, dx: 0 };
+  const dt = Number.isFinite(dtIn) && dtIn > 0 ? dtIn : 1 / 60;
+  const ad = alphaOf(p.dCutoff ?? 1.0, dt);
+  const dx = ad * ((value - s.x) / dt) + (1 - ad) * s.dx;
+  const a = alphaOf((p.minCutoff ?? 1.0) + (p.beta ?? 0.02) * Math.abs(dx), dt);
+  return { x: a * value + (1 - a) * s.x, dx };
+}
+
+export function oneEuro(p: OneEuroParams = {}): Scalar1D {
+  let st: OneEuroState | undefined;
   const f = ((value: number, dt: number): number => {
-    if (!Number.isFinite(value)) return xPrev ?? 0;          // P2：输入不可信
-    if (!Number.isFinite(dt) || dt <= 0) dt = 1 / 60;
-    if (xPrev === null) { xPrev = value; return value; }
-    const dx = (value - xPrev) / dt;
-    const ad = alphaOf(dCutoff, dt);
-    dxPrev = ad * dx + (1 - ad) * dxPrev;
-    const cutoff = minCutoff + beta * Math.abs(dxPrev);
-    const a = alphaOf(cutoff, dt);
-    xPrev = a * value + (1 - a) * xPrev;
-    return xPrev;
+    if (!Number.isFinite(value)) return st?.x ?? 0;          // P2：输入不可信
+    st = oneEuroStep(st, value, dt, p);
+    return st.x;
   }) as Scalar1D;
 
-  f.reset = () => { xPrev = null; dxPrev = 0; };
+  f.reset = () => { st = undefined; };
   return f;
 }
 

@@ -1273,6 +1273,69 @@ export const AUTOFRAME = {
   previewDeadZone: 0.03,
   previewBand: 0.05,
   previewOmega: 4.0,
+
+  // ── 控制器的其余几档（docs/49 §6.5 对照表里"采纳"的那几条，全落在 `stepFollow` 的参数上）──
+  /** 中景跟随：目标在死区外连续 0.3 秒才开始动（人侧一下身不追；ChromiumOS 1 秒稳定期的思路，缩短了：这里是镜子旁边的相机） */
+  followSettleSeconds: 0.3,
+  /** 中景跟随限速（米/秒）。±12cm 的范围里 0.4m/s 读作一次轻推，不是甩 */
+  followMaxSpeed: 0.4,
+  /** 中景跟随的目标去抖（One Euro，米）。目标来自已经滤过的骨架，只压推理 30Hz 的台阶 */
+  followJitter: { minCutoff: 1.5, beta: 2.0 },
+  /** 小屏：告警时退回整幅用多久（秒，限速）。0.2 秒内画框的边一定重新可见 —— 诚实规则的证据作用不丢 */
+  previewSnapSeconds: 0.2,
+  /** 小屏：放大倍数比平移慢（obs-face-tracker 的 z 轴衰减思路）。缩放在小屏上最显眼 */
+  previewZoomOmega: 2.5,
+  previewZoomMaxSpeed: 0.8,
+  /** 小屏平移：稳定延迟（秒）、限速（画面宽 / 秒）、前馈（秒）与上限（画面宽，"朝运动方向留一点空"） */
+  previewSettleSeconds: 0.25,
+  previewMaxSpeed: 0.6,
+  previewLead: 0.25,
+  previewLeadMax: 0.04,
+  /** 小屏平移的目标去抖（One Euro，画面归一化） */
+  previewJitter: { minCutoff: 1.5, beta: 4.0 },
+  /** 小屏：上半身取景里头肩量不到时，先停在原处多久（秒），再慢慢放回整幅 */
+  previewLostHoldSeconds: 1.0,
+  /** 小屏：眼睛落在窗口的哪条线上（从上往下，窗口高度的比例）。三分之一 = 头顶留白的通行规矩 */
+  previewEyeLine: 1 / 3,
+  /** 小屏：放大后源画面里每个显示像素至少还剩几个源像素。低于它不再放大（480p 摄像头上不放大像素） */
+  previewMinSourcePerDisplayPx: 1.0,
+
+  // ── 身体的横向根偏移（docs/49 §6.3 二）──
+  /** 死区 / 过渡带（米）。5cm 以内的晃身体不动 */
+  lateralDeadZone: 0.05,
+  lateralBand: 0.08,
+  /** 弹簧角频率（1/秒）与限速（米/秒）。镜子不能太迟钝：1 米的一步大约 0.8 秒跟到 */
+  lateralOmega: 3.5,
+  lateralMaxSpeed: 1.5,
+  /** 速度前馈（秒）与上限（米）：横穿时少落后一截；停下时最多冲过这么多 */
+  lateralLead: 0.12,
+  lateralLeadMax: 0.1,
+  /** 目标去抖（One Euro，米） */
+  lateralJitter: { minCutoff: 1.2, beta: 1.5 },
+  /** 横向证据没了之后停多久（秒）才回中线 */
+  lateralHoldSeconds: 1.0,
+  /** 躯干宽度里有这么多越过了左 / 右边 = 那一侧出画（小屏说那一侧的话，身体停住） */
+  lateralSideFraction: 0.25,
+  /** 侧身时躯干宽度的下限（× 躯干长），免得一点抖动就是"一半出画" */
+  lateralMinTorsoWidth: 0.3,
+  /** 根的画面 x 一帧跳过这么多（画面宽）= 换人，先停住 */
+  lateralJump: 0.2,
+  /** 跳过去的新位置稳定这么久（秒）才跟过去 */
+  lateralJumpConfirmSeconds: 0.5,
+  /** 舞台余量里给身体边缘再留多少（米） */
+  lateralRoomMargin: 0.1,
+
+  // ── 连续性（docs/49 §6.3）──
+  /**
+   * 每 16ms 最多变多少。**这是守卫，不是旋钮**：`core/test/autoframe-continuity.test.ts` 用随机决策序列逐帧核对，
+   * 调快了某个弹簧、它红了，就是在说"这个变化读起来会是一次跳"。减少动态不受它约束（6.3 写明的例外）。
+   *  - `progress`：景别进度**缓动之后**（smoothstep 峰值斜率 1.5 × 16ms / `shotSeconds` = 0.024）
+   *  - `zoom` / `center`：小屏裁切的放大倍数 / 窗口中心（画面归一化）
+   *  - `legHold`：腿混向站姿的权重（缓动之后）
+   *  - `lateral`：身体的横向根偏移（米）
+   *  - `fovDeg` / `pan`：舞台相机的竖直视角（度）/ 移轴平移（米）
+   */
+  maxStep: { progress: 0.03, zoom: 0.03, center: 0.02, legHold: 0.06, lateral: 0.03, fovDeg: 1.5, pan: 0.012 },
 };
 
 /**

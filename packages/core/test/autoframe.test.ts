@@ -213,7 +213,7 @@ const run = (s: ShotState, n: number, input: Parameters<typeof stepShot>[1]): Sh
   return s;
 };
 
-test('景别：正常 1 秒走完（0.9 秒时还没到）；减少动态 0.15 秒；治理在砍工作量时直接切、跟随冻结', () => {
+test('景别：正常 1 秒走完（0.9 秒时还没到）；减少动态 0.15 秒；治理在砍工作量时景别照常走完、跟随冻结（docs/49 §6.3：不再直接切）', () => {
   const base = { shot: 'upper' as const, offset: { x: 0.3, y: 0 }, reduced: false, hold: false };
   assert.ok(run(SHOT_REST, 27, base).progress < 1, '0.9 秒就走完了 —— 那是一次切，不是一段运镜');
   const done = run(SHOT_REST, 31, base);
@@ -223,20 +223,27 @@ test('景别：正常 1 秒走完（0.9 秒时还没到）；减少动态 0.15 �
   assert.equal(reduced.progress, 1);
   assert.equal(reduced.fx.x, 0, '减少动态时中景还在跟随');
   const held = stepShot({ progress: 0, fx: { x: 0.05, v: 0.4 }, fy: { x: 0, v: 0 } }, { ...base, hold: true }, DT);
-  assert.equal(held.progress, 1);
+  assert.ok(Math.abs(held.progress - DT / AUTOFRAME.shotSeconds) < 1e-9, `降级时景别一帧走了 ${held.progress} —— 那是一次切`);
   assert.deepEqual([held.fx.x, held.fx.v], [0.05, 0], '降级时跟随还在动');
+  assert.equal(run({ progress: 0, fx: { x: 0.05, v: 0 }, fy: { x: 0, v: 0 } }, 31, { ...base, hold: true }).progress, 1, '降级时景别没有走完');
   // 回到全景：偏移收回 0（等身机位是不动的）
   const back = run(done, 120, { ...base, shot: 'full' });
   assert.equal(back.progress, 0);
   assert.ok(Math.abs(back.fx.x) < 0.01);
 });
 
-test('小屏裁切：任何告警当帧退回整幅；正常时放大到上限、窗口永远不伸出画面', () => {
+test('小屏裁切：任何告警 0.2 秒内限速退回整幅（不是当帧）；正常时放大到上限、窗口永远不伸出画面', () => {
   const seated = person(SEATED).screen;
   let c = CROP_FULL;
   for (let i = 0; i < 90; i++) c = stepCrop(c, { active: true, snap: false, screen: seated }, DT);
   assert.ok(c.zoom > 1.2 && c.zoom <= AUTOFRAME.previewZoom + 1e-9, `zoom ${c.zoom}`);
-  assert.deepEqual(stepCrop(c, { active: true, snap: true, screen: seated }, DT), CROP_FULL, '告警那一帧没有退回整幅');
+  const first = stepCrop(c, { active: true, snap: true, screen: seated }, DT);
+  assert.ok(first.zoom < c.zoom && first.zoom > 1, `告警第一帧 zoom ${c.zoom} → ${first.zoom}：要么没退，要么一帧退完`);
+  let snapped = c;
+  for (let i = 0; i < Math.ceil(AUTOFRAME.previewSnapSeconds / DT); i++) snapped = stepCrop(snapped, { active: true, snap: true, screen: seated }, DT);
+  assert.equal(snapped.zoom, 1, `告警 ${AUTOFRAME.previewSnapSeconds} 秒后还没退回整幅：${snapped.zoom}`);
+  assert.equal(snapped.cx.x, 0.5);
+  assert.equal(snapped.cy.x, 0.5);
   for (const cx of [0.02, 0.98]) {
     let k = CROP_FULL;
     for (let i = 0; i < 200; i++) {

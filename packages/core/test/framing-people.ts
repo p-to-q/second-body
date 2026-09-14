@@ -75,3 +75,121 @@ export function between(a: PersonSpec, b: PersonSpec, t: number): PersonSpec {
 export const SEATED: PersonSpec = { s: 1.0, hy: 0.95 };           // 笔记本前坐着：头肩胯，膝踝在画外
 export const WHOLE: PersonSpec = { s: 0.5, hy: 0.52 };            // 退后到整个人进画
 export const STOOD_UP_CLOSE: PersonSpec = { s: 1.0, hy: 0.5 };    // 在笔记本跟前站起来：头出了上边
+
+// ── 合成的时间线（工作台 `/dev/framing.html` 与取证脚本 `scripts/framing/` 共用，docs/49 §6.6）──
+
+/** 一段：`seconds` 秒里人从 `from` 走到 `to`（null = 画里没人）。其余字段叠在上面 */
+export interface Segment {
+  seconds: number;
+  from: PersonSpec | null;
+  to?: PersonSpec | null;
+  /** 左右晃：胯中点 x 加上 amp·sin(2π·hz·t) */
+  swayAmp?: number;
+  swayHz?: number;
+  /** 每 `altEvery` 秒换成另一个人（`numPoses = 1` 时 MediaPipe 在两个人之间跳） */
+  alt?: PersonSpec;
+  altEvery?: number;
+  /** 这一段里的取景策略与降级 hold（工作台模拟控件条和调速器） */
+  policy?: 'auto' | 'full' | 'upper';
+  hold?: boolean;
+}
+
+/**
+ * 几段有名字的时间线。"左 / 右"一律是**观众自己的**：往自己左边走 = 画面 x 变大、越过画面右边（docs/49 §6.3 二的镜像那一行）。
+ */
+export const SCRIPTS: Record<string, Segment[]> = {
+  /** 画内慢慢左右走（0.25Hz），再快速晃（2Hz） */
+  sway: [
+    { seconds: 1.5, from: WHOLE },
+    { seconds: 8, from: WHOLE, swayAmp: 0.2, swayHz: 0.25 },
+    { seconds: 4, from: WHOLE, swayAmp: 0.05, swayHz: 2 },
+    { seconds: 1.5, from: WHOLE },
+  ],
+  /**
+   * 往自己左边走出画、停一会、走回来。两端都写明 `cx`：`between()` 对只有一边有的键直接取有的那边 ——
+   * 写成 `from: WHOLE, to: { cx: 1.08 }` 的话，人在这一段的第一帧就瞬移出画了（第一版取证就是这么漏的）
+   */
+  'out-left': [
+    { seconds: 1.5, from: { ...WHOLE, cx: 0.5 } },
+    { seconds: 2.5, from: { ...WHOLE, cx: 0.5 }, to: { ...WHOLE, cx: 1.08 } },
+    { seconds: 2.5, from: { ...WHOLE, cx: 1.08 } },
+    { seconds: 2.5, from: { ...WHOLE, cx: 1.08 }, to: { ...WHOLE, cx: 0.5 } },
+    { seconds: 2, from: { ...WHOLE, cx: 0.5 } },
+  ],
+  /** 往自己右边走出画、停一会、走回来 */
+  'out-right': [
+    { seconds: 1.5, from: { ...WHOLE, cx: 0.5 } },
+    { seconds: 2.5, from: { ...WHOLE, cx: 0.5 }, to: { ...WHOLE, cx: -0.08 } },
+    { seconds: 2.5, from: { ...WHOLE, cx: -0.08 } },
+    { seconds: 2.5, from: { ...WHOLE, cx: -0.08 }, to: { ...WHOLE, cx: 0.5 } },
+    { seconds: 2, from: { ...WHOLE, cx: 0.5 } },
+  ],
+  /** 站在一边、整个人出画（跟丢）三秒、从另一边回来 */
+  reentry: [
+    { seconds: 2.5, from: { ...WHOLE, cx: 0.3 } },
+    { seconds: 3, from: null },
+    { seconds: 1, from: { ...WHOLE, cx: 0.95 }, to: { ...WHOLE, cx: 0.7 } },
+    { seconds: 3, from: { ...WHOLE, cx: 0.7 } },
+  ],
+  /**
+   * 坐近 → 站起来（头出上边）→ 退后 → 再坐近；**再坐近那一段调速器正在砍工作量（hold）**——
+   * 景别 full → upper 恰好在 hold 里发生，那正是 §6.2 S2 那一帧切的路径
+   */
+  sitstand: [
+    { seconds: 3, from: SEATED },
+    { seconds: 0.4, from: SEATED, to: STOOD_UP_CLOSE }, { seconds: 1.6, from: STOOD_UP_CLOSE },
+    { seconds: 1.2, from: STOOD_UP_CLOSE, to: WHOLE }, { seconds: 2.8, from: WHOLE },
+    { seconds: 1.0, from: WHOLE, to: SEATED, hold: true }, { seconds: 3, from: SEATED, hold: true },
+    { seconds: 2.5, from: SEATED },
+  ],
+  /** 坐在笔记本前 → 往后退到整个人进画 → 再走近。上半身 → 退后中那一刻小屏退回整幅：§6.2 S1 那一帧跳完的路径 */
+  stepback: [
+    { seconds: 3, from: SEATED },
+    { seconds: 1.5, from: SEATED, to: WHOLE }, { seconds: 3, from: WHOLE },
+    { seconds: 1.0, from: WHOLE, to: SEATED }, { seconds: 3, from: SEATED },
+  ],
+  /**
+   * 坐在笔记本前、小屏已经放大，光线塌了两秒又回来。分类器保持上半身（坏光不判模式），小屏的话变成「站到亮一点的地方」——
+   * **放大着的时候来了一句告警**：§6.2 S1 那一帧退回整幅的路径（退后那条路反而不经过它：`active` 先变 false，弹簧先收回去了）
+   */
+  light: [
+    { seconds: 4, from: SEATED },
+    { seconds: 2, from: { ...SEATED, score: 0.58 } },
+    { seconds: 4, from: SEATED },
+  ],
+  /** 坐着不动，控件条上依次换成 上半身 → 全身 → 自动（`?framing=` 热切，§6.3 一「控件条换策略」） */
+  policy: [
+    { seconds: 3, from: SEATED },
+    { seconds: 2.5, from: SEATED, policy: 'upper' },
+    { seconds: 2.5, from: SEATED, policy: 'full' },
+    { seconds: 3, from: SEATED, policy: 'auto' },
+  ],
+  /** 画里两个人一左一右，`numPoses = 1` 的 MediaPipe 在两人之间来回跳 */
+  two: [
+    { seconds: 2, from: { ...WHOLE, cx: 0.2 } },
+    { seconds: 5, from: { ...WHOLE, cx: 0.2 }, alt: { ...WHOLE, cx: 0.8, s: 0.45 }, altEvery: 0.27 },
+    { seconds: 2, from: { ...WHOLE, cx: 0.2 } },
+  ],
+};
+
+export const scriptSeconds = (segs: readonly Segment[]): number => segs.reduce((a, s) => a + s.seconds, 0);
+
+/** 时间线上第 `t` 秒的样子（`t` 超过总长时按循环取） */
+export function scriptAt(segs: readonly Segment[], t: number): { pose: RawPose | null; policy: 'auto' | 'full' | 'upper'; hold: boolean } {
+  const total = scriptSeconds(segs);
+  let u = total > 0 ? ((t % total) + total) % total : 0;
+  for (const seg of segs) {
+    if (u < seg.seconds || seg === segs[segs.length - 1]) {
+      const k = Math.min(1, u / Math.max(1e-9, seg.seconds));
+      const policy = seg.policy ?? 'auto';
+      const hold = seg.hold ?? false;
+      if (!seg.from) return { pose: null, policy, hold };
+      let spec = seg.to ? between(seg.from, seg.to, k) : { ...seg.from };
+      if (seg.alt && seg.altEvery && Math.floor(u / seg.altEvery) % 2 === 1) spec = { ...seg.alt };
+      if (seg.swayAmp) spec = { ...spec, cx: (spec.cx ?? 0.5) + seg.swayAmp * Math.sin(2 * Math.PI * (seg.swayHz ?? 0) * u) };
+      return { pose: person(spec), policy, hold };
+    }
+    u -= seg.seconds;
+  }
+  return { pose: null, policy: 'auto', hold: false };
+}

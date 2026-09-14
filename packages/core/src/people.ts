@@ -20,8 +20,7 @@
  */
 import type { Landmark, RawPose } from './types.ts';
 import { CAPTURE, PEOPLE } from './tuning.ts';
-import { inFrame, trustedLandmark } from './autoframe.ts';
-import { MIRROR_X } from './skeleton.ts';
+import { imageToStageX, inFrame, torsoScale, trustedLandmark } from './autoframe.ts';
 
 // ── 观测 ────────────────────────────────────────────────────────────────────
 
@@ -62,14 +61,12 @@ export function observePerson(pose: RawPose | null | undefined, aspect = 16 / 9)
     const mx = (sL.x + sR.x) / 2, my = (sL.y + sR.y) / 2;
     const hx = (hL.x + hR.x) / 2, hy = (hL.y + hR.y) / 2;
     cx = (mx + hx) / 2; cy = (my + hy) / 2;
-    // 尺度取「躯干长」和「肩宽折算」里**大的那个**：弯腰 / 蹲下时躯干的投影缩到几分之一，侧身时肩宽缩到几分之一，
-    // 两件事很少同时发生。只看躯干长的话，开合跳录像里的尺度一帧从 0.16 掉到 0.04，门限把同一个人判成新人（2026-09-14 实测）
-    scale = Math.max(Math.hypot((mx - hx) * aspect, my - hy), Math.hypot(X(sL) - X(sR), sL.y - sR.y) * PEOPLE.torsoPerShoulder);
+    // 尺度的量法（躯干长与肩宽折算取大的那个）住在 `autoframe.ts` 的 `torsoScale()`：身体的横向根偏移用同一把尺子
+    scale = torsoScale(sL, sR, hL, hR, aspect);
   } else if (shoulders) {
     cx = (sL.x + sR.x) / 2;
     // 胯在画外（笔记本前坐着）：躯干中心按肩宽往下估半个躯干
-    const w = Math.hypot(X(sL) - X(sR), sL.y - sR.y);
-    scale = w * PEOPLE.torsoPerShoulder;
+    scale = torsoScale(sL, sR, null, null, aspect);
     cy = (sL.y + sR.y) / 2 + scale / 2;
   } else {
     return null;
@@ -471,10 +468,7 @@ export interface LineupInput { id: number; cx: number; scale: number }
 export function lineup(people: readonly LineupInput[], aspect = 16 / 9): Map<number, number> {
   const out = new Map<number, number>();
   if (people.length <= 1) { for (const p of people) out.set(p.id, 0); return out; }
-  const xs = people.map((p) => ({
-    id: p.id,
-    x: MIRROR_X * (p.cx - 0.5) * aspect * (PEOPLE.torsoMeters / Math.max(PEOPLE.minScale, p.scale)),
-  }));
+  const xs = people.map((p) => ({ id: p.id, x: imageToStageX(p.cx, p.scale, aspect) }));
   const mean = xs.reduce((a, p) => a + p.x, 0) / xs.length;
   for (const p of xs) p.x -= mean;
   xs.sort((a, b) => a.x - b.x || a.id - b.id);

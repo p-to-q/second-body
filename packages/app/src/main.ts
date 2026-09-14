@@ -12,7 +12,10 @@ import * as THREE from 'three/webgpu';
 import { buildSkeleton, mediapipeToWorld } from '../../core/src/skeleton.ts';
 import { createStabilizer } from '../../core/src/stabilize.ts';
 import { clampFold, createRefiner } from '../../core/src/refine.ts';
-import { createFramingClassifier, decide, stepToward, type FramingDecision, type FramingPolicy } from '../../core/src/autoframe.ts';
+import {
+  createFramingClassifier, decide, lateralEvidence, stepLateral, stepToward, LATERAL_REST,
+  type FramingDecision, type FramingPolicy, type LateralState,
+} from '../../core/src/autoframe.ts';
 import { holdLegs } from '../../core/src/leghold.ts';
 import { createVitality } from '../../core/src/vitality.ts';
 import { createBoneEnergy, createMotion } from '../../core/src/motion.ts';
@@ -374,12 +377,21 @@ async function boot(): Promise<void> {
   let framing: FramingDecision = decide(framingPolicy, framer.current);
   /** 腿混向站姿的权重（线性，`holdLegs` 里套 smoothstep） */
   let legHold = 0;
+  /**
+   * 身体的横向根偏移（docs/49 §6.3 二）。MediaPipe 的 world 以胯为原点：人在画面里站哪儿，那具身体都在中线。
+   * 这里用躯干在画面里的横坐标把它补回来 —— 有界、弹簧、镜像；台上有伴随身体时让位给 docs/50 的站位
+   */
+  let lateral: LateralState = LATERAL_REST;
+  /** 摄像头自己在取景（`capture/cam-framing.ts`，采集端每秒读一次）。回放没有摄像头：恒 false */
+  const cameraFraming = (): boolean => (capture as { camFraming?: { active: boolean | null } | null }).camFraming?.active === true;
   const reducedMotion = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
 
   const preview = mountPreview({
     flags,
     // 上半身是正当取景时：「往后退一点」不为腿说话，小屏在人身上做一个小范围的数字裁切
     framing: () => framing.upperIsIntended,
+    reduced: () => reducedMotion?.matches ?? false,
+    cameraFraming,
     // 用 getter：观众按下「用我的摄像头」之后 `capture` 会被整个换掉，
     // 这块屏幕必须跟着换到新的那一个 `<video>` 上。
     // `video` 只有 `WebcamCapture` 有（回放没有摄像头画面），所以按可选字段读 ——
@@ -571,6 +583,9 @@ async function boot(): Promise<void> {
   let slowWas = slow.phase;
   let lastFeatures: MotionFeatures | null = null;
   let lastSkeleton: Skeleton | null = null;
+  /** 平移之前的那一份与它当时的平移量：跟丢时横向根偏移还在走，拿它重新平移 */
+  let lastBase: Skeleton | null = null;
+  let lastShift = 0;
   let tier: Tier = (flags.tier ?? 0) as Tier;
   /** 运动量那一半给出的档位。它只能把 tier 往上推，见帧循环里的那一段 */
   let evoTier: Tier = 0;
@@ -814,7 +829,9 @@ async function boot(): Promise<void> {
     // 这块屏幕唯一的职责就是说实话，所以它站在滤波之前。
     // 取景模式先判，小屏和读数这一帧就用上同一个结论。吃**原话**（和小屏同一份）：
     // 它要回答"画面里此刻是什么样"，插值出来的那一份不是画面里有过的样子
-    framing = decide(framingPolicy, framer.update(live, dt));
+    // 摄像头自己在取景时，腿被它裁掉是预期（docs/49 §6.3 三）：分类器和引导都要知道
+    const camFraming = cameraFraming();
+    framing = decide(framingPolicy, framer.update(live, dt, { cameraFraming: camFraming }), { cameraFraming: camFraming });
     legHold = stepToward(legHold, framing.holdLegs ? 1 : 0, dt, AUTOFRAME.legBlendSeconds);
     preview?.update(live, dt);
 
@@ -828,6 +845,10 @@ async function boot(): Promise<void> {
       creature.setCompanions(crowdOut?.companions ?? []);
       stage.setGroup(crowdOut?.groupWidth ?? 0, crowdOut?.groupHeight ?? 0);
     }
+    // 横向根偏移：吃**原话**（和小屏同一份），夹在舞台此刻的横向余量里（随景别连续变化）。
+    // 台上有伴随身体时让位 —— 站位归 lineup；两个都是弹簧，加起来是连续的
+    lateral = stepLateral(lateral, { evidence: lateralEvidence(live), room: stage.lateralRoom, enabled: !crowdOut?.companions.length }, dt);
+    const shiftX = (crowdOut?.primaryX ?? 0) + lateral.x.x;
 
     if (raw) {
       // 运动特征算在**人的**骨架上：驱动演化的是观众实际动了多少，
@@ -861,9 +882,11 @@ async function boot(): Promise<void> {
       lastSkeleton = vitalityOn
         ? vitality.apply(planned, lastFeatures, dt, drift > 0 ? plan : 'rig')
         : planned;
-      // 多人时主身体也有站位（和伴随身体一起排，docs/50 §4.2）。平移在生命力之后：它的状态链上存的是没挪过的那一份。
-      // 单人时 primaryX 恒为 0，`shiftSkeleton` 原样返回同一个对象
-      if (crowdOut) lastSkeleton = shiftSkeleton(lastSkeleton, crowdOut.primaryX);
+      // 站位：多人时主身体和伴随身体一起排（docs/50 §4.2），单人时是横向根偏移（docs/49 §6.3 二）。
+      // 平移在生命力之后：它的状态链上存的是没挪过的那一份。偏移为 0 时 `shiftSkeleton` 原样返回同一个对象
+      lastBase = lastSkeleton;
+      lastShift = shiftX;
+      lastSkeleton = shiftSkeleton(lastSkeleton, shiftX);
       stage.frame(lastSkeleton);   // 取景按**重映射之后**的身体算：四足是横的矮的
       // 那具身体的重量真的落在地上。判据和上面那行画的接触阴影共用同一批落点，
       // 所以听到的那一下和看到的那一摊影子不可能对不上。dt 不吃 timeScale（同 sound.update）
@@ -874,6 +897,11 @@ async function boot(): Promise<void> {
       massBody?.setEnergy(lastFeatures.energy);
       nascent?.setEnergy(lastFeatures.energy);
       evoTier = evo.tier;
+    } else if (lastSkeleton && lastBase && Math.abs(shiftX - lastShift) > 1e-4) {
+      // 跟丢的这几帧没有新骨架，但横向根偏移还在走（先停住、再回中线）：身体和脚下的接触阴影一起挪
+      lastShift = shiftX;
+      lastSkeleton = shiftSkeleton(lastBase, shiftX);
+      stage.frame(lastSkeleton);
     }
 
     // ── 忒修斯之船：这一帧要不要换一件（docs/44 §2 / §3）────────────────────
@@ -1053,7 +1081,7 @@ async function boot(): Promise<void> {
     }, dt);
 
     // 景别。中景只给人形：身体方案一开始漂移，"上半身"就不再是一个取景（四足没有上半身），给全景。
-    // 帧循环在降级或无人降帧时镜头不做动画（直接切、跟随冻结）—— 画面不动永远比卡着动好
+    // 帧循环在降级或无人降帧时：跟随冻结，景别照常按时间走完（docs/49 §6.3 一 —— 一帧切正是"没有过渡"的根因之一）
     // 多人：台上有伴随身体时一律全景（docs/50 §4.3 —— 三个人的中景要么切掉两侧的人，要么不再是中景）
     stage.setShot(framing.shot === 'upper' && planDrift() <= 0 && !crowdOut?.companions.length ? 'upper' : 'full', {
       reduced: reducedMotion?.matches ?? false,
@@ -1112,13 +1140,18 @@ async function boot(): Promise<void> {
         // docs/44 §7 最后一段：现场调速率的人靠这一行，不靠掐表
         theseus: theseus?.state,
         // 取景模式此刻是什么、为什么、量到了什么（docs/49 §落地：切换必须实时看得见）
-        framing: { reading: framer.current, decision: framing, legHold, shot: stage.shot.progress },
+        framing: {
+          reading: framer.current, decision: framing, legHold, shot: stage.shot.progress,
+          lateral: { x: lateral.x.x, room: stage.lateralRoom, why: lateral.why, side: lateral.side },
+        },
         // 多人（docs/50）：每条轨迹一行 —— id、主 / 伴 / 无、在场多久、配对代价
         people: people && crowd ? { frame: crowd, cap: flags.people, bodies: people.plan.bodies, outlineYields: !people.plan.outlineWithCompanions, shed: people.shed } : undefined,
         instancesBudget: people ? BUDGET.maxInstances * (crowdOut?.visible ?? 1) : undefined,
         // `camera` 只有 `WebcamCapture` 有（回放没有摄像头可选），所以按可选字段读 ——
         // 和上面 `instances` 同一个写法，不为一个显示字段去动 `Capture` 契约。
-        cam: (capture as { camera?: { hud: string } | null }).camera?.hud,
+        // 摄像头自带的取景接在同一行后面（docs/49 §6.3 三）：`camframing=auto · 摄像头在取景`
+        cam: [(capture as { camera?: { hud: string } | null }).camera?.hud, (capture as { camFraming?: { hud: string } | null }).camFraming?.hud]
+          .filter(Boolean).join(' · ') || undefined,
         camFallback: (capture as { camera?: { why: string } | null }).camera?.why === 'fallback',
         // 精化的三个数挂在 note 上而不是扩 HudCounts：它们只在调参时看，
         // 不值得为此动一个被所有页面共用的契约。

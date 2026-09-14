@@ -37,10 +37,10 @@
  * - 不做关闭按钮、不做拖动、不做设置。它不是一个组件，是一个指示灯。
  */
 import type { RawPose } from '../../../core/src/types.ts';
-import { stepCrop, CROP_FULL, type Crop } from '../../../core/src/autoframe.ts';
+import { cropZoomLimit, stepCrop, CROP_FULL, type Crop } from '../../../core/src/autoframe.ts';
 import type { Flags } from '../shell/kiosk.ts';
 import { COPY, setBi } from './i18n.ts';
-import { createSeeWatch, wantsPreview, type SeeReading } from './preview-state.ts';
+import { createSeeWatch, cropActive, displaySide, wantsPreview, type SeeReading } from './preview-state.ts';
 import './preview.css';
 
 // 挂不挂的那条判断住在 `preview-state.ts`（它是纯的，能在 node 里测；
@@ -124,6 +124,13 @@ export function mountPreview(opts: {
    * 有身体的画 0.5 透明度，没有身体的（超过上限、海报）画 0.2 —— 小屏说实话：他确实被看见了，只是没有身体。
    */
   others?: () => ReadonlyArray<{ pose: RawPose; bodied: boolean }>;
+  /** `prefers-reduced-motion`：小屏不裁切（一块跟着人挪的缩略图本身就是动态，docs/49 §6.3 一） */
+  reduced?: () => boolean;
+  /**
+   * 摄像头自己在取景（`capture/cam-framing.ts`）。小屏上只挂 `title` / `data-cam-framing`，**不加常驻字**
+   *（docs/49 §6.3 三；这一块指针穿透，悬停也不出字 —— 看得见的说明在 `?debug=1` 的 HUD 上）。
+   */
+  cameraFraming?: () => boolean;
 }): Preview | null {
   if (!wantsPreview(opts.flags)) return null;
 
@@ -208,28 +215,54 @@ export function mountPreview(opts: {
   }
 
   function say(r: SeeReading): void {
-    if (shown && shown.state === r.state && shown.reason === r.reason) return;
+    if (shown && shown.state === r.state && shown.reason === r.reason && shown.side === r.side) return;
     shown = r;
     root.classList.toggle('is-bad', r.state !== 'ok');
+    // 从哪一侧走出了画：屏幕那一侧一条细边，只在那句话在说的时候在（docs/49 §6.3 二）
+    const edge = r.reason === 'side' && r.side ? displaySide(r.side, opts.flags.mirror) : null;
+    root.classList.toggle('is-out-left', edge === 'left');
+    root.classList.toggle('is-out-right', edge === 'right');
     if (r.state === 'ok') { word.textContent = ''; return; }
     setBi(
       word,
       r.state === 'off' ? COPY.preview.off
         : r.state === 'empty' ? COPY.attract.invite
           : r.reason === 'quality' ? COPY.preview.light
-            : COPY.preview.stepBack,
+            : r.reason === 'side' ? (r.side === 'left' ? COPY.preview.outLeft : COPY.preview.outRight)
+              : COPY.preview.stepBack,
     );
+  }
+
+  /** 摄像头自己在取景：只挂属性，不出字 */
+  let camNoted = false;
+  function noteCameraFraming(on: boolean): void {
+    if (on === camNoted) return;
+    camNoted = on;
+    if (on) {
+      root.title = `${COPY.preview.camFraming.zh} · ${COPY.preview.camFraming.en}`;
+      root.dataset.camFraming = 'on';
+    } else {
+      root.removeAttribute('title');
+      delete root.dataset.camFraming;
+    }
   }
 
   /**
    * 上半身取景时的数字裁切（docs/49 §落地 · 用法 B）。**只作用于显示**：
    * video 和骨架画布一起挪，推理照旧看整幅。任何一句话在说（出画 / 光不够 / 没人）→ 当帧退回整幅，
    * 让画框的边重新可见 —— 这块屏幕的职责是说实话，裁切不许替一个半个人出画的观众把他摆回正中。
+   * 退回整幅按时间限速走完（`previewSnapSeconds`，docs/49 §6.3 一），不是当帧。
    * 每帧由状态写成 transform，不用 CSS transition（静止态不许等一段动画走完）。
    */
   let crop: Crop = CROP_FULL;
-  function applyCrop(upper: boolean, seen: SeeReading, pose: RawPose | null, dt: number): void {
-    crop = stepCrop(crop, { active: upper, snap: seen.state !== 'ok', screen: pose?.screen }, dt);
+  /** 屏幕此刻的设备像素高度。约每秒量一次：每帧读 clientHeight 会逼一次布局 */
+  let displayPx = 0;
+  let sizeTick = 0;
+  function applyCrop(active: boolean, seen: SeeReading, pose: RawPose | null, dt: number): void {
+    if (sizeTick++ % 60 === 0) displayPx = screen.clientHeight * (devicePixelRatio || 1);
+    // 分辨率下限：源画面不够时不放大像素（480p 摄像头放进 1080 屏上的小屏）
+    const maxZoom = cropZoomLimit(attached?.videoHeight ?? NaN, displayPx);
+    crop = stepCrop(crop, { active, snap: seen.state !== 'ok', screen: pose?.screen, maxZoom }, dt);
     // transform-origin 0 0：先平移让窗口中心落到 (0.5/zoom)，再放大
     const t = crop.zoom === 1 ? ''
       : `scale(${crop.zoom.toFixed(4)}) translate(${((0.5 / crop.zoom - crop.cx.x) * 100).toFixed(3)}%, ${((0.5 / crop.zoom - crop.cy.x) * 100).toFixed(3)}%)`;
@@ -247,7 +280,12 @@ export function mountPreview(opts: {
       const upper = opts.framing?.() ?? false;
       const seen = watch.update({ camera, pose, upperIsIntended: upper }, dt);
       say(seen);
-      applyCrop(upper, seen, pose, dt);
+      applyCrop(cropActive({
+        upperIsIntended: upper,
+        reduced: opts.reduced?.() ?? false,
+        othersBodied: (opts.others?.() ?? []).some((o) => o.bodied),
+      }), seen, pose, dt);
+      noteCameraFraming(camera && (opts.cameraFraming?.() ?? false));
       // 只在采集端真的给了新一帧的时候重画。`pose.t` 是 `performance.now()`
       // 打的推理时间戳（`capture/webcam.ts`），严格递增。
       const t = pose?.t ?? -1;

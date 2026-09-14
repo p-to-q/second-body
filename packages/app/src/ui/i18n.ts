@@ -194,6 +194,15 @@ export const COPY = {
     stepBack: bi('往后退一点，整个人进画面', 'Step back — get all of you in frame'),
     /** 追踪质量掉下去了（逆光是现场的头号杀手，见 docs/38 §6） */
     light: bi('站到亮一点的地方', 'Find a brighter spot'),
+    /**
+     * 从观众**自己的**左 / 右边走出了画（docs/49 §6.3 二）。说的是往哪边回来，不是从哪边出去的 ——
+     * 规矩 2：说观众该做什么。镜像显示上观众的左就是屏幕的左，所以这句话和他在小屏里看到的方向一致。
+     * 往后退救不了往旁边走出去的人，所以它不能复用 `stepBack`。
+     */
+    outLeft: bi('往右一点，回到画面里', 'Move right, back into frame'),
+    outRight: bi('往左一点，回到画面里', 'Move left, back into frame'),
+    /** 摄像头自己在取景时挂在小屏上的 `title`（不是常驻的字，docs/49 §6.3 三） */
+    camFraming: bi('摄像头自己在取景：腿被它裁掉不算出画', 'The camera is framing itself: legs it crops out are not counted'),
   },
 
   /**

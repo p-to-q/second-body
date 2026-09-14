@@ -26,7 +26,8 @@
  * 换句话说：**人形严格等身，非人形按同一条曲线连续地偏离，偏离量有上限。**
  */
 import { remapSkeleton, type BodyPlan } from '../../../core/src/bodyplan.ts';
-import { SKELETON , FRAMING as FRAMING_TUNING, AUTOFRAME } from '../../../core/src/tuning.ts';
+import { SKELETON , FRAMING as FRAMING_TUNING, AUTOFRAME, STAGE } from '../../../core/src/tuning.ts';
+import { smoothstep, type ShotState } from '../../../core/src/autoframe.ts';
 import type { Bone, BoneId, Skeleton, Vec3 } from '../../../core/src/types.ts';
 
 /** 一具身体在世界里占的那个盒子。x 始终假设左右对称，所以只记宽度 */
@@ -286,6 +287,56 @@ export function blendFit(full: FrameFit, upper: FrameFit, t: number): FrameFit {
     centerY: full.centerY + (upper.centerY - full.centerY) * k,
     aimY: full.aimY,
   };
+}
+
+/** 舞台相机这一刻的全部几何。`stage.ts` 的 `fitCamera()` 用它，连续性测试和 `/dev/framing.html` 也用它 —— 三处同一份数学 */
+export interface ShotCamera {
+  /** 画面框住的世界高度（米，竖屏时已经按宽度撑高） */
+  h: number;
+  /** 竖直视角（度） */
+  fov: number;
+  /** 中景跟随的移轴平移（米） */
+  panX: number;
+  /** 画面竖直中心（米，含场景的构图票） */
+  centerY: number;
+  /** 取景平面离相机多远（米） */
+  dist: number;
+  aimY: number;
+  /** 身体此刻还能横向走多远而不出画（米，`lateralRoom()`） */
+  room: number;
+}
+
+/**
+ * 包围盒 + 身高 + 景别状态 → 相机几何。**t = 0 时和等身全景逐字相同**（`blendFit` 的约定）。
+ * @param frameLift 场景对构图的那一票（`look.frameLift`）
+ */
+export function shotCamera(bounds: BodyBounds, bodyH: number, shot: ShotState, aspect: number, frameLift = 0): ShotCamera {
+  const mix = smoothstep(shot.progress);
+  const fit = blendFit(fitFrame(bounds), upperFit(bodyH, bounds.width), mix);
+  const panX = shot.fx.x * mix;
+  let h = fit.frameHeight;
+  if (h * aspect < fit.frameWidth) h = fit.frameWidth / aspect;   // 太窄了就往高了框
+  // 取景平面放在身体的**近面**，不是身体中心（四足的腿跑出画面外那个 bug 的修法，见 stage.ts）
+  const dist = Math.max(0.8, STAGE.viewDistance - Math.min(1.0, bounds.depth / 2));
+  return {
+    h,
+    fov: (2 * Math.atan((h / 2) / dist) * 180) / Math.PI,
+    panX,
+    centerY: fit.centerY + shot.fy.x * mix + bounds.height * frameLift,
+    dist,
+    aimY: fit.aimY,
+    room: lateralRoom(h, aspect, bounds.width, panX),
+  };
+}
+
+/**
+ * 身体的横向根偏移最多能走多远（米）：画面半宽 − 身体半宽 − 边距 − 移轴偏了多少。
+ * 随景别连续变化（中景画面窄得多），`core/src/autoframe.ts` 的 `stepLateral()` 按限速把偏移收进来。
+ */
+export function lateralRoom(frameHeight: number, aspect: number, bodyWidth: number, panX = 0): number {
+  const half = (Number.isFinite(frameHeight) ? frameHeight : 0) * (Number.isFinite(aspect) ? aspect : 0) / 2;
+  const body = (Number.isFinite(bodyWidth) ? bodyWidth : DEFAULT_BOUNDS.width) / 2;
+  return Math.max(0, half - body - AUTOFRAME.lateralRoomMargin - Math.abs(Number.isFinite(panX) ? panX : 0));
 }
 
 /** 两个包围盒之间插值。换条目时相机要平滑过渡（docs/23 §S3：进场必须无缝） */

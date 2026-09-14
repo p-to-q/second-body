@@ -121,3 +121,19 @@
    §F：全站只有一处用颜色承担语义，而这里不是那一处。
    一块沉下去的屏幕加一句话，已经把"现在不太对"说完了。 */
 .sb-see.is-bad .sb-see-screen { box-shadow: inset 0 0 0 1px var(--sb-ink-dim); }
+
+/* 从观众的哪一侧走出了画（docs/49 §6.3 二）：屏幕那一侧一条细边，只在那句话在说的时候在。
+   画在外层 `.sb-see` 上而不是屏幕上：屏幕本身带着镜像的 transform，画在它身上会跑到另一侧
+   （显示的哪一侧由 `preview-state.ts` 的 `displaySide()` 算好了）。
+   上下各让开圆角那一截；不是圆角的豁免范围，是一条直线。颜色同上：只用墨色，不用警示色 */
+.sb-see.is-out-left::before,
+.sb-see.is-out-right::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  height: calc(var(--sb-see-h) - 20px);
+  width: 2px;
+  background: var(--sb-ink);
+}
+.sb-see.is-out-left::before { left: 0; }
+.sb-see.is-out-right::before { right: 0; }

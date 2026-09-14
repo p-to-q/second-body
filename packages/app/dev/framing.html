@@ -21,21 +21,27 @@
   <p class="sb-label">DEV · 取景模式</p>
   <h1>只露上半身，还是退后让它看见全身</h1>
   <p style="max-width:var(--sb-measure)">
-    分类器（<code>core/src/autoframe.ts</code>）每一帧在想什么。左边是摄像头画面里的 33 个点：
-    实心 = 可信（可见度 ≥ 0.4），空心 = 不可信；膝踝四点加粗。下面那条是最近 20 秒的模式时间线。
-    没有摄像头时播一段合成的"坐近 → 站起来 → 退后 → 再走近"，和 <code>core/test/autoframe.test.ts</code> 喂的是同一段。
+    分类器与控制器（<code>core/src/autoframe.ts</code>）每一帧在想什么、让画面怎么动（docs/49 §5 / §6）。
+    上：摄像头原图里的 33 个点（实心 = 可信），小屏裁切的目标窗口、死区与实际窗口。中：舞台上身体的横向位置、目标、死区与余量。
+    下：最近 20 秒的模式色带与放大倍数 / 景别 / 横向偏移 / 腿的曲线。
+    没有摄像头时播合成时间线，和 node 测试、<code>scripts/framing/trace.ts</code> 喂的是同一份。
   </p>
   <div class="bar">
     <button id="cam" type="button">用摄像头</button>
-    <label>策略 <select id="policy"><option>auto</option><option>full</option><option>upper</option></select></label>
+    <label>时间线 <select id="script"></select></label>
+    <label>策略 <select id="policy"><option value="script">跟时间线</option><option>auto</option><option>full</option><option>upper</option></select></label>
     <label><input id="kiosk" type="checkbox"> 现场（全身优先）</label>
+    <label><input id="reduced" type="checkbox"> 减少动态</label>
+    <label><input id="hold" type="checkbox"> 降级 hold</label>
+    <label><input id="camframing" type="checkbox"> 摄像头在取景</label>
     <span id="src" class="sb-label"></span>
   </div>
   <div class="row">
     <figure style="margin:0">
       <canvas id="view" width="640" height="360"></canvas>
-      <canvas id="line" width="640" height="56" style="margin-top:8px"></canvas>
-      <figcaption>时间线：灰 = full · 琥珀 = upper · 蓝 = stepping-back · 黑 = 没有人。竖线 = 一次切换</figcaption>
+      <canvas id="stage" width="640" height="110" style="margin-top:8px"></canvas>
+      <canvas id="line" width="640" height="140" style="margin-top:8px"></canvas>
+      <figcaption>数值面板里每 16ms 的最大变化量超过 <code>AUTOFRAME.maxStep</code> 时变红</figcaption>
     </figure>
     <div id="num"></div>
   </div>

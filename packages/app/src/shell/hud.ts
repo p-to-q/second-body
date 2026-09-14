@@ -95,6 +95,8 @@ export interface FramingHud {
   legHold: number;
   /** 舞台景别进度 0（全景）… 1（中景） */
   shot: number;
+  /** 身体的横向根偏移（docs/49 §6.3 二）：此刻的偏移、余量、在做什么、哪一侧出了画 */
+  lateral?: { x: number; room: number; why: string; side: string | null };
 }
 
 /**
@@ -108,7 +110,9 @@ export interface FramingHud {
 export function formatFramingRows(f: FramingHud): [string, string] {
   const r = f.reading;
   const forced = f.decision.policy === 'auto' ? '' : `  [策略 ${f.decision.policy}]`;
-  const head = `${r.mode} ← ${r.why} ${r.inMode.toFixed(1)}s · 景 ${Math.round(f.shot * 100)}% · 腿 ${f.legHold.toFixed(2)}${forced}`;
+  const l = f.lateral;
+  const side = l ? ` · 侧 ${l.x >= 0 ? '+' : ''}${l.x.toFixed(2)}/±${l.room.toFixed(2)}m ${l.why}${l.side ? ` ⚠出画(${l.side})` : ''}` : '';
+  const head = `${r.mode} ← ${r.why} ${r.inMode.toFixed(1)}s · 景 ${Math.round(f.shot * 100)}% · 腿 ${f.legHold.toFixed(2)}${side}${forced}`;
   const e = r.evidence;
   if (!e) return [head, '无人'];
   const trend = Number.isFinite(r.trend) ? r.trend.toFixed(2) : '—';
@@ -116,7 +120,8 @@ export function formatFramingRows(f: FramingHud): [string, string] {
   const scale = e.screen ? `尺度 ${trend} (≤${(1 - AUTOFRAME.stepBackShrink).toFixed(2)} 退)` : '尺度 — (回放没有 screen)';
   const cut = `头肩出画 ${e.upperOut}${e.upper ? '' : ' ⚠'}`;
   const q = e.quality ? '' : ' · 光不够：保持';
-  return [head, `${legs} · ${scale} · ${cut} · 冷却 ${r.cooldown.toFixed(1)}${q}`];
+  const cam = r.cameraFraming ? ' · 摄像头在取景：腿不在是预期' : '';
+  return [head, `${legs} · ${scale} · ${cut} · 冷却 ${r.cooldown.toFixed(1)}${q}${cam}`];
 }
 
 /**
