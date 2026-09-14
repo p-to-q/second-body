@@ -49,7 +49,8 @@ test('观测：躯干中心、尺度、面积；没有 screen / 分太低 = 不�
   const o = observePerson(person({ cx: 0.3, s: 0.5, hy: 0.52 }))!;
   assert.ok(o, '一个站着的人一定有观测');
   assert.ok(Math.abs(o.cx - 0.3) < 0.01, `中心 ${o.cx}`);
-  assert.ok(o.scale > 0.2 && o.scale < 0.26, `躯干长约 0.45×0.5 = 0.225，量到 ${o.scale}`);
+  // 尺度 = max(躯干长 0.45×0.5 = 0.225, 肩宽 0.38×0.5 × torsoPerShoulder ≈ 0.276)
+  assert.ok(o.scale > 0.22 && o.scale < 0.29, `尺度 ${o.scale}`);
   const near = observePerson(person({ cx: 0.5, s: 0.9, hy: 0.6 }))!;
   assert.ok(near.area > o.area, '离得近的人面积大');
   assert.equal(observePerson({ ...person(), screen: undefined }), null, '回放录制没有 screen：多人跟踪不认它');
