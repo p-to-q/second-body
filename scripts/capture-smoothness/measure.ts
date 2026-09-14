@@ -2,9 +2,12 @@
 // node measure.ts <baseUrl> <outDir> <mode: swap|deeplink> [recordSec=45] [cpuThrottle=1] [warmCache=0]
 import { spawn } from 'node:child_process';
 import { createWriteStream, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 const [base, out, mode = 'swap', recS = '45', throttle = '1', warm = '0'] = process.argv.slice(2);
-const HERE = new URL('.', import.meta.url).pathname;
+// fileURLToPath 而不是 `.pathname`：路径里有非 ASCII（`今天`）时 pathname 是百分号编码的，
+// Chrome 拿它找不到假摄像头的 y4m，摄像头那一路静静地 NotFoundError
+const HERE = fileURLToPath(new URL('.', import.meta.url));
 mkdirSync(`${out}/shots`, { recursive: true });
 const profile = `${HERE}/profile-${warm === '1' ? 'warm' : Date.now()}`;
 if (warm !== '1') rmSync(profile, { recursive: true, force: true });
