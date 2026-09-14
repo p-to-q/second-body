@@ -224,13 +224,28 @@ const FLAILING = 5;         // 比实测最大值（0.77）还大六倍 —— "
 const FIRST_BOUND = movementBounds(ARC.total, ARC.beats)[0];
 
 test('theseus: 站着不动的人走的是基准速率，不是更慢的 —— 裁定的第 1 条硬线', () => {
+  // ⚠️ 这一条的基准**必须**是 `buildSchedule` 排出来的那张表，不能是"另一种写法的
+  // 站着不动"。第一版写的是"不喂运动量"和"喂 0"两条路对比 —— 它们当然一致，
+  // 于是把"加速项给每个人都白送一点"这种改法照样放过去了（实测：变异之后全绿）。
+  // 排期表是唯一一个不受加速项影响的参照物，所以对比只能对着它。
   for (const seed of [3, 17, 400]) {
-    const base = session(seed, ARC.total, { overallEnergy: undefined });
-    const zero = session(seed, ARC.total, { overallEnergy: STILL });
-    // 不喂运动量、喂 0，两条路必须**逐件逐秒一致**：加速项在这里只能是恒等
-    assert.deepEqual(zero.fired.map((f) => f.at), base.fired.map((f) => f.at), `seed ${seed}`);
-    assert.ok(zero.fired.length >= 25, `seed ${seed}: 只换了 ${zero.fired.length} 件`);
-    assert.equal(ALL_SLOT_KEYS.filter((k) => zero.machine.isReplaced(k)).length, 18, `seed ${seed}`);
+    for (const e of [undefined, STILL]) {
+      const { fired, machine } = session(seed, ARC.total, { overallEnergy: e });
+      const plan = machine.schedule;
+      assert.equal(fired.length, plan.length, `seed ${seed} energy=${e}`);
+      for (let i = 0; i < fired.length; i++) {
+        // 不早于排期：加速项在站着不动的人身上必须是恒等
+        assert.ok(fired[i].at >= plan[i] - 1e-9,
+          `seed ${seed} energy=${e}: 第 ${i + 1} 件排在 ${plan[i].toFixed(3)}s，` +
+          `却在 ${fired[i].at.toFixed(3)}s 就换了 —— 站着不动的人被加速了`);
+        // 也不晚于排期（帧量化 + minGap 复位最多差几帧）：**加速只能加，不能减**
+        assert.ok(fired[i].at <= plan[i] + 3 * DT,
+          `seed ${seed} energy=${e}: 第 ${i + 1} 件排在 ${plan[i].toFixed(3)}s，` +
+          `拖到 ${fired[i].at.toFixed(3)}s 才换 —— 站着不动的人走的是更慢的速率`);
+      }
+      assert.ok(fired.length >= 25, `seed ${seed}: 只换了 ${fired.length} 件`);
+      assert.equal(ALL_SLOT_KEYS.filter((k) => machine.isReplaced(k)).length, 18, `seed ${seed}`);
+    }
   }
 });
 
