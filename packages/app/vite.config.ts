@@ -287,6 +287,11 @@ export default defineConfig({
   publicDir: process.env.NODE_ENV === 'production' ? false : resolve(__dirname, '../../assets'),
   plugins: [demoIndex(), anchorWriter(), shipAssets()],
   server: { port: 5173, host: true, fs: { allow: [ROOT] } },
+  // 姿态推理的 worker（`capture/pose-worker.ts`）必须是 ES module worker：
+  // MediaPipe 在 module worker 里走 `import()` 加载 wasm 胶水层，而经典胶水层只是一个顶层 `var`，
+  // 到了 module 作用域里就找不到了 —— 所以 worker 用 `_module` 那一份（它自己挂 globalThis）。
+  // Vite 构建时默认把 worker 打成 iife（经典 worker），dev 下却是 module：两边不一样，只能写死 es。
+  worker: { format: 'es' },
   build: {
     target: 'esnext',
     outDir: 'dist',

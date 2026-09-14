@@ -72,20 +72,43 @@ export interface Governor {
   reset(): void;
 }
 
+/**
+ * 放下「替换」那一级时的延后闸。**只延后，不取消**：
+ * 一件替换最多压 `maxSeconds`，调速器拿回这一级就立刻放行；
+ * 压着的时候又来一件，先把压着的那件放出去，再压新的 —— 进来几件出去几件，顺序不变。
+ * 返回"这一刻该执行的那几件"。没有要执行的时候返回同一个空数组（帧循环上不分配）。
+ */
 export interface Deferral<T> {
-  offer(item: T, now: number, shed: boolean): T[];
-  tick(now: number, shed: boolean): T[];
+  offer(item: T, now: number, shed: boolean): readonly T[];
+  tick(now: number, shed: boolean): readonly T[];
   readonly pending: number;
+  /** 换了一个观众：压着的那件属于上一个人，丢掉是对的 */
   reset(): void;
 }
 
-/** stub（先红） */
-export function createDeferral<T>(_maxSeconds: number): Deferral<T> {
+const NOTHING: readonly never[] = Object.freeze([]);
+
+export function createDeferral<T>(maxSeconds: number): Deferral<T> {
+  let held: T | undefined;
+  let has = false;
+  let since = 0;
   return {
-    offer(item) { return [item]; },
-    tick() { return []; },
-    get pending() { return 0; },
-    reset() {},
+    offer(item, now, shed) {
+      if (!has && !shed) return [item];
+      const out: T[] = [];
+      if (has) { out.push(held as T); has = false; held = undefined; }
+      if (!shed) { out.push(item); return out; }
+      held = item; has = true; since = now;
+      return out.length ? out : NOTHING;
+    },
+    tick(now, shed) {
+      if (!has || (shed && now - since < maxSeconds * 1000)) return NOTHING;
+      const out = [held as T];
+      has = false; held = undefined;
+      return out;
+    },
+    get pending() { return has ? 1 : 0; },
+    reset() { has = false; held = undefined; },
   };
 }
 

@@ -55,6 +55,11 @@ export interface InkSampler {
   tick(dt: number): void;
   /** 在把这一帧画到 `canvas` 上的**同一个任务里**调用 */
   afterRender(canvas: HTMLCanvasElement | null | undefined): void;
+  /**
+   * 暂停 / 恢复（帧调速器第 1 级，docs/48 §4）。暂停期间一次 GPU 读回都不做，
+   * 角上的字停在最后一次量到的那一档墨 —— 场景没换就不会错，换了也只是晚一点翻。
+   */
+  setPaused(paused: boolean): void;
   dispose(): void;
   readonly board: InkBoard | null;
   readonly samples: number;
@@ -63,7 +68,7 @@ export interface InkSampler {
 
 export function createInkSampler(opt: { enabled: boolean; root?: HTMLElement }): InkSampler {
   const idle: InkSampler = {
-    tick() {}, afterRender() {}, dispose() {},
+    tick() {}, afterRender() {}, setPaused() {}, dispose() {},
     board: null, samples: 0, active: false,
   };
   if (!opt.enabled || typeof document === 'undefined') return idle;
@@ -148,14 +153,18 @@ export function createInkSampler(opt: { enabled: boolean; root?: HTMLElement }):
     settle(px);
   }
 
+  let paused = false;
+
   return {
     tick(dt) {
       if (stopped) return;
+      // 暂停前已经画进格子的那一份照样读完：它是 2D 画布自己的内容，不再碰 GPU
       if (drawn) read();
+      if (paused) return;
       acc += dt;
     },
     afterRender(canvas) {
-      if (stopped || drawn || acc < period || !canvas) return;
+      if (stopped || paused || drawn || acc < period || !canvas) return;
       acc = 0;
       samples++;
       try {
@@ -168,6 +177,7 @@ export function createInkSampler(opt: { enabled: boolean; root?: HTMLElement }):
         settle(null);
       }
     },
+    setPaused(p) { paused = p; },
     dispose() { stopped = true; board.release(); },
     get board() { return board; },
     get samples() { return samples; },

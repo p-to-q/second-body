@@ -33,6 +33,7 @@ export class ReplayCapture implements Capture {
   #index = -1;
   #serveTimes: number[] = [];
   #fps = 0;
+  #inferredAt = Number.NaN;
 
   /** 当前播的是哪个文件，dev 页面拿来显示 */
   source: string | null = null;
@@ -54,6 +55,8 @@ export class ReplayCapture implements Capture {
 
   get fps(): number { return this.#fps; }
   get lastError(): string | null { return this.#error; }
+  /** 回放的"推理"就是出帧 —— 和 WebcamCapture 同构，姿态时钟不需要知道是哪一路 */
+  get inferredAt(): number { return this.#inferredAt; }
 
   latest(): RawPose | null { return this.#latest; }
 
@@ -108,6 +111,7 @@ export class ReplayCapture implements Capture {
     const f = clip.frames[i];
     // score 低于门限 = 录制里那一段确实没人，照原样传下去（docs/06 §1 自己会判）
     this.#latest = f.world?.length ? { ...f, t: now } : null;
+    this.#inferredAt = now;
     // 和 WebcamCapture 同构：顺手把"有没有人"喂给无人降帧（shell/idle.ts）
     notePresence((this.#latest?.score ?? 0) > CAPTURE.minScore, now);
 
