@@ -108,7 +108,7 @@ export interface Stage {
   readonly bounds: BodyBounds;
   /**
    * 运行时开关后期（HUD / 现场排查 / 降级阶梯 / 调速器）。
-   * 关掉就拆链、拿回来重建 —— 不拆反而让拿回来那一帧更贵（docs/48 §10.3 实测）。
+   * 关掉就拆链、拿回来重建（和这一轮之前一样；"不拆"量过，没有量出好处，docs/48 §10.3）。
    */
   setPost(on: boolean): void;
   readonly post: boolean;
@@ -930,8 +930,9 @@ export function createStage(opt: StageOptions = {}): Stage {
 
     setPost(on) {
       postEnabled = on;
-      // 关后期照旧拆链。试过"不拆、只是不走它"（docs/48 §10.3）：放下那一帧没变快（那一下是直出管线现编译，
-      // 由 `warmDirect` 解决），**拿回来**那一帧反而多出一次 410–417ms（两场实测，拆链重建时没有）。
+      // 关后期照旧拆链。试过"不拆、只是不走它"（docs/48 §10.3）：放下那一帧的代价是直出管线现编译，
+      // 和拆不拆无关（由 `warmDirect` 处理）；拿回来那一帧两种写法都会顿（拆：95–848ms，不拆：两次里一次 417ms），
+      // 样本太少分不出谁好 —— 所以不改原来的行为。
       if (!on) { post?.dispose(); post = null; postFailed = false; }
     },
 

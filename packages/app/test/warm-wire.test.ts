@@ -15,10 +15,10 @@ const read = (rel: string) => readFileSync(fileURLToPath(new URL(rel, import.met
 const STAGE = read('../src/stage/stage.ts');
 const MAIN = read('../src/main.ts');
 
-test('拨后期: 关后期仍然拆链（"不拆"那一版实测让拿回来那一帧多出 410–417ms，docs/48 §10.3）', () => {
+test('拨后期: 关后期仍然拆链（"不拆"量过没有量出好处，行为保持原样，docs/48 §10.3）', () => {
   const body = /setPost\(on\)\s*\{([\s\S]*?)\n\s{4}\},/.exec(STAGE)?.[1] ?? '';
   assert.ok(body, 'stage.ts 里找不到 setPost');
-  assert.match(body, /post\?\.dispose\(\)/, 'setPost(false) 不再拆链 —— 那一版量过，拿回后期那一帧更贵');
+  assert.match(body, /post\?\.dispose\(\)/, 'setPost(false) 不再拆链 —— 改它之前先按 docs/48 §10 重量拿回后期那一帧');
 });
 
 test('拨后期: 舞台能在空闲里把直出那条路编一遍（compileAsync，不是 render）', () => {
