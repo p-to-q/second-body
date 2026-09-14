@@ -39,6 +39,7 @@ import { wireDegrade } from './shell/degrade-wire.ts';
 import { getDegradeState } from './shell/degrade.ts';
 import { showBootError } from './shell/boot-error.ts';
 import { createSlowLoop } from './slow/slow.ts';
+import { createVisitReporter } from './archive/visit.ts';
 import { enterKiosk, readFlags } from './shell/kiosk.ts';
 import { mountCameraButton, mountEntry } from './shell/entry.ts';
 import { mountLoading } from './shell/loading.ts';
@@ -321,6 +322,17 @@ async function boot(): Promise<void> {
    */
   const arc = createArc({ total: flags.arc });
   let arcState: ArcState = arc.state;
+  /**
+   * 存档（`docs/43 §8`）—— 一次走完的相遇往 `/api/visit` 写一行。
+   *
+   * 挂在弧线旁边而不是慢回路旁边：它记的是**这一场**，不是那一件生成物。
+   * `?demo=1` 和入口层回放不算数（`live`），一段录像走完弧线不是一次相遇。
+   * 帧循环里只有 `visits.note(arcState.held)` 一次 boolean 比较，网络在空闲里。
+   */
+  const visits = createVisitReporter({
+    species: theme ?? null,
+    live: !entry && !flags.demo,
+  });
   const stabilizer = createStabilizer();
   // 时域精化在**原始 landmark 上**做，在 buildSkeleton 之前 ——
   // 骨架是从 landmark 推出来的，先抖后建等于把抖动烘进骨长和朝向里，
@@ -516,6 +528,8 @@ async function boot(): Promise<void> {
     // 升档那 0.15 秒是给身体的顿挫，不是给时间轴的）。在不在场用已有的 `Presence`
     // 折一下，不发明第二套检测（docs/40 §3）。
     arcState = arc.update(arcPresent(p), dt);
+    // 一次走完的相遇，写一行。这里只有一次 boolean 比较（`docs/43 §7.1` 第 2 条）
+    visits.note(arcState.held);
 
     // 把弧线交给**表面和光**（`docs/41-MATERIAL.md`）。
     //
@@ -677,6 +691,8 @@ async function boot(): Promise<void> {
           note,
           refiner && `hold=${refiner.stats.held} drop=${refiner.stats.dropped} q=${refiner.stats.cutoffScale.toFixed(2)}`,
           slow.phase !== 'idle' && `slow:${slow.phase}${slow.note ? `(${slow.note})` : ''}`,
+          // 存档写成没写成只在这一行说（`docs/43 §7.1` 第 5 条：降级必须静默）
+          visits.phase !== 'idle' && `visit:${visits.phase}${visits.n === null ? '' : `(#${visits.n})`}`,
         ].filter(Boolean).join(' · '),
       });
     }
