@@ -80,7 +80,7 @@
 import type { MotionFeatures, RawPose } from '../../../core/src/types.ts';
 import type { Flags } from '../shell/kiosk.ts';
 import { COPY, setBi } from './i18n.ts';
-import { readOut, READOUT_KEYS, splitUnit, wantsReadout, type ReadoutKey } from './readout-state.ts';
+import { alignDecimals, readOut, READOUT_KEYS, splitUnit, wantsReadout, type ReadoutKey } from './readout-state.ts';
 import './type.css';
 import './readout.css';
 
@@ -179,6 +179,12 @@ export function mountReadout(options: ReadoutOptions): Readout | null {
   setOpen(true);
   bar.addEventListener('click', () => setOpen(!open));
 
+  // **矮视口里两块仪表会撞**：左上角那块屏幕往下长，这块往上长（实测 385px 高的窗口里
+  // 读数的顶压到了屏幕中间）。挂载时量一次，撞了就先收着，只剩底边那一条。
+  // 只在挂载时判 —— resize 时替观众自动开合，等于在他手底下换开关的状态。
+  const see = document.querySelector('.sb-see');
+  if (see && see.getBoundingClientRect().bottom + 12 > root.getBoundingClientRect().top) setOpen(false);
+
   const html = document.documentElement;
   const publishHeight = (): void => {
     html.style.setProperty(HEIGHT_VAR, `${root.offsetHeight}px`);
@@ -202,7 +208,8 @@ export function mountReadout(options: ReadoutOptions): Readout | null {
       }
       for (const key of READOUT_KEYS) {
         const cell = cells.get(key)!;
-        const [value, unit] = splitUnit(r.values[key]);
+        const [raw, unit] = splitUnit(r.values[key]);
+        const value = alignDecimals(raw);   // 小数点竖成一条线（readout-state.ts）
         // 值没变就不写 DOM。4Hz 下大部分行大部分时候是不变的
         if (cell.value.textContent !== value) cell.value.textContent = value;
         if (cell.unit.textContent !== unit) cell.unit.textContent = unit;

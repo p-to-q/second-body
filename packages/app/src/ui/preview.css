@@ -66,7 +66,7 @@
   /* 一圈极细的边，让黑底的屏幕在黑底的舞台上仍然是"一块东西"。
      用 --sb-rule 而不是发光/阴影：阴影同样在 §F 的反面清单上，
      而且这里根本不需要——一条线就够把它和背景分开。 */
-  box-shadow: inset 0 0 0 1px var(--sb-rule);
+  box-shadow: inset 0 0 0 1px var(--sb-screen-edge);
 }
 
 .sb-see-screen.is-mirrored { transform: scaleX(-1); }

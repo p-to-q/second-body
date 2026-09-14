@@ -8,7 +8,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ABSENT, readOut, splitUnit, visibleJoints, wantsReadout } from '../src/ui/readout-state.ts';
+import { ABSENT, alignDecimals, FIGURE_SPACE, readOut, splitUnit, visibleJoints, wantsReadout } from '../src/ui/readout-state.ts';
 import { isReadoutMode, readFlags, type Flags } from '../src/shell/kiosk.ts';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -160,7 +160,7 @@ test('readout: 底、边、字只从仪表屏令牌来 —— 不跟场景翻，
   // 它就又退回成一层贴膜；要是有人写死一个灰，那就是这个仓库犯过三次的那个 bug。
   const panel = block(CSS, '.sb-readout');
   assert.match(panel, /background:\s*color-mix\(in srgb,\s*var\(--sb-screen\)/, '底不是仪表屏的那块黑');
-  assert.match(panel, /box-shadow:\s*inset 0 0 0 1px var\(--sb-rule\)/, '边不是和小屏幕同一圈发丝线');
+  assert.match(panel, /box-shadow:\s*inset 0 0 0 1px var\(--sb-screen-edge\)/, '边不是仪表屏那一圈');
   assert.match(panel, /color:\s*var\(--sb-screen-ink\)/, '字不是仪表屏的墨');
   assert.doesNotMatch(CSS, /--sb-on-stage/, 'readout.css 又开始跟着场景翻了 —— 那是上一版的贴膜');
   assert.doesNotMatch(CSS, /#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})(?![0-9a-fA-F])/, 'readout.css 里写死了一个颜色');
@@ -176,7 +176,7 @@ test('readout: 五套场景下，数值过 7:1、标签过 4.5:1、面板的边�
   const screen = channels(token('--sb-screen'));
   const ink = channels(token('--sb-screen-ink'));
   const dim = channels(token('--sb-screen-dim'));
-  const edge = channels(token('--sb-rule'));
+  const edge = channels(token('--sb-screen-edge'));
 
   const thin: string[] = [];
   const lost: string[] = [];
@@ -210,6 +210,7 @@ test('readout: 和左上角那块屏幕同一列、同一宽、同一圆角 —�
   assert.match(see, /width:\s*var\(--sb-see-w\)/);
   const r = (s: string): string | undefined => s.match(/border-radius:\s*([^;]+);/)?.[1].trim();
   assert.equal(r(panel), r(screen), '两块仪表的圆角不是同一个数');
+  assert.match(screen, /box-shadow:\s*inset 0 0 0 1px var\(--sb-screen-edge\)/, '小屏幕的边和读数不是同一圈 —— 两块就不是同一种东西了');
 
   // 尺寸住在 type.css：读数不能依赖 preview.css 恰好被加载（?preview=off 时它没被加载，
   // var(--sb-see-w) 会静默失效，面板宽度退回 auto）
@@ -239,6 +240,26 @@ test('readout: 左下角的名牌抬到读数上面，而不是压在上面', ()
   assert.ok(lift, 'notice.css 没有给读数让位的那一条');
   assert.match(lift![0], /var\(--sb-readout-h/, '名牌抬多高没跟着读数的实际高度走');
   assert.match(TS, /'--sb-readout-h'/, 'readout.ts 没有把面板高度写出去');
+});
+
+test('readout: 小数点竖成一条线 —— 只垫显示，不撑破那一栏', () => {
+  assert.equal(alignDecimals('0.96'), `0.96${FIGURE_SPACE}`, '两位小数没垫到三位的小数点上');
+  assert.equal(alignDecimals('0.878'), '0.878');
+  assert.equal(alignDecimals('31'), '31', '整数不是小数，不垫');
+  assert.equal(alignDecimals('33/33'), '33/33', '比值不是小数，不垫');
+  assert.equal(alignDecimals(ABSENT), ABSENT);
+  // 大数少垫：宁可小数点错开一格，也不回流
+  assert.ok(alignDecimals('123.4').length <= 6, '垫完撑破了 6ch');
+  // readOut 本身的格式不许为排版改：置信仍是两位
+  const r = readOut({ pose: pose(0.96, [0.9]), features: FEATURES, inferenceHz: 31 });
+  assert.equal(r.values.confidence, '0.96', 'readOut 的位数被改了 —— 该垫的是显示层');
+});
+
+test('readout: 收起时底边那条线变透明而不是删掉 —— 删掉那一条会矮 1px，键就挪了', () => {
+  const collapsed = CSS.match(/\.sb-readout\.is-collapsed \.sb-readout-bar\s*\{[^}]*\}/);
+  assert.ok(collapsed, '找不到收起态的底边规则');
+  assert.doesNotMatch(collapsed![0], /border(-top)?:\s*0/, '收起时删了线：实测键从 835 挪到 836');
+  assert.match(collapsed![0], /border-top-color:\s*transparent/);
 });
 
 test('readout: 单位单独一栏，数的个位才对得齐', () => {

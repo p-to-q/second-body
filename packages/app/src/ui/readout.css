@@ -35,7 +35,7 @@
  *
  * - **和左上角那块屏幕同一列、同一宽、同一圆角、同一圈发丝边**：
  *   左边缘 `--sb-safe × 0.5`（所有仪表都贴这条线：小屏幕、`?debug=1` 的 HUD），
- *   宽 `--sb-see-w`，圆角 10px，`inset 1px var(--sb-rule)`。上下两块于是镜像。
+ *   宽 `--sb-see-w`，圆角 10px，`inset 1px var(--sb-screen-edge)`。上下两块于是镜像。
  * - **面板里的字落在 `--sb-safe` 那条线上**：内边距正好半个安全区。
  *   边框贴仪表线，字贴作品的线 —— 名牌、「站到画面里」、右下角那一列的字，
  *   全在 `--sb-safe` 上。一块东西同时对上两套线，靠的就是这半个安全区。
@@ -78,8 +78,10 @@
   /* ↓↓ 见文件头第一、二节 */
   border-radius: 10px;
   background: color-mix(in srgb, var(--sb-screen) calc(var(--sb-layer-panel) * 100%), transparent);
-  box-shadow: inset 0 0 0 1px var(--sb-rule);
+  box-shadow: inset 0 0 0 1px var(--sb-screen-edge);
   color: var(--sb-screen-ink);
+  /* 下面那条"窄屏"规则按面板自己的宽度判，不按视口 */
+  container-type: inline-size;
   font-family: var(--sb-mono);
   font-variant-numeric: tabular-nums;
 }
@@ -118,9 +120,12 @@
   text-transform: uppercase;
 }
 
+/* 屏内的两条发丝线从**屏自己的墨**兑出来，不用 --sb-rule：白纸场景下那 18% 透底把地抬成
+   深灰，#2a3038 反而比地还暗，线就没了（实测截图上两条都看不见）。
+   墨兑水的线永远比它底下的地亮一档，不管地被房间抬亮了多少。 */
 .sb-readout-rule {
   border: 0;
-  border-top: 1px solid var(--sb-rule);
+  border-top: 1px solid color-mix(in srgb, var(--sb-screen-ink) 16%, transparent);
   margin: 0.45rem 0 0.35rem;
 }
 
@@ -171,7 +176,7 @@
   appearance: none;
   background: none;
   border: 0;
-  border-top: 1px solid var(--sb-rule);
+  border-top: 1px solid color-mix(in srgb, var(--sb-screen-ink) 16%, transparent);
   margin: 0;
   width: 100%;
   box-sizing: border-box;
@@ -188,7 +193,9 @@
   cursor: pointer;
   pointer-events: auto;
 }
-.sb-readout.is-collapsed .sb-readout-bar { border-top: 0; }
+/* 收起时那条线**变透明，不删掉**。删掉的话这一条矮 1px，贴底的面板里它就往下挪 1px ——
+   实测 835 → 836。「开合时那个键一个像素都不动」差的就是这一个像素。 */
+.sb-readout.is-collapsed .sb-readout-bar { border-top-color: transparent; }
 
 .sb-readout-title { font-weight: var(--sb-weight-head); }
 .sb-readout-action { color: var(--sb-screen-dim); }
@@ -200,4 +207,19 @@
 .sb-readout-bar:focus-visible {
   outline: 1px solid var(--sb-screen-dim);
   outline-offset: -4px;
+}
+
+/**
+ * **窄屏：内边距让给字。**
+ *
+ * 字落在 `--sb-safe` 那条线上要花 48px 内边距；屏幕在矮视口里最窄 200px（`--sb-see-h` 的下限 150 × 4/3），
+ * 剩 152px 装不下「置信 CONF」+ 6 位数 + 单位 —— 实测英文代号被切成 `CON` `JOI` `ENE`，
+ * 底边那一条的「读数 / READOUT」折成两行。**对齐让位给读得出。**
+ * 220px 以下内边距降到 12px，字不再压在安全区那条线上，但每一格都完整。
+ * 这个阈值是量出来的：三栏加底边那一条，最宽的内容要 ~172px，加 48px 内边距 = 220px。
+ * 先写成 250 的时候，1440×900 那台笔记本（面板 240px）也被判成窄屏，字白白离开了那条线。
+ */
+@container (max-width: 219px) {
+  .sb-readout-body { padding-inline: 0.75rem; }
+  .sb-readout-bar { padding-inline: 0.75rem; }
 }
