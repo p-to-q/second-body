@@ -151,6 +151,7 @@ const both = (a: Surface, b: Surface, t: Transition): [Pair, Transition][] =>
  */
 export const NO_TRANSITION_REASONS: Readonly<Partial<Record<Pair, string>>> = {
   'label>label': '展签 → 选择页是同一个文档里同一个场进入下一阶段（shell/entry.ts）；字标由 entry.ts 自己交棒，不走这张表',
+  'missing>label': '404 → 展签：有头 Chrome 7 轮里 7 次第一帧整帧纯白（docs/47 §4.3 的 14b），原因未查到；一个没人停留的页不值得冒这个险，一刀切',
 };
 
 /**
@@ -170,7 +171,8 @@ export const TRANSITIONS: ReadonlyMap<Pair, Transition> = new Map<Pair, Transiti
   ...both('doc', 'room', xfade('mark', 'nav', 'footer')),
   ...both('room', 'room', xfade('mark', 'nav', 'footer')),
   ...both('missing', 'doc', xfade('mark', 'nav')),
-  ...both('missing', 'label', xfade('mark', 'nav')),
+  ['label>missing', xfade('mark', 'nav')],
+  ['missing>label', NONE],
   // 舞台 ↔ 其余：深底与纸之间是底色的交叉淡化；目录那个词在两边都有，它不动
   ...both('stage', 'label', xfade('nav')),          // 回到大厅
   ...both('stage', 'doc', xfade('nav')),

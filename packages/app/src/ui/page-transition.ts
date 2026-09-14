@@ -129,6 +129,18 @@ function thaw(): void {
   for (const [src, img] of frozen.splice(0)) { img.remove(); src.style.visibility = ''; }
 }
 
+/**
+ * 摄像头开着的页不做跨页过渡。有头 Chrome（真 GPU、真窗口）7 轮里，从摄像头舞台离开的三类跳
+ * （15a → /about 4/5、16 换物种 2/5、17 → 工作台 4/5）第一帧出现过整帧纯白；同一个舞台用回放驱动时
+ * （04）7/7 干净。冻画布管不到活的摄像头流，原因没查到 —— 所以不赌，这一跳退回一刀切（docs/47 §4.3）。
+ */
+function cameraLive(): boolean {
+  return [...document.querySelectorAll('video')].some((v) => {
+    const s = v.srcObject as MediaStream | null;
+    return !!s && typeof s.getVideoTracks === 'function' && s.getVideoTracks().some((tr) => tr.readyState === 'live');
+  });
+}
+
 // ── 3. 装上 ──────────────────────────────────────────────────────────────────
 
 const surfaceOfUrl = (url: string): ReturnType<typeof surfaceOf> => {
@@ -164,7 +176,7 @@ export function installPageTransitions(): void {
     const from = here();
     const to = url ? surfaceOfUrl(url) : null;
     const t: Transition | null = to ? transitionFor(from, to) : null;
-    if (!t || t.kind !== 'crossfade' || reduced()) { vt.skipTransition(); return; }
+    if (!t || t.kind !== 'crossfade' || reduced() || cameraLive()) { vt.skipTransition(); return; }
     for (const f of freezables) freezeCanvas(f);
     stamp('swap', `${from}>${to}`, nameShared(t.shared));
   });

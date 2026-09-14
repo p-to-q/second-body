@@ -173,6 +173,11 @@ test('GPU 画布截图前先冻住：舞台和环登记，交棒前冻，往返�
   assert.ok(choose.indexOf('freezeCanvas(') < choose.indexOf('field?.dispose();'), '交棒要先冻再拆环');
 });
 
+test('摄像头开着的页离开时不做跨页过渡（有头 Chrome 量出过白帧）', () => {
+  assert.match(strip(read('src/ui/page-transition.ts')), /reduced\(\) \|\| cameraLive\(\)\) \{ vt\.skipTransition\(\); return; \}/);
+  assert.equal(transitionFor('missing', 'label')?.kind, 'none');
+});
+
 test('pageswap / pagereveal 里没有异步工作', () => {
   const dom = strip(read('src/ui/page-transition.ts'));
   for (const ev of ['pageswap', 'pagereveal']) {
