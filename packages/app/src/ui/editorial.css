@@ -157,8 +157,18 @@ a.ed-link {
   background-size: 0 1px;
   box-shadow: inset 0 -1px 0 var(--sb-rule);
 }
+/* `:focus-visible` 和 `:hover` 写在一起，不是补一条"无障碍覆盖"。
+   键盘走到一条链接上，它必须给出和鼠标停在上面**一样的**那一下 ——
+   原来这里只有 `:hover`，于是用键盘读这几页的人得到的是零反馈。
+   线索（`ui/clue.ts`）整条依赖这一行：那几扇门静止态是隐形的，
+   只有 `:hover` 的话它们就成了键盘永远摸不到的门。 */
 .ed a:hover,
-a.ed-link:hover { background-size: 100% 1px; }
+.ed a:focus-visible,
+a.ed-link:hover,
+a.ed-link:focus-visible { background-size: 100% 1px; }
+/* **浏览器的焦点环留着。** 别处（`nav.css`）把它关掉是因为那几个构件自己
+   换了墨色，一眼看得出焦点在哪。正文里的一条 1px 底线做不到这件事，
+   线索那几扇门更做不到 —— 它们静止态本来就是隐形的。 */
 
 /* ── 动效 ────────────────────────────────────────────────────────────────
  * 默认态就是终态：下面这一段整个被 reduced-motion 关掉之后，页面是**已经揭示好**

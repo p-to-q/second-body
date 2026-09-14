@@ -1,0 +1,137 @@
+/**
+ * 侧室的版面。它**不是**第五个文档页，所以它不照抄文档页的首屏。
+ *
+ * 文档页的首屏用掉 7–15rem 的上下留白，把一句巨题孤立出来 —— 那是对的，
+ * 因为那几页要说服人。侧室不需要被说服着读：进来的人已经点过一扇门了，
+ * 他要看的是**底下那张表**。一个还要再滚一屏才看得到东西的房间，
+ * 会让人以为自己点错了。
+ *
+ * 所以这里只把 `ed-hero` 的三段留白整体收掉一档，其余全部继承：
+ * 同一条重线、同一条横带、同一套字。**一个不同的数都不新发明**
+ * （docs/26 §F：八条线共用一套物质语言，新的线照抄）。
+ */
+
+.room { display: block; }
+
+.room-hero { padding-top: clamp(1rem, 1.6vw, 2rem); }
+
+/* 文档页是 clamp(6.875rem, 9.5vw, 15rem) / clamp(3.75rem, 5vw, 7.5rem)。
+   侧室约取它的三分之一 —— 够把房间名孤立出来，不够让它变成一次开幕。 */
+.room-hero__title { padding: clamp(2.25rem, 3.2vw, 4.5rem) 0 clamp(1.25rem, 1.8vw, 2.5rem); }
+
+/* 一行框定在左，状态字在右 —— 和上面那条横带同一种两端对齐。
+   中间照例是空的。 */
+.room-hero__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem var(--sb-gutter);
+  padding-bottom: clamp(1rem, 1.6vw, 2rem);
+}
+
+/* 框定那一句走正文档，不走 lede 的 h2 档：它是一句话，不是一次宣告。
+   行长照 `--sb-measure` 收住 —— 一行横穿 1530px 的字没人读得下去。 */
+.room-lede { margin: 0; max-width: var(--sb-measure); }
+.room-lede .sb-zh { color: var(--sb-ink); }
+
+.room-state { margin: 0; color: var(--sb-ink-dim); }
+.room-state[hidden] { display: none; }
+/* 状态字是并置的两个短词，不许在中间断行 */
+.room-state .sb-zh, .room-state .sb-en { display: inline; }
+.room-state .sb-en { margin-left: 0.45em; }
+
+.room-body { padding-top: clamp(1.5rem, 2.4vw, 3rem); }
+
+/* ── 标本行：`/marks` 和 `/roster` 共用 ────────────────────────────────────
+ * 一行一条，行与行之间一条细横线。没有卡片、没有格子线、没有底色 ——
+ * 和 `ui/nav.css` 的那张表、`/making` 的左栏是同一个构件。
+ */
+.room-specimens { margin: 0; padding: 0; list-style: none; }
+
+.room-specimen {
+  display: grid;
+  grid-template-columns: 3rem 4rem minmax(0, 1fr);
+  gap: var(--sb-gutter);
+  align-items: baseline;
+  padding: 1rem 0;
+  border-top: 1px solid var(--sb-rule);
+}
+.room-specimen:first-child { border-top: 0; }
+
+/* 记号那一格：它是这一行唯一的图形，所以它自己居中，别的都左对齐 */
+.room-specimen__mark { display: flex; align-items: center; justify-content: center; }
+
+.room-specimen__id {
+  font-family: var(--sb-mono);
+  font-size: var(--sb-size-small);
+  color: var(--sb-ink-dim);
+}
+
+.room-specimen__name .sb-zh { font-size: var(--sb-size-h2); }
+.room-specimen__who {
+  margin: 0.35rem 0 0;
+  color: var(--sb-ink-dim);
+  font-size: var(--sb-size-small);
+}
+/* 用这个方案的物种：一串名字，不是一个列表 —— 它是一条注释，不是一节内容 */
+.room-specimen__who .sb-num { font-family: var(--sb-mono); }
+
+@media (max-width: 620px) {
+  .room-specimen { grid-template-columns: 2.5rem minmax(0, 1fr); }
+  .room-specimen__id { grid-column: 1 / -1; }
+}
+
+/* ── 接触表：`/roster` ─────────────────────────────────────────────────────
+ * 一版全部物种，等距、等大、一条基线。它是一块标本板，不是一个画廊 ——
+ * 所以格子之间只有间距，没有边框、没有底、没有圆角。
+ */
+.room-sheet {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: calc(var(--sb-gutter) * 1.25) var(--sb-gutter);
+}
+.room-plate { min-width: 0; }
+/* 卡片是 2:1 的画布（`choose/cards.ts` 的 CARD_W / CARD_H）—— 比例由它定，
+   这里只让它铺满一栏。`display:block` 是必须的：inline 的 canvas 底下会多一条
+   基线空隙，二十八格加起来就是一条对不齐的网格。 */
+.room-plate canvas { display: block; width: 100%; height: auto; }
+.room-plate__line {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: baseline;
+  margin-top: 0.5rem;
+  font-size: var(--sb-size-small);
+}
+.room-plate__n { font-family: var(--sb-mono); color: var(--sb-ink-dim); }
+.room-plate__name .sb-zh { color: var(--sb-ink); }
+.room-plate__plan {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  grid-column: 2;
+  color: var(--sb-ink-dim);
+}
+
+/* ── 记号的画笔 ────────────────────────────────────────────────────────────
+ *
+ * 记号的**形状**是一份共享的数据表（`ui/marks.ts`，另一条线的产物，
+ * 见 `rooms/marks.ts` 的文件头）。那个模块刻意不 import CSS —— 不碰样式表
+ * 它才能在 node 里被测 —— 所以画笔留在用它的人这边。
+ *
+ * ⚠️ 同样这两条也写在 `about/about.css` 里（作用域 `.about-plot`）。
+ * 那是**暂时的两份**：九枚记号那条线落地时，`/about` 的图例和这里画的是
+ * 同一批形状，届时这两条画笔应当合到一处去。合并的人看到这段注释就知道了。
+ */
+.sb-plan-mark .plot-mark { fill: none; stroke: var(--sb-ink); stroke-width: 1.75; }
+.sb-plan-mark .plot-mark-fill { fill: var(--sb-ink); stroke: none; }
+.sb-plan-mark { display: block; flex: none; }
+
+/* ── 空状态 ────────────────────────────────────────────────────────────────
+ * `parts.json` 读不到的时候这几个房间要说人话，而不是白屏（docs/02 §craft）。
+ */
+.room-empty { max-width: var(--sb-measure); color: var(--sb-ink-dim); }

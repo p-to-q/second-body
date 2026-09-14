@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>部件档案 · Parts Archive — SEE-ME SEE-U</title>
+</head>
+<!--
+  侧室（docs/23 §S9）。**不在目录里**，门开在 /about 的正文里（src/ui/clue.ts）。
+  和 /about /making /passport /lineage 一样是根目录下的一张真页面 —— vite 扫根目录
+  自动收进 dist（vite.config.ts 的 pages()），所以它在线上有一个稳定的 URL，
+  而不必把整棵 /dev/ 拖着一起被当成展陈面。
+-->
+<body>
+  <script type="module" src="./src/rooms/parts.ts"></script>
+</body>
+</html>
