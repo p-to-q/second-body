@@ -1,0 +1,41 @@
+/**
+ * 工作台目录 `/dev/` 的行。原来整行样式都是内联的 —— 内联样式写不了 :hover，
+ * 于是鼠标移上去一行字都不变（作品负责人 2026-09-14：「hover 上去标题颜色稍微变一下，才确定在 hover 上」）。
+ *
+ * 悬停与键盘焦点是**同一个记号**：
+ *  - 名字从常墨提到最强墨（这一页唯一"亮起来"的东西）；
+ *  - 路径和那句话从暗墨提到常墨；
+ *  - 行底线从细线色提到常墨 —— 不只靠字色，色弱的人也分得出是哪一行。
+ * 不位移、不加底色、不加图标（docs/26 §F）。颜色过渡 120ms，但静止态不依赖它跑完。
+ */
+
+.sb-dev-row {
+  display: grid;
+  grid-template-columns: 16rem 1fr;
+  gap: var(--sb-gutter);
+  align-items: baseline;
+  padding: 0.75em 0;
+  border-top: 0;
+  border-bottom: 1px solid var(--sb-rule);
+  outline: none;
+  transition: border-bottom-color 120ms, color 120ms;
+}
+
+.sb-dev-row__name { color: var(--sb-ink); transition: color 120ms; }
+.sb-dev-row__path { display: block; color: var(--sb-ink-dim); transition: color 120ms; }
+.sb-dev-row__answers { color: var(--sb-ink-dim); transition: color 120ms; }
+
+.sb-dev-row:hover,
+.sb-dev-row:focus-visible { border-bottom-color: var(--sb-ink); }
+
+.sb-dev-row:hover .sb-dev-row__name,
+.sb-dev-row:focus-visible .sb-dev-row__name { color: var(--sb-ink-strong); }
+
+.sb-dev-row:hover .sb-dev-row__path,
+.sb-dev-row:hover .sb-dev-row__answers,
+.sb-dev-row:focus-visible .sb-dev-row__path,
+.sb-dev-row:focus-visible .sb-dev-row__answers { color: var(--sb-ink); }
+
+@media (prefers-reduced-motion: reduce) {
+  .sb-dev-row, .sb-dev-row__name, .sb-dev-row__path, .sb-dev-row__answers { transition: none; }
+}

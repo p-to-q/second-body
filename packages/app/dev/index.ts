@@ -20,6 +20,7 @@
  * 剩下的 14 页留在工作台：它们是仪器，被展出只会变成"排版好一点的后台"。
  */
 import './archive.css';
+import './index.css';
 import { mountPageHead } from '../src/ui/page.ts';
 import { withFrom } from '../src/ui/return-to.ts';
 import { mountFooterMark } from '../src/ui/footer-mark.ts';
@@ -120,22 +121,21 @@ for (const group of GROUPS) {
     // 舞台不读 from，工作台里的仪器页有 devnav，二者都不带
     row.href = item.href.startsWith('/dev/') || item.href === '/' || item.href.startsWith('/?')
       ? item.href : withFrom(item.href, location.pathname);
-    // 一行一条：左边名字 + 路径，右边那句话。行与行之间只有一条细线
-    row.style.cssText =
-      'display:grid;grid-template-columns:16rem 1fr;gap:var(--sb-gutter);' +
-      'padding:0.75em 0;border-bottom:1px solid var(--sb-rule);border-top:0;align-items:baseline';
+    // 一行一条：左边名字 + 路径，右边那句话。行与行之间只有一条细线。
+    // 样式在 dev/index.css：内联样式写不了 :hover，原来悬停上去一个字都不变
+    row.className = 'sb-dev-row';
 
     const left = document.createElement('span');
     const name = document.createElement('span');
+    name.className = 'sb-dev-row__name';
     name.textContent = item.name;
     const path = document.createElement('span');
-    path.className = 'sb-data';
-    path.style.cssText = 'display:block;color:var(--sb-ink-dim)';
+    path.className = 'sb-data sb-dev-row__path';
     path.textContent = item.href + (item.devOnly ? '   仅 dev server' : '');
     left.append(name, path);
 
     const answers = document.createElement('span');
-    answers.style.color = 'var(--sb-ink-dim)';
+    answers.className = 'sb-dev-row__answers';
     answers.textContent = item.answers;
 
     row.append(left, answers);

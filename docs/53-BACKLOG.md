@@ -4,6 +4,8 @@
 > 这一页只收**已知没做完 / 没查到根的事**，每一条写：现象 → 证据在哪 → 下一步第一件事 → 为什么排在这。
 > 做完一条就从这里删掉、在 `docs/51-CLOSEOUT.md` 或对应的专题文档里留痕。**不在这里写已经做完的东西。**
 >
+> **已同步成 GitHub issues**（2026-09-14，标签 `backlog` + `P0`–`P3`）：https://github.com/p-to-q/see-me-see-u/issues?q=label%3Abacklog —— 两边以 issue 为准，关一条就在这里删一行。
+>
 > 优先级：**P0** 观众会直接撞上 · **P1** 影响体验或可信度 · **P2** 完整性 / 工艺 · **P3** 卫生
 
 ## P0 · 观众会直接撞上
@@ -33,14 +35,18 @@
 | Q11 | tier-3 跨主题件绕过借件预算门 | docs/44 §10.5 | 基因组那一块把跨主题件也过 `admit` | 暂缓 |
 | Q12 | manipulator 不像 Stretch、wheelleg 侧面头飘 | docs/42 §8 | 改 column / quadruped 身体布局或槽宽，不换件 | 暂缓 |
 | Q13 | 摄像头舞台回退时不进 bfcache（`LiveMediaStreamTrack`），回来要重启约 670 ms | docs/47 | 给 `Capture` 加 `pause()` / `resume()`，离开时停轨道 | 未做 |
-| Q14 | PRD / docs/00 仍写"单人" | docs/50 §11 | 负责人确认多人是否进作品主张后改 | 等负责人 |
 
 ## P3 · 卫生
 
 | # | 事项 | 下一步 |
 |---|---|---|
 | Q15 | 6 条会话额度中断留下的半成品分支（记号页、选择页、手势、角落导航、被看见、导出静帧） | 逐条看 diff：已被后来的实现覆盖的删分支；有价值的开卡 |
-| Q16 | `assets/refs/` 下 5 个未提交的锚定图文件夹，其中 `guest.keynote` 可能是可辨认的真人 | 等负责人确认，不提交 |
-| Q17 | 全站 `/favicon.ico` 404（控制台一行红） | 加一枚 favicon 或在 HTML 里显式声明无图标 |
 | Q18 | 已合并的子代理 worktree 本地残留 | 清掉已合并且干净的 worktree |
-| Q19 | 页面过场线落下的测量服务（`scripts/transitions/serve.mjs`）若仍在后台跑 | 收尾时停掉 |
+
+
+## 已从队列里拿掉的（2026-09-14 夜）
+
+- Q14 PRD / docs/00 改成「以单人为主，兼容多人」（负责人裁定）
+- Q16 `assets/refs/` 五张 anchor 逐张看过、瘦身后提交，来路表在 `assets/refs/README.md`（`guest.keynote` 图里只有一件衣服，没有人）
+- Q17 全站内联 favicon，不再请求 `/favicon.ico`（`test/favicon.test.ts`）
+- Q19 过场线的测量服务已停
