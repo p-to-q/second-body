@@ -141,6 +141,17 @@ const HOPS = [
   { name: '09 /making → /about (hero back)', act: act.click(q('.ed-hero__back')), ready: ready.doc, tail: 800 },
   { name: '09h /about → /lineage (hover, then click)', act: async () => { await act.click(q('.sb-nav-toggle'))(); await sleep(250); await act.hoverClick(`[...document.querySelectorAll('a.sb-nav-item')].find(a => /^\\/lineage/.test(a.getAttribute('href') || ''))`)(); }, ready: ready.doc, tail: 800 },
   { name: '09i /lineage → /about (hover hero back)', act: act.hoverClick(q('.ed-hero__back')), ready: ready.doc, tail: 800 },
+  // edge: a long page scrolled to the bottom — the hero wordmark is off-screen and must not fly in (fade instead)
+  { name: '09s /about scrolled → /making (contents)', act: async () => {
+      await evaluate('window.scrollTo(0, document.documentElement.scrollHeight)'); await sleep(250);
+      await act.click(`[...document.querySelectorAll('a.sb-nav-item')].find(a => /making/.test(a.getAttribute('href')))`)();
+    }, ready: ready.doc, tail: 900 },
+  // edge: a second navigation while the first cross-document transition is still running
+  { name: '09r /making → /about, then /lineage mid-transition', act: async () => {
+      await evaluate("location.assign('/about')"); await sleep(90);
+      await evaluate("location.assign('/lineage')");
+    }, ready: { js: `location.pathname === '/lineage' && document.readyState === 'complete' && document.body.innerText.length > 200` }, tail: 1400 },
+  { name: '09z /lineage → /about (hero back)', act: act.click(q('.ed-hero__back')), ready: ready.doc, tail: 800 },
   { name: '10 /about → /dev/figure (aside)', act: act.click(`[...document.querySelectorAll('a')].find(a => /\\/dev\\/figure/.test(a.getAttribute('href')))`), ready: ready.canvas, tail: 2000 },
   { name: '11 /dev/figure → /about (devnav)', act: act.click(q('.sb-devnav__link')), ready: ready.doc, tail: 800 },
   { name: '12 /about → /parts (door)', act: act.click(q('a[href="/parts"]')), ready: ready.doc, tail: 1500 },
@@ -274,6 +285,10 @@ for (const hop of HOPS) {
     prerendered: await evaluate(`(performance.getEntriesByType('navigation')[0]?.activationStart ?? 0) > 0`),
     rules: await evaluate(`!!document.querySelector('script[type=speculationrules]')`),
     vt: await evaluate(`(document.documentElement.dataset.vtReveal ?? '') + ' | swap ' + (sessionStorage.getItem('sb-vt-swap') ?? '')`),
+    // after the tail every transition must have settled: no element may still carry a view-transition-name,
+    // and no frozen canvas copy may be left behind (a page restored from bfcache thaws itself on pageshow)
+    leftover: await evaluate(`[...document.querySelectorAll('*')].filter(e => e.style && e.style.getPropertyValue('view-transition-name')).length + [...document.querySelectorAll('canvas')].filter(c => c.style.visibility === 'hidden').length`),
+    scrollY: await evaluate('Math.round(scrollY)'),
     whiteMs: null,
     bfcache: restored ? 'restored' : bf.length ? bf.join(',') : null,
     errors: consoleLog.filter((c) => c.t >= t0 && (c.type === 'error' || c.type === 'exception')).map((c) => c.text.slice(0, 160)),

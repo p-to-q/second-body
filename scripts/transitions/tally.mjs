@@ -11,9 +11,11 @@ const hops = new Map();
 for (const d of dirs) {
   for (const r of JSON.parse(readFileSync(`${d}/results.json`, 'utf8'))) {
     const id = r.hop.split(' ')[0];
-    const h = hops.get(id) ?? { name: r.hop, runs: 0, white: 0, whiteMs: 0, jumps: [], vt: '', errors: 0 };
+    const h = hops.get(id) ?? { name: r.hop, runs: 0, white: 0, whiteMs: 0, jumps: [], vt: '', errors: 0, leftover: 0, ready: [] };
     h.runs++;
     if (r.error || r.readyMs === null) h.errors++;
+    if (r.leftover) h.leftover++;
+    if (typeof r.readyMs === 'number') h.ready.push(r.readyMs);
     const tsv = `${d}/${id}/frames.tsv`;
     if (existsSync(tsv)) {
       const rows = readFileSync(tsv, 'utf8').trim().split('\n').map((l) => l.split('\t'));
@@ -26,11 +28,11 @@ for (const d of dirs) {
   }
 }
 console.log(`runs: ${dirs.length}`);
-console.log('hop | white runs | max white frames | median max jump | transition stamped | errors');
+console.log('hop | white runs | max white frames | median max jump | median ready ms | leftover names/frozen | transition stamped | errors');
+const median = (xs) => (xs.length ? [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)] : '-');
 let total = 0;
-for (const [id, h] of hops) {
-  const j = [...h.jumps].sort((a, b) => a - b)[Math.floor(h.jumps.length / 2)];
+for (const [, h] of hops) {
   total += h.white;
-  console.log(`${h.name} | ${h.white}/${h.runs} | ${h.whiteMs} | ${j} | ${h.vt || '-'} | ${h.errors}`);
+  console.log(`${h.name} | ${h.white}/${h.runs} | ${h.whiteMs} | ${median(h.jumps)} | ${median(h.ready)} | ${h.leftover} | ${h.vt || '-'} | ${h.errors}`);
 }
 console.log(`total white runs: ${total}`);
