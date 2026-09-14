@@ -105,7 +105,7 @@ export async function readGltfGeometry(path: string): Promise<Document> {
   const texExt = (e: string) => e !== 'KHR_texture_basisu';
   if (json.extensionsUsed) json.extensionsUsed = json.extensionsUsed.filter(texExt);
   if (json.extensionsRequired) json.extensionsRequired = json.extensionsRequired.filter(texExt);
-  const resources: Record<string, Uint8Array> = {};
+  const resources: Record<string, Uint8Array<ArrayBuffer>> = {};
   for (const b of json.buffers ?? []) {
     if (b.uri && !b.uri.startsWith('data:')) resources[b.uri] = new Uint8Array(readFileSync(resolve(dirname(path), b.uri)));
   }

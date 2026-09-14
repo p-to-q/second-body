@@ -158,8 +158,8 @@ const MENAGERIE = 'https://raw.githubusercontent.com/google-deepmind/mujoco_mena
  *               `porcelain` 在这一档是 docs/42 §7 第 1 条的裁定 —— 它是形态空间的原点，
  *               原点不该同时是一件产品。
  *
- * `geometry: 'generated'` 而 `source` 在的那几条（athlete / wheelleg / manipulator）说的是
- * 第三件事：**路已经探到，件还没取。** 取了就把这一格改成 'real'，`check:parts` 当场验。
+ * athlete / wheelleg / manipulator 曾经是 `geometry: 'generated'` 而 `source` 在 ——
+ * 「路已经探到，件还没取」。2026-09-14 取了，三格改成 'real'，`check:parts` 当场验过。
  */
 const MACHINE: Record<string, ThemeDef['machine']> = {
   compact: {
