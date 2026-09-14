@@ -24,7 +24,8 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import worker, { RATE_KEY, type Env, type RateLimiter } from '../../archive-worker/src/worker.ts';
+import worker from '../../archive-worker/src/worker.ts';
+import { RATE_KEY, type Env, type RateLimiter } from '../../archive-worker/src/handle.ts';
 import { SQL, type D1Like, type D1Statement } from '../../archive-worker/src/d1.ts';
 import { DAY_RE, SPECIES_MAX, VISIT_FIELDS, day } from '../../archive/src/visit.ts';
 import { ARCHIVE_WORKER, SLOW_LOOP } from '../../core/src/tuning.ts';
