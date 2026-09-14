@@ -48,6 +48,7 @@ import { mountNav } from './ui/nav.ts';
 import { mountControls, type Controls } from './ui/controls.ts';
 import { cornerColumn } from './ui/corner.ts';
 import { mountPreview, wantsPreview, previewReservedTop } from './ui/preview.ts';
+import { mountReadout } from './ui/readout.ts';
 import { HANDED_BACK_ACT, mountExits } from './ui/exits.ts';
 import { createHud } from './shell/hud.ts';
 import { createSound } from './sound/sound.ts';
@@ -321,6 +322,15 @@ async function boot(): Promise<void> {
       return !!v?.srcObject;
     },
   });
+
+  // ── 4c. 左下角那块读数（`ui/readout.ts`）──────────────────────────────────
+  // 「它此刻从你身上读到了什么」：置信 / 关节 / 推理 / 动能 / 舒展，五个数
+  // 都是这一帧本来就在算的。挂在这里而不是更早，理由和上面那块小屏幕一样：
+  // 它报的是**驱动这具身体的那份数据**，而那份数据要等观众进到作品里才存在。
+  //
+  // 挂不挂的判断在 `wantsReadout()` 一处（`?kiosk=1` 默认不挂），
+  // 这里不重写一遍那个条件 —— 和 `flags.nav` / `wantsPreview()` 同一条纪律。
+  const readout = mountReadout({ flags });
 
   // ── 5. 状态机 ───────────────────────────────────────────────────────────
   const presence = createPresence();
@@ -729,6 +739,12 @@ async function boot(): Promise<void> {
 
     stage.update(p, lastFeatures, dt);
     stage.render(renderer);   // 后期链在舞台里；?nopost=1 时它退化成直出
+
+    // 左下角那块读数。放在这里而不是上面 `preview?.update()` 旁边，是因为它要的
+    // `lastFeatures` 是这一帧**刚算出来**的那一份 —— 放在前面就永远晚一帧，
+    // 而"晚一帧"在一块 4Hz 刷新的读数上看不出来，正是 P21 说的那种坏法。
+    // `raw` 和小屏幕吃的是同一份（滤波之前），理由也同：读数要说实话。
+    readout?.update(raw, lastFeatures, capture.fps, dt);
 
     if (hud) {
       const s = body.stats;
