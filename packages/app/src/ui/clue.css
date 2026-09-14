@@ -1,0 +1,45 @@
+/**
+ * 线索的皮肤 —— 这个文件的全部工作是**把东西拿掉**。
+ *
+ * `editorial.css` 给 `.ed a` 配了一条常驻的 1px 底线（`box-shadow: inset`），
+ * 悬停时再从左边长出一条强调色。那是给**看得见的链接**用的。
+ * 线索要的是同一套反馈、但静止态为零，所以这里只做两件事：
+ * 摘掉那条常驻底线，其余一律继承。
+ *
+ * **不要在这里加任何静止态的记号。** 点线、小三角、`cursor: help`、
+ * 一点点不同的灰 —— 每一样都会把"线索"变成"一个排得不太一样的链接"，
+ * 而那正是它必须避免的那种样子（docs/26 §F：产品界面的语汇）。
+ */
+
+/* 静止态：和周围的字**逐像素相同**。
+   `.ed a.sb-clue` 的特指度高于 `.ed a`，所以引入顺序不影响结果 ——
+   一个靠 import 顺序才成立的覆盖，迟早会被 bundler 的某次改动掀翻。 */
+.ed a.sb-clue,
+a.sb-clue {
+  box-shadow: none;
+  color: inherit;
+  border-bottom: 0;
+}
+
+/* 大数字那一档是 `display:block` 的（`.about-count-n`），门要跟着它铺开，
+   否则那条底线只有半个数字宽 —— 读起来像"这个数字被划了一半"。 */
+.sb-clue { display: block; }
+
+/* 摸到 / tab 到：底线从左边长出来。这两个状态的样式**完全来自 `.ed a`**，
+   这里一个字都不写 —— 写了就会和普通链接分道扬镳，而"它就是一条普通链接"
+   正是发现一扇门时该得到的那个回报。 */
+
+/* 读屏念得到、屏幕上不存在。用 clip-path + 1px 方框：
+   `display:none` 和 `visibility:hidden` 会把它从无障碍树里一起删掉，
+   那就等于没写。 */
+.sb-clue__where {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

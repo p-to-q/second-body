@@ -154,8 +154,7 @@
 .about-plot { width: 100%; height: auto; margin: 0; display: block; }
 .about-plot text { font-family: var(--sb-mono); fill: var(--sb-ink-dim); }
 .about-plot .plot-axis { stroke: var(--sb-rule); }
-.about-plot .plot-mark { fill: none; stroke: var(--sb-ink); stroke-width: 1.75; }
-.about-plot .plot-mark-fill { fill: var(--sb-ink); stroke: none; }
+/* 记号的形状与墨在 `ui/plan-mark.css` —— 散点图、图例、侧室 /marks 共用那一份 */
 .about-plot .plot-n { fill: var(--sb-ink-dim); font-size: 11px; letter-spacing: 0.06em; }
 
 .about-legend {

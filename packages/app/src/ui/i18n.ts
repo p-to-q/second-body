@@ -715,6 +715,86 @@ export const COPY = {
 
   },
 
+  /**
+   * 侧室 —— **不在目录里的那四个房间**（docs/23 §S9）。
+   *
+   * 它们各自都是我们自己的仪器，现在被展出，因为它们回答的那个问题观众也有。
+   * 门开在 `/about` 的正文里（`ui/clue.ts`），所以这里的每一句都要
+   * **对一个没有造过这件作品的人成立** —— 一句框定，不解释画面。
+   *
+   * `doors` 那一组只给读屏念。屏幕上那扇门只是一个数字，
+   * 读屏念到它的时候得知道自己站在哪儿：「208 侧室 · 部件档案 链接」。
+   */
+  rooms: {
+    parts: {
+      title: bi('部件档案', 'Parts Archive'),
+      lede: bi(
+        '这件作品到现在为止长出来的每一件东西，按物种、按槽位排开，每一件带着它自己的接口标记。',
+        'Everything this work has grown so far, laid out by species and by socket, '
+        + 'each part carrying its own attachment marks.',
+      ),
+      readOnly: bi('只读', 'Read-only'),
+      curatable: bi('可评级', 'Ratable'),
+      readOnlyNoGl: bi('只读 · 无 WebGL，缩略图是比例剪影', 'Read-only · no WebGL, thumbnails are proportion silhouettes'),
+      curatableNoGl: bi('可评级 · 无 WebGL，缩略图是比例剪影', 'Ratable · no WebGL, thumbnails are proportion silhouettes'),
+      writeFailed: bi('只读 · 评级写不回去', 'Read-only · ratings cannot be written back'),
+    },
+
+    roster: {
+      title: bi('物种接触表', 'Contact Sheet'),
+      lede: bi(
+        '可以变成的身体，一版摆完。编号和作品陈述、海报上的是同一套 —— 对得上才算数。',
+        'Every body you could become, on a single plate. The numbering is the same one used in '
+        + 'the statement and on the posters; it is only a number if it matches.',
+      ),
+    },
+
+    marks: {
+      title: bi('九枚记号', 'Nine Marks'),
+      lede: bi(
+        '九种身体方案，九个形状。物种靠整体剪影辨识，不靠涂装 —— 这九笔就是那句话的全部字母表。',
+        'Nine body plans, nine shapes. A species is recognised by its whole silhouette, not by its '
+        + 'paint — these nine strokes are the entire alphabet of that claim.',
+      ),
+      usedBy: bi('用它的物种', 'Species on this plan'),
+      usedByNone: bi('还没有物种走这个方案', 'No species is on this plan yet'),
+    },
+
+    lag: {
+      title: bi('慢半拍', 'Half a Beat Behind'),
+      lede: bi(
+        '同一段动作，左边关、右边开。刚体做不出"弯"，但一串各自延迟不同的刚体看起来就是在弯。',
+        'The same movement, off on the left and on on the right. Rigid parts cannot bend — but a '
+        + 'chain of rigid parts, each lagging a little more than the last, looks exactly like bending.',
+      ),
+      off: bi('关：目标姿态本身', 'Off: the target pose itself'),
+      on: bi('开：末端比根部慢半拍', 'On: the ends trail the root'),
+      trail: bi('淡色是前 12 帧的残影 —— 延迟的形状要看得见，才算看得见。',
+                'The pale lines are the previous 12 frames. A lag you cannot see is a lag you cannot judge.'),
+    },
+
+    /** 读不到 `parts.json` 时这几个房间说的话。白屏不是一种状态（docs/02 §craft） */
+    empty: bi(
+      '这个房间要等资产流水线跑过一次才有东西可看。应用本身没有部件库照样运行 —— 它会用程序化占位几何。',
+      'This room has nothing to show until the asset pipeline has run once. The work itself runs '
+      + 'without a parts library; it falls back to procedural placeholder geometry.',
+    ),
+
+    /**
+     * 门后面是什么 —— **只给读屏**。
+     * 写成完整的一句而不是在调用点拼「侧室：」+ 房间名：拼出来的双语迟早有一半漏掉，
+     * 而这一句恰恰是那种"漏了也没人看得出来"的字（i18n 文件头的纪律那一条）。
+     */
+    doors: {
+      parts: bi('侧室 · 部件档案', 'Side room · Parts Archive'),
+      roster: bi('侧室 · 物种接触表', 'Side room · Contact Sheet'),
+      marks: bi('侧室 · 九枚记号', 'Side room · Nine Marks'),
+      lag: bi('侧室 · 慢半拍', 'Side room · Half a Beat Behind'),
+      /** 逐个物种的那一扇：通向它在部件档案里的那一格 */
+      partsOfSpecies: bi('侧室 · 部件档案里的这一个物种', 'Side room · this species in the Parts Archive'),
+    },
+  },
+
   /** 隐私 —— 网页版必须在页面上（docs/13 §5） */
   privacy: {
     // 「不离开你的浏览器」是一句技术保证，读起来像条款。

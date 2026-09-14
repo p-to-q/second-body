@@ -25,6 +25,7 @@ import type { PartLibraryIndex } from '../../../core/src/types.ts';
 import { COPY, setBi, type BiText } from '../ui/i18n.ts';
 import { PLAN_LABEL, orderThemes, planKind, speciesNumber } from '../ui/species.ts';
 import { markNode } from '../ui/mark.ts';
+import { planMark } from '../ui/plan-mark.ts';
 import '../ui/type.css';
 import '../ui/editorial.css';
 import './about.css';
@@ -288,22 +289,10 @@ function svg<K extends keyof SVGElementTagNameMap>(
 }
 
 /**
- * 标记的**形状**编码身体方案，位置编码形态空间坐标。
- * 为什么不用颜色区分：§0 的强调色是跟着当前物种走的，不是一套分类色板；
- * 而且形状在黑白印刷和投影上都活得下来，颜色不一定。
+ * 记号（形状 = 身体方案）住在 `ui/plan-mark.ts`，不住在这一页。
+ * 第三个消费者来了：侧室 `/marks` 把九个方案一字排开当标本看，
+ * 而三处画同一套记号就必须只有一处画得出它们 —— 见那个文件的文件头。
  */
-function planMark(kind: string, x: number, y: number): SVGElement {
-  switch (kind) {
-    case 'quadruped':   // 横的、矮的 —— 和它在场上的剪影一致
-      return svg('rect', { class: 'plot-mark', x: x - 7, y: y - 3.5, width: 14, height: 7, rx: 3.5 });
-    case 'mass':        // 实心：团块没有槽位件，是一整坨
-      return svg('circle', { class: 'plot-mark-fill', cx: x, cy: y, r: 5 });
-    case 'stub':        // 方的、墩的
-      return svg('rect', { class: 'plot-mark', x: x - 4.5, y: y - 4.5, width: 9, height: 9 });
-    default:            // rig：空心圆
-      return svg('circle', { class: 'plot-mark', cx: x, cy: y, r: 5 });
-  }
-}
 
 function speciesSection(index: PartLibraryIndex): HTMLElement {
   const themes = orderThemes(index.themes);
