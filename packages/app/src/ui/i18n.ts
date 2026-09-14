@@ -705,7 +705,9 @@ export const COPY = {
       },
       passport: {
         name: bi('共生护照', 'Passport'),
-        answers: bi('哪一件产物被拒绝入境，哪一件被放行？', 'Which output was refused entry, and which was let in?'),
+        // 「产物」写窄了：第四枚章的申请人不是一件产物，是花名册上一个空位。
+        // 换成这一页自己的那句话（passport.ts 文件头）——「谁被拒绝入境，谁被放行」。
+        answers: bi('谁被拒绝入境，谁被放行？', 'Who was refused entry, and who was let in?'),
       },
       dev: {
         name: bi('工作台', 'Workbench'),
@@ -754,10 +756,14 @@ export const COPY = {
    */
   passport: {
     title: bi('共生护照', 'Symbiosis Passport'),
-    /** 三条，不是两条 —— 第三枚章是 2026-09-13 加的（裁定人是另一个代理） */
+    /**
+     * 四条 —— 第三枚是 2026-09-13 加的（裁定人是另一个代理），
+     * 第四枚是 2026-09-14 加的（申请人是一个还没有人申请的位置）。
+     * 这一行每加一枚章都要跟着改：它数的是下面真实有几枚。
+     */
     lede: bi(
-      '三条过程性证明。两次拒入，一次准入。',
-      'Three records of process. Two entries refused, one admitted.',
+      '四条过程性证明。三次拒入，一次准入。',
+      'Four records of process. Three entries refused, one admitted.',
     ),
     work: bi('作品', 'Work'),
     foot: bi(

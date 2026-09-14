@@ -93,6 +93,20 @@
 .pp-row__body { min-width: 0; max-width: var(--sb-measure); }
 .pp-work { margin-top: 1rem; }
 
+/* ── 没有人签的那一条线 ───────────────────────────────────────────────────
+ * 第四枚章（空位）末尾那一行。**一条线，没有别的** ——
+ * 不灰、不锁、不加第二种语义色：灰掉的东西读作"你没有权限"，
+ * 而这一页说的是"我们没有去拿"。那两件事在画面上必须不一样。
+ *
+ * 高度是一整行正文：线要浮在一行字**该在**的位置上，
+ * 贴着标签画一条细线只会读成一条分隔线，而不是一个空着的字段。
+ */
+.pp-blank {
+  height: calc(var(--sb-size-body) * var(--sb-lh-body));
+  max-width: 32ch;
+  border-bottom: 1px solid var(--sb-ink);
+}
+
 @media (max-width: 860px) {
   .pp-stamp__head, .pp-row { grid-template-columns: minmax(0, 1fr); }
   .pp-stamp__mark { position: static; }
