@@ -19,8 +19,10 @@
  *
  * ## 判据
  *
- * - 显示器节拍：最近 `refreshWindowSeconds` 秒帧间隔的第 10 百分位 —— 60 / 120 / 144Hz 屏各自为准。
- * - 丢帧：帧间隔 > 节拍 × `jankRatio`。过载 = 窗口里丢帧比例 > `shedAbove`，或长任务 ≥ `longTasksShed`。
+ * - 显示器节拍：最近 `refreshWindowSeconds` 秒帧间隔的第 10 百分位 —— 60 / 120 / 144Hz 屏各自为准，
+ *   不低于 `refreshFloorMs`（不锁帧的页面会把它量成 1ms）。
+ * - 丢帧：帧间隔 > max(节拍 × `jankRatio`, `jankFloorMs`) —— 比节拍慢，而且慢得人看得出来。
+ *   过载 = 窗口里丢帧比例 > `shedAbove`，或长任务 ≥ `longTasksShed`。
  * - 有余量 = 丢帧比例 < `restoreBelow` 且窗口里没有长任务。
  *
  * ## 不闪（和 `readout-state.ts` 的告警同一条教训）
@@ -159,7 +161,8 @@ export function createGovernor(): Governor {
     if (n < GOVERNOR.minFrames) { refresh = Number.NaN; return; }
     const view = scratch.subarray(0, n);
     view.sort();
-    refresh = view[Math.floor(n * 0.1)];
+    // 不锁帧的页面会把节拍量成 1ms（无头 Chrome ~400fps 实测）：没有比 240Hz 更快的真实屏幕
+    refresh = Math.max(view[Math.floor(n * 0.1)], GOVERNOR.refreshFloorMs);
   }
 
   function change(now: number, dir: 1 | -1): GovernorDecision {
@@ -199,7 +202,9 @@ export function createGovernor(): Governor {
       const from = Math.max(now - GOVERNOR.windowSeconds * 1000, windowStart);
       let n = 0;
       let bad = 0;
-      const limit = refresh * GOVERNOR.jankRatio;
+      // 丢帧 = 比节拍慢**而且**慢过人看得出来的那条线（60Hz 上丢一帧的量）。
+      // 只看比例的话，120Hz / VRR 屏上一帧 12ms 的抖动就会让它去关后期 —— 那才是看得出来的变化
+      const limit = Math.max(refresh * GOVERNOR.jankRatio, GOVERNOR.jankFloorMs);
       for (let k = 0; k < size; k++) {
         const i = (head - 1 - k + CAP) % CAP;
         if (times[i] <= from) break;

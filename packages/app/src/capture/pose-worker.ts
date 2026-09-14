@@ -34,6 +34,23 @@ let segStamp = 0;
 
 type Fileset = { wasmLoaderPath: string; wasmBinaryPath: string };
 
+/**
+ * 把 MediaPipe 的 wasm 工厂装回全局。**每一次 `createFromOptions` 之前都要调**
+ * （`test/pose-worker-factory.test.ts`）。
+ *
+ * MediaPipe 每建完一个任务就清掉 `self.ModuleFactory`，下一次再加载胶水层把它装回来。
+ * 主线程上那是一个新的 `<script>`，会重新执行；module worker 里是 `import()`，
+ * 模块被缓存、不再执行 —— 于是第二个任务一律 `ModuleFactory not set`
+ * （2026-09-14 无头 Chrome 实测：抠图起不来；GPU 失败回落 CPU 那一条同样会起不来）。
+ * `_module` 胶水层 `export default ModuleFactory`，所以从缓存的模块上把它拿回来就行。
+ */
+async function restoreFactory(loaderPath: string): Promise<void> {
+  const g = self as unknown as { ModuleFactory?: unknown };
+  if (g.ModuleFactory) return;
+  const mod = await import(/* @vite-ignore */ loaderPath) as { default?: unknown };
+  if (mod.default && !g.ModuleFactory) g.ModuleFactory = mod.default;
+}
+
 ctx.onmessage = (ev) => {
   const m = ev.data;
   if (m.type === 'init') void init(m);
@@ -47,6 +64,7 @@ async function init(m: Extract<PoseIn, { type: 'init' }>): Promise<void> {
     let backend: 'GPU' | 'CPU' = 'GPU';
     let warning: string | null = null;
     try {
+      await restoreFactory(fileset.wasmLoaderPath);
       landmarker = await PoseLandmarker.createFromOptions(fileset, {
         ...opts, baseOptions: { modelAssetPath: m.poseModel, delegate: 'GPU' },
       });
@@ -54,6 +72,7 @@ async function init(m: Extract<PoseIn, { type: 'init' }>): Promise<void> {
       // worker 里没有 OffscreenCanvas 的 WebGL / 驱动挂了 → CPU 也能跑，只是慢
       warning = `GPU delegate 失败，回落 CPU：${describe(e)}`;
       backend = 'CPU';
+      await restoreFactory(fileset.wasmLoaderPath);
       landmarker = await PoseLandmarker.createFromOptions(fileset, {
         ...opts, baseOptions: { modelAssetPath: m.poseModel, delegate: 'CPU' },
       });
@@ -83,6 +102,7 @@ async function init(m: Extract<PoseIn, { type: 'init' }>): Promise<void> {
 
 async function initSegmenter(fileset: Fileset, model: string): Promise<void> {
   try {
+    await restoreFactory(fileset.wasmLoaderPath);
     segmenter = await ImageSegmenter.createFromOptions(fileset, {
       baseOptions: { modelAssetPath: model, delegate: 'GPU' },
       runningMode: 'VIDEO',
