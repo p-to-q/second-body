@@ -21,6 +21,11 @@ export interface FrameStats {
   degraded: DegradeStage | null;
   /** 正在无人降帧（见 shell/idle.ts） */
   throttled: boolean;
+  /**
+   * 这一帧和上一帧的**真实**间隔（毫秒，没钳过）。tick 拿到的 dt 是钳过的 ——
+   * 状态机不能被切回前台的 5 秒冲飞；调速器却必须看见那 5 秒，才认得出"这是恢复，不是丢帧"。
+   */
+  frameMs: number;
 }
 
 export interface SafeFrameOptions {
@@ -55,7 +60,7 @@ export function createFrameLoop(
   const degradeAfter = opt.degradeAfter ?? 30;
   const stats: FrameStats = {
     fps: 0, cpuMs: 0, frames: 0, errors: 0, lastError: null,
-    consecutiveErrors: 0, degraded: null, throttled: false,
+    consecutiveErrors: 0, degraded: null, throttled: false, frameMs: 0,
   };
   const seen = new Set<string>();
   let raf = 0;
@@ -76,6 +81,7 @@ export function createFrameLoop(
     }
 
     const rawDt = primed ? (tMs - last) / 1000 : 1 / 60;
+    stats.frameMs = rawDt * 1000;
     last = tMs;
     primed = true;
     const dt = Math.min(Math.max(rawDt, TIME.dtMin), TIME.dtMax);

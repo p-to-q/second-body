@@ -68,6 +68,13 @@ export interface ExitsHost {
   cameraOn(): boolean;
   /** 开 / 关摄像头。返回**切换之后**的真实状态（拒绝授权时仍然是 false） */
   setCamera(on: boolean): Promise<boolean>;
+  /**
+   * 摄像头正在打开（按下之后、第一次推理完成之前）。那一行据此写「正在打开」——
+   * 不给的话那几秒里它只是变灰，字还写着「关着」（docs/48 §2）。
+   */
+  cameraStarting?(): boolean;
+  /** 观众的手移到了摄像头那一行上（悬停 / 聚焦）：可以先把模型取起来，不要权限 */
+  cameraIntent?(): void;
 }
 
 export interface ExitsOptions {
@@ -132,8 +139,15 @@ export function mountExits(options: ExitsOptions): Exits | null {
   const cam = row(C.camera, C.cameraOff);
   cam.el.addEventListener('click', () => {
     cam.el.disabled = true;
-    void host.setCamera(!host.cameraOn()).finally(() => { cam.el.disabled = false; sync(); });
+    const done = host.setCamera(!host.cameraOn());
+    // 当场刷一次：「正在打开」必须在按下的这一帧就出现，不是等下一次 1 秒轮询
+    sync();
+    void done.finally(() => { cam.el.disabled = false; sync(); });
   });
+  // 意图：手移上来就开始取模型（不碰摄像头、不问权限）。按下时省掉的是那十几 MB 的下载
+  const intent = (): void => { if (!host.cameraOn()) host.cameraIntent?.(); };
+  cam.el.addEventListener('pointerenter', intent);
+  cam.el.addEventListener('focus', intent);
 
   root.append(hall.el, give.el, cam.el);
   mount.append(root);
@@ -144,7 +158,10 @@ export function mountExits(options: ExitsOptions): Exits | null {
     give.el.classList.toggle('is-on', back);
     give.el.setAttribute('aria-pressed', String(back));
     const on = host.cameraOn();
-    cam.setState(on ? C.cameraOn : C.cameraOff);
+    // 启动态是一个状态词，不是一段动画：字本身就是最终的样子（`test/camera-starting.test.ts`）
+    const starting = host.cameraStarting?.() ?? false;
+    cam.setState(starting ? C.cameraStarting : on ? C.cameraOn : C.cameraOff);
+    cam.el.classList.toggle('is-starting', starting);
     cam.el.classList.toggle('is-on', on);
     cam.el.setAttribute('aria-pressed', String(on));
   }

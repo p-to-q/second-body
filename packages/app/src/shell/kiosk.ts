@@ -154,6 +154,12 @@ export interface Flags {
    * 规矩和 `?scene=` / `?shading=` / `?cam=` / `?exits=` 一样。
    */
   gl: boolean;
+  /**
+   * ?worker=off  姿态推理不进 worker，回到主线程（`capture/webcam.ts` 的降级路径）。
+   * 默认 on。给一个关的开关有两个理由：现场如果某台机器上 worker 起不来要能 3 秒内切走；
+   * 以及主线程那条路必须**跑得到**，否则它就只是一段没人验过的代码（P3，docs/48 §3）。
+   */
+  worker: boolean;
 }
 
 /** `?gl=` 认的两个值。别的一律当没写过 */
@@ -442,6 +448,7 @@ export function readFlags(search = location.search): Flags {
     // "环起不来"那条降级路径的办法 —— 消费者是 `main.ts` 的
     // `chooseTheme({ forceFallback: !flags.gl })`。
     gl: resolveGl(q.get('gl')),
+    worker: q.get('worker') !== 'off',
   };
 }
 

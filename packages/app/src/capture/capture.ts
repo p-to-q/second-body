@@ -19,6 +19,18 @@ export interface Capture {
   readonly fps: number;
   readonly lastError: string | null;
   stop(): void;
+  /**
+   * 最近一次推理（回放：出帧）完成于哪一刻（`performance.now()` 毫秒，和 `RawPose.t` 同一时钟）。
+   * 姿态时钟（`pose-clock.ts`）靠它分辨"新的一份"和"同一份又被读了一次" ——
+   * 没人的时候 `latest()` 连着返回 null，光看返回值分不出推理是在跑还是停了。
+   */
+  readonly inferredAt?: number;
+  /**
+   * `start()` 之后这一路**起不来**。和 `lastError` 分开：`lastError` 上会留着已经被兜住的
+   * 旧账（"GPU delegate 失败，回落 CPU"），拿它判"能不能用"，好好的摄像头会被当成坏的丢掉。
+   * 没实现这个字段的一路按 `lastError` 判（回放：只有致命错误才写 lastError）。
+   */
+  readonly failed?: boolean;
 }
 
 export type CaptureKind = 'webcam' | 'replay';

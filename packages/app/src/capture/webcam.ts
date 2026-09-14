@@ -2,25 +2,42 @@
  * WebcamCapture —— MediaPipe 实现的 `Capture`（docs/06 §2）。
  *
  * 契约里真正难的只有两条，其余都是样板：
- *  1. `latest()` 非阻塞：推理跑在自己的循环上（目标 CAPTURE.targetHz），
+ *  1. `latest()` 非阻塞：推理跑在自己的节拍上（目标 CAPTURE.targetHz），
  *     渲染线程只读最近一次成功的结果。渲染永远不等推理（docs/06 §1）。
  *  2. `latest()` 绝不抛异常：所有可能炸的东西（getUserMedia / wasm / 模型下载 /
  *     detectForVideo）都被包住，失败只写 `lastError`，返回值退化成 null。
  *
+ * ## 推理在 worker 里（docs/48 §3）
+ *
+ * 基线实测（docs/48 §2）：建图一次冻住主线程 7000ms（冷缓存），第一次 detect 编译着色器
+ * 再冻 3659ms，稳态每次 detect 在主线程上 p95 19–22ms —— "打开摄像头先黑、一顿才出来"
+ * 和"大动作时卡"都在这三个数里。现在三件事都在 `pose-worker.ts` 里做，主线程每次推理只剩
+ * 一次 `new VideoFrame(video)` + postMessage。
+ *
+ * - **一次一帧**：上一帧的结果回来之前不发下一帧（背压）。推理慢了，推理频率自己降下来，
+ *   渲染不受影响；两次结果之间由姿态时钟（`pose-clock.ts`）插值。
+ * - **worker 常驻**：关掉摄像头再打开不重新建图；观众手移到摄像头那一行上时（`prewarmPose()`）
+ *   就开始取模型 —— 不碰摄像头、不问权限。
+ * - **`start()` 在第一次推理完成之后才返回**：调用方（`main.ts` 的 swapCapture）在那之前
+ *   一直用旧的那一路（回放）驱动身体，换过来的那一刻已经有姿态了。
+ *
  * 降级路径（P2/P3，每条都必须存在）：
- *   GPU delegate 失败      → CPU delegate
- *   本地 wasm 失败         → CDN wasm
+ *   worker 起不来 / `?worker=off` → 主线程推理（下面 #openModels 那一条，原来的实现）
+ *   worker 中途死了        → 重新拿一个 worker（最多 WORKER_RETRIES 次），期间姿态时钟保持/交出 null
+ *   GPU delegate 失败      → CPU delegate（两条路上都是）
+ *   本地 wasm 失败         → CDN wasm（主线程那一条）
  *   本地模型文件不存在      → CDN 模型
  *   ImageSegmenter 起不来  → 只丢 mask，姿态照跑（慢回路自己会静默关掉）
- *   摄像头权限被拒          → lastError 有值，latest() 恒为 null，页面不白屏
+ *   摄像头权限被拒          → `failed`，lastError 有值，latest() 恒为 null，页面不白屏
+ *   摄像头中途断了          → `lost`（main.ts 换回回放并说一句）
  *   `?cam=` 要的那台不在     → 照常开默认那台，但 `camera.why === 'fallback'`，
  *                            HUD 上是红的一行（`?cam=` 见 camera-select.ts）
  *
  * 这里**不做任何姿态处理**：不滤波、不建骨架、不换坐标系。
  * 坐标转换只允许发生在 core/skeleton.ts 的 mediapipeToWorld()（docs/04 §1）。
  */
-import { FilesetResolver, ImageSegmenter, PoseLandmarker } from '@mediapipe/tasks-vision';
-import type { Landmark, RawPose } from '../../../core/src/types.ts';
+import type { ImageSegmenter, PoseLandmarker } from '@mediapipe/tasks-vision';
+import type { RawPose } from '../../../core/src/types.ts';
 import { CAPTURE } from '../../../core/src/tuning.ts';
 import { notePresence } from '../shell/idle.ts';
 import { readFlags, type PoseModel } from '../shell/kiosk.ts';
@@ -29,11 +46,16 @@ import {
   describeCamera, formatCameraList, pickCamera,
   type CamDevice, type CamStatus,
 } from './camera-select.ts';
+import { describe, overallScore, toLandmark, type PoseIn, type PoseOut } from './pose-protocol.ts';
 
 // 本地 wasm：打包进产物，现场断网也能起（Vite 把它们当静态资源发出去）
 // 注意子路径没有 /wasm/：包的 exports 就是这么导出的
+// 经典那一份给主线程（MediaPipe 在主线程上用 <script> 加载它）；
+// `_module` 那一份给 module worker（经典胶水层只是一个顶层 var，到了 module 作用域里就找不到了）。
 import wasmLoaderUrl from '@mediapipe/tasks-vision/vision_wasm_internal.js?url';
 import wasmBinaryUrl from '@mediapipe/tasks-vision/vision_wasm_internal.wasm?url';
+import wasmModuleLoaderUrl from '@mediapipe/tasks-vision/vision_wasm_module_internal.js?url';
+import wasmModuleBinaryUrl from '@mediapipe/tasks-vision/vision_wasm_module_internal.wasm?url';
 
 const CDN_WASM = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm';
 
@@ -76,6 +98,120 @@ function poseModelSource(which: PoseModel): { local: string; cdn: string } {
  */
 const MASK_EVERY_N_TICKS = Math.max(1, Math.round(CAPTURE.targetHz / 2));
 
+/**
+ * 发出去的一帧这么久（毫秒）没回来 = 那一帧丢了（worker 被系统挂起、消息丢了）。
+ * 不放 tuning.ts，理由同上：它是一道保险，不是一个观感旋钮。没有它，一次丢消息就是永久停滞。
+ */
+const IN_FLIGHT_TIMEOUT_MS = 2000;
+/** worker 中途死了，最多重新拿几次。再死就是这台机器上 worker 不可靠：停在那儿，读数报停滞 */
+const WORKER_RETRIES = 2;
+
+// ── 姿态引擎（worker，整页常驻一个）──────────────────────────────────────────
+
+interface PoseEngine {
+  backend: 'GPU' | 'CPU';
+  warning: string | null;
+  dead: boolean;
+  segmenterReady: boolean;
+  post(msg: PoseIn, transfer: Transferable[]): void;
+  listen(fn: ((m: PoseOut) => void) | null): void;
+}
+
+let enginePromise: Promise<PoseEngine> | null = null;
+let engineModel: PoseModel | null = null;
+
+/**
+ * 观众的手移到了摄像头那一行上：先把 wasm 和模型取起来、把图建好。
+ * **不碰摄像头、不问权限**（`shell/entry.ts` 文件头那条规矩照旧）。永不抛。
+ */
+export function prewarmPose(model?: PoseModel): void {
+  try {
+    const flags = readFlags();
+    if (!flags.worker) return;
+    void acquirePoseEngine(model ?? flags.model ?? 'lite').catch(() => { /* 真按下时会再试一次，并把原因写进 lastError */ });
+  } catch { /* 预热是旁路 */ }
+}
+
+function acquirePoseEngine(model: PoseModel): Promise<PoseEngine> {
+  if (enginePromise && engineModel === model) return enginePromise;
+  engineModel = model;
+  const p = createPoseEngine(model, () => { if (enginePromise === p) enginePromise = null; });
+  enginePromise = p;
+  p.catch(() => { if (enginePromise === p) enginePromise = null; });
+  return p;
+}
+
+const abs = (u: string): string => new URL(u, location.href).href;
+
+async function createPoseEngine(model: PoseModel, forget: () => void): Promise<PoseEngine> {
+  if (typeof Worker === 'undefined') throw new Error('浏览器没有 Worker');
+  const [poseModel, segModel] = await Promise.all([
+    resolveModel(poseModelSource(model)),
+    resolveModel(MODELS.segmenter),
+  ]);
+  const worker = new Worker(new URL('./pose-worker.ts', import.meta.url), { type: 'module', name: 'sb-pose' });
+  let listener: ((m: PoseOut) => void) | null = null;
+  const engine: PoseEngine = {
+    backend: 'CPU',
+    warning: null,
+    dead: false,
+    segmenterReady: false,
+    post(msg, transfer) {
+      if (engine.dead) {
+        for (const t of transfer) (t as { close?: () => void }).close?.();
+        return;
+      }
+      worker.postMessage(msg, transfer);
+    },
+    listen(fn) { listener = fn; },
+  };
+
+  return new Promise<PoseEngine>((resolve, reject) => {
+    let ready = false;
+    const die = (why: string): void => {
+      if (engine.dead) return;
+      engine.dead = true;
+      forget();
+      try { worker.terminate(); } catch { /* 已经没了 */ }
+      if (!ready) reject(new Error(why));
+      else listener?.({ type: 'fail', stamp: Number.NaN, error: why });
+    };
+    worker.onmessage = (ev: MessageEvent<PoseOut>) => {
+      const m = ev.data;
+      if (m.type === 'ready') {
+        ready = true;
+        engine.backend = m.backend;
+        engine.warning = m.warning;
+        console.info(`[webcam] 姿态 worker 就位：${m.backend}，预热 ${m.warmMs.toFixed(0)}ms${m.warning ? `（${m.warning}）` : ''}`);
+        resolve(engine);
+        return;
+      }
+      if (m.type === 'segmenter') {
+        engine.segmenterReady = m.ok;
+        if (m.warning) console.warn(`[webcam] ${m.warning}`);
+        return;
+      }
+      if (m.type === 'error') { die(`姿态 worker 起不来：${m.error}`); return; }
+      listener?.(m);
+    };
+    worker.onerror = (e) => {
+      e.preventDefault?.();
+      die(`姿态 worker 崩了：${e.message || 'unknown'}`);
+    };
+    worker.postMessage({
+      type: 'init',
+      wasmLoaderPath: abs(wasmModuleLoaderUrl),
+      wasmBinaryPath: abs(wasmModuleBinaryUrl),
+      poseModel: abs(poseModel),
+      segmenterModel: abs(segModel),
+      width: CAPTURE.requestedVideo.width,
+      height: CAPTURE.requestedVideo.height,
+    } satisfies PoseIn);
+  });
+}
+
+// ── Capture ───────────────────────────────────────────────────────────────
+
 export class WebcamCapture implements Capture {
   readonly video: HTMLVideoElement;
 
@@ -95,9 +231,27 @@ export class WebcamCapture implements Capture {
   #running = false;
   #rafId = 0;
   #error: string | null = null;
+  #failed = false;
+  #lost = false;
+
+  // worker 那一条路的状态
+  #engine: PoseEngine | null = null;
+  #inFlight = false;
+  #sentAt = 0;
+  #lastSent = -Infinity;
+  #accepted = -Infinity;
+  #inferredAt = Number.NaN;
+  #inferMs = 0;
+  #cadence: number = CAPTURE.targetHz;
+  #firstResult: (() => void) | null = null;
+  #retries = 0;
+  #reacquiring = false;
+  readonly #useWorker: boolean;
 
   /** 起来之后用的是哪条路，dev 页面拿来显示 */
   backend: 'GPU' | 'CPU' | null = null;
+  /** 推理在哪儿跑：worker / 主线程。HUD 显示它 */
+  where: 'worker' | 'main' | null = null;
   /** 实际加载的姿态模型档位（`?model=`；没指定就是默认档） */
   readonly model: PoseModel;
   /**
@@ -110,7 +264,7 @@ export class WebcamCapture implements Capture {
   readonly #cam: string | null;
 
   /**
-   * 启动里程碑。三件：摄像头开了 / 姿态模型到了 / 抠图模型问过了。
+   * 启动里程碑。三件：摄像头开了 / 姿态模型到了 / 第一次推理完成。
    * 三件都是**真的发生了才报**，加载态因此不用猜（见 capture.ts 的 CaptureStep）。
    */
   #onStep: CaptureStep | null;
@@ -122,6 +276,7 @@ export class WebcamCapture implements Capture {
     const flags = readFlags();
     this.model = model ?? flags.model ?? 'lite';
     this.#cam = flags.cam;
+    this.#useWorker = flags.worker;
     this.video = video ?? document.createElement('video');
     this.video.playsInline = true;
     this.video.muted = true;
@@ -130,22 +285,63 @@ export class WebcamCapture implements Capture {
 
   get fps(): number { return this.#fps; }
   get lastError(): string | null { return this.#error; }
+  /** 起不来（权限被拒、没有摄像头、模型/推理超时）。`lastError` 上的已兜住的旧账不算 */
+  get failed(): boolean { return this.#failed; }
+  /** 摄像头中途断了（track `ended`） */
+  get lost(): boolean { return this.#lost; }
+  get inferredAt(): number { return this.#inferredAt; }
+  /** 单次推理耗时（毫秒，EMA；worker 那条路才有） */
+  get inferMs(): number { return this.#inferMs; }
+
+  /**
+   * 推理频率上限（Hz）。帧调速器放下「推理」那一级时降到 `GOVERNOR.inferenceHzShed`（docs/48 §4）。
+   * 不高于 `CAPTURE.targetHz`。只影响 worker 那条路；主线程那一条本来就在降级路径上。
+   */
+  setCadence(hz: number): void {
+    if (Number.isFinite(hz) && hz > 0) this.#cadence = Math.min(CAPTURE.targetHz, hz);
+  }
 
   latest(): RawPose | null { return this.#latest; }
   latestMask(): ImageBitmap | null { return this.#mask; }
 
-  /** 永不 reject：失败写进 lastError，让页面自己决定怎么显示 */
+  /** 永不 reject：失败写进 lastError + failed，让页面自己决定怎么显示 */
   async start(): Promise<void> {
     if (this.#running) return;
     this.#running = true;
     try {
+      // 模型和权限**并行**：观众在权限框上犹豫的那几秒，wasm 和模型已经在取了
+      const engineP: Promise<PoseEngine | null> = this.#useWorker
+        ? acquirePoseEngine(this.model).catch((e) => {
+          console.warn('[webcam] 姿态 worker 起不来，回落主线程：', describe(e));
+          this.#error = `姿态 worker 起不来，回落主线程：${describe(e)}`;
+          return null;
+        })
+        : Promise.resolve(null);
+
       await this.#openCamera();
+      if (!this.#running) return;
       this.#step();
-      await this.#openModels();
-      this.#loop();
+
+      const engine = await withTimeout(engineP, CAPTURE.startTimeout * 1000, '姿态模型加载超时');
+      if (!this.#running) return;
+      if (engine) {
+        this.where = 'worker';
+        this.#attach(engine);
+        this.#step();
+        const first = new Promise<void>((res) => { this.#firstResult = res; });
+        this.#pump();
+        await withTimeout(first, CAPTURE.startTimeout * 1000, '第一次推理超时');
+      } else {
+        this.where = 'main';
+        await this.#openModels();
+        this.#loop();
+      }
+      this.#step();
     } catch (e) {
-      this.#error = describe(e);
-      this.#running = false;
+      const why = describe(e);
+      this.stop();
+      this.#error = why;
+      this.#failed = true;
     }
   }
 
@@ -155,6 +351,11 @@ export class WebcamCapture implements Capture {
     this.#rafId = 0;
     this.#stream?.getTracks().forEach((t) => t.stop());
     this.#stream = null;
+    // worker 不关：它是整页共用的，下一次打开摄像头直接用（不再建图）。只是不再听它
+    this.#engine?.listen(null);
+    this.#engine = null;
+    this.#inFlight = false;
+    this.#firstResult = null;
     try { this.#landmarker?.close(); } catch { /* 关闭失败不值得吵 */ }
     try { this.#segmenter?.close(); } catch { /* 同上 */ }
     this.#landmarker = null;
@@ -204,6 +405,15 @@ export class WebcamCapture implements Capture {
       this.#error = `摄像头选择失败（画面照跑，但不知道在用哪一台）：${describe(e)}`;
     }
 
+    // 摄像头中途断了（拔线、被别的程序占走、系统收回权限）：记下来，由 main.ts 换回回放
+    for (const t of this.#stream?.getVideoTracks() ?? []) {
+      t.addEventListener('ended', () => {
+        if (!this.#running) return;
+        this.#lost = true;
+        this.#error = '摄像头断开了（track ended）';
+      }, { once: true });
+    }
+
     this.video.srcObject = this.#stream;
     await this.video.play();
     if (!this.video.videoWidth) {
@@ -240,7 +450,112 @@ export class WebcamCapture implements Capture {
     log(`${head}：${this.camera.hud}\n${formatCameraList(devices, this.camera).join('\n')}`);
   }
 
+  // ── worker 那条路 ───────────────────────────────────────────────────────
+  #attach(engine: PoseEngine): void {
+    this.#engine = engine;
+    this.backend = engine.backend;
+    if (engine.warning) this.#error = engine.warning;
+    this.#inFlight = false;
+    engine.listen((m) => this.#onEngine(m));
+  }
+
+  #pump = (): void => {
+    if (!this.#running) return;
+    this.#rafId = requestAnimationFrame(this.#pump);
+    try {
+      this.#send();
+    } catch (e) {
+      // 一帧炸了不许冒到帧循环外（AGENTS 不变量：帧循环里永不抛异常）
+      this.#error = describe(e);
+      this.#inFlight = false;
+    }
+  };
+
+  #send(): void {
+    const engine = this.#engine;
+    if (!engine) return;
+    if (engine.dead) { this.#reacquire(); return; }
+    const now = performance.now();
+    if (this.#inFlight) {
+      if (now - this.#sentAt < IN_FLIGHT_TIMEOUT_MS) return;
+      this.#inFlight = false;   // 那一帧丢了：不等了
+    }
+    if (this.video.readyState < 2) return;
+    // 节拍：留 2ms 容差，免得 30Hz 被 rAF 的抖动削成 20Hz
+    if (now - this.#lastSent < 1000 / this.#cadence - 2) return;
+    // 同一帧不重复推理
+    const vt = this.video.currentTime;
+    if (vt === this.#lastVideoTime) return;
+    this.#lastVideoTime = vt;
+    // timestamp 必须严格递增，否则 MediaPipe 会抛
+    const stamp = now <= this.#lastStamp ? this.#lastStamp + 1 : now;
+    this.#lastStamp = stamp;
+    this.#lastSent = now;
+    this.#tick++;
+    const mask = engine.segmenterReady && this.#tick % MASK_EVERY_N_TICKS === 0;
+
+    if (typeof VideoFrame !== 'undefined') {
+      let frame: VideoFrame;
+      try { frame = new VideoFrame(this.video, { timestamp: Math.round(stamp * 1000) }); }
+      catch { return; }   // 这一刻还拿不到一帧（尺寸为 0 之类）：下一帧再来
+      this.#inFlight = true;
+      this.#sentAt = now;
+      engine.post({ type: 'frame', frame, stamp, mask }, [frame]);
+      return;
+    }
+    // 没有 VideoFrame 的浏览器：ImageBitmap 也能转移，只是多一次异步
+    this.#inFlight = true;
+    this.#sentAt = now;
+    void createImageBitmap(this.video).then((bmp) => {
+      if (!this.#running || this.#engine !== engine) { bmp.close(); this.#inFlight = false; return; }
+      engine.post({ type: 'frame', frame: bmp, stamp, mask }, [bmp]);
+    }).catch(() => { this.#inFlight = false; });
+  }
+
+  #onEngine(m: PoseOut): void {
+    if (m.type === 'pose') {
+      this.#inFlight = false;
+      if (!(m.stamp > this.#accepted)) return;
+      this.#accepted = m.stamp;
+      const now = performance.now();
+      this.#latest = m.world?.length
+        ? { world: m.world, screen: m.screen ?? undefined, score: m.score, t: m.stamp }
+        : null;   // 没人：返回 null，不是返回上一帧的幽灵
+      this.#inferredAt = m.stamp;
+      this.#inferMs += (m.inferMs - this.#inferMs) * 0.2;
+      // 顺手上报"有没有人"给无人降帧（shell/idle.ts）
+      notePresence((this.#latest?.score ?? 0) > CAPTURE.minScore, now);
+      this.#countTick(now);
+      const done = this.#firstResult;
+      this.#firstResult = null;
+      done?.();
+    } else if (m.type === 'mask') {
+      // 新的到货再换掉旧的，别让消费者拿到半张图
+      this.#mask?.close();
+      this.#mask = m.bitmap;
+    } else if (m.type === 'fail') {
+      this.#inFlight = false;
+      this.#error = m.error;
+    }
+  }
+
+  /** worker 死了：重新拿一个。期间姿态时钟先保持、再交出 null —— 读数上是 ALM 02 停滞，那是实话 */
+  #reacquire(): void {
+    if (this.#reacquiring || this.#retries >= WORKER_RETRIES) return;
+    this.#reacquiring = true;
+    this.#retries++;
+    this.#engine?.listen(null);
+    void acquirePoseEngine(this.model).then((e) => {
+      if (this.#running) this.#attach(e);
+    }).catch((e) => {
+      this.#error = `姿态 worker 重启失败：${describe(e)}`;
+    }).finally(() => { this.#reacquiring = false; });
+  }
+
+  // ── 主线程那条路（降级路径：worker 起不来 / `?worker=off`）─────────────────
   async #openModels(): Promise<void> {
+    // 动态 import：worker 那条路上主线程一个字节的 MediaPipe 都不需要
+    const { FilesetResolver, ImageSegmenter } = await import('@mediapipe/tasks-vision');
     const poseModel = await resolveModel(poseModelSource(this.model));
 
     // wasm：先本地，失败再 CDN
@@ -268,13 +583,13 @@ export class WebcamCapture implements Capture {
       this.#segmenter = null;
       this.#error = `ImageSegmenter 未启用（慢回路会静默关掉）：${describe(e)}`;
     }
-    this.#step();
   }
 
   async #makeLandmarker(
-    fileset: Awaited<ReturnType<typeof FilesetResolver.forVisionTasks>>,
+    fileset: { wasmLoaderPath: string; wasmBinaryPath: string },
     modelAssetPath: string,
   ): Promise<PoseLandmarker> {
+    const { PoseLandmarker } = await import('@mediapipe/tasks-vision');
     const opts = { runningMode: 'VIDEO' as const, numPoses: 1, outputSegmentationMasks: false };
     try {
       const lm = await PoseLandmarker.createFromOptions(fileset, {
@@ -293,7 +608,6 @@ export class WebcamCapture implements Capture {
     }
   }
 
-  // ── 推理循环 ────────────────────────────────────────────────────────────
   #loop = (): void => {
     if (!this.#running) return;
     this.#rafId = requestAnimationFrame(this.#loop);
@@ -331,6 +645,7 @@ export class WebcamCapture implements Capture {
       this.#latest = null;   // 没人：返回 null，不是返回上一帧的幽灵
     }
     res.close?.();
+    this.#inferredAt = stamp;
 
     // 顺手上报"有没有人"给无人降帧（shell/idle.ts）。
     // 这件事只有采集端知道，让它自己说，收口的 main.ts 就一行都不用改。
@@ -382,6 +697,13 @@ export class WebcamCapture implements Capture {
   }
 }
 
+function withTimeout<T>(p: Promise<T>, ms: number, why: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${why}（${Math.round(ms / 1000)}s）`)), ms);
+    p.then((v) => { clearTimeout(timer); resolve(v); }, (e) => { clearTimeout(timer); reject(e); });
+  });
+}
+
 async function listVideoInputs(): Promise<CamDevice[]> {
   if (!navigator.mediaDevices?.enumerateDevices) return [];
   const all = await navigator.mediaDevices.enumerateDevices();
@@ -393,28 +715,6 @@ function currentDeviceId(stream: MediaStream | null): string {
   return stream?.getVideoTracks()[0]?.getSettings?.().deviceId ?? '';
 }
 
-function toLandmark(l: { x: number; y: number; z: number; visibility?: number }): Landmark {
-  return { x: l.x, y: l.y, z: l.z, visibility: l.visibility };
-}
-
-/**
- * MediaPipe 不给"整体置信度"，只有逐点 visibility。取平均值当 score（docs/06 §1 用它判有没有人）。
- * 有些模型版本 visibility 恒为 0；那种情况下"检出了 33 个点"本身就是证据，记 1。
- */
-function overallScore(
-  screen: ReadonlyArray<{ visibility?: number }> | undefined,
-  world: ReadonlyArray<{ visibility?: number }>,
-): number {
-  const src = screen?.length ? screen : world;
-  let sum = 0, n = 0;
-  for (const l of src) {
-    const v = l.visibility;
-    if (typeof v === 'number' && Number.isFinite(v)) { sum += v; n++; }
-  }
-  if (!n || sum === 0) return 1;
-  return Math.min(1, Math.max(0, sum / n));
-}
-
 /** 本地有模型就用本地（现场断网），否则 CDN */
 async function resolveModel(m: { local: string; cdn: string }): Promise<string> {
   try {
@@ -423,9 +723,4 @@ async function resolveModel(m: { local: string; cdn: string }): Promise<string> 
     if (r.ok && !type.includes('text/html')) return m.local;
   } catch { /* 本地没有就算了 */ }
   return m.cdn;
-}
-
-function describe(e: unknown): string {
-  if (e instanceof Error) return `${e.name}: ${e.message}`;
-  return String(e);
 }

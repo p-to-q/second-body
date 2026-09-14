@@ -98,6 +98,11 @@ export interface Stage {
   /** 运行时开关后期（HUD / 现场排查用） */
   setPost(on: boolean): void;
   readonly post: boolean;
+  /**
+   * 角上字的墨色采样开 / 停（2Hz GPU 读回，`ink-sampler.ts`）。
+   * 帧调速器放下的第一级就是它（docs/48 §4）：观众看不见它停了。
+   */
+  setInk(on: boolean): void;
   /** 当前生效的 look，给 HUD 和 dev 页面看 */
   readonly look: LookProfile;
 
@@ -866,6 +871,7 @@ export function createStage(opt: StageOptions = {}): Stage {
     },
 
     get post() { return postEnabled && post !== null; },
+    setInk(on) { inkSampler.setPaused(!on); },
     get look() { return look; },
 
     setArc(progress) {

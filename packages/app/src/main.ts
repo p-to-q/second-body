@@ -20,7 +20,7 @@ import { arcPresent, createArc, type ArcState } from '../../core/src/arc.ts';
 import { makeGenome, toPlaceholderGenome } from '../../core/src/genome.ts';
 import { blendSkeletons, remapSkeleton, type BodyPlan } from '../../core/src/bodyplan.ts';
 import { mulberry32 } from '../../core/src/rng.ts';
-import { CAPTURE, NASCENT, REFINE, STAGE } from '../../core/src/tuning.ts';
+import { CAPTURE, GOVERNOR, NASCENT, REFINE, STAGE } from '../../core/src/tuning.ts';
 import type { Genome, MotionFeatures, PartMeta, Presence, Skeleton, SlotKey, SlotPick, Tier } from '../../core/src/types.ts';
 
 import { createCapture, type Capture } from './capture/capture.ts';
@@ -37,7 +37,11 @@ import { contactPoints } from './stage/framing.ts';
 import { chooseTheme, themeFromUrl } from './choose/choose.ts';
 import { createFrameLoop } from './shell/safe-frame.ts';
 import { wireDegrade } from './shell/degrade-wire.ts';
-import { getDegradeState } from './shell/degrade.ts';
+import { degradeTo, deviceLostAction, getDegradeState } from './shell/degrade.ts';
+import { createDeferral, createGovernor, GOVERNOR_LADDER } from './shell/governor.ts';
+import { wireGovernor } from './shell/governor-wire.ts';
+import { createLongTaskCounter } from './shell/long-tasks.ts';
+import { createPoseClock } from './capture/pose-clock.ts';
 import { showBootError } from './shell/boot-error.ts';
 import { createSlowLoop } from './slow/slow.ts';
 import { createVisitReporter } from './archive/visit.ts';
@@ -141,6 +145,18 @@ async function boot(): Promise<void> {
   await renderer.init();
   loading.done('render');
   document.body.appendChild(renderer.domElement);
+
+  // WebGPU device 丢了（驱动重置、GPU 进程崩了）：之后一帧都画不出来（docs/48 §5）。
+  // 先说一句「出了点问题，正在恢复」，再直接重载 —— 不白走降级阶梯的前两级，但仍吃重载闸。
+  // `destroyed` 是我们自己拆的（离开舞台时），不算事故（`shell/degrade.ts` 的 deviceLostAction）。
+  const threeDeviceLost = renderer.onDeviceLost.bind(renderer);
+  renderer.onDeviceLost = (info) => {
+    try { threeDeviceLost(info); } catch { /* 三自己的那条日志，炸了也不管 */ }
+    const lost = info as { reason?: string | null; message?: string } | undefined;
+    if (deviceLostAction(lost) !== 'reload') return;
+    showNotice(COPY.boot.failed, { corner: 'bottom-right' });
+    setTimeout(() => degradeTo('reload', `device lost: ${lost?.reason ?? lost?.message ?? 'unknown'}`), GOVERNOR.deviceLostNotice * 1000);
+  };
 
   // 回落到 WebGL2 了没有。**在这里读，不在这里说** —— 说要等加载态收掉之后（见下面），
   // 否则这句话会被那一层盖住，等它露出来的时候 4 秒早就走完了（实测踩过）。
@@ -536,8 +552,25 @@ async function boot(): Promise<void> {
    * **不是**翻 `flags.nopost`（`createStage()` 开机读一次就不再读了）。
    * 第 2 级把整具换成占位几何 —— 丑，但一定画得出来（AGENTS.md 不变量）。
    */
+  // ── 帧调速器（`shell/governor.ts`，docs/48 §4）的状态 ──────────────────────
+  // **声明在降级接线之前**：降级处理器注册时如果已经降过级会当场执行，它要写 postWanted（let 有 TDZ）。
+  /** 后期"应该"开着吗 —— 观众（控件条）和降级阶梯说了算；调速器只能在这之上临时关掉 */
+  let postWanted = !flags.nopost;
+  /** 调速器放下「替换」那一级：忒修斯的替换进延后闸 */
+  let swapShed = false;
+  /** 调速器放下「UI」那一级：读数停刷（它不驱动身体；小屏幕照刷 —— 那是给观众的回答） */
+  let uiShed = false;
+  /** 此刻要求采集端跑的推理频率。换了 capture 之后要重新告诉新的那一个 */
+  let inferHz: number = CAPTURE.targetHz;
+  /** 「降级渲染」那一句一个会话只说一次：说过了再说就是闪 */
+  let saidReduced = false;
+  const governor = createGovernor();
+  const longTasks = createLongTaskCounter();
+  /** 推理节拍 → 渲染节拍（`capture/pose-clock.ts`）。身体吃它给的；小屏幕和读数吃采集端的原话 */
+  const poseClock = createPoseClock();
+
   wireDegrade({
-    setPost: (on) => stage.setPost(on),
+    setPost: (on) => { if (!on) postWanted = false; stage.setPost(on && postWanted); },
     toPlaceholder: () => {
       // 团块 / 点场没有槽位件，也就没有"换回占位几何"这回事；还没成型时同理。
       if (isMass || isSwarm || !creature.genome) return;
@@ -556,6 +589,12 @@ async function boot(): Promise<void> {
    * 关掉之后这条线上一个对象都不存在，身体退回这一版之前那条四档跳的路。
    */
   const theseus = makeTheseus(flags, seed, arc.total);
+  type Fired = NonNullable<NonNullable<ReturnType<NonNullable<typeof theseus>['update']>>['fired']>;
+  /**
+   * 忒修斯替换的延后闸（docs/48 §4 第 2 级）。慢机器上替换压一压（最多 `GOVERNOR.swapDeferMax` 秒），
+   * **不取消** —— 那一声和那一下碎开被一起压、一起放，仍然是同一帧。
+   */
+  const swapGate = createDeferral<Fired>(GOVERNOR.swapDeferMax);
   /**
    * 已经被换掉的那些槽位。**升档重建 genome 时必须盖回去** ——
    * `morph()` 是拿 `seed` 从头抽一具身体，不盖的话每一次乐章交接都会把
@@ -606,10 +645,50 @@ async function boot(): Promise<void> {
     note: (s) => { note = s; },
   };
 
+  /**
+   * 调速器的每一级 → 一个**已经存在的**开关（`shell/governor-wire.ts` 登记表，测试逐个核对）。
+   * 只在级别变化时拨；开关自己炸了不拖垮帧循环。
+   */
+  const applyGovernor = wireGovernor({
+    ink: (shed) => stage.setInk(!shed),
+    swaps: (shed) => { swapShed = shed; },
+    inference: (shed) => { inferHz = shed ? GOVERNOR.inferenceHzShed : CAPTURE.targetHz; (capture as { setCadence?(hz: number): void }).setCadence?.(inferHz); },
+    post: (shed) => stage.setPost(postWanted && !shed),
+    dpr: (shed) => renderer.setPixelRatio(shed ? Math.min(devicePixelRatio, GOVERNOR.dprShed) : Math.min(devicePixelRatio, 2)),
+    ui: (shed) => { uiShed = shed; },
+  });
+
   // ── 6. 一帧（docs/06 §1） ────────────────────────────────────────────────
-  const loop = createFrameLoop((dt) => {
+  const loop = createFrameLoop((dt, tMs) => {
     elapsedT += dt;
-    const raw = capture.latest();
+
+    // ── 调速器：这一帧的真实间隔 + 长任务 → 该放下第几级（docs/48 §4）──────────
+    // 后台标签页、无人降帧期间不判：那些帧慢是我们自己要的，不是卡。
+    const gov = governor.sample({
+      now: tMs,
+      frameMs: loop.stats.frameMs,
+      visible: document.visibilityState === 'visible' && !loop.stats.throttled,
+      longTasks: longTasks.take(),
+    });
+    if (gov.changed !== 0) {
+      applyGovernor(gov.level);
+      // 带上时刻：拨开关本身可能就是一次长任务（关后期 / 改像素比会重建目标与管线，docs/48 §4.3），
+      // 对得上长任务的时间戳才分得清"它在救火"还是"它在放火"
+      console.info(`[governor] @${(tMs / 1000).toFixed(2)}s ${gov.changed > 0 ? '放下' : '拿回'} ${gov.step} → L${gov.level}（丢帧 ${(governor.jank * 100).toFixed(0)}% · 节拍 ${governor.refreshMs.toFixed(1)}ms）`);
+      // 观众只在**看得出来**的那一级被告知一次：后期没了画面会变（docs/23 §S0 那一句）。
+      // 前三级（墨色采样、替换延后、推理降频）观众看不出来，说了只是打扰。现场静默，同开机那一句。
+      if (gov.changed > 0 && governor.sheds('post') && !saidReduced && !flags.kiosk) {
+        saidReduced = true;
+        showNotice(COPY.boot.fallbackRender, { corner: 'bottom-right' });
+      }
+    }
+
+    // 采集端手上最新的那一份 —— **原话**，小屏幕和读数吃它（它们的职责是说实话）
+    const live = capture.latest();
+    // 身体吃的那一份：两次推理之间插值，推理停了先保持再交出 null（`capture/pose-clock.ts`）。
+    // 此前这里直接是 `capture.latest()`：30Hz 的结果被 60–120Hz 的帧连着吃好几次，动作一大身体就一顿一顿地追。
+    poseClock.observe(live, capture.inferredAt ?? live?.t ?? Number.NaN);
+    const raw = poseClock.sample(tMs);
     const detected = raw !== null && raw.score > CAPTURE.minScore;
     const p = presence.update(detected, dt);
     // 弧线吃的是**未经时间停滞缩放的 dt**（和 presence / evolution 同一条理由：
@@ -636,7 +715,7 @@ async function boot(): Promise<void> {
     // 那对身体是对的（抽搐比迟钝更毁体验），对这块屏幕是致命的：
     // 它会在人已经走出画面之后继续显示一副"看得见"的骨架。
     // 这块屏幕唯一的职责就是说实话，所以它站在滤波之前。
-    preview?.update(raw, dt);
+    preview?.update(live, dt);
 
     if (raw) {
       // 运动特征算在**人的**骨架上：驱动演化的是观众实际动了多少，
@@ -702,26 +781,31 @@ async function boot(): Promise<void> {
     // `?theseus=off` 时 `step` 是 undefined，缩放回 1 —— 和这一版之前逐字相同。
     bodyRoot.scale.setScalar(step?.scale ?? 1);
 
-    if (step?.fired && !isMass && !isSwarm) {
+    // 调速器放下「替换」那一级时，这一件进延后闸（最多压 `GOVERNOR.swapDeferMax` 秒，不取消）。
+    // 没放下时闸是直通的：当帧 offer、当帧执行。闸里压着的那件到点了由 tick 放出来。
+    // 一帧只问闸一次：这一帧有新的一件就 offer（它会先把压着的那件放出来），没有就 tick。
+    // 同一刻 offer 之后再 tick 永远是空的 —— 刚压进去的那件 since 就是此刻。
+    const due = step?.fired && !isMass && !isSwarm ? swapGate.offer(step.fired, tMs, swapShed) : swapGate.tick(tMs, swapShed);
+    for (const fired of due) {
       // 借件距离按弧线张开（docs/44 §4）；d4 只在慢回路那一件真的到货之后才有得借
       const g = swapOneSlot(
-        creature.genome, step.fired.slot,
-        (seed ^ Math.imul(step.fired.index, 0x9e3779b9)) >>> 0,
+        creature.genome, fired.slot,
+        (seed ^ Math.imul(fired.index, 0x9e3779b9)) >>> 0,
         {
           tier, index: library.index, rejected: library.rejected, overall: arcState.overall, grown,
           // 给操作员（`?debug=1`），不给观众：换的是哪一格、从哪一圈借的（docs/44 §7 最后一段）
           onChoice: hud ? (c) => console.info(
-            `[theseus] #${step.fired!.index} ${step.fired!.slot} ← d${c.ring} ${c.pick.partId}`,
+            `[theseus] #${fired.index} ${fired.slot} ← d${c.ring} ${c.pick.partId}`,
           ) : undefined,
         },
       );
       // 借不到就是这一件不发生 —— 不抛、不等、不退化成"换了个一模一样的"（P3）。
       if (g) {
-        swapped.set(step.fired.slot, g.slots[step.fired.slot]);
+        swapped.set(fired.slot, g.slots[fired.slot]);
         // 不是交叉淡入：旧件碎开、新件装上、描边不断（docs/44 §7，形状在 `creature/replace-event.ts`）。
         // 这一下当帧开始，所以下面那一声和画面上的碎开是同一帧
         const shown = getDegradeState().placeholder ? toPlaceholderGenome(g) : g;
-        creature.replace(step.fired.slot, shown.slots[step.fired.slot]);
+        creature.replace(fired.slot, shown.slots[fired.slot]);
         // docs/40 §5 第 3 条（2026-09-14 改的挂点）+ docs/44 §7：
         // 升档音原来挂在四个乐章的交接上，而 docs/44 §6 之后那四个点不再是事件 ——
         // 一个挂在不再发生的东西上的声音等于没有声音。挪到**每一次替换**上：
@@ -815,6 +899,7 @@ async function boot(): Promise<void> {
       // 和 `slow.reset()` 一样，它不解除写失败之后那道会话级的闸
       visits.reset();
       groundSense.reset();   // 换了一个人：下一次观测重新立基准，不在进场那一帧砸一下
+      swapGate.reset();      // 闸里压着的那件属于上一个人（调速器本身不归零：机器还是那台机器）
       lastSkeleton = null;
       evoTier = 0;
       tier = (flags.tier ?? 0) as Tier;
@@ -854,7 +939,8 @@ async function boot(): Promise<void> {
     // `lastFeatures` 是这一帧**刚算出来**的那一份 —— 放在前面就永远晚一帧，
     // 而"晚一帧"在一块 4Hz 刷新的读数上看不出来，正是 P21 说的那种坏法。
     // `raw` 和小屏幕吃的是同一份（滤波之前），理由也同：读数要说实话。
-    readout?.update(raw, lastFeatures, capture.fps, dt);
+    // 调速器放下最后一级（UI）时读数停刷：它不驱动身体。小屏幕不停 —— 它回答的是「它有没有看见我」
+    if (!uiShed) readout?.update(live, lastFeatures, capture.fps, dt);
 
     if (hud) {
       const s = body.stats;
@@ -875,6 +961,10 @@ async function boot(): Promise<void> {
         // 不值得为此动一个被所有页面共用的契约。
         note: [
           note,
+          // 调速器在第几级、为什么（docs/48 §4）；姿态时钟在哪个状态；推理在哪儿跑、一次多久
+          `gov=L${governor.level}${governor.level ? `(${GOVERNOR_LADDER[governor.level - 1]})` : ''} jank=${(governor.jank * 100).toFixed(0)}% pose=${poseClock.state}`
+            + `${(capture as { where?: string | null }).where ? ` infer@${(capture as { where?: string | null }).where}` : ''}`
+            + `${(capture as { inferMs?: number }).inferMs ? ` ${((capture as { inferMs?: number }).inferMs ?? 0).toFixed(1)}ms` : ''}`,
           refiner && `hold=${refiner.stats.held} drop=${refiner.stats.dropped} q=${refiner.stats.cutoffScale.toFixed(2)}`,
           slow.phase !== 'idle' && `slow:${slow.phase}${slow.note ? `(${slow.note})` : ''}`,
           // 存档写成没写成只在这一行说（`docs/43 §7.1` 第 5 条：降级必须静默）
@@ -924,7 +1014,8 @@ async function boot(): Promise<void> {
           case 'outline': shading = v ? 'toon' : 'physical'; creature.setShading(shading); break;
           case 'vitality': vitalityOn = v as boolean; if (!vitalityOn) vitality.reset(); break;
           case 'refine': refineOn = v as boolean; if (!refineOn) refiner?.reset(); break;
-          case 'post': stage.setPost(v as boolean); break;
+          // 观众说了算的是"想不想要"；调速器此刻放着「后期」那一级时，要回来的那一刻才真的开
+          case 'post': postWanted = v as boolean; stage.setPost(postWanted && !governor.sheds('post')); break;
           case 'sound': if (v !== controlValues().sound) sound.toggleMute(); break;
           case 'species': break;   // 换物种走重载（表里的 reload），热切不到这里
         }
@@ -946,16 +1037,52 @@ async function boot(): Promise<void> {
 
   // `cameraOn` 声明在弧线那一段（存档要读它，而它有 TDZ）—— 这里只有用它的人
 
-  /** 换一个 Capture。失败时**原来那一个继续跑** —— 画面不许因为切换而停（P3） */
+  /** 摄像头正在打开（按下之后、第一次推理完成之前）。右下角那一行据此写「正在打开」 */
+  let cameraStarting = false;
+
+  /**
+   * 换一个 Capture。失败时**原来那一个继续跑** —— 画面不许因为切换而停（P3）。
+   *
+   * **旧的那一路一直跑到新的这一路第一次推理完成**（docs/48 §3）：`WebcamCapture.start()`
+   * 在第一份结果回来之后才返回。此前它在模型建好就返回，于是换过去之后第一次 detect
+   * （编译着色器：暖缓存 195–231ms，冷缓存 3.7s）冻在已经换上去的画面上 —— 就是"先黑、然后一顿"。
+   *
+   * 判"起没起来"看 `failed`，不看 `lastError`：后者会留着已经兜住的旧账（GPU 回落 CPU），
+   * 拿它判的话，一台好好的、只是跑在 CPU 上的摄像头会被当成坏的丢掉。
+   */
   const swapCapture = async (kind: 'webcam' | 'replay'): Promise<boolean> => {
-    const next = await createCapture(kind);
-    await next.start();
-    if (next.lastError) { console.warn(`[main] capture(${kind}):`, next.lastError); next.stop(); return false; }
-    capture.stop();
-    capture = next;
-    cameraOn = kind === 'webcam';
-    return true;
+    if (kind === 'webcam') cameraStarting = true;
+    try {
+      const next = await createCapture(kind);
+      await next.start();
+      const failed = next.failed ?? (next.lastError !== null);
+      if (failed) { console.warn(`[main] capture(${kind}):`, next.lastError); next.stop(); return false; }
+      if (next.lastError) console.info(`[main] capture(${kind}) 已兜住：`, next.lastError);
+      capture.stop();
+      capture = next;
+      cameraOn = kind === 'webcam';
+      // 换了一条时间线：不在两路之间插值；推理频率照调速器此刻的要求
+      poseClock.reset();
+      (capture as { setCadence?(hz: number): void }).setCadence?.(inferHz);
+      return true;
+    } finally {
+      if (kind === 'webcam') cameraStarting = false;
+    }
   };
+
+  // 摄像头中途断了（拔线、被别的程序占走）：换回录像，并且说一句（docs/48 §5）。
+  // 不在帧循环里做：换 capture 是异步的，帧循环里不 await。1 秒看一次就够。
+  let lostHandled = false;
+  setInterval(() => {
+    const lost = cameraOn && (capture as { lost?: boolean }).lost === true;
+    if (!lost) { lostHandled = false; return; }
+    if (lostHandled || cameraStarting) return;
+    lostHandled = true;
+    void swapCapture('replay').then((ok) => {
+      if (ok) showNotice(COPY.exits.cameraLost, { corner: 'bottom-right' });
+      else lostHandled = false;
+    });
+  }, 1000);
 
   const exits = mountExits({
     enabled: flags.exits,
@@ -973,6 +1100,9 @@ async function boot(): Promise<void> {
         return director.currentId === HANDED_BACK_ACT;
       },
       cameraOn: () => cameraOn,
+      cameraStarting: () => cameraStarting,
+      // 手移上来就开始取模型、建图（worker 里，不问权限）。按下时那十几 MB 和那几百毫秒已经花过了
+      cameraIntent: () => { void import('./capture/webcam.ts').then((m) => m.prewarmPose(flags.model ?? undefined)).catch(() => {}); },
       setCamera: async (on) => {
         await swapCapture(on ? 'webcam' : 'replay');
         return cameraOn;
