@@ -86,6 +86,15 @@ export interface Creature {
   setArc(progress: number): void;
   readonly arc: number;
 
+  /**
+   * 伴随身体（docs/50 §5.1）：画面里其余几个人，每人一具，**共用这一份 genome 和这一组桶**。
+   * 每帧调一次（空数组 = 只有主身体）。它们的实例排在主身体后面，描边外壳只数主身体那几份；
+   * 颜色走 `instanceColor`，不开新桶。`companions` 选项为 0 时这一条什么都不做。
+   */
+  setCompanions(list: readonly Companion[]): void;
+  /** 伴随身体在场时主身体留不留描边（`creature/people-budget.ts` 的结论） */
+  setOutlineWithCompanions(on: boolean): void;
+
   /** 挂到 scene 上的根节点 */
   readonly object: THREE.Group;
   readonly genome: Genome | null;
@@ -113,6 +122,23 @@ export interface CreatureOptions {
    * `?theseus=off` 时给 0：没有替换，名额全给交叉淡入。
    */
   replaceSlots?: number;
+  /**
+   * 最多几具伴随身体（`?people=` − 1，docs/50）。缺省 0 = 这一版之前的那条路：
+   * 桶上不挂 `instanceColor`（挂上会多一个着色器变体），`setCompanions` 是 no-op。
+   */
+  companions?: number;
+}
+
+/** 一具伴随身体这一帧的样子。骨架是它自己的人的；站位是整体平移（米），不进挂载数学 */
+export interface Companion {
+  skeleton: Skeleton;
+  presence: Presence;
+  /** 乘在材质上的整体色（`core/people.ts` 的 `tintFor`） */
+  tint: readonly [number, number, number];
+  dx: number;
+  dz: number;
+  /** 额外的整体缩放 0..1（开场团块还没长出零件时是 0：伴随身体跟着主身体一起长出来）。缺省 1 */
+  scale?: number;
 }
 
 interface Swap {
@@ -149,6 +175,13 @@ const smoothstep = (x: number) => {
   return t * t * (3 - 2 * t);
 };
 
+/** 在场缩放：ENTERING 长出来，LEAVING 缩回去（docs/05 §5）。主身体和伴随身体同一条曲线 */
+const presenceScale = (presence: Presence | null | undefined): number =>
+  presence?.state === 'ENTERING' ? smoothstep(presence.transition)
+    : presence?.state === 'LEAVING' ? 1 - smoothstep(presence.transition)
+      : presence?.state === 'IDLE' ? 0
+        : 1;
+
 const DEFAULT_COLOR: [number, number, number] = [0.78, 0.77, 0.75];
 
 /**
@@ -161,6 +194,15 @@ const bucketKey = (partId: string, mirrored: boolean, materialId: string) =>
 export function createCreature(opt: CreatureOptions): Creature {
   const library = opt.library;
   const maxInstances = opt.maxInstances ?? BUDGET.maxInstances;
+  const companionsMax = Math.max(0, Math.floor(opt.companions ?? 0));
+  let companions: readonly Companion[] = [];
+  let outlineWithCompanions = true;
+  /** 伴随身体每一帧的渲染表（复用同一个对象） */
+  const renderC: Partial<Record<SlotKey, SlotRender[]>> = {};
+  /** 这一帧每个桶里主身体占几份（描边外壳只画这几份） */
+  const primaryCounts = new Map<string, number>();
+  /** 这一帧伴随身体实例的颜色，下标 = 实例序号 − 主身体实例数 */
+  const tints: Array<readonly [number, number, number]> = [];
 
   const object = new THREE.Group();
   object.name = 'creature';
@@ -325,6 +367,12 @@ export function createCreature(opt: CreatureOptions): Creature {
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       mesh.count = 0;
+      // 伴随身体的颜色（docs/50 §5.1）。**建桶时就挂上**，不是等第二个人进画才挂：
+      // 半路挂上会换管线（NodeMaterial 按 `object.instanceColor` 选分支），而管线编译发生在帧循环里。
+      // 白色 = 原色，主身体乘 1 一个像素都不变。单人（companions = 0）不挂，管线和这一版之前逐字相同
+      if (companionsMax > 0) {
+        mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3).fill(1), 3);
+      }
       object.add(mesh);
       // 描边外壳：同一块几何、同一份实例矩阵，只换材质和面向。
       // `renderOrder = -1` 让它先画 —— 不是为了正确性（深度测试已经保证了遮挡关系），
@@ -424,10 +472,7 @@ export function createCreature(opt: CreatureOptions): Creature {
       pumpQueue();
 
       // 2. 在场缩放：ENTERING 长出来，LEAVING 缩回去（docs/05 §5）
-      const pres = presence?.state === 'ENTERING' ? smoothstep(presence.transition)
-        : presence?.state === 'LEAVING' ? 1 - smoothstep(presence.transition)
-        : presence?.state === 'IDLE' ? 0
-        : 1;
+      const pres = presenceScale(presence);
 
       // 3. 这一帧每个槽位画什么
       for (const key of ALL_SLOT_KEYS) {
@@ -454,12 +499,47 @@ export function createCreature(opt: CreatureOptions): Creature {
         return;
       }
 
+      // 4b. 伴随身体（docs/50 §5.1）：同一份 genome、同一张交接表，各自的骨架与在场缩放。
+      // 实例**接在主身体后面** —— 每个桶里主身体那几份在前，描边外壳因此只要一个 count 就只画主身体。
+      // 站位是整体平移：写在矩阵的平移列上，挂载数学一行不碰（落地只动 y，平移 x/z 不影响它）
+      const primaryN = instances.length;
+      tints.length = 0;
+      for (const c of companionsMax > 0 ? companions : []) {
+        const cp = presenceScale(c.presence) * Math.max(0, Math.min(1, Number.isFinite(c.scale) ? c.scale! : 1));
+        if (cp <= 1e-3 || !c.skeleton) continue;
+        for (const key of ALL_SLOT_KEYS) {
+          const pick = genome.slots?.[key];
+          const s = active.get(key);
+          renderC[key] = s?.kind === 'replace' ? replaceRenders(key, s.from, s.to, s.t, cp)
+            : s ? crossfadeRenders(key, s.from, s.to, s.t, cp)
+              : pick ? [{ partId: pick.partId, materialRole: pick.materialRole, scale: cp }] : [];
+        }
+        let extra: PartInstance[];
+        try {
+          extra = assemble(genome, c.skeleton, library, { render: renderC, maxInstances });
+        } catch {
+          continue;   // 一具伴随身体摆不出来不拖垮主身体（P2）
+        }
+        const dx = Number.isFinite(c.dx) ? c.dx : 0, dz = Number.isFinite(c.dz) ? c.dz : 0;
+        for (const inst of extra) {
+          inst.matrix[12] += dx;
+          inst.matrix[14] += dz;
+          instances.push(inst);
+          tints.push(c.tint);
+        }
+      }
+      const withCompanions = instances.length > primaryN;
+      const outlineOn = !withCompanions || outlineWithCompanions;
+
       // 5. 分桶 → 写 InstancedMesh
       counts.clear();
       specs.clear();
-      for (const inst of instances) {
+      primaryCounts.clear();
+      for (let i = 0; i < instances.length; i++) {
+        const inst = instances[i];
         const key = bucketKey(inst.partId, inst.mirrored, materialIdFor(inst.materialRole));
         counts.set(key, (counts.get(key) ?? 0) + 1);
+        if (i < primaryN) primaryCounts.set(key, (primaryCounts.get(key) ?? 0) + 1);
         if (!specs.has(key)) specs.set(key, inst);
       }
 
@@ -469,7 +549,9 @@ export function createCreature(opt: CreatureOptions): Creature {
       cursor.clear();
       for (const [key, n] of counts) {
         const spec = specs.get(key)!;
-        const e = entryFor(key, spec.partId, materialIdFor(spec.materialRole), spec.mirrored, n, spec.slot);
+        // 有伴随身体的时候按"每具一份"预留容量：第二个人进画不重建桶
+        const need = companionsMax > 0 ? Math.max(n, (primaryCounts.get(key) ?? 1) * (1 + companionsMax)) : n;
+        const e = entryFor(key, spec.partId, materialIdFor(spec.materialRole), spec.mirrored, need, spec.slot);
         e.mesh.count = n;
         e.mesh.visible = true;
         e.idleFrames = 0;
@@ -477,11 +559,15 @@ export function createCreature(opt: CreatureOptions): Creature {
         triangles += n * e.trisPerInstance;
         drawCalls++;
         if (e.outline) {
-          e.outline.count = n;
-          e.outline.visible = true;
-          // 外壳的面和 draw 都要报出来。少报的那一份不会因为没写下来就不提交（P21）
-          triangles += n * e.trisPerInstance;
-          drawCalls++;
+          const shell = outlineOn ? (primaryCounts.get(key) ?? 0) : 0;
+          e.outline.count = shell;
+          e.outline.visible = shell > 0;
+          // 外壳的面和 draw 都要报出来。少报的那一份不会因为没写下来就不提交（P21）；
+          // 反过来，count 为 0 的外壳不提交，也就不报
+          if (shell > 0) {
+            triangles += shell * e.trisPerInstance;
+            drawCalls++;
+          }
         }
         if (!library.isLoaded(e.partId)) placeholders += n;
       }
@@ -493,7 +579,8 @@ export function createCreature(opt: CreatureOptions): Creature {
         if (++e.idleFrames > IDLE_FRAMES_BEFORE_DISPOSE) disposeEntry(key);
       }
 
-      for (const inst of instances) {
+      for (let k = 0; k < instances.length; k++) {
+        const inst = instances[k];
         const key = bucketKey(inst.partId, inst.mirrored, materialIdFor(inst.materialRole));
         const e = meshes.get(key);
         if (!e) continue;
@@ -501,10 +588,18 @@ export function createCreature(opt: CreatureOptions): Creature {
         if (i >= e.capacity) continue;
         tmp.fromArray(inst.matrix);
         e.mesh.setMatrixAt(i, tmp);
+        const col = e.mesh.instanceColor;
+        if (col) {
+          const c = k < primaryN ? null : tints[k - primaryN];
+          const a = col.array as Float32Array;
+          a[i * 3] = c ? c[0] : 1; a[i * 3 + 1] = c ? c[1] : 1; a[i * 3 + 2] = c ? c[2] : 1;
+        }
         cursor.set(key, i + 1);
       }
       for (const [key, e] of meshes) {
-        if (counts.has(key)) e.mesh.instanceMatrix.needsUpdate = true;
+        if (!counts.has(key)) continue;
+        e.mesh.instanceMatrix.needsUpdate = true;
+        if (e.mesh.instanceColor) e.mesh.instanceColor.needsUpdate = true;
       }
 
       stats.instances = instances.length;
@@ -579,6 +674,11 @@ export function createCreature(opt: CreatureOptions): Creature {
       applyArcToMaterials();
     },
     get arc() { return arc; },
+
+    setCompanions(list) {
+      companions = companionsMax > 0 && Array.isArray(list) ? list.slice(0, companionsMax) : [];
+    },
+    setOutlineWithCompanions(on) { outlineWithCompanions = !!on; },
 
     get object() { return object; },
     get genome() { return genome; },

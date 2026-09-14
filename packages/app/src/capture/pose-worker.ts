@@ -51,16 +51,31 @@ async function restoreFactory(loaderPath: string): Promise<void> {
   if (mod.default && !g.ModuleFactory) g.ModuleFactory = mod.default;
 }
 
+/** 图正在按新的 `numPoses` 重建：这期间来的帧回 `fail`（主线程清掉在途、下一帧再来） */
+let reconfiguring = false;
+
 ctx.onmessage = (ev) => {
   const m = ev.data;
   if (m.type === 'init') void init(m);
   else if (m.type === 'frame') onFrame(m);
+  else if (m.type === 'options') void reconfigure(m.numPoses);
 };
+
+/** `numPoses` 只认 1..8 的整数；上限在主线程那一侧是 `PEOPLE.hardMax`，这里只防一个坏消息 */
+const posesOf = (n: unknown): number => (typeof n === 'number' && Number.isFinite(n) ? Math.max(1, Math.min(8, Math.round(n))) : 1);
+
+async function reconfigure(n: number): Promise<void> {
+  const lm = landmarker;
+  if (!lm) return;
+  reconfiguring = true;
+  try { await lm.setOptions({ numPoses: posesOf(n) }); } catch { /* 改不了就还是原来那个数：姿态照跑 */ }
+  finally { reconfiguring = false; }
+}
 
 async function init(m: Extract<PoseIn, { type: 'init' }>): Promise<void> {
   try {
     const fileset: Fileset = { wasmLoaderPath: m.wasmLoaderPath, wasmBinaryPath: m.wasmBinaryPath };
-    const opts = { runningMode: 'VIDEO' as const, numPoses: 1, outputSegmentationMasks: false };
+    const opts = { runningMode: 'VIDEO' as const, numPoses: posesOf(m.numPoses), outputSegmentationMasks: false };
     let backend: 'GPU' | 'CPU' = 'GPU';
     let warning: string | null = null;
     try {
@@ -120,8 +135,8 @@ function onFrame(m: Extract<PoseIn, { type: 'frame' }>): void {
   const src = m.frame;
   try {
     const lm = landmarker;
-    if (!lm) {
-      ctx.postMessage({ type: 'fail', stamp: m.stamp, error: '模型还没就位' });
+    if (!lm || reconfiguring) {
+      ctx.postMessage({ type: 'fail', stamp: m.stamp, error: lm ? '正在按新的人数重建' : '模型还没就位' });
       return;
     }
     // MediaPipe 要求时间戳严格递增，否则抛
@@ -141,6 +156,17 @@ function onFrame(m: Extract<PoseIn, { type: 'frame' }>): void {
       screen: found && screen?.length ? screen.map(toLandmark) : null,
       score: found ? overallScore(screen, world!) : 0,
     };
+    // 其余几个人（`numPoses > 1`）。单人时这一段一次都不进 —— 消息和这一版之前逐字相同
+    const n = res.worldLandmarks?.length ?? 0;
+    if (n > 1) {
+      out.others = [];
+      for (let i = 1; i < n; i++) {
+        const w = res.worldLandmarks[i];
+        if (!w?.length) continue;
+        const sc = res.landmarks?.[i];
+        out.others.push({ world: w.map(toLandmark), screen: sc?.length ? sc.map(toLandmark) : null, score: overallScore(sc, w) });
+      }
+    }
     (res as { close?: () => void }).close?.();
     ctx.postMessage(out);
     if (m.mask && segmenter) segment(src, stamp);

@@ -22,12 +22,15 @@ import { arcPresent, createArc, type ArcState } from '../../core/src/arc.ts';
 import { makeGenome, toPlaceholderGenome } from '../../core/src/genome.ts';
 import { blendSkeletons, remapSkeleton, type BodyPlan } from '../../core/src/bodyplan.ts';
 import { mulberry32 } from '../../core/src/rng.ts';
-import { AUTOFRAME, CAPTURE, GOVERNOR, NASCENT, REFINE, STAGE } from '../../core/src/tuning.ts';
+import { createPeopleTracker, shiftSkeleton, type PeopleFrame } from '../../core/src/people.ts';
+import { AUTOFRAME, BUDGET, CAPTURE, GOVERNOR, NASCENT, REFINE, STAGE } from '../../core/src/tuning.ts';
 import type { Genome, MotionFeatures, PartMeta, Presence, Skeleton, SlotKey, SlotPick, Tier } from '../../core/src/types.ts';
 
 import { createCapture, type Capture } from './capture/capture.ts';
 import { createPartLibrary } from './assets/library.ts';
 import { createCreature } from './creature/creature.ts';
+import { createCompanions, createPipes } from './creature/companions.ts';
+import { bodyFill, planPeople } from './creature/people-budget.ts';
 import { makeTheseus, swapOneSlot } from './creature/theseus-wire.ts';
 import { resolveShading, type ShadingId } from './creature/shading.ts';
 import { createMassBody } from './creature/mass.ts';
@@ -386,6 +389,8 @@ async function boot(): Promise<void> {
       const v = (capture as { video?: HTMLVideoElement }).video;
       return !!v?.srcObject;
     },
+    // 多人（docs/50 §6.2）：其余被看见的人淡淡地画出来。`people` 声明在下面，这个闭包第一次被调用时它早已初始化
+    others: () => (people?.frame?.tracks ?? []).filter((t) => t.missing === 0 && !t.primary).map((t) => ({ pose: t.pose, bodied: t.selected })),
   });
 
   // ── 4c. 左下角那块读数（`ui/readout.ts`）──────────────────────────────────
@@ -433,18 +438,19 @@ async function boot(): Promise<void> {
     species: theme ?? null,
     live: () => cameraOn,
   });
-  const stabilizer = createStabilizer();
+  // `let`：多人时主身体交接，接班那个人自己的那一套滤波器换进来（docs/50 §3.3）。单人时从不重新赋值
+  let stabilizer = createStabilizer();
   // 时域精化在**原始 landmark 上**做，在 buildSkeleton 之前 ——
   // 骨架是从 landmark 推出来的，先抖后建等于把抖动烘进骨长和朝向里，
   // 后面再滤就只能滤掉症状。顺序不能反（docs/24 §2）。
   // 建出来就不再拆：这两个是控件条上唯一**必须能当场比**的两项
   //（"它为什么看起来像活的"），而重建一次精化器等于丢掉整条滚动中位数。
   // 所以开关是一个 boolean，不是一个 null —— 关掉时它不参与那一帧，仅此而已。
-  const refiner = REFINE.enabled ? createRefiner() : null;
+  let refiner = REFINE.enabled ? createRefiner() : null;
   let refineOn = flags.refine;
   // 生命力在 remapSkeleton **之后**才作用（见帧循环）：延迟要发生在**那具身体**的链上，
   // 不是人的链上。反了的话四足的前腿会带着人类肩膀的延迟。
-  const vitality = createVitality();
+  let vitality = createVitality();
   let vitalityOn = flags.vitality;
   const motion = createMotion();
   // 逐骨运动能量：`motion` 给的是整具的一个数，回答不了"他现在在用哪根肢体"，
@@ -465,7 +471,11 @@ async function boot(): Promise<void> {
   // 而描边是着色属性不是几何属性（docs/12），所以它只能在这里被决定。
   let shading: ShadingId = resolveShading(theme, flags.shading);
   // 忒修斯开着时给替换空着一个交接名额：它当帧开始、不排队，名额满了就只能越过 draw call 预算叠上去
-  const creature = createCreature({ library, shading, replaceSlots: flags.theseus.on ? 1 : 0 });
+  // 多人（docs/50）只在刚体身体上开：团块 / 点场是另一种表达，没有桶可共用 —— 那两种物种上 `?people=` 按 1 走
+  const multi = flags.people > 1 && !isMass && !isSwarm;
+  const creature = createCreature({ library, shading, replaceSlots: flags.theseus.on ? 1 : 0, companions: multi ? flags.people - 1 : 0 });
+  // 团块 / 点场上多人不开：别让 worker 白白按三个人跑检测器（docs/50 §1.2）
+  if (!multi) capture.setPeople?.(1);
   const massBody = isMass ? createMassBody({ library, theme: theme ?? undefined }) : null;
   const swarmBody = isSwarm ? createSwarmBody({ library, theme: theme ?? undefined }) : null;
   // 开场那一具：tier 0 是一个还没分化出零件的团块，tier ≥ 1 才长出刚体件。
@@ -651,6 +661,31 @@ async function boot(): Promise<void> {
   };
   morph(tier);
 
+  /**
+   * ── 多人入镜（`core/src/people.ts` / `creature/companions.ts`，docs/50）─────────────
+   *
+   * `?people=1`（缺省）时整块是 null，下面每一处都是 `people?.` / `if (people)`：单人那条路一个对象都不多。
+   * 跟踪器给身份和"谁拿到身体"，伴随身体那一半算每个人的骨架，creature 把它们画进同一组桶。
+   * 预算（几具、描边留不留）开机按物种算一次，换描边时重算（`creature/people-budget.ts`）。
+   */
+  const people = multi ? {
+    tracker: createPeopleTracker({ cap: flags.people }),
+    bodies: createCompanions({ seed: () => seed }),
+    /** 此刻的主身体轨迹 id。和跟踪器的 `primary` 不一样的那一帧就是交接 */
+    primary: null as number | null,
+    plan: planPeople(flags.people, bodyFill(library.index, theme ?? '', shading, flags.theseus.on, library.rejected), shading),
+    /** 调速器放下「人数」那一级：只留主身体 */
+    shed: false,
+    frame: null as PeopleFrame | null,
+  } : null;
+  const replanPeople = (): void => {
+    if (!people) return;
+    people.plan = planPeople(flags.people, bodyFill(library.index, theme ?? '', shading, flags.theseus.on, library.rejected), shading);
+    creature.setOutlineWithCompanions(people.plan.outlineWithCompanions);
+  };
+  replanPeople();
+  if (people) console.info(`[people] 上限 ${flags.people} · 预算放得下 ${people.plan.bodies} 具 · 伴随身体在场时描边${people.plan.outlineWithCompanions ? '留着' : '让位'}（一具最坏 ${Math.round(people.plan.fill)} 面）`);
+
   // ── 玩法扩展点（docs/16）。帧循环固定，玩法挂在旁边 ───────────────────────
   const director = createDirector(ACTS);
   const world: World = {
@@ -682,6 +717,8 @@ async function boot(): Promise<void> {
     post: (shed) => stage.setPost(postWanted && !shed),
     dpr: (shed) => renderer.setPixelRatio(shed ? Math.min(devicePixelRatio, GOVERNOR.dprShed) : Math.min(devicePixelRatio, GOVERNOR.dprMax)),
     ui: (shed) => { uiShed = shed; },
+    // 单人时 `people` 是 null：这一级是 no-op（docs/50 §5.4）
+    people: (shed) => { if (people) people.shed = shed; },
   });
   // 调试探针（只在 ?debug=1 下挂）：直接拨到第几级，量"拨开关本身"是不是一次长任务（docs/48 §10）。
   // 调速器自己下一次变级时 `wireGovernor` 只拨和它不一样的那几个，所以拨乱了也会被收回来
@@ -717,12 +754,36 @@ async function boot(): Promise<void> {
     }
 
     // 采集端手上最新的那一份 —— **原话**，小屏幕和读数吃它（它们的职责是说实话）
-    const live = capture.latest();
+    // 多人（docs/50）：跟踪器给身份，"主身体"那个人的那一份才是 `live` —— 小屏、读数、取景、声音都跟着他。
+    // 单人时 `people` 是 null，`live` 就是 `capture.latest()`，一个字都不变
+    const crowd = people ? people.tracker.update(capture.latestAll?.() ?? (capture.latest() ? [capture.latest()!] : []), dt) : null;
+    if (people) people.frame = crowd;
+    const live = crowd ? (crowd.tracks.find((t) => t.id === crowd.primary && t.missing === 0)?.pose ?? null) : capture.latest();
+    // 主身体的人丢了一阵又被认回来：姿态时钟和滤波器不许在"之前"和"之后"之间插值（docs/50 §2.4）——
+    // 中间可能隔着一次换姿势，甚至是另一个人被认成了他。插过去的结果是一具摊在地上的星形（2026-09-14 无头取证撞到的）
+    if (people && crowd?.tracks.some((t) => t.primary && t.reacquired)) {
+      poseClock.reset(); refiner?.reset(); stabilizer.reset(); vitality.reset();
+    }
+    if (people && crowd && crowd.primary !== people.primary) {
+      // 交接（docs/50 §3.3）：上一个主身体变成一具正在溶掉的伴随身体，停在他最后的样子和站位上；
+      // 接班的人自己那一套滤波器换进主通道（他的身体已经在台上，不从零热身，也不吃上一个人的骨长）
+      if (people.primary !== null && crowd.primary !== null) {
+        const theirs = people.bodies.takePipes(crowd.primary);
+        people.bodies.retire(people.primary, { refiner, stabilizer, vitality }, lastSkeleton, 0);
+        const next = theirs ?? createPipes();
+        refiner = next.refiner; stabilizer = next.stabilizer; vitality = next.vitality;
+        poseClock.reset();
+        if (hud) console.info(`[people] 主身体 #${people.primary} → #${crowd.primary}`);
+      }
+      people.primary = crowd.primary;
+    }
     // 身体吃的那一份：两次推理之间插值，推理停了先保持再交出 null（`capture/pose-clock.ts`）。
     // 此前这里直接是 `capture.latest()`：30Hz 的结果被 60–120Hz 的帧连着吃好几次，动作一大身体就一顿一顿地追。
     poseClock.observe(live, capture.inferredAt ?? live?.t ?? Number.NaN);
     const raw = poseClock.sample(tMs);
-    const detected = raw !== null && raw.score > CAPTURE.minScore;
+    // "有没有人"：多人时任何一具身体的人此刻被看见就算（主身体被挡住一下，弧线不停、在场不掉，docs/50 §3.2）
+    const detected = (raw !== null && raw.score > CAPTURE.minScore)
+      || (crowd !== null && crowd.tracks.some((t) => t.selected && t.missing === 0));
     const p = presence.update(detected, dt);
     // 弧线吃的是**未经时间停滞缩放的 dt**（和 presence / evolution 同一条理由：
     // 升档那 0.15 秒是给身体的顿挫，不是给时间轴的）。在不在场用已有的 `Presence`
@@ -753,6 +814,17 @@ async function boot(): Promise<void> {
     framing = decide(framingPolicy, framer.update(live, dt));
     legHold = stepToward(legHold, framing.holdLegs ? 1 : 0, dt, AUTOFRAME.legBlendSeconds);
     preview?.update(live, dt);
+
+    // 伴随身体（docs/50 §4）：每个人各自的骨架、在场、站位。开场团块还没长出零件时（`emergence` 0）它们也不长
+    const crowdOut = people && crowd ? people.bodies.update(crowd, {
+      dt, plan: activePlan(), drift: planDrift(), refineOn, vitalityOn,
+      bodies: people.shed ? 1 : people.plan.bodies,
+      scale: nascent ? nascent.stats.emergence : 1,
+    }) : null;
+    if (people) {
+      creature.setCompanions(crowdOut?.companions ?? []);
+      stage.setGroup(crowdOut?.groupWidth ?? 0, crowdOut?.groupHeight ?? 0);
+    }
 
     if (raw) {
       // 运动特征算在**人的**骨架上：驱动演化的是观众实际动了多少，
@@ -786,6 +858,9 @@ async function boot(): Promise<void> {
       lastSkeleton = vitalityOn
         ? vitality.apply(planned, lastFeatures, dt, drift > 0 ? plan : 'rig')
         : planned;
+      // 多人时主身体也有站位（和伴随身体一起排，docs/50 §4.2）。平移在生命力之后：它的状态链上存的是没挪过的那一份。
+      // 单人时 primaryX 恒为 0，`shiftSkeleton` 原样返回同一个对象
+      if (crowdOut) lastSkeleton = shiftSkeleton(lastSkeleton, crowdOut.primaryX);
       stage.frame(lastSkeleton);   // 取景按**重映射之后**的身体算：四足是横的矮的
       // 那具身体的重量真的落在地上。判据和上面那行画的接触阴影共用同一批落点，
       // 所以听到的那一下和看到的那一摊影子不可能对不上。dt 不吃 timeScale（同 sound.update）
@@ -940,6 +1015,8 @@ async function boot(): Promise<void> {
       visits.reset();
       groundSense.reset();   // 换了一个人：下一次观测重新立基准，不在进场那一帧砸一下
       swapGate.reset();      // 闸里压着的那件属于上一个人（调速器本身不归零：机器还是那台机器）
+      // 多人：所有人都走了才会走到这里（在场判定看的是"任何一具身体的人"）。身份、伴随身体、交接状态一起收
+      if (people) { people.tracker.reset(); people.bodies.reset(); people.primary = null; people.frame = null; creature.setCompanions([]); stage.setGroup(0, 0); }
       lastSkeleton = null;
       evoTier = 0;
       tier = (flags.tier ?? 0) as Tier;
@@ -974,7 +1051,8 @@ async function boot(): Promise<void> {
 
     // 景别。中景只给人形：身体方案一开始漂移，"上半身"就不再是一个取景（四足没有上半身），给全景。
     // 帧循环在降级或无人降帧时镜头不做动画（直接切、跟随冻结）—— 画面不动永远比卡着动好
-    stage.setShot(framing.shot === 'upper' && planDrift() <= 0 ? 'upper' : 'full', {
+    // 多人：台上有伴随身体时一律全景（docs/50 §4.3 —— 三个人的中景要么切掉两侧的人，要么不再是中景）
+    stage.setShot(framing.shot === 'upper' && planDrift() <= 0 && !crowdOut?.companions.length ? 'upper' : 'full', {
       reduced: reducedMotion?.matches ?? false,
       // 调速器放到「后期」那一级（docs/48 §4 的阶梯第 4 级）才算真的在砍：前三级（墨色采样、
       // 换件延后、推理降频）不会让一段 1 秒的运镜读成卡顿，那时候照常动
@@ -1002,6 +1080,24 @@ async function boot(): Promise<void> {
     if (!uiShed) readout?.update(live, lastFeatures, capture.fps, dt);
 
     if (hud) {
+      // 多人取证（docs/50 §10）：这一帧**真的交给身体的**骨架和站位。只在 `?debug=1` 下写，
+      // 无头 Chrome 截图的同一刻用 CDP 读它 —— 画面上看到的形状和骨架的数对不对得上，一眼就分得清是"人那一半"还是"画那一半"
+      if (people) {
+        const brief = (sk: Skeleton | null) => sk ? {
+          height: +sk.height.toFixed(3),
+          pelvis: sk.joints.pelvis?.map((v) => +v.toFixed(3)),
+          head: sk.joints.headCenter?.map((v) => +v.toFixed(3)),
+        } : null;
+        (globalThis as { __people?: unknown }).__people = {
+          primary: crowd?.primary ?? null,
+          primaryX: crowdOut?.primaryX ?? 0,
+          primarySkeleton: brief(lastSkeleton),
+          companions: (crowdOut?.companions ?? []).map((c) => ({
+            dx: +c.dx.toFixed(3), dz: c.dz, scale: c.scale, presence: c.presence.state, ...brief(c.skeleton),
+          })),
+          tracks: (crowd?.tracks ?? []).map((t) => ({ id: t.id, cx: +t.cx.toFixed(3), scale: +t.scale.toFixed(3), missing: +t.missing.toFixed(2), selected: t.selected, primary: t.primary })),
+        };
+      }
       const s = body.stats;
       hud.update(loop.stats, {
         instances: (s as { instances?: number }).instances ?? 0, triangles: s.triangles,
@@ -1014,6 +1110,9 @@ async function boot(): Promise<void> {
         theseus: theseus?.state,
         // 取景模式此刻是什么、为什么、量到了什么（docs/49 §落地：切换必须实时看得见）
         framing: { reading: framer.current, decision: framing, legHold, shot: stage.shot.progress },
+        // 多人（docs/50）：每条轨迹一行 —— id、主 / 伴 / 无、在场多久、配对代价
+        people: people && crowd ? { frame: crowd, cap: flags.people, bodies: people.plan.bodies, outlineYields: !people.plan.outlineWithCompanions, shed: people.shed } : undefined,
+        instancesBudget: people ? BUDGET.maxInstances * (crowdOut?.visible ?? 1) : undefined,
         // `camera` 只有 `WebcamCapture` 有（回放没有摄像头可选），所以按可选字段读 ——
         // 和上面 `instances` 同一个写法，不为一个显示字段去动 `Capture` 契约。
         cam: (capture as { camera?: { hud: string } | null }).camera?.hud,
@@ -1053,6 +1152,7 @@ async function boot(): Promise<void> {
     refine: refineOn && refiner !== null,
     post: stage.post,
     framing: framingPolicy,
+    people: String(flags.people),
   });
 
   // ── 控件条（`ui/controls.ts`）──────────────────────────────────────────────
@@ -1073,7 +1173,8 @@ async function boot(): Promise<void> {
           case 'act': case 'form': intent = setOverlay(intent, id, v as string | null); break;
           case 'scene': stage.setScene(v as string); break;
           // 团块 / 点场上表里不给这一项（`available`），不会走到这里
-          case 'outline': shading = v ? 'toon' : 'physical'; creature.setShading(shading); break;
+          // 描边一换，多人的预算要重算：伴随身体在场时描边留不留，取决于它是几遍（docs/50 §5.2）
+          case 'outline': shading = v ? 'toon' : 'physical'; creature.setShading(shading); replanPeople(); break;
           case 'vitality': vitalityOn = v as boolean; if (!vitalityOn) vitality.reset(); break;
           case 'refine': refineOn = v as boolean; if (!refineOn) refiner?.reset(); break;
           // 观众说了算的是"想不想要"；调速器此刻放着「后期」那一级时，要回来的那一刻才真的开
@@ -1082,6 +1183,7 @@ async function boot(): Promise<void> {
           case 'framing': framingPolicy = v as FramingPolicy; break;
           case 'sound': if (v !== controlValues().sound) sound.toggleMute(); break;
           case 'species': break;   // 换物种走重载（表里的 reload），热切不到这里
+          case 'people': break;    // 人数走重载（表里的 reload：单人身体不挂 instanceColor），热切不到这里
         }
       },
       // 叠加底下弧线此刻在哪：玩法 = 导演演的那段；形体 = 物种到场了没有
@@ -1129,6 +1231,8 @@ async function boot(): Promise<void> {
       // 换了一条时间线：不在两路之间插值；推理频率照调速器此刻的要求
       poseClock.reset();
       (capture as { setCadence?(hz: number): void }).setCadence?.(inferHz);
+      // 团块 / 点场上多人不开：别让 worker 白白按三个人跑检测器（docs/50 §1.2）
+      capture.setPeople?.(multi ? flags.people : 1);
       return true;
     } finally {
       if (kind === 'webcam') cameraStarting = false;

@@ -6,6 +6,7 @@ import { AUTOFRAME, BUDGET } from '../../../core/src/tuning.ts';
 import type { FramingDecision, FramingReading } from '../../../core/src/autoframe.ts';
 import { MOVEMENT_LABELS, MOVEMENT_NUMERALS, type ArcState } from '../../../core/src/arc.ts';
 import type { TheseusState } from '../../../core/src/theseus.ts';
+import type { PeopleFrame } from '../../../core/src/people.ts';
 import { label } from './degrade.ts';
 import type { FrameStats } from './safe-frame.ts';
 
@@ -43,6 +44,48 @@ export interface HudCounts {
    * 模式、为什么、在这个模式里待了多久，以及分类器量到的数和它们各自的门限。
    */
   framing?: FramingHud;
+  /**
+   * 多人入镜（`core/src/people.ts`，docs/50）。`?people=1` 时是 undefined，整块不挂。
+   * 每条轨迹一行：id、主/伴/无身体、在场多久、丢了多久、这一帧配对的代价 —— 现场调门限的人要看"离配错还差多少"。
+   */
+  people?: PeopleHud;
+  /** 实例数的预算（多人时是一具身体的预算 × 身体数）。缺省 `BUDGET.maxInstances` */
+  instancesBudget?: number;
+}
+
+export interface PeopleHud {
+  frame: PeopleFrame;
+  cap: number;
+  /** 预算放得下几具（`creature/people-budget.ts`） */
+  bodies: number;
+  /** 伴随身体在场时描边让不让位 */
+  outlineYields: boolean;
+  /** 调速器此刻有没有放下「人数」那一级 */
+  shed: boolean;
+}
+
+/**
+ * `people` 那几行的文本。纯函数（`test/people-hud.test.ts`）。
+ * 读法：
+ *   `2/3 人 · 身体上限 2（预算）· 描边让位`
+ *   `#1 主 12.4s · cost 0.21`
+ *   `#3 伴  4.1s · 丢 0.3s`
+ *   `#4 无   1.2s · 候补`（还没转正）/`· 没动过`（海报）/`· 满员`
+ */
+export function formatPeopleRows(p: PeopleHud): string[] {
+  const f = p.frame;
+  const bodies = Math.min(p.cap, p.bodies);
+  const head = `${f.selected.length}/${p.cap} 人 · 身体上限 ${bodies}${p.bodies < p.cap ? '（预算）' : ''}`
+    + `${p.outlineYields ? ' · 描边让位' : ''}${p.shed ? ' · 调速器：只留主身体' : ''}`;
+  const rows = f.tracks.map((t) => {
+    const role = t.primary ? '主' : t.selected ? '伴' : '无';
+    const why = t.selected ? '' : t.state === 'tentative' ? ' · 候补' : !t.moved ? ' · 没动过' : ' · 满员';
+    const miss = t.missing > 0 ? ` · 丢 ${t.missing.toFixed(1)}s` : '';
+    const cost = Number.isFinite(t.cost) ? ` · cost ${t.cost.toFixed(2)}` : '';
+    const back = t.reattached ? ` · 认回 ${t.reattached}` : '';
+    return `#${t.id} ${role} ${t.age.toFixed(1).padStart(5)}s${cost}${miss}${back}${why}`;
+  });
+  return [head, ...rows];
 }
 
 export interface FramingHud {
@@ -139,7 +182,7 @@ export function createHud(opts: { top?: number } = {}): { update(s: FrameStats, 
       el.innerHTML = [
         row('fps', s.fps, BUDGET.minFps, '', true),
         row('cpu', s.cpuMs, BUDGET.maxCpuMsPerFrame, ' ms'),
-        row('instances', c.instances ?? 0, BUDGET.maxInstances),
+        row('instances', c.instances ?? 0, c.instancesBudget ?? BUDGET.maxInstances),
         row('tris', (c.triangles ?? 0) / 1000, BUDGET.maxTriangles / 1000, ' k'),
         row('draws', c.drawCalls ?? 0, BUDGET.maxDrawCalls),
         row('infer', c.inferenceHz ?? 0, 30, ' Hz', true),
@@ -152,6 +195,8 @@ export function createHud(opts: { top?: number } = {}): { update(s: FrameStats, 
         // 取景：非全身的时候换色 —— 一眼看得出"现在不是等身"
         ...(c.framing ? formatFramingRows(c.framing).map((line, i) =>
           `<span style="color:${c.framing!.reading.mode === 'full' ? '#9aa' : '#e8a33d'}">${i ? '           ' : 'framing    '}${line}</span>`) : []),
+        ...(c.people ? formatPeopleRows(c.people).map((line, i) =>
+          `<span style="color:${c.people!.shed ? '#e8a33d' : '#7fb3d5'}">${i ? '           ' : 'people     '}${line}</span>`) : []),
         s.throttled ? '<span style="color:#e8a33d">idle       无人降帧中</span>' : '',
         s.degraded ? `<span style="color:#e0455a">degraded   ${label(s.degraded)}</span>` : '',
         s.errors ? `<span style="color:#e0455a">errors ${s.errors}  ${s.lastError ?? ''}</span>` : '',

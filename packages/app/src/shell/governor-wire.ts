@@ -24,6 +24,8 @@ export const GOVERNOR_SWITCHES: Record<GovernorStep, string> = {
   dpr: 'renderer.setPixelRatio',
   /** 读数的刷新（它不驱动身体） */
   ui: 'uiShed',
+  /** 台上的身体数（docs/50 §5.4）：`people.shed` 为真时伴随身体的预算是 0（帧循环里 `bodies: people.shed ? 1 : …` 读它） */
+  people: 'people.shed',
 };
 
 /** 返回 `apply(level)`：只拨状态变了的那几个开关。开关自己炸了只记一笔 —— 调用方是帧循环 */

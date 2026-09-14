@@ -31,6 +31,13 @@ export interface Capture {
    * 没实现这个字段的一路按 `lastError` 判（回放：只有致命错误才写 lastError）。
    */
   readonly failed?: boolean;
+  /**
+   * 这一帧画面里的全部人（docs/50）。第 0 个就是 `latest()`；其余顺序不保证、不带身份。
+   * 没实现它的一路按 `latest()` 一个人算。**可选**：多人是叠在单人契约上的一层，不改 `latest()` 的意思。
+   */
+  latestAll?(): readonly RawPose[];
+  /** 运行中改人数上限。没实现 = 这一路只认一个人 */
+  setPeople?(n: number): void;
 }
 
 export type CaptureKind = 'webcam' | 'replay';
