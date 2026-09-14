@@ -58,7 +58,7 @@ import { mountLoading } from './shell/loading.ts';
 import { showNotice } from './shell/notice.ts';
 import { isVacantPosition, vacancyOnShow } from './shell/vacancy.ts';
 import { mountNav } from './ui/nav.ts';
-import { announceStageShown } from './ui/page-transition.ts';
+import { announceStageShown, registerFreezable } from './ui/page-transition.ts';
 import { adoptPrepaint } from './choose/ring/first-screen.ts';
 import { mountControls, type Controls } from './ui/controls.ts';
 import { cornerColumn } from './ui/corner.ts';
@@ -1194,6 +1194,9 @@ async function boot(): Promise<void> {
 
   loop.start();
   announceStageShown();
+  // 换页截图之前把舞台冻成一张图：同一个任务里画一帧再拷走（ui/page-transition.ts）。
+  // 只多画那一帧，不碰帧循环的节奏
+  registerFreezable({ canvas: renderer.domElement, render: () => stage.render(renderer) });
 
   // ── 右下角那一列（`ui/exits.ts`）────────────────────────────────────────────
   // 选完物种之后观众此前没有任何出口：换物种只能改地址栏，而现场没有地址栏。

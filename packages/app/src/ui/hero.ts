@@ -30,7 +30,7 @@
 import { COPY, setBi } from './i18n.ts';
 import { markNode } from './mark.ts';
 import { returnLabel, safeFrom } from './return-to.ts';
-import { installPrefetch } from './page-transition.ts';
+import { declareShared, installPageTransitions } from './page-transition.ts';
 
 /**
  * @param backHref 「回到作品」指向哪儿。`/about` 回首页，其余三页回 `/about` ——
@@ -41,8 +41,8 @@ import { installPrefetch } from './page-transition.ts';
  *   **仍然是左边一格**，横带的结构不变，中间照旧什么都没有。
  */
 export function heroMeta(backHref: string, from: string | null = null): HTMLDivElement {
-  // 横带在的页就是文档页或侧室：悬停预取跟着它（docs/47）
-  installPrefetch();
+  // 横带在的页就是文档页或侧室：换页过渡与悬停预取跟着它（docs/47）
+  installPageTransitions();
   const meta = document.createElement('div');
   meta.className = 'ed-hero__meta';
 
@@ -57,6 +57,7 @@ export function heroMeta(backHref: string, from: string | null = null): HTMLDivE
   const fallback = backHref === '/' ? COPY.about.back : returnLabel(backHref) ?? COPY.about.back;
   setBi(back, origin && label ? label : fallback);
 
-  meta.append(back, markNode('span'));
+  // 字标在每一张有横带的页上是同一件东西：换页时它不动（docs/47）
+  meta.append(back, declareShared(markNode('span'), 'mark'));
   return meta;
 }

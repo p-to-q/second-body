@@ -36,6 +36,7 @@
 import { COPY, setBi, cjkClass } from '../ui/i18n.ts';
 import { acquireRingField } from '../choose/ring/field.ts';
 import { holdFirstScreen } from '../choose/ring/first-screen.ts';
+import { brandShown, canTransition, declareShared, morph } from '../ui/page-transition.ts';
 import type { Flags } from './kiosk.ts';
 import '../ui/type.css';
 import './entry.css';
@@ -121,6 +122,8 @@ function titleNode(): HTMLElement {
   en.textContent = COPY.title.en;
   h1.className = 'sb-entry-title sb-bi';
   h1.append(zh, en);
+  // 这一行字和 /about 的巨题是同一件东西；按下「开始」时它挪成选择页左上角的字标（docs/47）
+  declareShared(h1, 'title');
   return h1;
 }
 
@@ -224,7 +227,18 @@ export function mountEntry(flags: Flags): Entry | null {
       // 剥离从这一下开始 —— 但真正开剥要等卡片到齐（见 field.ts 的"闸门"）。
       // 在那之前观众看到的还是那一团在转，而不是一圈空白卡。
       field.play();
-      dismiss(layer);
+      // 巨题不跟着展签一起淡掉：它等选择页左上角的字标挂上，挪过去变成它（docs/47）。
+      // 其余的字当场收起；等不到字标（HANDOFF_WAIT_MS）或不支持过渡，就走原来那条淡出。
+      const title = layer.querySelector<HTMLElement>('.sb-entry-title');
+      if (title && canTransition()) {
+        layer.classList.add('is-handing');
+        document.documentElement.classList.remove('sb-entry-up');
+        void brandShown().then(() => {
+          if (!morph(title, 'mark', () => layer.remove())) layer.remove();
+        });
+      } else {
+        dismiss(layer);
+      }
       // 展签这一份还回去。环和选择页还各自 hold 着，所以底色不会在这里翻 ——
       // 只有深链（`?theme=`，选择页根本不挂）那一条会一路还到 0，那是对的。
       releaseFirstScreen();

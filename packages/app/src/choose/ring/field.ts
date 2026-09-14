@@ -40,6 +40,7 @@ import * as THREE from 'three/webgpu';
 import { RING } from '../../../../core/src/tuning.ts';
 import { CELL_ASPECT, createAtlas } from './atlas.ts';
 import { holdFirstScreen } from './first-screen.ts';
+import { registerFreezable } from '../../ui/page-transition.ts';
 import { MAX_LINKS, MAX_PLANES, createRingMaterial, createRingUniforms } from './sdf.ts';
 
 const TAU = Math.PI * 2;
@@ -1023,6 +1024,9 @@ function createRingField(initial: FieldOptions): RingField {
     }
   })();
 
+  // 换页截图之前冻成一张图（ui/page-transition.ts）：WebGPU 画布出了绘制它的任务就读不到
+  const unfreezable = registerFreezable({ canvas, render: () => { renderer?.render(scene, camera); } });
+
   const handle: RingField = {
     ready,
     canvas,
@@ -1136,6 +1140,7 @@ function createRingField(initial: FieldOptions): RingField {
       canvas.removeEventListener('pointerleave', onPointerLeave);
       canvas.removeEventListener('click', onClick);
       releaseFirstScreen();
+      unfreezable();
       mesh.geometry.dispose();
       material.dispose();
       atlas.dispose();

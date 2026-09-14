@@ -31,7 +31,7 @@ import { isThemeId } from '../shell/kiosk.ts';
 import { mulberry32 } from '../../../core/src/rng.ts';
 import { cjkClass, COPY, setBi } from '../ui/i18n.ts';
 import { markNode } from '../ui/mark.ts';
-import { handOff, stageShown } from '../ui/page-transition.ts';
+import { announceBrand, declareShared, freezeCanvas, handOff, stageShown } from '../ui/page-transition.ts';
 import type { PartLibraryIndex, RawPose, Rng, ThemeDef } from '../../../core/src/types.ts';
 import { acquireRingField, type RingField } from './ring/field.ts';
 import { holdFirstScreen } from './ring/first-screen.ts';
@@ -358,13 +358,17 @@ export async function mountChoose(options: ChooseOptions): Promise<ChooseHandle>
   function handOver(): void {
     const field = carousel;
     carousel = null;
-    // 有平台过渡：卡片那一帧截图，底色、字色、画布一次换完，平台淡过去（ui/page-transition.ts）
-    if (handOff(() => { releaseFirstScreen(); field?.dispose(); ui.root.remove(); })) return;
-    // 没有（旧浏览器 / 减少动态效果）：原来那条路
+    // 先把涨满屏幕的那张卡冻成一张图，再拆环：WebGPU 画布出了绘制它的任务就读不到，
+    // 平台截到的会是透明（docs/47 §4.3）。拆在交棒之前 —— 环的渲染器不和舞台的同时多活一个过渡
+    const still = field ? freezeCanvas({ canvas: field.canvas, render: () => field.advance(0) }) : null;
+    field?.dispose();
+    // 有平台过渡：那张图截下来，底色、字色一次换完，平台淡过去（ui/page-transition.ts）
+    if (handOff(() => { releaseFirstScreen(); still?.remove(); ui.root.remove(); })) return;
+    // 没有（旧浏览器 / 减少动态效果）：原来那条 180ms 淡出，淡的是那张图
     releaseFirstScreen();
-    field?.canvas.classList.add('is-gone');
+    (still ?? field?.canvas)?.classList.add('is-gone');
     setTimeout(() => {
-      field?.dispose();
+      still?.remove();
       ui.root.remove();
     }, 180);
   }
@@ -604,7 +608,9 @@ function buildDom(mount: HTMLElement): Ui {
     <div class="sb-keys"></div>`;
   mount.appendChild(root);
   // 左对齐的那一份：`start` 说的是它落在左上角，不是"选择页的字标长这样"
-  root.querySelector<HTMLElement>('.sb-brand')!.append(markNode('div', 'start'));
+  root.querySelector<HTMLElement>('.sb-brand')!.append(declareShared(markNode('div', 'start'), 'mark'));
+  // 展签的巨题在等它（docs/47）
+  announceBrand();
   const hint = root.querySelector<HTMLElement>('.sb-hint')!;
   setBi(hint, COPY.choose.hint);
   root.querySelector<HTMLElement>('.sb-keys')!.textContent = COPY.choose.keys;

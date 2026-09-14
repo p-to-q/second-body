@@ -60,6 +60,11 @@
   animation: none;
 }
 
+/* 按下「开始」、平台过渡可用时：巨题留在原地等选择页的字标（shell/entry.ts），其余立刻收起。
+   **直接落在静止态上**（visibility，不是一段淡出）：字标一直等不到时，屏幕上也只剩一行巨题 */
+.sb-entry.is-handing { background: transparent; pointer-events: none; animation: none; }
+.sb-entry.is-handing > :not(.sb-entry-title) { visibility: hidden; }
+
 .sb-entry h1 { margin: 0 0 0.5rem; }
 .sb-entry h1 .sb-en { font-size: 0.5em; }
 .sb-entry-lede { color: var(--sb-ink); margin: 0; }

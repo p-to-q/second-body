@@ -16,28 +16,24 @@
  *     所以它自己抄了一份几行的判断 —— 那一份由测试拿这里的函数逐条对。**这一条不靠任何过渡。**
  *  3. **每一跳怎么过**（`TRANSITIONS`）：逐对写着，没有规则替没人想过的一对给答案。
  *
- * ## 跨页过渡整个关着
+ * ## 跨页过渡开着（2026-09-14 第二轮，docs/47 §4.3）
  *
- * 平台的跨页 View Transition 在无头 Chrome 上四轮完整跑，**每一类**量过的跳都出现过整帧纯白
- * （亮度 255、离散度 0）再淡开，连文档页之间也是（08 about → making 在第二对里白了一次，第一对 0 白）。
- * 两次归因都被下一轮推翻：藏掉 GPU 画布与摄像头小屏之后照白；给过渡叠层不透明的底之后照白。
- * 原因没查到，真 GPU 上会不会白这里验证不了（docs/47 §4.3）。一刀切在四轮里 0 白 ——
- * 所以跨页全是 `none`。开回某一对只改一行，但**先在真显示器上量**，再改 `test/transitions.test.ts`。
+ * 第一轮在**无头** Chrome 上量到跨页过渡第一帧整帧纯白，关掉过。第二轮在这台 Mac 的真窗口上
+ * （有 GPU、有显示器）逐类跳各跑 ≥10 次，白帧的记录在 docs/47 §4.3 —— 那张表是开着的依据。
+ * `scripts/transitions/` 里留着有头与无头两种跑法，改这张表之前重跑一遍。
  *
- * 同文档的交棒（选择页 → 舞台，`handoff`）不走跨页快照，03 / 20 两跳六轮 0 白，开着。
+ * 表里每一对都有过渡；**不过渡的只有写了理由、并被测试钉住的那几对**（`NO_TRANSITION_REASONS`）。
  *
  * 单独一个文件的理由和 `ui/exits-url.ts` 一样：node 的测试加载不了 .css，
  * 而"每一对都有定义"恰恰是这里最该有仪表的那一块。
  */
 
-/**
- * 一把尺子。毫秒。docs/23 §0：进 240 / 出 180，出比进快。
- * 曾经有第三档「移 420」给跨页的共享元素用；跨页过渡关掉之后它没有消费者，删了 ——
- * 一个没人取用的令牌只会让下一个人以为某处在用它。
- */
+/** 一把尺子。毫秒。docs/23 §0：进 240 / 出 180，出比进快 */
 export const MOTION = {
   leaveMs: 180,
   enterMs: 240,
+  /** 一件东西（字标、巨题、目录那个词）从上一页的位置挪到这一页。它走的是一段距离，不是一次出现 */
+  moveMs: 420,
   easeEnter: 'cubic-bezier(.16, 1, .3, 1)',
   easeLeave: 'cubic-bezier(.4, 0, 1, 1)',
 } as const;
@@ -47,9 +43,9 @@ export const MOTION = {
  *
  * `ui/controls.css` 记着那条教训：一台被占满的机器上（实测 1.7 fps）一次 180ms 的过渡
  * 停在 `running` 永远回不到静止态。过渡叠层盖在整页上面，它不收，整页就一直是一张旧截图。
- * 所以静止态不许等动画跑完 —— 等的是一个计时器。一出一进加起来的三倍（1260ms）。
+ * 所以静止态不许等动画跑完 —— 等的是一个计时器。最长那一档的三倍（1260ms）。
  */
-export const SETTLE_MS = (MOTION.leaveMs + MOTION.enterMs) * 3;
+export const SETTLE_MS = MOTION.moveMs * 3;
 
 /**
  * 选择页交棒给舞台时，最多等舞台这么久。等不到（起不来、慢机器）也照样交棒 ——
@@ -100,51 +96,82 @@ export function groundOf(surface: Surface): Ground {
 }
 export const groundFor = (pathname: string, search = ''): Ground => groundOf(surfaceOf(pathname, search));
 
+/** 两页上"是同一件东西"的元素 */
+export type Shared = 'title' | 'mark' | 'nav' | 'devnav';
+
 export interface Transition {
   /**
+   * crossfade  两页交叉淡化（出 180 / 进 240），底色跟着淡，共享元素在 420 里挪位（跨页）
    * handoff    原地换景：旧的一景留在屏幕上，等新的一景画出第一帧再淡过去（同文档）
-   * none       不过渡（跨页一律如此，见文件头）
+   * none       不过渡 —— 只许出现在 `NO_TRANSITION_REASONS` 里
    */
-  kind: 'handoff' | 'none';
+  kind: 'crossfade' | 'handoff' | 'none';
+  shared: readonly Shared[];
 }
 
-const NONE: Transition = { kind: 'none' };
-const HANDOFF: Transition = { kind: 'handoff' };
+/** `view-transition-name`。两页上同名的元素会被平台当成同一件东西挪过去 */
+export const SHARED_NAME: Readonly<Record<Shared, string>> = {
+  title: 'sb-title', mark: 'sb-mark', nav: 'sb-nav', devnav: 'sb-devnav',
+};
+
+/**
+ * 页面上声明"我是那一件东西"用的属性（`page-transition.ts` 的 `declareShared`）。
+ * 表只说哪一对要挪哪几件；**哪个元素是那一件，由建它的地方声明** —— 这张表不认任何选择器，
+ * 页面改了 class 名也不会悄悄失去过渡。
+ */
+export const SHARED_ATTR = 'data-vt-shared';
+
+const xfade = (...shared: Shared[]): Transition => ({ kind: 'crossfade', shared });
+const NONE: Transition = { kind: 'none', shared: [] };
+const HANDOFF: Transition = { kind: 'handoff', shared: [] };
 
 type Pair = `${Surface}>${Surface}`;
 const both = (a: Surface, b: Surface, t: Transition): [Pair, Transition][] =>
   (a === b ? [[`${a}>${b}` as Pair, t]] : [[`${a}>${b}` as Pair, t], [`${b}>${a}` as Pair, t]]);
 
 /**
+ * 不过渡的那几对，和理由。**加一行必须写理由**，`test/transitions.test.ts` 要求表里每一个 `none`
+ * 在这里有一行、这里每一行在表里真的是 `none`。
+ */
+export const NO_TRANSITION_REASONS: Readonly<Partial<Record<Pair, string>>> = {
+  'label>label': '展签 → 选择页是同一个文档里同一个场进入下一阶段（shell/entry.ts）；字标由 entry.ts 自己交棒，不走这张表',
+};
+
+/**
  * 每一对面之间怎么过。**写成清单，不写成规则**：规则会替没人想过的一对自动给出答案，
  * 而这张表存在的全部意义是"每一对都有人想过"。`test/transitions.test.ts` 从代码里
  * 把真实存在的每一条路找出来，连同后退的反方向，逐条要求这里有它。
+ *
+ * 共享元素只是**请求**：某一侧没有那个元素（展签的巨题要等脚本挂上、舞台上没有字标），
+ * 它就只在有它的那一侧淡入或淡出。
  */
 export const TRANSITIONS: ReadonlyMap<Pair, Transition> = new Map<Pair, Transition>([
-  // 跨页：全部 none（文件头「跨页过渡整个关着」）。一对一行，开回哪一对就改哪一行
-  ...both('label', 'doc', NONE),
-  ...both('doc', 'doc', NONE),
-  ...both('doc', 'room', NONE),
-  ...both('room', 'room', NONE),
-  ...both('stage', 'label', NONE),
-  ...both('stage', 'doc', NONE),
-  ...both('stage', 'room', NONE),
-  ...both('stage', 'workbench', NONE),
-  ...both('stage', 'stage', NONE),          // 换物种 / 随机 / 从工作台带着状态回来：都是一次重载
-  ...both('label', 'workbench', NONE),
-  ...both('doc', 'workbench', NONE),
-  ...both('room', 'workbench', NONE),
-  ...both('workbench', 'workbench', NONE),
-  ...both('workbench', 'kiosk', NONE),
-  ...both('workbench', 'selftest', NONE),
-  ...both('selftest', 'kiosk', NONE),
-  ...both('selftest', 'label', NONE),
-  ...both('missing', 'label', NONE),
-  ...both('missing', 'doc', NONE),
-  ...both('missing', 'workbench', NONE),
-  // 原地：展签 → 选择页是同一个场进入下一阶段（shell/entry.ts 的文件头），不需要平台再叠一层
+  // 展签 / 选择页 ↔ 陈述页：巨题是同一行字；选择页左上的字标挪到横带右端；目录那个词不动
+  ...both('label', 'doc', xfade('title', 'mark', 'nav')),
+  // 文档页之间、文档页与侧室之间：右上角字标、目录那个词一动不动，其余交叉淡化 —— 墙上的展签不跟着人走
+  ...both('doc', 'doc', xfade('mark', 'nav')),
+  ...both('doc', 'room', xfade('mark', 'nav')),
+  ...both('room', 'room', xfade('mark', 'nav')),
+  ...both('missing', 'doc', xfade('mark', 'nav')),
+  ...both('missing', 'label', xfade('mark', 'nav')),
+  // 舞台 ↔ 其余：深底与纸之间是底色的交叉淡化；目录那个词在两边都有，它不动
+  ...both('stage', 'label', xfade('nav')),          // 回到大厅
+  ...both('stage', 'doc', xfade('nav')),
+  ...both('stage', 'room', xfade('nav')),
+  ...both('stage', 'stage', xfade('nav')),          // 换物种 / 随机：一次重载，淡过去
+  ...both('stage', 'workbench', xfade()),
+  // 工作台：右上角那条出口在工作台页之间不动；到侧室 / 文档页是一次短淡化
+  ...both('workbench', 'workbench', xfade('devnav')),
+  ...both('label', 'workbench', xfade()),
+  ...both('doc', 'workbench', xfade()),
+  ...both('room', 'workbench', xfade()),
+  ...both('missing', 'workbench', xfade()),
+  ...both('workbench', 'kiosk', xfade()),
+  ...both('workbench', 'selftest', xfade()),
+  ...both('selftest', 'kiosk', xfade()),
+  ...both('selftest', 'label', xfade()),
   ['label>label', NONE],
-  // 原地：选择页 → 舞台。卡片涨满屏幕之后，等舞台画出第一帧，再淡过去（同文档，六轮 0 白）
+  // 原地：选择页 → 舞台。卡片涨满屏幕之后，等舞台画出第一帧，再淡过去
   ['label>stage', HANDOFF],
   ['kiosk>stage', HANDOFF],
 ]);
@@ -155,8 +182,8 @@ export function transitionFor(from: Surface, to: Surface): Transition | null {
 }
 
 /**
- * 预取 / 预渲染（Speculation Rules）。悬停 200ms 左右开始（`moderate`）。**不是过渡**：
- * 它只让下一页早一点到，页面之间照旧一刀切。
+ * 预取 / 预渲染（Speculation Rules）。悬停 200ms 左右开始（`moderate`）。它不是过渡，
+ * 只让下一页早一点到 —— 预渲染好的页被激活时，跨页过渡照样发生。
  *
  * - **预渲染只给四张文字页。** 它们没有 WebGPU、没有摄像头、没有声音 ——
  *   预渲染一页 = 在背后把它完整跑一遍，这几页跑一遍几乎不要钱，点下去就是现成的。

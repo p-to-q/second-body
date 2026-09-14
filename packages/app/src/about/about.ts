@@ -33,6 +33,7 @@ import '../ui/type.css';
 import '../ui/editorial.css';
 import './about.css';
 import { heroMeta } from '../ui/hero.ts';
+import { declareShared } from '../ui/page-transition.ts';
 import { fromSearch } from '../ui/return-to.ts';
 import { mountFooterMark } from '../ui/footer-mark.ts';
 import { findVisits } from '../archive/endpoint.ts';
@@ -114,6 +115,10 @@ function head(): HTMLElement {
 
 
   const title = biEl('h1', COPY.title, 'sb-display ed-rise');
+  // 作品名那一行和展签的巨题是同一行字：从那一页过来时它挪到这里（docs/47）。
+  // 声明在 .sb-zh 上而不是 h1：h1 里还有英文那一行，挪的只该是作品名
+  const nameLine = title.querySelector<HTMLElement>('.sb-zh');
+  if (nameLine) declareShared(nameLine, 'title');
   // 中文和英文各自是一段揭示（--ed-i 是它们的先后）。分段而不是整块，
   // 是因为整块淡入读作"网页加载完了"，分段才读作"有人在把它揭开"
   title.querySelector('.sb-zh')?.setAttribute('style', '--ed-i:0');
