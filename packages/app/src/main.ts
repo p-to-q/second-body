@@ -353,7 +353,9 @@ async function boot(): Promise<void> {
   //
   // 挂不挂的判断在 `wantsReadout()` 一处（`?kiosk=1` 默认不挂），
   // 这里不重写一遍那个条件 —— 和 `flags.nav` / `wantsPreview()` 同一条纪律。
-  const readout = mountReadout({ flags });
+  // `live`：从选择页进来时 capture 是回放，录像的每一帧都过 minScore —— 不告诉它，它就对着空场说「有人」。
+  // `cameraOn` 在下面才声明，这里只是一个闭包，第一次被调用时它早已初始化
+  const readout = mountReadout({ flags, live: () => cameraOn });
 
   // ── 5. 状态机 ───────────────────────────────────────────────────────────
   const presence = createPresence();

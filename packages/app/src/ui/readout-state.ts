@@ -67,11 +67,18 @@ export interface ReadoutInput {
   features: MotionFeatures | null;
   /** 采集端自报的推理频率（Hz）。`Capture.fps` */
   inferenceHz: number;
+  /**
+   * 喂进来的是不是**摄像头**。`false` = 回放（从选择页进舞台、摄像头还没开、`?demo=1`）。
+   * 录像的每一帧 score 都过线，而录像里的人不在现场 —— 读数只替摄像头说话。缺省 = 摄像头。
+   */
+  live?: boolean;
 }
 
 export interface Readout {
   /** 这一帧有没有人。屏幕顶上那一行，也是下面五行要不要作废的开关 */
   present: boolean;
+  /** 摄像头开着。`false` 时顶上那一行说「摄像头关着」，下面全是破折号 */
+  live: boolean;
   /** 五行的值，已经格式化成屏幕上的样子。`—` = 这一刻没有这个数 */
   values: Record<ReadoutKey, string>;
 }
@@ -179,6 +186,14 @@ export function alignDecimals(v: string, digits = 3, width = 6): string {
  * 一帧 → 屏幕上那几行。**没有时间、没有随机、没有 DOM**（P1）。
  */
 export function readOut(input: ReadoutInput): Readout {
+  // 回放：没有一个数是现场的，推理频率也不是（录像没有推理）
+  if (input.live === false) {
+    return {
+      present: false,
+      live: false,
+      values: { confidence: ABSENT, joints: ABSENT, inference: ABSENT, energy: ABSENT, extent: ABSENT },
+    };
+  }
   const pose = input.pose;
   const score = Number.isFinite(pose?.score) ? pose!.score : 0;
   const present = pose !== null && score > CAPTURE.minScore;
@@ -192,6 +207,7 @@ export function readOut(input: ReadoutInput): Readout {
   if (!present) {
     return {
       present: false,
+      live: true,
       values: {
         confidence: ABSENT, joints: ABSENT, inference: hz,
         energy: ABSENT, extent: ABSENT,
@@ -204,6 +220,7 @@ export function readOut(input: ReadoutInput): Readout {
   const f = input.features;
   return {
     present: true,
+    live: true,
     values: {
       confidence: fixed(score, 2),
       joints: seen === null ? ABSENT : `${seen}/${total}`,
@@ -273,6 +290,8 @@ const OK: Assessment = {
  *   那不是停滞，是还没开始 —— 每次打开页面都先红一下，观众读到的是"坏了"。
  */
 export function assess(input: ReadoutInput, inferred = true): Assessment {
+  // 回放没有可以越界的测量：录像不会停滞，录像里的关节也不是谁丢的
+  if (input.live === false) return OK;
   const levels: Record<ReadoutKey, Level> = { ...OK.levels };
   const hit = new Set<AlarmCode>();
 

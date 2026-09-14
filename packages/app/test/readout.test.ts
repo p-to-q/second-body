@@ -49,6 +49,26 @@ test('readout: 没有人的时候，除了推理频率全是破折号', () => {
   assert.equal(r.values.inference, '31 Hz', '推理是机器自己的节拍，空场里它照样在跑');
 });
 
+test('readout: 摄像头关着、身体在放录像时，不说「有人」—— 录像里的人不在现场', () => {
+  // 作品负责人 2026-09-14 在线上看到：没人站在前面，读数照样写「有人」。
+  // 原因不是判据错了，是喂错了：从选择页进舞台时 capture 是回放（`cameraOn = !entry`），
+  // 录像的每一帧 score 都过线。读数只替**摄像头**说话。
+  const r = readOut({ pose: pose(0.9, [0.9]), features: FEATURES, inferenceHz: 30, live: false });
+  assert.equal(r.present, false, '回放时写了「有人」');
+  assert.equal(r.live, false);
+  for (const [k, v] of Object.entries(r.values)) assert.equal(v, ABSENT, `回放时「${k}」写了 ${v} —— 那是录像的数`);
+  const a = assess({ pose: pose(0.9, [0.9]), features: FEATURES, inferenceHz: 1, live: false });
+  assert.equal(a.code, null, '回放时报了告警 —— 录像没有推理可以停滞');
+  // 默认（不传 live）仍是摄像头：老调用方不变
+  assert.equal(readOut({ pose: pose(0.9, [0.9]), features: FEATURES, inferenceHz: 30 }).present, true);
+  // 屏幕上那一行说的是真正的原因
+  assert.ok(COPY.readout.replay, 'COPY.readout 没有「摄像头关着」那一句');
+  const src = readFileSync(fileURLToPath(new URL('../src/ui/readout.ts', import.meta.url)), 'utf8');
+  assert.match(src, /COPY\.readout\.replay/, 'readout.ts 回放时没有换那一行字');
+  const main = readFileSync(fileURLToPath(new URL('../src/main.ts', import.meta.url)), 'utf8');
+  assert.match(main, /mountReadout\(\{[^}]*live:\s*\(\)\s*=>\s*cameraOn/, 'main.ts 没把「摄像头开没开」交给读数');
+});
+
 test('readout: score 压线 —— 判据和 main.ts 的 detected 是同一条', () => {
   // CAPTURE.minScore = 0.5，严格大于才算有人（和 `preview-state.seeState` 逐字相同）
   assert.equal(readOut({ pose: pose(0.5, [0.9]), features: FEATURES, inferenceHz: 30 }).present, false);

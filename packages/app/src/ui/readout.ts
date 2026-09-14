@@ -110,6 +110,8 @@ export interface Readout {
 export interface ReadoutOptions {
   flags: Flags;
   mount?: HTMLElement;
+  /** 此刻喂进来的是不是摄像头（`main.ts` 的 `cameraOn`）。缺省当作摄像头 */
+  live?: () => boolean;
 }
 
 export function mountReadout(options: ReadoutOptions): Readout | null {
@@ -184,7 +186,7 @@ export function mountReadout(options: ReadoutOptions): Readout | null {
     el.classList.toggle('is-warn', LEVEL_CLASS[level] === 'is-warn');
     el.classList.toggle('is-alarm', LEVEL_CLASS[level] === 'is-alarm');
   };
-  let shownPresent: boolean | null = null;
+  let shownPresent: 'replay' | 'present' | 'absent' | null = null;
   let open = false;
 
   // **默认收起**（作品负责人 2026-09-14）：画面上首先该是身体，读数是想看的人自己点开的东西。
@@ -223,14 +225,16 @@ export function mountReadout(options: ReadoutOptions): Readout | null {
       const elapsed = since;
       since = 0;
 
-      const input = { pose, features, inferenceHz };
+      const input = { pose, features, inferenceHz, live: options.live?.() ?? true };
       const r = readOut(input);
       // 告警憋过才换（readout-state.ts 的 createAlarmWatch），所以喂进去的是这两次采样之间真实过去的时间
       const a = watch.update(input, elapsed);
-      if (r.present !== shownPresent) {
-        shownPresent = r.present;
+      // 顶上那一行三种说法：摄像头关着（身体在放录像）/ 有人 / 无人
+      const said = !r.live ? 'replay' : r.present ? 'present' : 'absent';
+      if (said !== shownPresent) {
+        shownPresent = said;
         root.classList.toggle('is-present', r.present);
-        setBi(state, r.present ? COPY.readout.present : COPY.readout.absent);
+        setBi(state, said === 'replay' ? COPY.readout.replay : r.present ? COPY.readout.present : COPY.readout.absent);
       }
       for (const key of READOUT_KEYS) {
         const cell = cells.get(key)!;
