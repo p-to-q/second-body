@@ -91,15 +91,31 @@ function extraOf(sk: Skeleton, kind: 'replace' | 'crossfade', key: SlotKey): { e
  * 最坏那一帧的填充面数：稳态 + 一件替换 + (上限 − 1) 件交叉淡入；
  * 不替换（`?theseus=off`）时上限全给交叉淡入。两种取大。
  */
+/** 事件形状只和骨架有关、和面数无关：每具骨架扫一次（一整场几百次借件共用） */
+const shapeMemo = new Map<Skeleton, Map<SlotKey, { steady: number; replace: number; crossfade: number }>>();
+function shapeOf(sk: Skeleton) {
+  let m = shapeMemo.get(sk);
+  if (!m) {
+    m = new Map();
+    for (const key of ALL_SLOT_KEYS) {
+      const r = extraOf(sk, 'replace', key);
+      m.set(key, { steady: r.steady, replace: r.extra, crossfade: extraOf(sk, 'crossfade', key).extra });
+    }
+    shapeMemo.set(sk, m);
+  }
+  return m;
+}
+
 function worstFill(bound: Record<SlotKey, number>, sk: Skeleton, ceiling: number) {
   let steady = 0;
   const rep: { key: SlotKey; cost: number }[] = [];
   const xf: { key: SlotKey; cost: number }[] = [];
+  const shape = shapeOf(sk);
   for (const key of ALL_SLOT_KEYS) {
-    const r = extraOf(sk, 'replace', key);
-    steady += r.steady * bound[key];
-    rep.push({ key, cost: r.extra * bound[key] });
-    xf.push({ key, cost: extraOf(sk, 'crossfade', key).extra * bound[key] });
+    const s = shape.get(key)!;
+    steady += s.steady * bound[key];
+    rep.push({ key, cost: s.replace * bound[key] });
+    xf.push({ key, cost: s.crossfade * bound[key] });
   }
   xf.sort((a, b) => b.cost - a.cost);
   const top = (n: number, skip?: SlotKey) => xf.filter((x) => x.key !== skip).slice(0, Math.max(0, n));
