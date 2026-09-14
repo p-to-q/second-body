@@ -371,7 +371,9 @@ const ADOPTED = [
   { id: 'thigh.wheelleg.limx',    slot: 'thigh',    family: 'wheelleg', origin: 'wl_p311d', asset: 'LH_thigh.STL',  why: '后腿大腿' },
   { id: 'shin.wheelleg.limx',     slot: 'shin',     family: 'wheelleg', origin: 'wl_p311d', asset: 'LH_calf.STL',   why: '后腿小腿' },
   { id: 'foot.wheelleg.limx',     slot: 'foot',     family: 'wheelleg', origin: 'wl_p311d', asset: 'LH_wheel.STL',  why: '后轮。**这一格就是 docs/42 说这条线上真正缺的那个轮子**' },
-  { id: 'joint.wheelleg.limx',    slot: 'joint',    family: 'wheelleg', origin: 'wl_p311d', asset: 'RH_hip.STL',    why: '关节。后右髋 HAA 执行器座；girth 0.847 ≈ joint 中位数的 0.86×。轮子当关节会让 18 个关节全变成轮子，读不出哪里在滚' },
+  // maxTris：joint 一具身体里有 14 个实例。每件 4984 面时整具 149,448 面，描边翻倍 298,896 > BUDGET.maxTriangles
+  // 250,000（outline-budget.test.ts 当场红）。压到 1500 面，整具回到其它物种的量级。
+  { id: 'joint.wheelleg.limx',    slot: 'joint',    family: 'wheelleg', origin: 'wl_p311d', asset: 'RH_hip.STL', maxTris: 1500, why: '关节。后右髋 HAA 执行器座；girth 0.847 ≈ joint 中位数的 0.86×。轮子当关节会让 18 个关节全变成轮子，读不出哪里在滚' },
 
   // ── manipulator = Hello Robot Stretch 3 ─────────────────────────────────
   // 身体方案是 column：两条腿的六节串成桅杆，手臂是顶端的分支（core/bodyplan.ts）。
@@ -398,7 +400,8 @@ const ADOPTED = [
   { id: 'foot.manipulator.stretch', slot: 'foot', family: 'manipulator', origin: 'stretch3',
     asset: ['base_link_0.obj', 'base_link_2.obj', 'base_link_3.obj', 'base_link_4.obj', 'base_link_5.obj', 'base_link_6.obj', 'base_link_7.obj'],
     why: '底盘（不含 22 MB 的 base_link_8）。桅杆底端落在它上面 —— 轮式底盘就是这个物种的脚' },
-  { id: 'joint.manipulator.stretch', slot: 'joint', family: 'manipulator', origin: 'stretch3',
+  // maxTris：同 wheelleg 那一条 —— 14 个实例 × 4998 面让整具描边后到 239,294，离 250,000 只剩 4%。
+  { id: 'joint.manipulator.stretch', slot: 'joint', family: 'manipulator', origin: 'stretch3', maxTris: 1500,
     asset: ['link_wrist_yaw.obj', 'link_DW3_wrist_yaw_bottom.stl'], why: '关节。腕 yaw 关节 —— 它本来就是一个关节；girth 0.815 ≈ joint 中位数的 0.82×' },
 ];
 
@@ -630,6 +633,7 @@ async function adopt() {
         tier: 1,                       // 见 ADOPTED 上方注释：真实件不是细节升级，它就是这个物种
         family: a.family,
         symmetry: SYM[a.slot],
+        maxTris: a.maxTris,              // 缺省 = 单件预算；joint 这种一具身体十几个实例的槽位要压得更低
         source: { provider: 'harvest', model: adoptedUrl(a), recipeId: a.id },
       });
       metas.push(meta);
