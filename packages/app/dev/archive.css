@@ -101,7 +101,6 @@
   height: auto;
   aspect-ratio: 2 / 1;
   object-fit: cover;
-  background: #000;
   border: 1px solid var(--sb-rule);
 }
 
@@ -185,17 +184,31 @@
 
 .sb-part { display: flex; gap: 0.8em; align-items: flex-start; }
 
-/* 策展外框：绿 = keep，红 = reject，灰 = 未评。这是原来接触表上唯一
-   非排版的信号，保留原样 —— 它承载的是判断，不是装饰 */
+/* 策展外框。**展出的这一页上不用色相说判断**（docs/26 §F：全站只有一处颜色承担语义，
+   不在这里）。三档靠的是 `ui/marks.ts` 那两支笔同一套手段 —— 墨的浓淡、线的虚实、单线还是双线：
+     未评    一根发丝线，最淡的墨（--sb-rule）
+     keep    双线：边框 + 外面隔 2px 再一圈，最浓的墨 —— "被圈定了"
+     reject  虚线，缩略图本身退到四成墨 —— "还在，但不算数"
+   灰度下三档仍然分得开，这是这组规则唯一要过的测试（截图转灰度核过）。
+   以前这里是绿框/红框：在灰度里三档是同一个灰框，也就是说判断全靠色相在扛。
+
+   没有底色：原来那块 `#000` 是一块写死的黑，而缩略图画布本身是透明的，纸就是它的底。 */
 .sb-part__thumb {
   flex: none;
   border: 1px solid var(--sb-rule);
-  background: #000;
   line-height: 0;
 }
 
-.sb-part[data-verdict="keep"] .sb-part__thumb { border-color: #3ddc84; }
-.sb-part[data-verdict="reject"] .sb-part__thumb { border-color: var(--sb-warn); }
+.sb-part[data-verdict="keep"] .sb-part__thumb {
+  border-color: var(--sb-ink);
+  outline: 1px solid var(--sb-ink);
+  outline-offset: 2px;
+}
+.sb-part[data-verdict="reject"] .sb-part__thumb {
+  border-style: dashed;
+  border-color: var(--sb-ink-dim);
+}
+.sb-part[data-verdict="reject"] .sb-part__thumb canvas { opacity: 0.4; }
 
 .sb-part__meta {
   min-width: 0;
@@ -213,16 +226,28 @@
 
 .sb-part__num { color: var(--sb-ink-dim); font-variant-numeric: tabular-nums; }
 
-/* 可疑比例：不上红（红是"要人当场处理"），用强调色点一下就够 */
-.sb-part__num.is-odd { color: #e8a33d; }
+/* 可疑比例：同样不用色相。墨提一档 + 一条虚下划线 —— 虚线在这一页上的意思是"要再看一眼" */
+.sb-part__num.is-odd {
+  color: var(--sb-ink);
+  text-decoration: underline dashed;
+  text-underline-offset: 0.25em;
+}
 
 .sb-part__note { color: var(--sb-ink-dim); display: block; overflow-wrap: anywhere; }
 
-/* 可评级时整格可点。没有中间件时它就是一段静态文字 —— 不加 cursor、不加 hover */
+/* ── 策展模式（只有我们看得到）────────────────────────────────────────────
+   `.can-curate` 只在 `/__curate` 中间件探得到时才挂上（parts.ts 的 probeCurateWriteback），
+   生产上没有那个中间件，所以观众永远拿不到这个类。这里是**仪器**，不是展出的声音，
+   所以色相允许回来：绿 = keep，红 = reject，琥珀 = 可疑比例 —— 叠在上面那套无色相的
+   区分之上，而不是替代它。**每一条带色相的规则都必须挂在 `.sb-archive.can-curate` 底下**，
+   `test/css-tokens.test.ts` 的 HEX_ALLOWED 按选择器核这一条，不是按文件放行。 */
 .sb-archive.can-curate .sb-part { cursor: pointer; }
 .sb-archive.can-curate .sb-part:hover .sb-part__thumb { border-color: var(--sb-ink-dim); }
-.sb-archive.can-curate .sb-part[data-verdict="keep"]:hover .sb-part__thumb { border-color: #3ddc84; }
+.sb-archive.can-curate .sb-part[data-verdict="keep"] .sb-part__thumb,
+.sb-archive.can-curate .sb-part[data-verdict="keep"]:hover .sb-part__thumb { border-color: #3ddc84; outline-color: #3ddc84; }
+.sb-archive.can-curate .sb-part[data-verdict="reject"] .sb-part__thumb,
 .sb-archive.can-curate .sb-part[data-verdict="reject"]:hover .sb-part__thumb { border-color: var(--sb-warn); }
+.sb-archive.can-curate .sb-part__num.is-odd { color: #e8a33d; }
 
 /* ── 过滤条 ───────────────────────────────────────────────────────────── */
 
