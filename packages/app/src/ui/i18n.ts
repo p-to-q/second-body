@@ -696,6 +696,16 @@ export const COPY = {
       upper: { name: bi('上半身', 'Upper'), note: bi('一直是中景，腿站着不动', 'Always a medium shot; legs stand still') },
     },
 
+    /**
+     * 人数（docs/50）。和取景同一组。说明写的是**台上会发生什么**：
+     * 多一个人进画就多一具身体；超过的人没有身体。不写"预算"—— 那是我们的事。
+     */
+    people: {
+      1: { name: bi('一个人', 'One'), note: bi('只跟着离得最近的那一个', 'Follows only the nearest one') },
+      2: { name: bi('两个人', 'Two'), note: bi('第二个人进画，就多一具身体', 'A second person gets a second body') },
+      3: { name: bi('三个人', 'Three'), note: bi('三个人，各一具', 'Three people, a body each') },
+    },
+
     /** 四个玩法（docs/16） */
     act: {
       follow: { name: bi('跟随', 'Follow'), note: bi('它就是你', 'It is you') },
@@ -745,6 +755,7 @@ export const COPY = {
       form: bi('下一个形体 · 回到弧线', 'Next form · back to arc'),
       scene: bi('下一套画面', 'Next scene'),
       framing: bi('取景：自动 · 全身 · 上半身', 'Framing: auto · full · upper'),
+      people: bi('人数：一 · 二 · 三', 'People: one · two · three'),
       act: bi('下一个玩法 · 回到弧线', 'Next act · back to arc'),
       vitality: bi('跟随延迟', 'Lag'),
       refine: bi('时域精化', 'Smoothing'),

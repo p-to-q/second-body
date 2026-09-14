@@ -4,6 +4,7 @@
  */
 import { BODY_PLANS, type BodyPlanId } from '../../../core/src/bodyplan.ts';
 import { FRAMING_POLICIES, isFramingPolicy, type FramingPolicy } from '../../../core/src/autoframe.ts';
+import { PEOPLE } from '../../../core/src/tuning.ts';
 import { ACTS } from '../acts/index.ts';
 import { isCamFlag } from '../capture/camera-select.ts';
 import { isShadingId, type ShadingId } from '../creature/shading.ts';
@@ -179,6 +180,37 @@ export interface Flags {
    * 仍然用回放起步、不问摄像头 —— 和按过「开始」一模一样，只是不用再按一次。
    */
   hall: boolean;
+  /**
+   * ?people=1|2|3 画面里最多给几个人各一具身体（`core/src/people.ts`，docs/50）。
+   * 默认 `PEOPLE.defaultCap`（网页）/ `PEOPLE.defaultCapKiosk`（现场）—— 两个数由 docs/50 §5 的实测定。
+   *
+   * `1` 是**这一版之前的那条路，一个字都不变**：worker 里 `numPoses = 1`、不跑多人跟踪、只有一具身体。
+   * 大于 1 时推理要多看几个人（`numPoses = 上限`），身体按帧预算再砍一次（`creature/people-budget.ts`）——
+   * 所以写 3 不保证台上有三具：最重的物种上预算只放得下两具，第三个人没有身体（和超过上限的人同一个待遇）。
+   * 认不出来的值（`?people=4` / `?people=two`）按没写过处理并喊一声 —— 规矩和 `?framing=` 一样。
+   */
+  people: number;
+}
+
+/** `?people=` 认的值：1..`PEOPLE.hardMax` 的整数。别的一律 null = 当没写过 */
+export function parsePeople(raw: string | null): number | null {
+  if (raw === null || raw.trim() === '' || !/^\d+$/.test(raw.trim())) return null;
+  const n = Number(raw.trim());
+  return n >= 1 && n <= PEOPLE.hardMax ? n : null;
+}
+
+/** 同一个坏值只喊一次 —— `readFlags()` 一次启动会被调好几处 */
+const warnedPeople = new Set<string>();
+
+function resolvePeople(raw: string | null, kiosk: boolean): number {
+  const parsed = parsePeople(raw);
+  if (parsed !== null) return parsed;
+  const fallback = kiosk ? PEOPLE.defaultCapKiosk : PEOPLE.defaultCap;
+  if (raw !== null && !warnedPeople.has(raw)) {
+    warnedPeople.add(raw);
+    console.warn(`[kiosk] ?people=${raw} 认不出来，只认 1–${PEOPLE.hardMax} —— 按没写过处理（${fallback}）`);
+  }
+  return fallback;
 }
 
 /** 同一个坏值只喊一次 —— `readFlags()` 一次启动会被调好几处 */
@@ -482,6 +514,7 @@ export function readFlags(search = location.search): Flags {
     worker: q.get('worker') !== 'off',
     framing: resolveFraming(q.get('framing')),
     hall: q.get('hall') === '1',
+    people: resolvePeople(q.get('people'), q.get('kiosk') === '1'),
   };
 }
 

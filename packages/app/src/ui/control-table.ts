@@ -35,7 +35,11 @@ import { FRAMING_POLICIES, isFramingPolicy, type FramingPolicy } from '../../../
 import { BODY_PLANS, PLANS_WITHOUT_PARTS } from '../../../core/src/bodyplan.ts';
 import { SCENE_IDS } from '../stage/scenes.ts';
 import { intentFromFlags } from '../shell/intent.ts';
-import type { Flags } from '../shell/kiosk.ts';
+import { parsePeople, type Flags } from '../shell/kiosk.ts';
+import { PEOPLE } from '../../../core/src/tuning.ts';
+
+/** 人数控件的选项：'1'..'hardMax'。字符串：choice 控件的值和 i18n 的键都是字符串 */
+export const PEOPLE_OPTIONS: readonly string[] = Array.from({ length: PEOPLE.hardMax }, (_, i) => String(i + 1));
 
 /** 面板上能读能写的全部值。**这就是"这一屏怎么演"** —— 重载、回大厅、回舞台都带它 */
 export interface ControlValues {
@@ -52,6 +56,8 @@ export interface ControlValues {
   post: boolean;
   /** 取景策略（`core/src/autoframe.ts`）。`auto` = 听分类器 */
   framing: FramingPolicy;
+  /** 最多给几个人各一具身体（`core/src/people.ts`，docs/50）。`'1'` = 单人那条路 */
+  people: string;
 }
 export type ValueId = keyof ControlValues;
 export type ControlId = ValueId | 'roll';
@@ -136,6 +142,14 @@ export const CONTROLS: readonly ControlDef[] = [
     id: 'framing', kind: 'choice', group: 'framing', key: 'C', options: FRAMING_POLICIES, default: 'auto',
     fromFlags: (f) => f.framing,
     url: { param: 'framing', write: (v) => (v === 'auto' || !isFramingPolicy(v) ? null : v) },
+  },
+  {
+    // 人数（docs/50）。和取景同一组：它回答的也是"画面里框进几个人"。热切，不重载 ——
+    // worker 在两帧之间按新的 numPoses 重建图，跟踪器改上限，多出来的身体按"最后来的先让"溶掉。
+    // 写回 URL 时默认值写成删除（地址栏里不留一个等于默认的参数）。随机不抽它：它是现场的决定，不是长相
+    id: 'people', kind: 'choice', group: 'framing', key: 'N', options: PEOPLE_OPTIONS, default: String(PEOPLE.defaultCap),
+    fromFlags: (f) => String(f.people),
+    url: { param: 'people', write: (v) => (parsePeople(String(v)) === null || Number(v) === PEOPLE.defaultCap ? null : String(v)) },
   },
   {
     id: 'act', kind: 'overlay', group: 'act', key: 'A', options: ARC_ACTS, default: null,

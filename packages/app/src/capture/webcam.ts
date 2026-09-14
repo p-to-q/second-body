@@ -113,6 +113,8 @@ interface PoseEngine {
   warning: string | null;
   dead: boolean;
   segmenterReady: boolean;
+  /** 图此刻按几个人建的。整页共用一个 worker，所以换人数走 `options` 消息，不重新建 worker */
+  numPoses: number;
   post(msg: PoseIn, transfer: Transferable[]): void;
   listen(fn: ((m: PoseOut) => void) | null): void;
 }
@@ -143,6 +145,15 @@ function acquirePoseEngine(model: PoseModel): Promise<PoseEngine> {
 
 const abs = (u: string): string => new URL(u, location.href).href;
 
+/** `?people=` 开机时的值（docs/50）。1 = 单人那条路：`numPoses = 1`，消息里永远没有 `others` */
+function peopleCap(): number {
+  try { return readFlags().people; } catch { return 1; }
+}
+
+/** 一份 worker 给的"其余的人"→ RawPose。时间戳和第 0 个一样（同一帧） */
+const othersToPoses = (others: PoseOut extends infer M ? M extends { type: 'pose'; others?: infer O } ? O : never : never, t: number): RawPose[] =>
+  (others ?? []).map((o) => ({ world: o.world, screen: o.screen ?? undefined, score: o.score, t }));
+
 async function createPoseEngine(model: PoseModel, forget: () => void): Promise<PoseEngine> {
   if (typeof Worker === 'undefined') throw new Error('浏览器没有 Worker');
   const [poseModel, segModel] = await Promise.all([
@@ -151,11 +162,13 @@ async function createPoseEngine(model: PoseModel, forget: () => void): Promise<P
   ]);
   const worker = new Worker(new URL('./pose-worker.ts', import.meta.url), { type: 'module', name: 'sb-pose' });
   let listener: ((m: PoseOut) => void) | null = null;
+  const numPoses = peopleCap();
   const engine: PoseEngine = {
     backend: 'CPU',
     warning: null,
     dead: false,
     segmenterReady: false,
+    numPoses,
     post(msg, transfer) {
       if (engine.dead) {
         for (const t of transfer) (t as { close?: () => void }).close?.();
@@ -206,6 +219,7 @@ async function createPoseEngine(model: PoseModel, forget: () => void): Promise<P
       segmenterModel: abs(segModel),
       width: CAPTURE.requestedVideo.width,
       height: CAPTURE.requestedVideo.height,
+      numPoses,
     } satisfies PoseIn);
   });
 }
@@ -220,6 +234,10 @@ export class WebcamCapture implements Capture {
   #segmenter: ImageSegmenter | null = null;
 
   #latest: RawPose | null = null;
+  /** 这一帧 MediaPipe 给出的其余几个人（`numPoses > 1`）。单人时永远是空数组 */
+  #others: RawPose[] = [];
+  /** `?people=` / 控件条要的人数上限 */
+  #people = peopleCap();
   #mask: ImageBitmap | null = null;
   #maskCanvas: HTMLCanvasElement | null = null;
 
@@ -302,6 +320,26 @@ export class WebcamCapture implements Capture {
   }
 
   latest(): RawPose | null { return this.#latest; }
+  /**
+   * 这一帧画面里的全部人（第 0 个就是 `latest()`）。顺序不保证、不带身份（docs/50 §1.3）。
+   * 单人（`?people=1`）时就是 `[latest()]` 或 `[]`。
+   */
+  latestAll(): readonly RawPose[] {
+    return this.#latest ? (this.#others.length ? [this.#latest, ...this.#others] : [this.#latest]) : [];
+  }
+  /**
+   * 运行中改人数上限（控件条）。worker 那条路发一次 `options`，在两帧之间重建图；主线程那条路直接 `setOptions`。
+   * 相同的数是 no-op。
+   */
+  setPeople(n: number): void {
+    const v = Number.isFinite(n) ? Math.max(1, Math.round(n)) : 1;
+    if (v === this.#people) return;
+    this.#people = v;
+    if (v === 1) this.#others = [];
+    const engine = this.#engine;
+    if (engine && !engine.dead && engine.numPoses !== v) { engine.numPoses = v; engine.post({ type: 'options', numPoses: v }, []); }
+    void this.#landmarker?.setOptions({ numPoses: v }).catch(() => { /* 改不了就还是原来那个数 */ });
+  }
   latestMask(): ImageBitmap | null { return this.#mask; }
 
   /** 永不 reject：失败写进 lastError + failed，让页面自己决定怎么显示 */
@@ -456,6 +494,8 @@ export class WebcamCapture implements Capture {
     this.backend = engine.backend;
     if (engine.warning) this.#error = engine.warning;
     this.#inFlight = false;
+    // worker 是整页共用的：上一个 capture 可能把它改成了别的人数
+    if (engine.numPoses !== this.#people) { engine.numPoses = this.#people; engine.post({ type: 'options', numPoses: this.#people }, []); }
     engine.listen((m) => this.#onEngine(m));
   }
 
@@ -521,6 +561,7 @@ export class WebcamCapture implements Capture {
       this.#latest = m.world?.length
         ? { world: m.world, screen: m.screen ?? undefined, score: m.score, t: m.stamp }
         : null;   // 没人：返回 null，不是返回上一帧的幽灵
+      this.#others = this.#latest && m.others?.length ? othersToPoses(m.others, m.stamp) : [];
       this.#inferredAt = m.stamp;
       this.#inferMs += (m.inferMs - this.#inferMs) * 0.2;
       // 顺手上报"有没有人"给无人降帧（shell/idle.ts）
@@ -590,7 +631,7 @@ export class WebcamCapture implements Capture {
     modelAssetPath: string,
   ): Promise<PoseLandmarker> {
     const { PoseLandmarker } = await import('@mediapipe/tasks-vision');
-    const opts = { runningMode: 'VIDEO' as const, numPoses: 1, outputSegmentationMasks: false };
+    const opts = { runningMode: 'VIDEO' as const, numPoses: this.#people, outputSegmentationMasks: false };
     try {
       const lm = await PoseLandmarker.createFromOptions(fileset, {
         ...opts, baseOptions: { modelAssetPath, delegate: 'GPU' },
@@ -643,6 +684,12 @@ export class WebcamCapture implements Capture {
       };
     } else {
       this.#latest = null;   // 没人：返回 null，不是返回上一帧的幽灵
+    }
+    // 其余几个人（`numPoses > 1`），和 worker 那条路同一个形状
+    this.#others = [];
+    for (let i = 1; this.#latest && i < (res.worldLandmarks?.length ?? 0); i++) {
+      const w = res.worldLandmarks[i], sc = res.landmarks?.[i];
+      if (w?.length) this.#others.push({ world: w.map(toLandmark), screen: sc?.map(toLandmark), score: overallScore(sc, w), t: stamp });
     }
     res.close?.();
     this.#inferredAt = stamp;

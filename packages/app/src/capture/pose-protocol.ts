@@ -16,7 +16,14 @@ export type PoseIn =
     /** 预热用的画布尺寸：让着色器按真实输入的尺寸编译 */
     width: number;
     height: number;
+    /**
+     * 最多认几个人（`?people=`，docs/50）。缺省 1 = 这一版之前的那条路。
+     * **大于 1 有真实代价**：MediaPipe 在跟踪到的人数少于它时每一帧都重跑检测器（docs/50 §1.2 实测）。
+     */
+    numPoses?: number;
   }
+  /** 运行中改人数上限（控件条）。worker 在两帧之间重建图，这期间来的帧回 `fail` */
+  | { type: 'options'; numPoses: number }
   | {
     type: 'frame';
     frame: VideoFrame | ImageBitmap;
@@ -31,7 +38,15 @@ export type PoseOut =
   | { type: 'segmenter'; ok: boolean; warning: string | null }
   /** 起不来（init 失败）。之后这个 worker 不再可用 */
   | { type: 'error'; error: string }
-  | { type: 'pose'; stamp: number; world: Landmark[] | null; screen: Landmark[] | null; score: number; inferMs: number }
+  | {
+    type: 'pose'; stamp: number; world: Landmark[] | null; screen: Landmark[] | null; score: number; inferMs: number;
+    /**
+     * MediaPipe 这一帧给出的**其余**几个人（下标 1..n−1）。`numPoses = 1` 时永远不出现。
+     * 顺序不保证、不带身份（docs/24 #4681）：身份由主线程的 `core/src/people.ts` 跟出来。
+     * 第 0 个仍然走上面那三个字段 —— 单人的消费者一个字都不用改。
+     */
+    others?: Array<{ world: Landmark[]; screen: Landmark[] | null; score: number }>;
+  }
   /** 这一帧推理抛了；worker 还活着 */
   | { type: 'fail'; stamp: number; error: string }
   | { type: 'mask'; bitmap: ImageBitmap };

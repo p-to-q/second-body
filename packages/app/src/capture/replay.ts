@@ -16,6 +16,7 @@ import { CAPTURE } from '../../../core/src/tuning.ts';
 import { readFlags } from '../shell/kiosk.ts';
 import { notePresence } from '../shell/idle.ts';
 import type { Capture, CaptureStep } from './capture.ts';
+import { synthPeople } from './people-synth.ts';
 
 /** 找不到别的就用它。T-16 录到真数据后把真文件名写进 /demo/index.json */
 const DEFAULT_CLIP = '/demo/pose-synthetic.json';
@@ -59,6 +60,24 @@ export class ReplayCapture implements Capture {
   get inferredAt(): number { return this.#inferredAt; }
 
   latest(): RawPose | null { return this.#latest; }
+
+  /** 合成的其余几个人（`?people=` > 1 时，`people-synth.ts`）。**只给演示和工作台**：他们从没站在摄像头前面 */
+  #all: RawPose[] = [];
+  #people = (() => { try { return readFlags().people; } catch { return 1; } })();
+
+  /**
+   * 单人（`?people=1`）：`[latest()]`。多人：同一段录制错开取帧、摆到画面两侧（docs/50 §7 回放那一条）。
+   * 第 0 个也换成摆好 `screen` 的那一份 —— 多人跟踪只读 `screen`，而录制没有它。
+   */
+  latestAll(): readonly RawPose[] {
+    if (this.#people <= 1) return this.#latest ? [this.#latest] : [];
+    return this.#all;
+  }
+
+  setPeople(n: number): void {
+    this.#people = Number.isFinite(n) ? Math.max(1, Math.round(n)) : 1;
+    if (this.#people <= 1) this.#all = [];
+  }
 
   /** 录制里没有 mask（慢回路在 demo 模式下本来就该关掉） */
   latestMask(): ImageBitmap | null { return null; }
@@ -111,6 +130,7 @@ export class ReplayCapture implements Capture {
     const f = clip.frames[i];
     // score 低于门限 = 录制里那一段确实没人，照原样传下去（docs/06 §1 自己会判）
     this.#latest = f.world?.length ? { ...f, t: now } : null;
+    this.#all = this.#people > 1 && this.#latest ? synthPeople(clip.frames, i, this.#people, now) : [];
     this.#inferredAt = now;
     // 和 WebcamCapture 同构：顺手把"有没有人"喂给无人降帧（shell/idle.ts）
     notePresence((this.#latest?.score ?? 0) > CAPTURE.minScore, now);
