@@ -105,8 +105,14 @@ test('CSS：每一个 var(--sb-*) 都有地方定义它', () => {
     // 没有舞台的页面、或者读不到像素的那一刻，角上的字是未定义色
     ...Object.values(REGION_TOKENS).flatMap((t) => [t.on, t.dim, t.strong]),
   ];
+  // 缺省值必须在 type.css：first-screen.css 里那一份挂在 `html.sb-first-screen` 上，
+  // 首屏一走它就不在了 —— 只查"某个文件里声明过"会把它当成缺省值（实测：删掉 type.css
+  // 那一行，这条仍然是绿的）。
+  const typeCss = new Set(
+    [...stripComments(readFileSync(join(UI, 'ui/type.css'), 'utf8')).matchAll(/(--sb-[a-z0-9-]+)\s*:/g)].map((m) => m[1]),
+  );
   for (const n of runtime) {
-    assert.ok(declared.has(n), `${n} 只在运行时被写入，CSS 里没有缺省值 —— 舞台不在场的页面上它是未定义的`);
+    assert.ok(typeCss.has(n), `${n} 只在运行时被写入，type.css 里没有缺省值 —— 舞台不在场的页面上它是未定义的`);
   }
 
   const missing: string[] = [];
