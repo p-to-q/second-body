@@ -12,8 +12,9 @@ mkdirSync(`${out}/shots`, { recursive: true });
 const profile = `${HERE}/profile-${warm === '1' ? 'warm' : Date.now()}`;
 if (warm !== '1') rmSync(profile, { recursive: true, force: true });
 const port = 9350 + Math.floor(Math.random() * 100);
+// HEADED=1 → 真窗口（不带 --headless）：分清"真卡死"还是"只在无头 Chrome 里卡"
 const chrome = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', [
-  '--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
+  ...(process.env.HEADED === '1' ? [] : ['--headless=new']), `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
   '--enable-unsafe-webgpu', '--enable-features=WebGPU', '--use-angle=metal', '--ignore-gpu-blocklist',
   '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream',
   `--use-file-for-fake-video-capture=${HERE}/figure.y4m`,
@@ -189,12 +190,87 @@ if (mode === 'swap') {
   }
   // NOCLICK=1 → 只记下"按下"的时刻，不按。深链（`?theme=`）没有展签，开机就是摄像头 ——
   // 那时再按「摄像头」那一行是**关**摄像头，量出来的是回放，不是改前那一场的摄像头稳态
+  if (process.env.STEPS === '1') {
+    console.log(`step exits: ${JSON.stringify(await evalJs(`[...document.querySelectorAll('.sb-exits .sb-exit')].map((e, i) => i + ':' + (e.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 30))`))}`);
+  }
   if (process.env.NOCLICK === '1') await evalJs(`window.__probe.click = performance.now()`);
   else await evalJs(`(window.__probe.click = performance.now(), document.querySelectorAll('.sb-exits .sb-exit')[2].click())`);
 } else {
   await evalJs(`window.__probe.click = performance.now()`);
 }
 console.log('clicked', clickPerf);
+
+// ── 看门狗（docs/48 §10.6）：按下之后页面超过 WATCHDOG_MS（默认 2000，0 = 关）没出一帧 = 这一场失败。
+// 卡死的页面上 Runtime.evaluate 永远不返回（截图也一样），脚本会一直挂到 hard timeout —— 那不是结论。
+// 所以心跳只在上一次返回之后才发，另一个定时器看"rAF 计数最后一次增长是什么时候"。
+// 判定卡死时先要一个 Debugger.pause 的栈（JS 在跑的死循环能被打断；卡在原生等待里拿不到，也照实写下来）。
+const watchdogMs = Number(process.env.WATCHDOG_MS ?? 2000);
+if (watchdogMs > 0) {
+  let lastCount = -1;
+  let lastAdvance = Date.now();
+  let inflight = false;
+  const beat = setInterval(() => {
+    if (inflight) return;
+    inflight = true;
+    void evalJs('window.__probe.raf.length').then((n: number) => {
+      inflight = false;
+      if (typeof n === 'number' && n > lastCount) { lastCount = n; lastAdvance = Date.now(); }
+    });
+  }, 250);
+  const dog = setInterval(async () => {
+    const stalled = Date.now() - lastAdvance;
+    if (stalled <= watchdogMs) return;
+    clearInterval(dog); clearInterval(beat);
+    console.log(`STALL no frame for ${stalled}ms at ${((Date.now() - tNav) / 1000).toFixed(1)}s after navigate (watchdog ${watchdogMs}ms)`);
+    // 先看是不是"页面换了"：导航 / 预渲染激活之后 CDP 会话还挂在旧页面上，evaluate 和 pause 都不会回 ——
+    // 看上去和卡死一模一样，而渲染进程其实闲着
+    try {
+      const list = await (await fetch(`http://127.0.0.1:${port}/json`)).json() as { type: string; url: string; id: string }[];
+      console.log(`targets: ${list.filter((t) => t.type === 'page').map((t) => `${t.id.slice(0, 6)} ${t.url}`).join(' | ')} (probe attached to ${target!.webSocketDebuggerUrl.split('/').pop()!.slice(0, 6)})`);
+    } catch { /* */ }
+    // 页面此刻的状态（JS 还活着时才回得来，给 3 秒）：rAF 停了而定时器照跑，原因一般在这几样里
+    const diag = await Promise.race([
+      evalJs(`(async () => {
+        const raf = await Promise.race([new Promise((r) => requestAnimationFrame(() => r('raf fired'))), new Promise((r) => setTimeout(() => r('raf silent 1s'), 1000))]);
+        const exits = [...document.querySelectorAll('.sb-exits .sb-exit')].map((e) => (e.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 24));
+        return JSON.stringify({ raf, vis: document.visibilityState, hidden: document.hidden, focus: document.hasFocus(),
+          vt: !!document.activeViewTransition, ready: document.readyState, now: Math.round(performance.now()),
+          exits, videos: [...document.querySelectorAll('video')].map((v) => [v.readyState, v.paused, Math.round(v.currentTime * 10) / 10]),
+          canvases: document.querySelectorAll('canvas').length, lastRaf: Math.round(window.__probe.raf.at(-1) || 0),
+          notice: (document.querySelector('.sb-notice') || {}).textContent || null });
+      })()`),
+      new Promise((r) => setTimeout(() => r('diag: no answer in 3s'), 3000)),
+    ]);
+    console.log(`page: ${diag}`);
+    const paused = new Promise<any>((res) => {
+      listeners.push((m) => { if (m.method === 'Debugger.paused') res(m.params); });
+      setTimeout(() => res(null), 4000);
+    });
+    void send('Debugger.enable');
+    void send('Debugger.pause');
+    const p = await paused;
+    const frames = p ? p.callFrames.slice(0, 25).map((f: any) =>
+      `${f.functionName || '(anon)'} ${String(f.url).split('/').pop()}:${f.location.lineNumber + 1}:${f.location.columnNumber + 1}`) : [];
+    const report = p ? `paused reason=${p.reason}\n${frames.join('\n')}` : 'Debugger.pause got no answer in 4s — main thread is not running JS (native wait / GPU / sync IPC)';
+    console.log(report);
+    writeFileSync(`${out}/stall.txt`, `${report}\n\nconsole tail:\n${consoleLog.slice(-40).join('\n')}\n`);
+    // NATIVE_SAMPLE=1（macOS）：主线程不在跑 JS 时，用系统的 `sample` 取渲染进程和 GPU 进程的原生栈，各 3 秒
+    if (process.env.NATIVE_SAMPLE === '1') {
+      const { execFileSync } = await import('node:child_process');
+      const ps = execFileSync('ps', ['-Ao', 'pid=,ppid=,command=']).toString().split('\n');
+      const kids = ps.map((l) => /^\s*(\d+)\s+(\d+)\s+(.*)$/.exec(l)).filter((m): m is RegExpExecArray => !!m)
+        .filter((m) => Number(m[2]) === chrome.pid && /--type=(renderer|gpu-process)/.test(m[3]) && !/top-chrome-webui|extension-process/.test(m[3]));
+      await Promise.all(kids.map((m) => new Promise<void>((res) => {
+        const kind = /gpu-process/.test(m[3]) ? 'gpu' : 'renderer';
+        const s = spawn('/usr/bin/sample', [m[1], '3', '-file', `${out}/sample-${kind}-${m[1]}.txt`], { stdio: 'ignore' });
+        s.on('exit', () => res());
+      })));
+      console.log(`native samples: ${kids.length} processes → ${out}/sample-*.txt`);
+    }
+    kill();
+    process.exit(3);
+  }, 250);
+}
 
 // Screenshots of the top-left preview for the first 12 s (black-screen check)
 const shots: string[] = [];

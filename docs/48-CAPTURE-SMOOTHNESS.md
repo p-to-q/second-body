@@ -427,7 +427,42 @@ A 场 = 这一轮的全部改动（在合并了导航那条线之后的 main 上
 
 合并导航那条线之后，`seed=7` 从展签 → 选择页回车会落在 `autonomous`（四足），按下「摄像头」之后探针的截图**再也不返回**（页面不出帧），
 在 main 原样构建（M）和这一轮的构建上都复现（`autodiag.sh`：按下后 18 秒 `hard timeout`）。
-深链 `?theme=porcelain` 同一个种子不复现。可能是无头 Chrome 的问题，也可能是四足物种在按下摄像头之后真的卡死 —— **没有查**。
+深链 `?theme=porcelain` 同一个种子不复现。
+
+**第三轮查到的（2026-09-14 夜，限时，没修）：**
+
+复现（当前 main 构建，`vite preview`，暖缓存）：
+
+```bash
+STEPS=1 QUERY=seed=7 node scripts/capture-smoothness/measure.ts http://localhost:4391 /tmp/frz swap 25 1 1
+```
+
+展签「开始」→ 选择页回车（落在 `autonomous`）→ 舞台 6 秒 → 按「摄像头」。按下后约 2.3 秒**页面不再出帧**，看门狗判失败（exit 3）。
+
+| 事实 | 证据 |
+|---|---|
+| **不是无头 Chrome 才有** | `HEADED=1` 真窗口、冷缓存，同一处卡住 |
+| **JS 没死，是 rAF 停了** | 卡住时 `Debugger.pause` 停在探针自己的 16ms `setTimeout` 轮询里；页面里新挂一个 rAF，1 秒不回 |
+| 不是标签页不可见 / 失焦 / 视图过渡没收尾 | `visibilityState=visible`、`hasFocus()=true`、`document.activeViewTransition` 为空 |
+| 卡在摄像头**启动期间** | 右下角那一行是「正在打开」，DOM 里还没有 `<video>`（`WebcamCapture.start()` 还没等到第一次推理） |
+| 渲染进程和 GPU 进程的主线程都闲着 | macOS `sample`：两个渲染进程主线程都在 `mach_msg` 里等消息；GPU 进程主线程同样，其余线程没有 Metal 编译 |
+| **不是物种，也不是换摄像头本身** | `?demo=1&seed=7&theme=autonomous` 和 `theme=porcelain`（回放起步、同样按「摄像头」）都跑完 20 秒没卡；合并导航之前走选择页 → porcelain → 按摄像头也没卡（§10.4 的 B 场） |
+
+**最可能的原因（没证实）**：只在"选择页 → 舞台"这条路上出现，而这条路是导航那条线加了同文档 `startViewTransition` 交棒（`ui/page-transition.ts` 的 `handOff`，`choose/choose.ts:362`）
+和第一帧地面（`adoptPrepaint`）的地方。假设是：交棒留下的某个状态（被跳过的过渡、选择页那块 WebGL 画布没有真的放掉，或 prepaint 那层）
+在摄像头启动、worker 里起 OffscreenCanvas WebGL 的那一刻，让合成器停止为这一页出帧。**下一步**：同一条路上加 `?transitions=off`
+（或在 `handOff` 里直接返回 false）重跑一次，卡住就排除交棒；不卡再逐个撤 prepaint / 选择页画布释放。
+
+**加的看门狗**（`measure.ts`，默认开，`WATCHDOG_MS=0` 关）：按下之后 2 秒不出帧就判这一场失败，并留下目标页列表、页面状态、`Debugger.pause` 的栈，
+`NATIVE_SAMPLE=1` 时再加渲染 / GPU 进程各 3 秒的原生栈（`stall.txt`、`sample-*.txt`）。**它是探针的断言，不是产品里的保护** ——
+产品里帧循环停了，调速器也跟着停（它长在帧循环上），这种卡法它看不见。
+
+### 10.7 这一轮没做的
+
+- **§10.6 的卡死没修**：原因没定位到代码行，见上面的复现和下一步。
+- **拿回后期那一帧的顿**（95–848ms，每个构建都有，§10.4 表）：没拆、没修。候选修法是空闲里预先重建后期链、或预先按当前像素比建好它的渲染目标。
+- §10.3 第 1 条说明过：那条 revert 提交（`dispose the post chain on drop again; keeping it cost 410-417ms on restore`）的理由写错了，
+  拿回后期的顿在没改过的 main 上一样有，**以 §10.3 为准**；历史不改写。
 
 ### 10.5 守卫（先红后绿，红的那一次在提交里）
 
