@@ -27,10 +27,11 @@ test('预编译: 内容变了（新桶出现）→ 稳定之后再编一次', ()
   const p = createWarmPlan();
   p.note(1, 0);
   p.started(WARM.settleMs); p.finished(WARM.settleMs + 100, true);
-  p.note(2, 5000);
-  p.note(3, 5000 + WARM.settleMs / 2);    // 还在变
-  assert.equal(p.next(5000 + WARM.settleMs, calm), false, '稳定时间从最后一次变化算起');
-  assert.equal(p.next(5000 + WARM.settleMs * 1.5, calm), true);
+  const t = WARM.settleMs + WARM.minGapMs;   // 已经过了开编间隔：这条只看稳定
+  p.note(2, t);
+  p.note(3, t + WARM.settleMs / 2);    // 还在变
+  assert.equal(p.next(t + WARM.settleMs, calm), false, '稳定时间从最后一次变化算起');
+  assert.equal(p.next(t + WARM.settleMs * 1.5, calm), true);
 });
 
 test('预编译: 后期关着（直出就是正在画的那条）/ 画面在忙 → 不编', () => {
