@@ -455,6 +455,10 @@ URL 都是 `/?demo=1&debug=1&theme=porcelain&seed=7&theseus=off&arc=900&nopost=1
 
 截图（`scratch/evidence/framing/browser/`）：`out-left-t5.5.png`（身体停在边上、目标虚线刻度在余量外、原图右边加粗）、`light-t5.png`（实际窗口红框在退回途中）、`two-t4.5.png`、`sitstand-t7.8.png` 等 27 张。
 
+**首屏字节。** `npm run build` 之后 `vite preview`，无头 Chrome 关缓存、数 `Network.loadingFinished` 的传输字节到网络静默 3 秒：
+`/` **96 个请求 2.086 MB**；`/?theme=porcelain&demo=1&seed=7`（不开摄像头直接进舞台）**107 个请求 2.101 MB**。都在 3 MB 之下。
+docs/13 §6 记的是"标签页 → 选择页 → 舞台，100 个请求 2.06 MB"—— 走的路不一样（这里没有点选择页），**这一轮没有在 6439275 上重建一次做同口径对照**，两个数只能说"量级没变"。
+
 ### 6.7 先红后绿（每条守卫拿掉它守的那一行再跑）
 
 `scratch` 里一个变异脚本：对每一条守卫做一处替换 → 跑那几条测试 → 还原；跑完 `git status --porcelain` 为空。**23 发 23 中**（第一轮 21 发，两发没有断言红，见表下）。
