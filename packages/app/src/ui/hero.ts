@@ -58,6 +58,7 @@ export function heroMeta(backHref: string, from: string | null = null): HTMLDivE
   setBi(back, origin && label ? label : fallback);
 
   // 字标在每一张有横带的页上是同一件东西：换页时它不动（docs/47）
-  meta.append(back, declareShared(markNode('span'), 'mark'));
+  const mark = declareShared(markNode('span'), 'mark');
+  meta.append(back, mark);
   return meta;
 }
