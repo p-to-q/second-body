@@ -58,7 +58,7 @@ import { createSound } from './sound/sound.ts';
 import { createCues } from './sound/cues.ts';
 import { createGroundSense } from './sound/ground.ts';
 import { COPY } from './ui/i18n.ts';
-import { ACTS, createDirector, type World } from './acts/index.ts';
+import { ACTS, createDirector, lineFor, type World } from './acts/index.ts';
 
 const flags = readFlags();
 
@@ -741,21 +741,30 @@ async function boot(): Promise<void> {
     // 意味着观众站定几秒就会看着零件退回去，那读作故障，不读作"它安静下来了"。
     // 归零由弧线负责，不由衰减负责。
     // `?tier=` 锁定时整段不参与 —— look dev 要的是一个不动的靶子。
+    //
+    // **档位下限在忒修斯开着时取排期给的那一档**（`step.tier`，docs/44 §6，2026-09-14 夜）。
+    // 原来取的是乐章序号，于是整具 remorph + `stage.pulse` 恰好落在三条乐章边界上 ——
+    // 一次全身换装加一下亮度脉冲，就是 docs/44 §6 删掉的那条边本身。
+    // 而且第 I 乐章那两件替换发生时档位还是 0，台上是开场那一团，换掉的零件没画出来。
+    // 现在第 k 档在它那一段第一件替换之前 `THESEUS.tierLead` 秒升，离任何一条边至少
+    // `THESEUS.edgeMargin` 秒（`core/test/theseus-tier.test.ts`）。`step` 只在 `?theseus=off` 时是 undefined，
+    // 那条 plan B 照旧取乐章序号。
     if (flags.tier === null) {
-      const want = Math.max(tier, arcState.tier, evoTier) as Tier;
+      const want = Math.max(tier, step ? step.tier : arcState.tier, evoTier) as Tier;
       if (want !== tier) {
+        // 给操作员（`?debug=1`）：升档落在弧线的第几秒 —— 现场验"它不在乐章边界上"靠这一行
+        if (hud) console.info(`[tier] ${tier} → ${want} @ arc ${arcState.elapsed.toFixed(2)}s（乐章 ${arcState.movement + 1}）`);
         morph(want);
         stage.pulse(want);      // docs/23 §S5：升档必须可感知，否则演化等于没发生
         // 这一声也跟着挂点搬走了。**乐章序号就是档位下限**，所以在四个交接点上
         // 走的正是这一条分支 —— 留着它，那一声照样在标记那四个点，
         // 而 docs/44 §6 已经裁定那四个点不再是事件。`?theseus=off` 时原样保留。
         if (!theseus) sound.tierUp(want);
-      } else if (arcState.movementChanged) {
-        // 乐章交接仍然让画面顿一下（`stage.pulse`），但**那一声不在这里了**：
-        // docs/40 §5 第 3 条在 2026-09-14 改了挂点，声音跟着每一次零件替换走
-        //（上面那一段）。留在这里就会变成同一件事响两遍。
-        // `?theseus=off` 是例外：现场的 plan B 必须和这一版之前**逐字相同**，
-        // 而这一版之前那一声就挂在交接上（`test/theseus-flag.test.ts` 钉着这一条）。
+      } else if (!theseus && arcState.movementChanged) {
+        // 乐章交接那一下（画面顿一下 + 那一声）**只剩 `?theseus=off` 这条 plan B 上有**：
+        // 现场的 plan B 必须和这一版之前逐字相同（`test/theseus-flag.test.ts`）。
+        // 忒修斯开着时乐章边界不是事件（docs/44 §6，`test/arc-edges.test.ts`）：
+        // 画面顿一下跟着升档走（上面那一支），声音跟着每一次零件替换走。
         stage.pulse(tier);
         if (!theseus) sound.tierUp(tier);
       }
@@ -823,7 +832,8 @@ async function boot(): Promise<void> {
       speed: lastFeatures?.speed ?? 0,
       jerk: lastFeatures?.jerk ?? 0,
       energy: lastFeatures?.energy ?? 0,
-      actId: director.currentId,
+      // 音色跟着身体吃的那一组三个数滑，不跟着乐章的名字跳（`sound/timbre.ts`，docs/44 §6）
+      line: lineFor(director.currentId, arcState.overall, director.forced),
       waiting: slow.phase === 'running',
     }, dt);
 

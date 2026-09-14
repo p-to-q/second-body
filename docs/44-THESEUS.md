@@ -645,6 +645,40 @@ industrial 40/40 · 201k · 35（修之前 42 · 257k · 45 / 40 · 185k · 56 /
 27. **开场团块 → 刚体那一下**（`nascent.ts` 两边都在场时合账）没有进这一轮的归因；
     这一轮的越界都发生在它之后。
 
+### 边界的三处残留（2026-09-14 夜）
+
+§6 裁定删边界之后，乐章边界上还挂着三件事。改完之后，**忒修斯开着时乐章边界上什么都不发生**；
+`?theseus=off` 那条 plan B 逐字照旧（`test/theseus-flag.test.ts`）。
+
+28. **身体层音色按玩法名字换**（`sound/graph.ts` 的 `actColor(actId)`）。弧线在 39.6 秒把名字从 follow 换成 echo，
+    回声那一路当帧 0 → 0.5。现在音色吃 `SoundSignal.line`（`acts/act.ts` 的 `lineFor`，和身体是同一点），
+    `sound/timbre.ts` 在 1 和 `SOUND.acts` 那个端点之间按三个数插值；四个地名上逐位等于原值。
+    先红：「音色在 39.62s 一帧跳了 100.0%（echo）」；后绿：整场逐帧最大一步 < 0.5%（`app/test/sound-line.test.ts`）。
+29. **档位下限是乐章序号**，整具 remorph + `stage.pulse` 恰好落在三条边上；`movementChanged` 还单独给一下 pulse。
+    现在下限是 `TheseusState.tier`（`core/src/theseus.ts`）：第 k 档跟着 `tierAnchors()` 那一件（tier 1 = 这一场第一件，
+    tier 2 / 3 = 第 III / IV 乐章第一件），在它到点之前 `THESEUS.tierLead = 4` 秒升，落在任何一条边 ±`edgeMargin = 3` 秒里
+    就等到边之后；那一件要等升档之后满 `tierLead` 秒才碎。`movementChanged` 那一支只剩 `!theseus`。
+    先红：「站着不动 seed 1: 升到 tier 1 在 39.62s，离乐章边界 39.60s 只有 0.02s」、main.ts 源码守卫两条；
+    后绿：60 种子 × {站着不动, 一直在蹦, `?theseus=6`} 每次升档离边 ≥ 3 秒且 1→2→3 各一次（`core/test/theseus-tier.test.ts`、`app/test/arc-edges.test.ts`）。
+    代价：站着不动的人第一件替换从 ≥ 20 秒变成 ≥ 24 秒；个别场次锚点那一件被边界让位推迟至多 `tierLead + 2 × edgeMargin`
+    （`theseus.test.ts`「基准速率」那一条按这个例外改写了，其余件仍然一帧不许晚）。排期本身一件没加快。
+30. **第 I 乐章那一次替换看不见**（第 10 条）：下限是乐章序号，20–40 秒整段 tier 0，台上是开场团块、`creature.genome` 为 null，
+    `swapOneSlot` 返回 null，HUD 照样 1/18。第 29 条让 tier 1 在第一件之前 ≥ 4 秒到（且不早于宽限），团块 0.6 秒化开，
+    第一件碎在一具已经成型的刚体上。先红：真 `parts.json` 24 个刚体物种 × 4 种子「96 / 96 第一件落在团块上（genome = null）」；
+    后绿（`app/test/first-replacement.test.ts`）。预算没动：替换走的是同一条 `creature.replace()` + `swap-budget.ts`，
+    `test/swap-budget.test.ts` 5 条照绿。
+
+无头 Chrome（WebGPU，`?demo=1&debug=1&theme=porcelain&seed=99&theseus=6`，`scratch/evidence/arc-edges-2026-09-14/`）：
+`edges-sheet.jpg` 是三条边前后各三帧 —— HUD 那一行 `线` 的三个数跨边连续（84.6 秒前后重量 0.43 → 0.54 → 0.62，
+135 秒前后朝向 0.49 → 0.64 → 0.66），控制台在边界附近没有 `[tier]` 行，draw 36–38/40。
+⚠️ `?demo=1` 的回放片段运动量大，`evoTier` 在弧线第 2.6 / 5.5 / 10.4 秒就把档位推到 3（运动量那一半本来就能提前，docs/40 §4），
+所以这一场里团块早就化开了；站着不动的人那条路只有 node 的证据。
+`first-seed99-sheet.jpg`（身体裁切、放大 2 倍、背靠背连拍）是这一场第一件 `#1 joint ← d0 joint.porcelain.a`：
+膝、肘那几颗圆盖片在 burst-009 到 burst-021 之间变成窄环 —— **放大了读得出来，整幅画面里仍然很轻**。
+它轻不是因为被团块盖住（那是第 30 条修掉的），而是 §2 / §4 的两条选择叠在一起：第一段优先安静槽位
+（这一场抽中的是 13 处小盖片那一格）、早期借件多是本物种的兄弟件。**要不要让第一件更"正眼"，是 §2 那句
+"被余光看见而不是被正眼看见"的裁定问题，这一轮没有改它** —— 现场看真人时和第 16 条一起定。
+
 ## 11 · 这一页没有裁的
 
 - **`graft()` 的组装动画在一次 4.5 秒的节奏下是不是太长** —— 要现场看真人才知道，

@@ -9,6 +9,7 @@
  * 声音只需要这几个数，多引一个字段就是多一条以后会断的线。
  */
 import type { PresenceState } from '../../../core/src/types.ts';
+import type { LineParams } from '../../../core/src/line.ts';
 
 export interface SoundSignal {
   /** 房间层唯一的输入 */
@@ -21,13 +22,17 @@ export interface SoundSignal {
   jerk: number;
   /** 慢 EMA。目前只喂给房间层的亮度，让久动的人所在的房间整体更开 */
   energy: number;
-  /** 当前玩法 id。它改的是身体层的**音色**，不是加一层新声音 */
-  actId: string | null;
+  /**
+   * 身体此刻吃的那一组三个数（`core/src/line.ts`）。它改的是身体层的**音色**，不是加一层新声音。
+   * 原来这里是 `actId`：音色按乐章的名字挑，于是在名字换掉的那一帧跳 —— 见 `timbre.ts` 文件头。
+   * null = 不在这条线上（`untether`），走基线。
+   */
+  line: LineParams | null;
   /** 慢回路是否正在跑（phase === 'running'） */
   waiting: boolean;
 }
 
 export const SILENT_SIGNAL: SoundSignal = {
   presence: 'IDLE', transition: 0, speed: 0, jerk: 0, energy: 0,
-  actId: null, waiting: false,
+  line: null, waiting: false,
 };

@@ -13,7 +13,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   borrowDistance, buildSchedule, createTheseus, movementOfEvent, quietSlotKeys, scaleDrift,
-  slotWeights,
+  slotWeights, tierAnchors,
 } from '../src/theseus.ts';
 import type { TheseusMachine, TheseusReplacement } from '../src/theseus.ts';
 import { ARC, FRAMING, MORPH, THESEUS } from '../src/tuning.ts';
@@ -232,14 +232,21 @@ test('theseus: 站着不动的人走的是基准速率，不是更慢的 —— 
     for (const e of [undefined, STILL]) {
       const { fired, machine } = session(seed, ARC.total, { overallEnergy: e });
       const plan = machine.schedule;
+      const anchors = tierAnchors();
       assert.equal(fired.length, plan.length, `seed ${seed} energy=${e}`);
       for (let i = 0; i < fired.length; i++) {
         // 不早于排期：加速项在站着不动的人身上必须是恒等
         assert.ok(fired[i].at >= plan[i] - 1e-9,
           `seed ${seed} energy=${e}: 第 ${i + 1} 件排在 ${plan[i].toFixed(3)}s，` +
           `却在 ${fired[i].at.toFixed(3)}s 就换了 —— 站着不动的人被加速了`);
-        // 也不晚于排期（帧量化 + minGap 复位最多差几帧）：**加速只能加，不能减**
-        assert.ok(fired[i].at <= plan[i] + 3 * DT,
+        // 也不晚于排期（帧量化 + minGap 复位最多差几帧）：**加速只能加，不能减**。
+        // 唯一的例外是有据可查的那一条：升档跟着的那一件要等升档之后满 `tierLead` 秒才碎
+        //（`tierAnchors`，docs/44 §6 2026-09-14 夜），升档落在乐章边界 ±edgeMargin 里还要再等出去；
+        // 被它压住的后面几件按 minGap 依次放出来。除此之外一件都不许晚。
+        const hold = anchors.includes(i) ? THESEUS.tierLead + 2 * THESEUS.edgeMargin : 0;
+        const queue = i > 0 ? fired[i - 1].at + THESEUS.minGap : 0;
+        const release = Math.max(plan[i] + hold, queue);
+        assert.ok(fired[i].at <= release + 3 * DT,
           `seed ${seed} energy=${e}: 第 ${i + 1} 件排在 ${plan[i].toFixed(3)}s，` +
           `拖到 ${fired[i].at.toFixed(3)}s 才换 —— 站着不动的人走的是更慢的速率`);
       }

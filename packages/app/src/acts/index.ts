@@ -22,4 +22,4 @@ export const ACTS: readonly Act[] = [
 ];
 
 export type { Act, World, Director } from './act.ts';
-export { createDirector } from './act.ts';
+export { createDirector, lineFor } from './act.ts';
