@@ -86,14 +86,26 @@ test('调速器: 忽好忽坏（3 秒卡 / 3 秒顺）两分钟 —— 只往下
   assert.ok(run.changes.length <= GOVERNOR_LADDER.length);
 });
 
+/** 按 `pattern` 跑，直到调速器到了 `level` 级（最多 `seconds` 秒）—— 过载在那一刻就停 */
+function feedUntil(g: Governor, run: Run, seconds: number, pattern: (i: number) => number, level: number): void {
+  const end = run.now + seconds * 1000;
+  let i = 0;
+  while (run.now < end && g.level !== level) {
+    const ms = pattern(i++);
+    run.now += ms;
+    const d = g.sample({ now: run.now, frameMs: ms, visible: true });
+    if (d.changed !== 0) run.changes.push({ at: run.now, d });
+  }
+}
+
 test('调速器: 拿回之后很快又卡（复发）—— 下一次拿回要憋的时间翻倍', () => {
   const [g, run] = fresh();
   feed(g, run, 3, HZ60);
-  feed(g, run, 2.5, OVERLOAD);
+  feedUntil(g, run, 5, OVERLOAD, 1);
   assert.equal(g.level, 1);
   feed(g, run, GOVERNOR.restoreAfter + 1.5, HZ60);
   assert.equal(g.level, 0, '第一次正常拿回');
-  feed(g, run, 2.5, OVERLOAD);
+  feedUntil(g, run, 5, OVERLOAD, 1);
   assert.equal(g.level, 1, '复发');
   run.changes.length = 0;
   const calm = run.now;

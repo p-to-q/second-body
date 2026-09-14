@@ -130,14 +130,49 @@ function reloadBudgetSpent(): boolean {
   }
 }
 
-/** stub（先红）：直接跳到某一级 */
-export function degradeTo(_stage: DegradeStage, _reason: string | null = null): DegradeStage | null {
-  return null;
+/**
+ * 直接走到某一级（docs/48 §5）。
+ *
+ * 一级一级走是为"连续出错"设计的：前一级可能救得回来。有些故障前几级**一定**救不回来 ——
+ * WebGPU device 丢了之后什么都画不出来，关后期、换占位几何都是白走，
+ * 白走的那几十帧里观众盯着一块冻住的画。所以 `reload` 可以直接跳，
+ * 但**仍然吃同一道重载闸**（`MAX_RELOADS_PER_SESSION`）。
+ * `post` / `placeholder` 按顺序补走前面的级，不跳过 —— 占位几何之前一定已经关了后期。
+ */
+export function degradeTo(stage: DegradeStage, reason: string | null = null): DegradeStage | null {
+  if (stage !== 'reload') {
+    let last: DegradeStage | null = null;
+    const target = DEGRADE_LADDER.indexOf(stage);
+    while (state.steps <= target) {
+      last = degrade(reason);
+      if (!last) break;
+    }
+    return last;
+  }
+  if (reloadBudgetSpent()) {
+    console.error('[degrade] 重载次数已用尽，保持现状继续跑（宁可画面坏，不要每几秒黑一次）');
+    return null;
+  }
+  state.steps = DEGRADE_LADDER.length;
+  state.stage = 'reload';
+  state.reason = reason;
+  console.error(`[degrade] 直接${label('reload')}${reason ? ` · 起因：${reason}` : ''}`);
+  if (typeof document !== 'undefined') {
+    document.documentElement.dataset.sbDegrade = 'reload';
+    dispatchEvent(new CustomEvent('sb:degrade', { detail: { stage: 'reload', reason } }));
+  }
+  for (const fn of handlers.get('reload') ?? []) safely('reload', fn);
+  safely('reload', reloadAction);
+  return 'reload';
 }
 
-/** stub（先红）：WebGPU device lost 之后怎么办 */
-export function deviceLostAction(_info: { reason?: string | null } | null | undefined): 'reload' | 'ignore' {
-  return 'ignore';
+/**
+ * WebGPU device lost 之后该怎么办。**`destroyed` 不管**：那是渲染器被我们自己拆了
+ * （离开舞台时由页面过渡那条线做）—— 把它当事故，观众每离开一次舞台就被重载一次。
+ * 其余理由（驱动重置、GPU 进程崩了、`unknown`）一律重载：没有 device 就没有下一帧。
+ */
+export function deviceLostAction(info: { reason?: string | null } | null | undefined): 'reload' | 'ignore' {
+  return info?.reason === 'destroyed' ? 'ignore' : 'reload';
 }
 
 /** 测试用 */

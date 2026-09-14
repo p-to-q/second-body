@@ -50,8 +50,8 @@ test('姿态时钟: 30Hz 推理 × 120Hz 渲染，匀速运动出来是匀速的
 test('姿态时钟: 推理停了 —— 先外推一小段，封顶，不飞出去', () => {
   const c = createPoseClock();
   c.observe(pose(0, 0), 0);
-  c.observe(pose(1, 33.3), 33.3);   // 速度 30 单位/秒
-  const cap = 1 + 30 * CAPTURE.extrapolateMax;
+  c.observe(pose(1, 33.3), 33.3);   // 速度 1 单位 / 33.3ms
+  const cap = 1 + (CAPTURE.extrapolateMax * 1000) / 33.3;
   for (let now = 60; now < 33.3 + CAPTURE.stallAfter * 1000; now += 8) {
     const x = xOf(c.sample(now));
     assert.ok(x <= cap + 1e-6, `外推不许超过 ${cap.toFixed(2)}，t=${now} 时 x=${x}`);
