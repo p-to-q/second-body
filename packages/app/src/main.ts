@@ -663,6 +663,12 @@ async function boot(): Promise<void> {
       { elapsed: arcState.elapsed, present: arcPresent(p), energy: boneEnergy.current },
       dt,
     );
+    // 整体尺度（docs/44 §5 第 5 条）。`bodyRoot` 的原点就是地面，所以按它缩放
+    // **脚不会离地**；取景吃的是没缩放过的骨架（`stage.frame(lastSkeleton)`），
+    // 所以这一下是真的在画面里长大/变小，而不是被相机跟着补偿掉。
+    // `?theseus=off` 时 `step` 是 undefined，缩放回 1 —— 和这一版之前逐字相同。
+    bodyRoot.scale.setScalar(step?.scale ?? 1);
+
     if (step?.fired && !isMass && !isSwarm) {
       const g = swapOneSlot(
         creature.genome, step.fired.slot,
@@ -673,6 +679,14 @@ async function boot(): Promise<void> {
       if (g) {
         swapped.set(step.fired.slot, g.slots[step.fired.slot]);
         creature.remorph(getDegradeState().placeholder ? toPlaceholderGenome(g) : g);
+        // docs/40 §5 第 3 条（2026-09-14 改的挂点）+ docs/44 §7：
+        // 升档音原来挂在四个乐章的交接上，而 docs/44 §6 之后那四个点不再是事件 ——
+        // 一个挂在不再发生的东西上的声音等于没有声音。挪到**每一次替换**上：
+        // 那是一件真的发生了的事，它让"刚才是不是有什么变了"从怀疑变成确认。
+        // **不新造提示音**，用的就是已经存在的那一个（docs/29 §S5 的克制照旧）。
+        // 现场如果听起来像钟表，docs/44 §7 给了退路：加一句 `step.borrowDistance >= 2`
+        // 就只在借得远的时候响 —— 那个数这里已经拿在手上了。
+        sound.tierUp(tier);
       }
     }
 
@@ -692,14 +706,18 @@ async function boot(): Promise<void> {
       if (want !== tier) {
         morph(want);
         stage.pulse(want);      // docs/23 §S5：升档必须可感知，否则演化等于没发生
-        sound.tierUp(want);     // 同一个事件的另一半。两半必须在同一帧，否则读成两件事
+        // 这一声也跟着挂点搬走了。**乐章序号就是档位下限**，所以在四个交接点上
+        // 走的正是这一条分支 —— 留着它，那一声照样在标记那四个点，
+        // 而 docs/44 §6 已经裁定那四个点不再是事件。`?theseus=off` 时原样保留。
+        if (!theseus) sound.tierUp(want);
       } else if (arcState.movementChanged) {
-        // 乐章交接是这件作品少数几个"事件"之一（docs/40 §5 第 3 条）。
-        // 档位已经被运动量提前推上去时这里不会再升一档，但**交接本身仍然发生了**，
-        // 所以那一声照放 —— 用的是已经存在的升档音，**不新造一种提示音**：
-        // 乐章不是成就（docs/29 §S5 那条克制同样适用）。
+        // 乐章交接仍然让画面顿一下（`stage.pulse`），但**那一声不在这里了**：
+        // docs/40 §5 第 3 条在 2026-09-14 改了挂点，声音跟着每一次零件替换走
+        //（上面那一段）。留在这里就会变成同一件事响两遍。
+        // `?theseus=off` 是例外：现场的 plan B 必须和这一版之前**逐字相同**，
+        // 而这一版之前那一声就挂在交接上（`test/theseus-flag.test.ts` 钉着这一条）。
         stage.pulse(tier);
-        sound.tierUp(tier);
+        if (!theseus) sound.tierUp(tier);
       }
     }
     // 身体怎么动交给当前的 Act。追踪短暂丢失时 lastSkeleton 还在，

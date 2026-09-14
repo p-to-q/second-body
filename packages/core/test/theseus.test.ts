@@ -12,10 +12,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  borrowDistance, buildSchedule, createTheseus, quietSlotKeys, slotWeights,
+  borrowDistance, buildSchedule, createTheseus, quietSlotKeys, scaleDrift, slotWeights,
 } from '../src/theseus.ts';
 import type { TheseusMachine, TheseusReplacement } from '../src/theseus.ts';
-import { ARC, MORPH, THESEUS } from '../src/tuning.ts';
+import { ARC, FRAMING, MORPH, THESEUS } from '../src/tuning.ts';
 import { ALL_SLOT_KEYS } from '../src/slots.ts';
 import { createArc } from '../src/arc.ts';
 import { mulberry32 } from '../src/rng.ts';
@@ -85,6 +85,20 @@ test('theseus: 头二十秒一件都没换 —— §2 里最硬的那条线', ()
     assert.ok(first.at >= THESEUS.graceSeconds,
       `seed ${seed}: 第一件落在 ${first.at.toFixed(2)}s，早于 ${THESEUS.graceSeconds}s 的宽限 —— ` +
       '在"那是我"立住之前动它，观众读到的是故障，不是离开');
+  }
+});
+
+test('theseus: ?arc= 压短之后宽限也不许被挖穿', () => {
+  // `?arc=60` 时第 I 段只有 13.2 秒，整段都落在 20 秒宽限里 ——
+  // 窗口被压到段末，排出来的时刻会比宽限还早。宽限赢，这一条是在
+  // 浏览器里跑 `?arc=60` 时发现的（HUD 上"宽限中"和第一件同时出现）。
+  for (const total of [60, 30, 21]) {
+    for (let seed = 1; seed <= 20; seed++) {
+      for (const t of buildSchedule(mulberry32(seed), total)) {
+        assert.ok(t >= THESEUS.graceSeconds,
+          `?arc=${total} seed ${seed}: 排到了 ${t.toFixed(2)}s，早于 ${THESEUS.graceSeconds}s 的宽限`);
+      }
+    }
   }
 });
 
@@ -240,4 +254,57 @@ test('theseus: ?arc= 把整条压短之后排期仍然成立 —— 不出界、
   // 比宽限还短的一场：一件都排不进去也不许抛、不许给出负数
   const tiny = buildSchedule(mulberry32(1), 10);
   for (const x of tiny) assert.ok(Number.isFinite(x) && x >= 0);
+});
+
+// ── §5 第 5 条：整体尺度 ──────────────────────────────────────────────────────
+test('theseus: 尺度漂移在开场几乎不动，走到头正好是 scaleDrift', () => {
+  assert.equal(scaleDrift(0, 1), 1, '开场必须是原样 —— "那是我"要先立住');
+  assert.ok(Math.abs(scaleDrift(20 / 180, 1) - 1) < 0.005,
+    `二十秒宽限那一刻已经缩放了 ${(scaleDrift(20 / 180, 1) - 1) * 100}% —— 开场不该动`);
+  assert.ok(Math.abs(scaleDrift(1, 1) - (1 + THESEUS.scaleDrift)) < 1e-9);
+  assert.ok(Math.abs(scaleDrift(1, -1) - (1 - THESEUS.scaleDrift)) < 1e-9);
+  // 单调：一件装置里"忽大忽小"读作故障，不读作漂移
+  let prev = 0;
+  for (let p = 0; p <= 1.0001; p += 0.01) {
+    const v = scaleDrift(p, 1);
+    assert.ok(v >= prev, `overall=${p.toFixed(2)} 时尺度回头了`);
+    prev = v;
+  }
+});
+
+test('theseus: 尺度漂移不会把头顶挤出画面 —— 这是它唯一能坏的方式', () => {
+  // 取景余量（× 身高）：画面比身体高 `heightFactor`，身体中心还被抬高 `centerLift`。
+  // 头顶上方剩下的就是这么多，尺度漂移只能吃它的一部分。
+  const headroom = (FRAMING.heightFactor - 1) / 2 - FRAMING.centerLift;
+  assert.ok(THESEUS.scaleDrift < headroom,
+    `scaleDrift=${THESEUS.scaleDrift} 已经吃掉全部 ${headroom.toFixed(3)} 的头顶余量 —— ` +
+    '那不是"它变大了"，那是画面把头切了');
+  // 留一半余量给非标准站姿（举手、跳起来）
+  assert.ok(THESEUS.scaleDrift < headroom / 2,
+    `scaleDrift=${THESEUS.scaleDrift} 吃掉了一半以上的头顶余量，举手的人会被切`);
+});
+
+test('theseus: 尺度的方向由种子定，两个方向都会出现，人一走回到 1', () => {
+  const dirs = new Set<number>();
+  for (let seed = 1; seed <= 30; seed++) {
+    const t = createTheseus({ seed });
+    for (let i = 0; i < 200; i++) t.update({ elapsed: ARC.total, present: true }, DT);
+    dirs.add(Math.sign(t.state.scale - 1));
+  }
+  assert.deepEqual([...dirs].sort(), [-1, 1],
+    '三十个种子里只出现了一个方向 —— §5 说的是"比你高，或比你矮"');
+
+  // 归零：下一个人从原样开始（§8 的同一条理由 —— 他没见过上一具身体）
+  const t = createTheseus({ seed: 4 });
+  const arc = createArc();
+  for (let i = 0; i < Math.round(150 / DT); i++) {
+    const a = arc.update(true, DT);
+    t.update({ elapsed: a.elapsed, present: true }, DT);
+  }
+  assert.ok(Math.abs(t.state.scale - 1) > 0.01, '两分半之后总该漂开了');
+  for (let i = 0; i < Math.round((ARC.resetAfter + 2) / DT); i++) {
+    const a = arc.update(false, DT);
+    t.update({ elapsed: a.elapsed, present: false }, DT);
+  }
+  assert.equal(t.state.scale, 1, '人走了尺度还留在上一场');
 });
