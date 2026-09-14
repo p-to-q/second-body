@@ -59,13 +59,13 @@ test('theseus 开关: 认不出来的值按没写过处理并喊一声（和 ?ar
 test('theseus HUD: §7 那一行三个数都在', () => {
   const row = formatTheseusRow({
     fired: null, replaced: 12, slots: 18, events: 14, inFlight: 0,
-    nextIn: 3.44, borrowDistance: 2, inGrace: false, justReset: false,
+    nextIn: 3.44, borrowDistance: 2, scale: 1, inGrace: false, justReset: false,
   });
   assert.equal(row, '12/18 · 借距 d2 · 下一件 ~3.4s');
   // 宽限里写「宽限中」而不是一个倒计时：那 20 秒不是"还没轮到"，是故意不换
   const grace = formatTheseusRow({
     fired: null, replaced: 0, slots: 18, events: 0, inFlight: 0,
-    nextIn: 6, borrowDistance: 0, inGrace: true, justReset: false,
+    nextIn: 6, borrowDistance: 0, scale: 1, inGrace: true, justReset: false,
   });
   assert.match(grace, /0\/18 · 借距 d0 · 宽限中/);
 });

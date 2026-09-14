@@ -616,6 +616,12 @@ async function boot(): Promise<void> {
       { elapsed: arcState.elapsed, present: arcPresent(p), energy: boneEnergy.current },
       dt,
     );
+    // 整体尺度（docs/44 §5 第 5 条）。`bodyRoot` 的原点就是地面，所以按它缩放
+    // **脚不会离地**；取景吃的是没缩放过的骨架（`stage.frame(lastSkeleton)`），
+    // 所以这一下是真的在画面里长大/变小，而不是被相机跟着补偿掉。
+    // `?theseus=off` 时 `step` 是 undefined，缩放回 1 —— 和这一版之前逐字相同。
+    bodyRoot.scale.setScalar(step?.scale ?? 1);
+
     if (step?.fired && !isMass && !isSwarm) {
       const g = swapOneSlot(
         creature.genome, step.fired.slot,

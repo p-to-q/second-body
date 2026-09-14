@@ -57,6 +57,12 @@ export interface TheseusState {
   nextIn: number;
   /** 这一刻的借件距离 0..4（§4）。HUD 的 `借距 d2`，取件那一侧另说 */
   borrowDistance: number;
+  /**
+   * 这一刻整具身体该缩放多少（1 = 原样）。docs/44 §5 第 5 条：
+   * **尺度是唯一一个不需要观众盯着看就能察觉的量**。方向由会话种子定，
+   * 幅度随 `arc.overall` 从 0 长到 `THESEUS.scaleDrift`。
+   */
+  scale: number;
   /** 还在开场那 `graceSeconds` 秒里（§2） */
   inGrace: boolean;
   /** 这一帧归零了：所有槽位回到原件（§8） */
@@ -135,6 +141,19 @@ export function borrowDistance(
     if (p >= gate) d++; else break;
   }
   return Math.min(d, Math.max(0, Math.floor(cap)));
+}
+
+/**
+ * 整体尺度漂移（§5 第 5 条）。`dir` 是 +1 / -1，由会话种子定。
+ *
+ * 用 smoothstep 而不是线性：开场那几十秒必须**几乎不动** ——
+ * "那是我"要先立住（docs/26 §E），而一具正在改尺寸的身体立不住它。
+ * overall=0.11（20 秒宽限那一刻）时 smoothstep 只有 0.035，也就是 0.2% 的缩放。
+ */
+export function scaleDrift(overall: number, dir: number, amount = T.scaleDrift): number {
+  const p = clamp01(fin(overall));
+  const s = p * p * (3 - 2 * p);
+  return 1 + (dir >= 0 ? 1 : -1) * fin(amount) * s;
 }
 
 export interface WeightContext {
@@ -239,6 +258,7 @@ export function createTheseus(opt: TheseusOptions): TheseusMachine {
   let away = 0;
   let started = false;
   let lastNow = 0;
+  let scaleDir = 1;
   let currentEnergy: BoneEnergy | null = null;
 
   function hardReset(seed?: number): void {
@@ -255,6 +275,8 @@ export function createTheseus(opt: TheseusOptions): TheseusMachine {
     away = 0;
     started = false;
     lastNow = 0;
+    // **在 `buildSchedule` 之后抽**：排期的随机流不该因为多了一个尺度方向而整体错位
+    scaleDir = rng.next() < 0.5 ? -1 : 1;
   }
   hardReset(opt.seed);
 
@@ -274,6 +296,7 @@ export function createTheseus(opt: TheseusOptions): TheseusMachine {
       inFlight: inFlight.length,
       nextIn: next === Infinity ? Infinity : Math.max(0, next - now),
       borrowDistance: borrowDistance(now / Math.max(1e-6, total)),
+      scale: scaleDrift(now / Math.max(1e-6, total), scaleDir),
       inGrace: now < Math.max(0, fin(T.graceSeconds)),
       justReset,
     };
