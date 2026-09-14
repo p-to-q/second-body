@@ -781,9 +781,10 @@ async function boot(): Promise<void> {
 
     // 调速器放下「替换」那一级时，这一件进延后闸（最多压 `GOVERNOR.swapDeferMax` 秒，不取消）。
     // 没放下时闸是直通的：当帧 offer、当帧执行。闸里压着的那件到点了由 tick 放出来。
-    const offered = step?.fired && !isMass && !isSwarm ? swapGate.offer(step.fired, tMs, swapShed) : swapGate.tick(tMs, swapShed);
-    const released = step?.fired && !isMass && !isSwarm ? swapGate.tick(tMs, swapShed) : offered;
-    for (const fired of offered === released ? offered : [...offered, ...released]) {
+    // 一帧只问闸一次：这一帧有新的一件就 offer（它会先把压着的那件放出来），没有就 tick。
+    // 同一刻 offer 之后再 tick 永远是空的 —— 刚压进去的那件 since 就是此刻。
+    const due = step?.fired && !isMass && !isSwarm ? swapGate.offer(step.fired, tMs, swapShed) : swapGate.tick(tMs, swapShed);
+    for (const fired of due) {
       // 借件距离按弧线张开（docs/44 §4）；d4 只在慢回路那一件真的到货之后才有得借
       const g = swapOneSlot(
         creature.genome, fired.slot,
@@ -962,7 +963,7 @@ async function boot(): Promise<void> {
           `gov=L${governor.level}${governor.level ? `(${GOVERNOR_LADDER[governor.level - 1]})` : ''} jank=${(governor.jank * 100).toFixed(0)}% pose=${poseClock.state}`
             + `${(capture as { where?: string | null }).where ? ` infer@${(capture as { where?: string | null }).where}` : ''}`
             + `${(capture as { inferMs?: number }).inferMs ? ` ${((capture as { inferMs?: number }).inferMs ?? 0).toFixed(1)}ms` : ''}`,
-          refiner &&`hold=${refiner.stats.held} drop=${refiner.stats.dropped} q=${refiner.stats.cutoffScale.toFixed(2)}`,
+          refiner && `hold=${refiner.stats.held} drop=${refiner.stats.dropped} q=${refiner.stats.cutoffScale.toFixed(2)}`,
           slow.phase !== 'idle' && `slow:${slow.phase}${slow.note ? `(${slow.note})` : ''}`,
           // 存档写成没写成只在这一行说（`docs/43 §7.1` 第 5 条：降级必须静默）
           visits.phase !== 'idle' && `visit:${visits.phase}${visits.n === null ? '' : `(#${visits.n})`}`,
