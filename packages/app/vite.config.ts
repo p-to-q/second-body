@@ -98,6 +98,12 @@ function mountArchive(middlewares: { use: (path: string, fn: Mw) => unknown }): 
   middlewares.use('/api', (req, res) => {
     void (async () => {
       try {
+        // 本机默认落盘，落在血统池旁边：它和 `lineage.json` 是同一种东西 ——
+        // **这台机器的记忆**，不是仓库的内容（`docs/43 §7.3`）。
+        // `assets/parts/lineage/` 已经在 .gitignore 里。
+        // 不落盘（内存）的话，本机跑出来的就不是线上那件事，而这个挂载点的全部
+        // 意义就是让 dev / preview / 线上对同一个 URL 给出同一个答案。
+        process.env.ARCHIVE_FILE ??= resolve(ROOT, 'assets/parts/lineage/visits.jsonl');
         const { createArchiveHandler } = await import('../archive/src/http.ts');
         const { createVisitStore } = await import('../archive/src/store.ts');
         archive ??= createArchiveHandler(createVisitStore());
@@ -111,7 +117,7 @@ function mountArchive(middlewares: { use: (path: string, fn: Mw) => unknown }): 
     })();
   });
 }
-/** 一个进程一个 store。默认是内存实现，所以它必须是同一份，否则 POST 和 GET 各数各的 */
+/** 一个进程一个 handler。建两份没有坏处，但也没有理由 —— store 是有状态的那一半 */
 let archive: ((req: IncomingMessage, res: ServerResponse) => Promise<void>) | undefined;
 
 function anchorWriter(): Plugin {

@@ -77,11 +77,16 @@ async function readBody(req: IncomingMessage): Promise<unknown> {
  * 挂载点是 `/api`，所以这里看到的 path 是 `/visit` / `/visits`。
  * Vercel 那边一个函数一条路径，壳子把 path 补齐了再调进来。
  */
-export function createArchiveHandler(store: VisitStore) {
+export function createArchiveHandler(store: VisitStore | null) {
   return async function archiveHandler(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const [rawPath, rawQuery] = (req.url ?? '/').split('?');
     const path = decodeURIComponent(rawPath || '/').replace(/\/+$/, '') || '/';
     const q = new URLSearchParams(rawQuery ?? '');
+
+    // 没有存储 = 这个部署上没有这条回路（`docs/43 §7.2` 第三行）。
+    // 不是 500，也不是一个会忘的计数器 —— 是 404，和 `/__slow` 逐字同一条答案。
+    // `/lineage` 对这件事有一句准备好的话（`renderState` 的 off 那一对）。
+    if (!store) return fail(res, 404, 'DISABLED', '这个部署上没有存档回路');
 
     try {
       if (path === '/visit') {

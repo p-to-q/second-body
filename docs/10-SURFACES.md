@@ -168,6 +168,16 @@
 | **一次真实的 Rodin 调用** | `spec-only` | **从没打过。** 离线端到端验的是**回路**，不是**生成**。"把实时 AI 3D 生成放进交互回路"这句主张里，被验证的是"回路"那半。docs/09 U10（端到端真实耗时）因此仍空着 |
 | 现场 kiosk 跑生产构建 = 没有慢回路 | — | 要让它活着得跑 `npm run dev`（或给 preview 也接一份）。这是个**待裁决**的部署选择，不是 bug |
 
+## 存档（`docs/43 §8` 的 A 档）
+
+| 表面 | 状态 | 证据 |
+|---|---|---|
+| **一行到访记录的形状（序号 / 物种 / 粗到天的日期）** | `stable` | `packages/archive/src/visit.ts`。`docs/43 §9.4` 那条「永久保留」是靠**这一行里根本没有个人数据**站住的，所以它有仪表不只有注释：`app/test/archive.test.ts` 18 条，钉字段清单、`species` 的闭集、日期只到天、请求体塞 `ip`/`ua`/`email`/`lat` 一个都不落库，外加扫源码确认 `packages/archive/**` 与 `api/**` 里没有任何一处读 header / socket / cookie |
+| **`POST /api/visit` · `GET /api/visits?limit=`** | `experimental` | 返回形状逐字照抄 `GET /__slow/lineage`（`{ok,total,entries}`）。逻辑一份（`packages/archive/src/http.ts`），三个宿主共用：Vercel 函数（`api/*.ts`）、dev server、`vite preview`。**Vercel 上那一侧没有实跑过** —— 这条线不许开通任何东西，见下一行 |
+| **存储** | `stub` | 接口两个方法（`store.ts`）。`fileStore` 只追加 JSONL，dev / preview / 装置那台机器走它，有测试（换一个实例读回来、一条 < 80 字节）；`restStore` 按 Marketplace 上那一家的 HTTP 口子写好了，**协议有测试**（只发 `INCR`/`LPUSH`/`LRANGE`/`LLEN`，没有任何一条会让这一叠变薄），但**没有连过真服务**。开通是作品负责人的动作，步骤在 `docs/13 §5.1` |
+| **没开通时线上是什么样** | `stable` | `createVisitStore()` → `null` → 两个端点 404 `{code:'DISABLED'}` → `/lineage` 仍是「这条回路只在装置现场活着」。**故意不退回内存计数器**：那个数会随函数实例重置，而这一页头一行写着「这一叠不会变薄」（P21） |
+| **写入时机与降级** | `experimental` | 弧线走完（`ArcState.held`）写一次，在 `requestIdleCallback` 里；`justReset` 收回来，下一位重新算一场。任何失败（404 / 5xx / 断网 / 超时）= 静默关掉、本次会话不再尝试、不重试。没有 `sendBeacon`（`§9.7`），有测试扫着。**摄像头没打开的那一场一行都不写** —— 那就是 `§9.5` 的「不参与」 |
+
 ## 展陈层（作品自己讲自己的那几页）
 
 | 表面 | 状态 | 证据 |

@@ -854,7 +854,7 @@ export const COPY = {
       'Each layer here holds three things only: a position, the species chosen, and a day. No imagery, no movement, and nothing to look at — the web version grows no parts; that half only happens at the installation.',
     ),
     /**
-     * `docs/43 §9.8` 裁的那一句（代 `docs/23` 裁，登记在 `docs/23 §S6`）。
+     * `docs/43 §9.8` 裁的那一句（代 `docs/23` 裁，登记在 `docs/23 §S8`）。
      *
      * 一个循存档链接回来的人看到的是：作品在动，而摄像头没亮。不说明，他会以为坏了；
      * 说明得太重，就变成一个 UI 控件 —— 裁定写明**不做角标、不做「回放中」的常驻标记**，

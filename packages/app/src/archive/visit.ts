@@ -42,6 +42,14 @@ export type VisitPhase =
 export interface VisitReporter {
   /** 帧循环里调。一次 boolean 比较，别的什么都不做 */
   note(held: boolean): void;
+  /**
+   * 人走了（`ArcState.justReset`）：下一位从头开始，这一位写过的不算数。
+   *
+   * **不清 `off`。** 写失败过一次就是本次会话不再尝试（`§7.1` 第 3 条），
+   * 换一个人不解除它 —— 和 `slow.reset()` 不清 `disabled` 逐字同一条理由：
+   * 那道闸是按**会话**算的，重置会绕过它。
+   */
+  reset(): void;
   /** 给 `?debug=1` 的 HUD 读。**不进任何面向观众的页面** */
   readonly phase: VisitPhase;
   /** 落下去的那一条的序号，没有就是 null */
@@ -52,10 +60,18 @@ export interface VisitOptions {
   /** 观众选的物种。没有就不写 —— 一条记不清物种的记录在这一档里等于没有内容 */
   species: string | null;
   /**
-   * 这一场算不算数。`?demo=1` 和入口层的回放都不算：
-   * 一段录像走完弧线不是一次相遇，把它写进存档等于给厚度掺水。
+   * 这一场算不算数，**在弧线走完的那一刻回答**。
+   *
+   * 为什么是一个 getter 而不是一个 boolean：网页版开场用的是回放，
+   * 摄像头要等观众按下「用我的摄像头」才打开（`main.ts` 的 `cameraOn`）。
+   * 开机那一刻算一次，答案在整个网页版上永远是 `false` —— 存档一行都不会写，
+   * 而 `/about` 那一段正说着「每一次到访只在服务端留下一行」。
+   *
+   * 它同时是 `§9.5` 那条「不参与」的**实现**：不按那个按钮，摄像头不开，
+   * 这一场就不算一次到访，什么都不会被留下 —— 而作品照样在放。
+   * `/about` 说出来的就是这件事，所以那句话必须和这里读的是同一个东西。
    */
-  live: boolean;
+  live: () => boolean;
   /** 测试用的注入口。生产路径上就是 `fetch` */
   fetch?: typeof globalThis.fetch;
   /** 测试用：把"等空闲"折成立刻执行 */
@@ -71,13 +87,24 @@ export function createVisitReporter(opt: VisitOptions): VisitReporter {
   const doFetch = opt.fetch ?? globalThis.fetch?.bind(globalThis);
   const idle = opt.idle ?? defaultIdle;
 
-  // 不该写的三种情况在这里一次判完，之后 `note()` 就只剩一个比较
-  let phase: VisitPhase = (!opt.live || !opt.species || !doFetch) ? 'off' : 'idle';
+  // 没有物种、没有 fetch：这一整个会话都写不了，一次判完。
+  // `live` 不在这里判 —— 它会变（观众中途按下「用我的摄像头」），见 VisitOptions
+  let phase: VisitPhase = (!opt.species || !doFetch) ? 'off' : 'idle';
   let n: number | null = null;
+  /**
+   * 第几场。`reset()` 加一。
+   *
+   * 为什么需要它：一个人在写还没回来的时候走掉，`reset()` 会把状态交给下一位，
+   * 而上一场那个 `await` 迟一点才落地 —— 没有这个计数，它会把**上一场的结果**
+   * 写在下一位头上（运气不好的话正是把 `idle` 改成 `kept`，于是下一位不写了）。
+   */
+  let era = 0;
 
-  const write = async (species: string): Promise<void> => {
+  const write = async (species: string, mine: number): Promise<void> => {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+    /** 这一场还在不在。人已经走了就只丢结果，不改任何状态 */
+    const current = () => mine === era;
     try {
       const res = await doFetch!('/api/visit', {
         method: 'POST',
@@ -87,10 +114,13 @@ export function createVisitReporter(opt: VisitOptions): VisitReporter {
       });
       // 404 = 这个部署上没有这条回路。和别的失败归成同一个出口：
       // 对观众来说它们是同一件事（什么都没发生），而这一页不需要知道是哪一种
+      // —— 但它**永久**关掉（`§7.1` 第 3 条），所以这一条跨场次照样算数
       if (!res.ok) { phase = 'off'; return; }
       const j = (await res.json()) as { ok?: boolean; entry?: { n?: unknown } };
+      if (j?.ok !== true) { phase = 'off'; return; }
+      if (!current()) return;
       n = typeof j?.entry?.n === 'number' ? j.entry.n : null;
-      phase = j?.ok === true ? 'kept' : 'off';
+      phase = 'kept';
     } catch {
       phase = 'off';
     } finally {
@@ -101,9 +131,22 @@ export function createVisitReporter(opt: VisitOptions): VisitReporter {
   return {
     note(held) {
       if (phase !== 'idle' || !held) return;
+      // 帧循环里到这里为止只有两次布尔比较。`live()` 读的是一个已经算好的
+      // boolean（`main.ts` 的 `cameraOn`），也不做任何事
+      if (!opt.live()) return;
       phase = 'writing';
       const species = opt.species as string;
-      idle(() => { void write(species); });
+      const mine = era;
+      idle(() => { void write(species, mine); });
+    },
+    reset() {
+      // 换了一个人。写过的那一条不影响下一位 —— 装置那台机器一开就是一整天，
+      // 一次开机只记一条等于把这一页数的东西从"人"偷偷换成"开机次数"。
+      // **`off` 不解除**：那是会话级的闸（见接口上的注释）
+      if (phase === 'off') return;
+      era += 1;
+      phase = 'idle';
+      n = null;
     },
     get phase() { return phase; },
     get n() { return n; },

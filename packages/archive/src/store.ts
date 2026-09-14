@@ -1,5 +1,5 @@
 /**
- * 存档往哪儿写 —— **一个很小的接口，和两个今天就能跑的实现**。
+ * 存档往哪儿写 —— **一个两个方法的接口，和三份实现**。
  *
  * ## 为什么是一个接口而不是直接写某一家的 SDK
  *
@@ -9,20 +9,19 @@
  *
  * 这条线做到的一半：
  *
- * - **挑了**（过程和结论写在 `docs/13-DEPLOY.md` §6）。
+ * - **挑了**，而且按那家自己的 HTTP 口子写了实现（过程和结论写在 `docs/13-DEPLOY.md` §5.1）。
  * - **没有开通。** 开通要花钱、要改项目所有者的 Vercel 设置，那是作品负责人的动作，
- *   不是代理的动作。所以这里**一行厂商 SDK 都没有**，连 `package.json` 都没多一个依赖。
+ *   不是代理的动作。所以这里**一行厂商 SDK 都没有**，`package.json` 一个依赖都没多，
+ *   而开通那天要做的只剩点几下 + 重新部署一次 —— 代码不用再动。
  *
- * 于是这个文件就是那条缝：接口两个方法，实现两份（内存 / 本地盘），
- * 真存储上线那天只多一份实现，`http.ts` 和前端一个字都不用改。
+ * ## 三份实现分别是给谁的
  *
- * ## 两份实现分别是给谁的
- *
- * - `memoryStore()` —— 默认。dev server、`vite preview`、单测、以及
- *   **还没开通真存储的线上部署**走的都是它。它会忘：函数实例一换就从头数。
- *   这不是缺陷，是**没开通**这件事的诚实读数 —— 端点是通的，数字不留。
- * - `fileStore(path)` —— 一个只追加的 JSONL。装置那台机器走这一条
- *   （`§7.3`：存档先写本地盘，网络是第二步；血统池 `lineage.json` 已经是这个形状）。
+ * - `restStore(url, token)` —— 线上。集成装上去之后由环境变量点亮（见 `createVisitStore`）。
+ * - `fileStore(path)` —— 一个只追加的 JSONL。dev server、`vite preview`、
+ *   和装置那台机器走这一条（`§7.3`：存档先写本地盘，网络是第二步；
+ *   血统池 `lineage.json` 已经是这个形状）。
+ * - `memoryStore()` —— **只给单测**。它会忘，所以它不许当任何一种默认：
+ *   理由写在 `createVisitStore` 上面。
  *
  * ## 一条纪律：这里不认识 `Request`
  *
@@ -43,13 +42,13 @@ export interface VisitStore {
   recent(limit: number): Promise<{ total: number; entries: Visit[] }>;
 }
 
-/** 进程内。忘性由它的宿主决定，不由它决定 */
+/** 进程内。**只给单测用** —— 它会忘，而一个会忘的计数器不许贴在「这一叠不会变薄」下面 */
 export function memoryStore(): VisitStore {
   const rows: Visit[] = [];
   return {
     kind: 'memory',
     async append(species, now) {
-      const row = { ...seal({ n: rows.length + 1, species, at: day(now) }), ip: '203.0.113.7' };
+      const row = seal({ n: rows.length + 1, species, at: day(now) });
       rows.push(row);
       return row;
     },
@@ -96,16 +95,86 @@ export function fileStore(path: string): VisitStore {
   };
 }
 
+// ─────────────────────── Marketplace 上那一个（REST，无 SDK） ───────────────────────
+
 /**
- * 按环境挑一个。**只认一个变量**，因为今天只有两条路：
+ * Vercel Marketplace 上挑出来的那个 Redis 兼容存储，走它自己的 HTTP 口子。
+ * 挑的过程和结论写在 `docs/13-DEPLOY.md §5.1`，开通是作品负责人的动作，不是这条线的。
  *
- * - `ARCHIVE_FILE=<绝对路径>` → 本地盘（装置那台机器 / 想在本机留住数字的人）
- * - 不设 → 内存
+ * 三条命令就够，而且每一条都正好是这份存档要的形状：
  *
- * 真存储接上去的那天，这个函数会多一个分支（`docs/13 §6` 写了是哪一个变量），
- * **而且只有这个函数会变**。
+ * - `INCR` 发序号。**原子的** —— §4.2 选号码做主键，能不能兑现就取决于这一点。
+ * - `LPUSH` 追加。最新在前，和 `GET /__slow/lineage` 同向，`/lineage` 的位次
+ *   算法（`total - i`）照这个方向写的。
+ * - `LLEN` 数总数。**没有 `LTRIM`** —— `/lineage` 上那句「这一叠不会变薄」是字面意思。
+ *
+ * 为什么不装那家的 npm 包：`AGENTS.md` 那条（加依赖要先写下为什么平台自己的能力
+ * 不够用）。三条命令 + `fetch` 就是全部，一个包换不来任何东西，却多一份
+ * 「它是不是在偷偷带点别的东西走」要回答。
  */
-export function createVisitStore(env: Record<string, string | undefined> = process.env): VisitStore {
-  const file = env.ARCHIVE_FILE;
-  return file ? fileStore(file) : memoryStore();
+const KEY_N = 'smu:visits:n';
+const KEY_ROWS = 'smu:visits';
+
+export function restStore(url: string, token: string): VisitStore {
+  const call = async (cmd: (string | number)[]): Promise<unknown> => {
+    const res = await fetch(url.replace(/\/+$/, ''), {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify(cmd),
+    });
+    if (!res.ok) throw new Error(`存储拒绝了 ${cmd[0]}：${res.status}`);
+    const j = (await res.json()) as { result?: unknown; error?: string };
+    if (j.error) throw new Error(j.error);
+    return j.result;
+  };
+
+  return {
+    kind: 'rest',
+    async append(species, now) {
+      const row = seal({ n: Number(await call(['INCR', KEY_N])), species, at: day(now) });
+      await call(['LPUSH', KEY_ROWS, JSON.stringify(row)]);
+      return row;
+    },
+    async recent(limit) {
+      const raw = await call(['LRANGE', KEY_ROWS, 0, Math.max(0, limit - 1)]);
+      const entries: Visit[] = [];
+      for (const line of Array.isArray(raw) ? raw : []) {
+        // 坏行跳过，和 fileStore 同一条判断
+        try { entries.push(seal(JSON.parse(String(line)) as Visit)); } catch { /* 跳过 */ }
+      }
+      return { total: Number(await call(['LLEN', KEY_ROWS])) || entries.length, entries };
+    },
+  };
+}
+
+// ─────────────────────────── 选哪一个 ───────────────────────────
+
+/**
+ * 按环境挑一个。**一个都没配就是 `null`。**
+ *
+ * ```
+ * KV_REST_API_URL + KV_REST_API_TOKEN   → Marketplace 上那一个（线上）
+ * ARCHIVE_FILE=<绝对路径>                → 本地盘（dev server / preview / 装置那台机器）
+ * 都没有                                 → null
+ * ```
+ *
+ * ## `null` 为什么不是"退回内存"
+ *
+ * 退回内存看起来更友好：端点通了，数字也有。但 serverless 的实例说换就换，
+ * 于是线上那个数会**每隔一阵子从 1 重新数起** —— 而这一页的全部论点是厚度，
+ * 它头一行写着「这一叠不会变薄」。一个会变薄的计数器贴在那句话下面，
+ * 是 `docs/02` P21 点名的那种仪表：读数为真，说的是错的那件事，而且错在讨好的方向。
+ *
+ * `null` 走的是 `docs/43 §7.2` 的第三行：**部署上没有这条回路** → 404 →
+ * `/lineage` 用它已经准备好的那句有分量的话。少一个数，胜过一个假的数。
+ *
+ * 两套环境变量名都认（`KV_*` 和 `UPSTASH_REDIS_REST_*`）：名字不由我们定，
+ * 是集成装上去的时候自己注入的，认两套等于「装哪一家」这个决定不用回到代码里改。
+ */
+export function createVisitStore(env: Record<string, string | undefined> = process.env): VisitStore | null {
+  const url = env.KV_REST_API_URL ?? env.UPSTASH_REDIS_REST_URL;
+  const token = env.KV_REST_API_TOKEN ?? env.UPSTASH_REDIS_REST_TOKEN;
+  if (url && token) return restStore(url, token);
+  if (env.ARCHIVE_FILE) return fileStore(env.ARCHIVE_FILE);
+  return null;
 }
