@@ -58,7 +58,7 @@ import { mountLoading } from './shell/loading.ts';
 import { showNotice } from './shell/notice.ts';
 import { isVacantPosition, vacancyOnShow } from './shell/vacancy.ts';
 import { mountNav } from './ui/nav.ts';
-import { announceStageShown, registerFreezable, revealSettled } from './ui/page-transition.ts';
+import { announceStageShown, registerFreezable, revealSettled, transitionIdle } from './ui/page-transition.ts';
 import { adoptPrepaint } from './choose/ring/first-screen.ts';
 import { mountControls, type Controls } from './ui/controls.ts';
 import { cornerColumn } from './ui/corner.ts';
@@ -1279,6 +1279,8 @@ async function boot(): Promise<void> {
       // 手移上来就开始取模型、建图（worker 里，不问权限）。按下时那十几 MB 和那几百毫秒已经花过了
       cameraIntent: () => { void import('./capture/webcam.ts').then((m) => m.prewarmPose(flags.model ?? undefined)).catch(() => {}); },
       setCamera: async (on) => {
+        // 选择页 → 舞台的交棒还没收完就不拿摄像头（docs/47 §4.2、docs/48 §10.6）：过渡期间渲染被挂起
+        await transitionIdle();
         await swapCapture(on ? 'webcam' : 'replay');
         return cameraOn;
       },
@@ -1292,7 +1294,7 @@ async function boot(): Promise<void> {
   // （同一次 `createCapture('webcam')`、同一次权限请求），两个按钮并排贴在同一个角上
   // 只会让观众以为它们不一样。`?exits=0` 下这条老路一个字都没变。
   if (entry && !exits) {
-    mountCameraButton(async () => swapCapture('webcam'));
+    mountCameraButton(async () => { await transitionIdle(); return swapCapture('webcam'); });
   }
 
   console.info(

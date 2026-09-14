@@ -17,12 +17,13 @@
  * 不支持的浏览器上这些调用全不存在，每一跳退回一刀切 —— 第一帧的底色仍然是对的。
  */
 import {
-  HANDOFF_WAIT_MS, SETTLE_MS, SHARED_ATTR, SHARED_NAME, framesSteady, speculationRules, surfaceOf, transitionFor,
+  HANDOFF_WAIT_MS, SETTLE_MS, SHARED_ATTR, SHARED_NAME, framesSteady, speculationRules, surfaceOf, transitionAllowed,
+  transitionFor, vtDisabled,
   type Shared, type Transition,
 } from './transitions.ts';
 
 interface ViewTransitionLike { finished: Promise<void>; skipTransition(): void }
-type SwapEvent = Event & { viewTransition?: ViewTransitionLike | null; activation?: { entry?: { url?: string } } | null };
+type SwapEvent = Event & { viewTransition?: ViewTransitionLike | null; activation?: { entry?: { url?: string }; navigationType?: string } | null };
 type RevealEvent = Event & { viewTransition?: ViewTransitionLike | null };
 
 const reduced = (): boolean => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -141,6 +142,14 @@ function cameraLive(): boolean {
   });
 }
 
+/** 此刻这一页的门槛（除了"浏览器支不支持"，那一条由调用方填） */
+function eligible(supported: boolean, traverse: boolean): boolean {
+  const q = new URLSearchParams(location.search);
+  return transitionAllowed({
+    supported, reduced: reduced(), vtOff: vtDisabled(location.search), kiosk: q.get('kiosk') === '1', traverse, cameraLive: cameraLive(),
+  });
+}
+
 // ── 3. 装上 ──────────────────────────────────────────────────────────────────
 
 const surfaceOfUrl = (url: string): ReturnType<typeof surfaceOf> => {
@@ -172,30 +181,40 @@ export function installPageTransitions(): void {
     const e = event as SwapEvent;
     const vt = e.viewTransition;
     if (!vt) return;
-    const url = e.activation?.entry?.url;
-    const from = here();
-    const to = url ? surfaceOfUrl(url) : null;
-    const t: Transition | null = to ? transitionFor(from, to) : null;
-    if (!t || t.kind !== 'crossfade' || reduced() || cameraLive()) { vt.skipTransition(); return; }
-    for (const f of freezables) freezeCanvas(f);
-    stamp('swap', `${from}>${to}`, nameShared(t.shared));
+    try {
+      const url = e.activation?.entry?.url;
+      const from = here();
+      const to = url ? surfaceOfUrl(url) : null;
+      const t: Transition | null = to ? transitionFor(from, to) : null;
+      if (!t || t.kind !== 'crossfade' || !eligible(true, e.activation?.navigationType === 'traverse')) { vt.skipTransition(); return; }
+      for (const f of freezables) freezeCanvas(f);
+      stamp('swap', `${from}>${to}`, nameShared(t.shared));
+    } catch {
+      vt.skipTransition();     // 任何意外都退回一刀切 —— 不许让一次换页因为修饰而出错
+    }
   });
 
   // 新页：第一帧之前
   addEventListener('pagereveal', (event) => {
     const vt = (event as RevealEvent).viewTransition;
     if (!vt) return;
-    const fromUrl = (globalThis as { navigation?: { activation?: { from?: { url?: string } | null } } })
-      .navigation?.activation?.from?.url;
-    const from = fromUrl ? surfaceOfUrl(fromUrl) : null;
-    const t = from ? transitionFor(from, here()) : null;
-    if (!t || t.kind !== 'crossfade' || reduced()) { vt.skipTransition(); return; }
-    const names = nameShared(t.shared);
-    // 巨题从上一页挪过来：这一页自己的「巨题升起」不再放第二遍（editorial.css 的 ed-rise）
-    if (names.includes('title')) document.documentElement.classList.add('sb-vt-arrived');
-    stamp('reveal', `${from}>${here()}`, names);
-    settle(vt);
-    vt.finished.finally(unname).catch(() => {});
+    try {
+      const activation = (globalThis as { navigation?: { activation?: { from?: { url?: string } | null; navigationType?: string } } })
+        .navigation?.activation;
+      const fromUrl = activation?.from?.url;
+      const from = fromUrl ? surfaceOfUrl(fromUrl) : null;
+      const t = from ? transitionFor(from, here()) : null;
+      if (!t || t.kind !== 'crossfade' || !eligible(true, activation?.navigationType === 'traverse')) { vt.skipTransition(); return; }
+      settle(vt);
+      vt.finished.finally(unname).catch(() => {});
+      const names = nameShared(t.shared);
+      // 巨题从上一页挪过来：这一页自己的「巨题升起」不再放第二遍（editorial.css 的 ed-rise）
+      if (names.includes('title')) document.documentElement.classList.add('sb-vt-arrived');
+      stamp('reveal', `${from}>${here()}`, names);
+    } catch {
+      vt.skipTransition();
+      unname();
+    }
   });
 
   // 从往返缓存回来的旧页：冻住的图和名字还挂着 —— 画面要重新活过来，下一次过渡也不能拿到两个同名元素
@@ -223,9 +242,12 @@ export function installPrefetch(): void {
 
 /** 这台浏览器此刻会不会做同文档过渡（有 API，且没开「减少动态效果」） */
 export function canTransition(): boolean {
-  return typeof document !== 'undefined'
-    && typeof (document as { startViewTransition?: unknown }).startViewTransition === 'function' && !reduced();
+  if (typeof document === 'undefined') return false;
+  return eligible(typeof (document as { startViewTransition?: unknown }).startViewTransition === 'function', false);
 }
+
+/** 正在进行的原地过渡。拿摄像头之前等它（`transitionIdle`）：过渡期间页面的渲染是被平台挂起的 */
+let active: Promise<void> = Promise.resolve();
 
 /**
  * 原地换景的交棒。有平台支持且没开「减少动态效果」时，`update` 在一次同文档过渡里跑：
@@ -234,9 +256,21 @@ export function canTransition(): boolean {
  */
 export function handOff(update: () => void): boolean {
   const start = (document as { startViewTransition?: (cb: () => void) => ViewTransitionLike }).startViewTransition;
-  if (typeof start !== 'function' || reduced()) return false;
-  settle(start.call(document, update));
+  if (typeof start !== 'function' || !canTransition()) return false;
+  let vt: ViewTransitionLike;
+  try {
+    vt = start.call(document, update);
+  } catch {
+    return false;            // 平台当场拒绝：update 没有跑，调用方走自己原来那条路
+  }
+  settle(vt);
+  active = Promise.race([vt.finished.catch(() => {}), new Promise<void>((r) => { setTimeout(r, SETTLE_MS); })]);
   return true;
+}
+
+/** 原地过渡结束（或被看门狗收掉）。最多等 `SETTLE_MS` 多一点 —— 永远不会让调用方挂住 */
+export function transitionIdle(): Promise<void> {
+  return Promise.race([active, new Promise<void>((r) => { setTimeout(r, SETTLE_MS + 50); })]);
 }
 
 /**

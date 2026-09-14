@@ -43,9 +43,9 @@ export const MOTION = {
  *
  * `ui/controls.css` 记着那条教训：一台被占满的机器上（实测 1.7 fps）一次 180ms 的过渡
  * 停在 `running` 永远回不到静止态。过渡叠层盖在整页上面，它不收，整页就一直是一张旧截图。
- * 所以静止态不许等动画跑完 —— 等的是一个计时器。最长那一档的三倍（1260ms）。
+ * 所以静止态不许等动画跑完 —— 等的是一个计时器。最长那一档的 1.5 倍（630ms）：过了就一刀切到新页。
  */
-export const SETTLE_MS = MOTION.moveMs * 3;
+export const SETTLE_MS = Math.ceil(MOTION.moveMs * 1.5);
 
 /**
  * 选择页交棒给舞台时，最多等舞台这么久。等不到（起不来、慢机器）也照样交棒 ——
@@ -76,6 +76,30 @@ export function framesSteady(intervals: readonly number[]): boolean {
 export type Surface = 'label' | 'kiosk' | 'stage' | 'doc' | 'room' | 'workbench' | 'selftest' | 'missing';
 
 export type Ground = 'paper' | 'dark';
+
+/** `?vt=off` —— 给现场操作的人的总开关：这一页上一个过渡都不做（跨页、原地都是一刀切） */
+export function vtDisabled(search: string): boolean {
+  return new URLSearchParams(search).get('vt') === 'off';
+}
+
+/** 这一跳做不做平台过渡。**任何一条不满足就一刀切** —— 一刀切的第一帧底色本来就是对的 */
+export interface Eligibility {
+  /** 浏览器有这个 API（跨页：`pageswap` 带着 viewTransition；原地：`startViewTransition`） */
+  supported: boolean;
+  /** prefers-reduced-motion: reduce */
+  reduced: boolean;
+  /** `?vt=off` */
+  vtOff: boolean;
+  /** 现场（`?kiosk=1`）：无人值守的装置不需要换页的修饰，少一件会出错的事 */
+  kiosk: boolean;
+  /** 前进 / 后退（含往返缓存恢复）：回到一个看过的页，读作"回来"，不读作"去" */
+  traverse: boolean;
+  /** 这一页上有活的摄像头流：有头 Chrome 上离开这种页第一帧量出过整帧白（docs/47 §4.3） */
+  cameraLive: boolean;
+}
+export function transitionAllowed(e: Eligibility): boolean {
+  return e.supported && !e.reduced && !e.vtOff && !e.kiosk && !e.traverse && !e.cameraLive;
+}
 
 const DOCS = ['/about', '/making', '/passport', '/lineage'];
 const ROOMS = ['/parts', '/roster', '/marks'];

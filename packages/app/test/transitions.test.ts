@@ -17,7 +17,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   HANDOFF_WAIT_MS, MOTION, NO_TRANSITION_REASONS, PRERENDER_PATHS, SETTLE_MS, SHARED_NAME, TRANSITIONS, framesSteady,
-  groundFor, speculationRules, surfaceOf, transitionFor, type Shared, type Surface,
+  groundFor, speculationRules, surfaceOf, transitionAllowed, transitionFor, vtDisabled, type Shared, type Surface,
 } from '../src/ui/transitions.ts';
 import { blockRender, isHomeHtml } from '../build/render-blocking.ts';
 import { RETURN_PAGES } from '../src/ui/return-to.ts';
@@ -174,8 +174,37 @@ test('GPU 画布截图前先冻住：舞台和环登记，交棒前冻，往返�
 });
 
 test('摄像头开着的页离开时不做跨页过渡（有头 Chrome 量出过白帧）', () => {
-  assert.match(strip(read('src/ui/page-transition.ts')), /reduced\(\) \|\| cameraLive\(\)\) \{ vt\.skipTransition\(\); return; \}/);
+  assert.match(strip(read('src/ui/page-transition.ts')), /traverse, cameraLive: cameraLive\(\),/);
   assert.equal(transitionFor('missing', 'label')?.kind, 'none');
+});
+
+test('门槛：任何一条不满足都一刀切', () => {
+  const ok = { supported: true, reduced: false, vtOff: false, kiosk: false, traverse: false, cameraLive: false };
+  assert.equal(transitionAllowed(ok), true);
+  for (const k of Object.keys(ok) as (keyof typeof ok)[]) {
+    const flipped = { ...ok, [k]: !ok[k] };
+    assert.equal(transitionAllowed(flipped), false, `${k} 翻过来之后仍然会过渡`);
+  }
+  assert.equal(vtDisabled('?vt=off'), true);
+  assert.equal(vtDisabled('?vt=on'), false);
+  assert.equal(vtDisabled(''), false);
+  // 首页行内那几行也认 ?vt=off、现场、前进后退
+  const head = headScripts().join('\n');
+  assert.match(head, /q\.get\('vt'\)==='off'\|\|q\.get\('kiosk'\)==='1'\|\|tr/);
+});
+
+test('出错一律一刀切；原地过渡永远有尽头；拿摄像头之前等它收完', () => {
+  const dom = strip(read('src/ui/page-transition.ts'));
+  for (const ev of ['pageswap', 'pagereveal']) {
+    const at = dom.indexOf(`addEventListener('${ev}'`);
+    const body = dom.slice(at, dom.indexOf('\n  });', at));
+    assert.match(body, /try \{[\s\S]*\} catch \{\s*vt\.skipTransition\(\);/, `${ev} 里的意外不会退回一刀切`);
+  }
+  assert.match(dom, /try \{\s*vt = start\.call\(document, update\);\s*\} catch \{\s*return false;/, 'startViewTransition 抛异常时没有退路');
+  assert.match(dom, /setTimeout\(r, SETTLE_MS \+ 50\)/, 'transitionIdle 没有上限');
+  const main = strip(read('src/main.ts'));
+  assert.match(main, /await transitionIdle\(\);\s*await swapCapture\(/);
+  assert.match(main, /await transitionIdle\(\); return swapCapture\('webcam'\);/);
 });
 
 test('pageswap / pagereveal 里没有异步工作', () => {
@@ -269,7 +298,7 @@ test('认 reduce、有看门狗、关键帧只挂在过渡叠层上', () => {
   const dom = strip(read('src/ui/page-transition.ts'));
   assert.match(dom, /setTimeout\(\(\) => vt\.skipTransition\(\), SETTLE_MS\)/, '没有看门狗：过渡卡住时整页停在一张旧截图上');
   assert.match(dom, /prefers-reduced-motion: reduce/);
-  assert.equal(SETTLE_MS, MOTION.moveMs * 3);
+  assert.equal(SETTLE_MS, Math.ceil(MOTION.moveMs * 1.5), '看门狗 = 最长一档的 1.5 倍');
 });
 
 test('交棒：等舞台帧间隔稳住，但最多等 HANDOFF_WAIT_MS', () => {

@@ -25,7 +25,11 @@
  // 1500ms 兜底：这一句永远不许让开机停住。
  (function(){var done,p=new Promise(function(r){done=r});window.sbRevealSettled=p;setTimeout(done,1500);
   if(!('onpagereveal' in window)){done();return}
-  addEventListener('pagereveal',function(e){var v=e.viewTransition;if(!v){done();return}var t=setTimeout(function(){v.skipTransition()},1260);v.finished.finally(function(){clearTimeout(t);done()}).catch(function(){})},{once:true})})();
+  addEventListener('pagereveal',function(e){var v=e.viewTransition;if(!v){done();return}
+   // 门槛（ui/transitions.ts 的 transitionAllowed 的抄本，只抄首页能判的几条）：?vt=off、现场、前进后退
+   var q=new URLSearchParams(location.search),n=window.navigation,tr=!!(n&&n.activation&&n.activation.navigationType==='traverse');
+   if(q.get('vt')==='off'||q.get('kiosk')==='1'||tr){try{v.skipTransition()}catch(x){}done();return}
+   var t=setTimeout(function(){v.skipTransition()},630);v.finished.finally(function(){clearTimeout(t);done()}).catch(function(){})},{once:true})})();
 </script></head>
 <body><script type="module">
  // 两条路，都是字面量 import —— 打包器照样能静态分析，两个 chunk 互不牵连。

@@ -4,10 +4,10 @@
 > 像美术馆或设计过的装置那样克制简单，但交互要做好。」随后追加导航审计（§5），
 > 再随后「你自己做」：原本列给负责人裁定的几条也在这条线里落地了（§5.2）。
 >
-> **先说结论，因为它和开头的计划不一样：** 跨页的 View Transition 做出来了，量了，
-> 在无头 Chrome 上每一类跳都出现过整帧纯白的闪（§4.3），两次归因都被下一轮数据推翻 ——
-> **所以跨页过渡整个关着**。真正落地、量过是干净的是三样不靠跨页快照的东西：
-> 第一帧就是对的底色（§4.1）、选择页等舞台画出来再交棒（§4.2）、以及导航与加载那一侧（§3、§5）。
+> **结论（2026-09-14 第二轮）：跨页过渡开着。** 第一轮在无头 Chrome 上量到白帧、关掉过；
+> 第二轮查到了根因（WebGPU 画布出了绘制它的任务就读不到，截图是透明的，透出叠层缺省的白），
+> 修在根上，然后在这台 Mac 的**真窗口**里量：修完之后 9 轮有头跑，白帧只剩"离开开着摄像头的舞台"和"404 → 展签"
+> 两类，这两类加了门槛（一刀切），之后 2 轮有头 30 跳 0 白。下面 §4.3 是全部数字，§6 是没做完的。
 
 ## 1. 怎么量的
 
@@ -123,40 +123,66 @@ CDP 探针（`scratch/transitions/spec-probe.mjs`）：规则装上了，悬停 
 03：跳变 198 → 66；20（现场）：167 → 69。六轮（前一次单跑、两对、最终一对）**0 次白帧**。
 胶片：`scratch/transitions/filmstrips/{before,after}-03.png`。
 
-### 4.3 跨页过渡：做了、量了、关掉了
+### 4.3 跨页过渡：第一轮关掉，第二轮查到根因、开着
 
-计划是平台的跨文档 View Transition（`@view-transition { navigation: auto }`）：展签和陈述页的巨题从左下挪到页首，
-文档页之间右上角字标不动、其余交叉淡化，舞台 → 纸、纸 → 舞台都交叉淡化。
+**第一轮（无头 Chrome，九次）**：跨页过渡第一帧整帧纯白（亮度 255、离散度 0），两次归因都被下一轮推翻，关掉了。
+那两次归因（「藏掉 GPU 画布」「给叠层不透明的底」）各自只修了一半 —— 合起来才是根因，见下。
 
-量出来：**整帧纯白**（亮度 255、离散度 0）出现在跨页过渡的第一帧，然后淡开。
+**根因。** `stage/ink-sampler.ts` 早就记着：WebGPU 画布出了绘制它的那个任务就读不到。平台给旧页截图时，
+舞台和选择页的环都是透明的；叠层缺省也是透明的；于是透出来的是白。只藏画布 → 截到的是透明（照白）；
+只给叠层底色 → 白变成新页的底色，读作一刀切。两样都要：
 
-| 轮次 | 做了什么 | 白帧出现在 |
+1. **冻画布**（`ui/page-transition.ts` 的 `registerFreezable` / `freezeCanvas`）：画面的主人登记一个 `render()`，
+   `pageswap` 里在同一个任务中画一帧、`drawImage` 进一块 2D 画布、盖在原处。舞台（`main.ts`）和环（`ring/field.ts`）登记；
+   选择页交棒时先冻再拆环。往返缓存恢复时 `pageshow` 解冻。
+2. **叠层底 = 底色令牌**：`type.css` 的 `::view-transition { background: var(--sb-paper) }`，首页行内深 / 纸各一份。
+3. **新页第一帧就是建好的页**：展出页与工作台页的入口脚本 `blocking="render"`（`build/render-blocking.ts`，首页除外）。
+   不加时有头实测 `/making` `/lineage` 的第一帧早于模块，过渡淡到一块空底。
+4. **舞台起 WebGPU 之前等过渡落定**（`revealSettled`）、**交棒等帧间隔稳住**（`framesSteady`）：着色器编译卡住合成器，
+   240ms 的淡化一帧都画不出来。
+
+**有头（真窗口）白帧计数**（`scripts/transitions/tally.mjs`，白帧 = 动作之后 #ffffff 且离散度 0 的截屏帧）：
+
+| 跳 | 修根因后、加门槛前（7 轮） | 加门槛后（2 轮） |
 |---|---|---|
-| 第 1 次 | 全开 | 16 / 17 / 18 / 11（离开或落到 WebGPU 页） |
-| 第 2 次 | 离开前藏掉满屏 GPU 画布 | 15a（摄像头舞台） |
-| 第 3 次 | 再藏掉 `<video>`；摄像头开着就跳过 | 15a 没了，06 / 15b / 18 / 14 / 14b 又出来 |
-| 第 4、5 次（一对） | 撤掉上面两条，改给过渡叠层不透明的底（按「白是叠层透明露出来的」这个推断） | 06 2/2、14b 2/2、15b 2/2、17 2/2、14 / 15a / 16 各 1/2 |
-| 第 6、7 次（一对） | 只开「量过干净」的文档页之间、展签 → 陈述页 | **07、08、11 各 1/2** —— 上一对里它们都是 0/2 |
-| 第 8、9 次（一对） | **跨页全关** | **27 跳全部 0/2** |
+| 01–13（冷开、原地交棒、舞台→陈述页、回到大厅、文档页之间、滚到页底、中途再跳、工作台 ↔ 文档页、侧室） | 全部 0/7 | 0/2 |
+| 14b 404 → 展签 | **7/7** | 0/2（不过渡） |
+| 15a 开着摄像头的舞台 → 陈述页 | **6/7** | 0/2（不过渡） |
+| 16 开着摄像头的舞台 → 换物种 | **2/7** | 0/2（不过渡） |
+| 17 开着摄像头的舞台 → 工作台 | **5/7** | 0/2（不过渡） |
+| 18–20（工作台 → 舞台、现场开机、现场交棒） | 0/7 | 0/2 |
 
-**两次归因都错了，记在这里是为了下一个人不重走：**
+所以最后两条门槛是**量出来的**，不是猜的：活的摄像头流不在冻画布的管辖里，404 那一页原因未查。
+回放驱动的同一个舞台（04）7/7 干净。
 
-1. 「旧页那张截图是白的，因为 WebGPU 画布 / 摄像头画面截不下来」—— 藏掉画布和 `<video>` 之后照样白。
-   （`cd68835` 的提交说明写的就是这个归因，它是错的。）
-2. 「白是过渡叠层透明、新页从 0 淡入时露出的画布缺省色」—— 白帧的衰减 255→163→101→64 确实是进场那条 ease-out 曲线，
-   但给 `::view-transition` 一个不透明的底之后**照样白**。曲线形状对，推出来的原因不够。
+**无头 Chrome**：修根因后没有再跑完整的十轮（负责人要求停止占屏测试，§6）。第一轮的无头白帧不再作为判断依据。
 
-原因没查到。**真 GPU、有窗口的 Chrome 上会不会白，这里验证不了**（不想在负责人的机器上弹一个真窗口去量）。
-两轮 0 白也证明不了"干净"：07 / 08 / 11 就是在 0/2 之后白的。所以不赌 —— 跨页一律 `none`，一刀切在最后一对里 27 跳 0 白。
+**门槛（任何一条不满足都一刀切，`ui/transitions.ts` 的 `transitionAllowed`，测试逐条翻）**：
+不支持 View Transitions（Firefox / 旧 Safari，第一帧底色照样对）· `prefers-reduced-motion` · `?vt=off`（给现场操作的人的总开关）·
+现场 `?kiosk=1` · 前进 / 后退（含往返缓存恢复）· 这一页上有活的摄像头流 · 表里写了理由的 `none`（`label>label`、`missing>label`）。
 
-**怎么开回来：** `ui/transitions.ts` 的 `TRANSITIONS` 逐对写着，开一对改一行，再加回 `type.css` 的 `@view-transition`。
-但**先在真显示器上量**（至少每类跳十次以上），并且同时改 `test/transitions.test.ts` 那条「跨页过渡整个关着」——
-它会红，这是故意的。
+**保护**：`pageswap` / `pagereveal` 同步、`try/catch` 里任何意外 → `skipTransition()`；看门狗 `SETTLE_MS` = 最长一档 × 1.5 = 630ms，
+到点一刀切；`startViewTransition` 抛异常 → 交棒走原来那条 180ms 淡出；拿摄像头之前 `transitionIdle()`（最多 680ms）；
+共享元素只在两侧都有、且在视口里时才挪，否则只是淡。
+
+**边界实测（有头，9 轮）**：滚到 `/about` 页底再跳 `/making`（09s）—— 字标不在视口，没有从视口外飞进来，新页落在顶部（scrollY 0），0 白；
+一次过渡进行中又跳一次（09r）—— 落在第二个目标、没有残留的 `view-transition-name` 或冻住的画布（`leftover` 9/9 为 0）；
+后退回舞台（05）—— 往返缓存恢复、不过渡、画面活着。
+
+### 4.3.1 有哪几样东西在挪
+
+| 共享元素 | 声明处（`declareShared`） | 在哪几对之间挪 |
+|---|---|---|
+| 巨题（作品名那一行） | `shell/entry.ts`（展签）、`about/about.ts`（`.sb-zh`） | 展签 ↔ 陈述页 |
+| 字标（两行 SEE-ME / SEE-U） | `ui/hero.ts`（横带）、`choose/choose.ts`（选择页左上） | 文档页 ↔ 文档页 / 侧室 / 404；展签按「开始」后巨题挪成它（同文档） |
+| 「目录」那个词 | `ui/nav.ts` | 所有挂目录的页之间 |
+| 工作台出口 | `dev/devnav.ts` | 工作台页之间 |
+| 页脚那张图 | `ui/footer-mark.ts` | 文档页 / 侧室 / 工作台目录之间（只在视口里时） |
 
 ### 4.4 一把尺子
 
-`MOTION`（`ui/transitions.ts`）= `type.css` 的 `--sb-dur-leave` 180ms / `--sb-dur-enter` 240ms / 两条缓动，
-= docs/23 §0 那一行（测试逐字对）。曾经有「移 420」给共享元素用，跨页关掉后没有消费者，删了。
+`MOTION`（`ui/transitions.ts`）= `type.css` 的 `--sb-dur-leave` 180ms / `--sb-dur-enter` 240ms / `--sb-dur-move` 420ms / 两条缓动，
+= docs/23 §0 那一行（测试逐字对）。
 过渡的关键帧只挂在 `::view-transition-*` 上（叠层过渡完就消失）；`prefers-reduced-motion: reduce` 下交棒不动。
 
 ## 5. 导航审计
@@ -200,11 +226,15 @@ CDP 探针（`scratch/transitions/spec-probe.mjs`）：规则装上了，悬停 
 
 | | 为什么没做 | 下一步 |
 |---|---|---|
-| 跨页过渡 | §4.3 | 真显示器上每类跳量 ≥10 次；0 白再逐对开 |
-| `/dev/*.html` 链接仍 308 | vite dev server 不认 `/dev/figure` 这种干净地址（实测回的是 `index.html`）；改链接等于本机开不了 | dev / preview 挂一个把 `/dev/x` 映到 `/dev/x.html` 的中间件，再把旁注、控件、devnav 的地址改干净 |
-| 摄像头舞台进往返缓存 | 要动 `Capture` 的启动路径（采集线） | 采集线给 `pause()/resume()`，本线在 `pagehide`/`pageshow` 上接 |
-| 预渲染的收益 | CDP 连着时 Chrome 关预渲染 | 真窗口里用 Performance 面板量 `activationStart` |
-| 首屏压缩字节 | 没部署 | 部署后照 docs/13 的方法重量 |
+| 修根因之后的**无头**十轮 | 负责人要求停止测试（占屏、额度） | `node scripts/transitions/measure.mjs … ` 不带 `HEADED` 跑十轮，`tally.mjs` 对比有头 |
+| 有头**十轮**（只跑了 7 + 2） | 同上 | `HEADED=1` 再跑 ≥3 轮补齐；重点看 03 / 06 / 07 的最大跳变 |
+| 减少动态效果、无 View Transitions 的有头实跑 | 同上；靠单测（门槛表逐条翻）和第一帧底色守卫 | `REDUCED=1` / `NOVT=1` 各跑一轮 |
+| 404 → 展签、摄像头舞台离开时的白帧**原因** | 查到门槛为止 | 冻 `<video>` 的当前帧（`drawImage(video)`）再试开 15a；404 对比 200 页 |
+| 前后胶片（有头）| 同上 | `scratch/transitions/runs/headed/r0*/<跳>/strip.png` 已有，没挑图 |
+| 预渲染收益 | CDP 连着时 Chrome 关预渲染 | 真窗口里用 Performance 面板量 `activationStart` |
+| `/dev/*.html` 链接仍 308 | vite dev server 不认 `/dev/figure` | dev / preview 挂 `/dev/x` → `/dev/x.html` 中间件 |
+| 摄像头舞台进往返缓存 | 要动 `Capture`（采集线） | 采集线给 `pause()/resume()` |
+| 首屏压缩字节 | 没部署 | 部署后照 docs/13 重量（本线新增模块未压缩 < 20 KB） |
 
 ## 7. 证据
 
@@ -214,7 +244,9 @@ CDP 探针（`scratch/transitions/spec-probe.mjs`）：规则装上了，悬停 
   `before-06.png` / `after-06.png`（回到大厅）、
   `before-07.png` / `after-07.png`（展签 → 陈述页）、
   `before-08.png` / `after-08.png`（目录的 308）
-- 逐跳数据：`scratch/transitions/{before,after,after-2}/results.json`，`<跳>/frames.tsv`
+- 逐跳数据：`scratch/transitions/{before,after,after-2}/results.json`（第一轮无头）；
+  `scratch/transitions/runs/headed/r01–r09/results.json`（第二轮有头），计数 `scratch/transitions/runs/tally-headed-7.txt`、`tally-headed-final.txt`
+- 可复现：`scripts/transitions/{serve,measure,tally,png,summary}.mjs`
 - 白帧那九轮的中间数据：`scratch/transitions/{probe-cam,probe-cam2,white}/`
 - 守卫的红：`scratch/transitions/red/*.txt`
 - 预取探针：`scratch/transitions/spec-probe.mjs`

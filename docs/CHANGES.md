@@ -14,7 +14,16 @@ Forecloses: 这让什么变难或不可能
 
 ---
 
-## 2026-09-14 — 换页：底色在第一帧之前定；跨页过渡关着
+## 2026-09-14 — 跨页过渡开着：截图之前冻 GPU 画布，叠层底是底色令牌
+Changed:    `@view-transition` 回到 `type.css` 与 `index.html`；`pageswap` 里舞台 / 环在同一个任务里画一帧拷成 2D 图；
+            `::view-transition` 底 = `--sb-paper`；展出页入口 `blocking="render"`；共享元素由 `declareShared` 声明；
+            门槛 `transitionAllowed`（reduce / `?vt=off` / 现场 / 前进后退 / 活摄像头 / 不支持）；看门狗 630ms。
+Why:        第一轮的白帧根因是 WebGPU 画布出了绘制任务就读不到、叠层缺省透明。修完后有头 Chrome 只剩摄像头舞台离开与 404 → 展签
+            两类仍白（15a 6/7、17 5/7、16 2/7、14b 7/7），加门槛后 2 轮 30 跳 0 白（docs/47 §4.3）。
+Forecloses: 新增一块 WebGPU 画布而不 `registerFreezable`，离开那一页会一刀切到新底色；新增共享元素只能走 `declareShared`
+            （测试禁止别处写 `view-transition-name`）；展出页的入口模块从此挡住第一帧。
+
+## 2026-09-14 — 换页：底色在第一帧之前定；跨页过渡关着（已被上一条取代）
 Changed:    `index.html` 在任何脚本之前按 URL 挂首屏配色（`ui/transitions.ts` 的 `groundFor`，抄本由测试逐条对）；
             选择页等舞台第一帧再同文档交棒；跨页 View Transition 全部 `none`，`@view-transition` 从样式表里拿掉。
             `vercel.json` 给 `/fonts/*` `/sound/*` 一天缓存。回到大厅带 `?hall=1` 落在选择页。
