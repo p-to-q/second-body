@@ -12,7 +12,7 @@ import { resolve } from 'node:path';
 import { RECIPES, recipeById } from '../recipes/catalog.ts';
 import { load, save, RAW_DIR, PARTS_DIR } from './ledger.ts';
 import { glbStats } from './glb-stats.ts';
-import { readMeshFile, isImportableMesh } from './mesh-import.ts';
+import { readMeshFile, isImportableMesh, isGltfJson, readGltfGeometry } from './mesh-import.ts';
 import type { PartMeta, Slot, Tier, Vec3 } from '../../core/src/types.ts';
 
 const MAX_TRIS = 5000;
@@ -231,13 +231,17 @@ export interface NormalizeOverrides {
   source?: PartMeta['source'];
 }
 
-export async function normalizeOne(id: string, rawFile: string, over: NormalizeOverrides = {}): Promise<NormalizeResult> {
+export async function normalizeOne(id: string, rawFile: string | string[], over: NormalizeOverrides = {}): Promise<NormalizeResult> {
   const recipe = recipeById(id);
   const outDir = over.outDir ?? PARTS_DIR;
   const warnings: string[] = [];
-  // 唯一的入口差异：STL/OBJ（厂商公开的机器人 CAD）先转成 Document，其余照旧走 io.read。
+  // 唯一的入口差异：STL/OBJ（厂商公开的机器人 CAD）先转成 Document；`.gltf` + 外挂 `.bin`
+  // （RobotLocomotion 的 Atlas）去掉贴图引用后读；其余照旧走 io.read。
   // glb 这条路一个字节都没变 —— 198 件已入库资产的行为不受影响。
-  const doc = isImportableMesh(rawFile) ? readMeshFile(rawFile) : await io.read(rawFile);
+  const files = [rawFile].flat();
+  const doc = files.every(isImportableMesh) ? readMeshFile(files)
+    : isGltfJson(files[0]) ? await readGltfGeometry(files[0])
+    : await io.read(files[0]);
 
   // 1) 结构清理：烘掉节点变换，合并成单 mesh
   await doc.transform(flatten(), dedup(), join(), weld(), prune());

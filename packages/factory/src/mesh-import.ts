@@ -16,11 +16,11 @@
  * 要支持 DAE 得加 `@xmldom/xmldom` 这类新依赖 —— 没加，见 `docs/33` §5。
  * 好消息是 Menagerie 全是 STL/OBJ，DAE 只在老的 ROS 包里才是必须的。
  */
-import { Document } from '@gltf-transform/core';
+import { Document, NodeIO } from '@gltf-transform/core';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { readFileSync } from 'node:fs';
-import { extname } from 'node:path';
+import { dirname, extname, resolve } from 'node:path';
 
 /** 我们能从原始网格里认的东西只有这两样 —— 贴图和 UV 在规范化第 2 步无论如何都会被丢掉。 */
 interface RawPrim { position: Float32Array; normal?: Float32Array; index?: Uint32Array; }
@@ -56,14 +56,20 @@ function primsFromObj(buf: Buffer): RawPrim[] {
 }
 
 /**
- * 读一个 STL/OBJ，返回一个只含几何的 Document。
+ * 读一个（或几个）STL/OBJ，返回一个只含几何的 Document。
  * 故意不建材质：规范化第 2 步会把材质清成中性，运行时统一套 `materials[]`（docs/03 §4）。
+ *
+ * 为什么允许几个文件：Menagerie 把**一个 link 按材质拆成几份 OBJ**（Stretch 3 的
+ * `link_arm_l0_0/1/2` 是同一节臂）。只取其中一份，拿到的是半个壳。
+ * 几份的顶点本来就在同一个 link 坐标系里，收成多个 primitive 交给 join() 即可。
  */
-export function readMeshFile(path: string): Document {
-  const buf = readFileSync(path);
-  const ext = extname(path).toLowerCase();
-  const prims = ext === '.stl' ? primsFromStl(buf) : primsFromObj(buf);
-  if (!prims.length || !prims.some((p) => p.position.length)) throw new Error(`${path}: 没读出任何顶点`);
+export function readMeshFile(paths: string | string[]): Document {
+  const list = [paths].flat();
+  const prims = list.flatMap((path) => {
+    const buf = readFileSync(path);
+    return extname(path).toLowerCase() === '.stl' ? primsFromStl(buf) : primsFromObj(buf);
+  });
+  if (!prims.length || !prims.some((p) => p.position.length)) throw new Error(`${list.join(' + ')}: 没读出任何顶点`);
 
   const doc = new Document();
   const buffer = doc.createBuffer();
@@ -80,4 +86,28 @@ export function readMeshFile(path: string): Document {
   }
   doc.createScene().addChild(doc.createNode('imported').setMesh(mesh));
   return doc;
+}
+
+export const isGltfJson = (path: string) => extname(path).toLowerCase() === '.gltf';
+
+/**
+ * 读一个 `.gltf` + 外挂 `.bin`，**只要几何**。
+ *
+ * 为什么不直接 `io.read`：RobotLocomotion 的 Atlas 网格引用了同目录的 `.png` 和 `.ktx2`
+ * 贴图（每张 0.5–3 MB，外加 `KHR_texture_basisu`）。io.read 会去读它们，
+ * 而规范化第 2 步无论如何都会把贴图丢掉 —— 为了丢掉而下载，没有道理。
+ * 所以在读之前把材质、贴图、采样器从 JSON 里摘掉，buffer 从文件旁边读。
+ */
+export async function readGltfGeometry(path: string): Promise<Document> {
+  const json = JSON.parse(readFileSync(path, 'utf8'));
+  for (const k of ['images', 'textures', 'samplers', 'materials']) delete json[k];
+  for (const m of json.meshes ?? []) for (const p of m.primitives ?? []) delete p.material;
+  const texExt = (e: string) => e !== 'KHR_texture_basisu';
+  if (json.extensionsUsed) json.extensionsUsed = json.extensionsUsed.filter(texExt);
+  if (json.extensionsRequired) json.extensionsRequired = json.extensionsRequired.filter(texExt);
+  const resources: Record<string, Uint8Array> = {};
+  for (const b of json.buffers ?? []) {
+    if (b.uri && !b.uri.startsWith('data:')) resources[b.uri] = new Uint8Array(readFileSync(resolve(dirname(path), b.uri)));
+  }
+  return await new NodeIO().readJSON({ json, resources });
 }
