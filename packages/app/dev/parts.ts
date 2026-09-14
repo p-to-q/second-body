@@ -29,6 +29,7 @@
  */
 import './archive.css';
 import { mountPageHead } from '../src/ui/page.ts';
+import { setBi } from '../src/ui/i18n.ts';
 import { loadImage } from '../src/choose/cards.ts';
 import { createThumb, createThumbObserver, thumbsUseGl } from './thumbs.ts';
 import type { PartLibraryIndex, PartMeta, ThemeDef } from '../../core/src/types.ts';
@@ -63,6 +64,39 @@ interface CurationRow { verdict: Verdict | null; note?: string }
 function tensionOf(theme: ThemeDef): string | null {
   const t = (theme as ThemeDef & { tension?: unknown }).tension;
   return typeof t === 'string' && t.trim() ? t : null;
+}
+
+/**
+ * 取材行 —— 档案卡片上名字与 tagline 底下的那一行（docs/42 §5）。
+ *
+ * ```
+ * 巡逻 · Patrol
+ * 一个不该直立的东西直立了
+ * ── 取材：Boston Dynamics Spot（几何：真实网格，BSD-3-Clause）
+ * ```
+ *
+ * 为什么是这一行而不是改名：十五个条目"没说自己是哪台机器"，缺的是一行**显示**，
+ * 不是一次改名 —— 名字是这件作品的第三处主张（`docs/26 §I` 只分了表面和拓扑）。
+ * 而且 BSD-3 的非背书条款让"产品名当物种名"更危险不是更诚实：
+ * 一张叫「Spot」的卡片读起来是品牌露出，一张叫「巡逻」、底下写着取材的卡片
+ * 读起来是**注明出处**。同一份事实，后者才是署名（docs/42 §5 第 2 条）。
+ *
+ * 没有 `machine` = 这个条目是想象出来的（docs/26 §H 的「虚」），整行不出现 ——
+ * 空着比写一句"无"诚实，那一档的意思本来就是"世界上没有可取的原件"。
+ */
+function machineLine(theme: ThemeDef): { zh: string; en: string } | null {
+  const m = theme.machine;
+  if (!m) return null;
+  const who = m.name.startsWith(m.maker) ? m.name : `${m.maker} ${m.name}`;
+  const real = m.geometry === 'real';
+  // 授权缺席不是漏写，是第二档的那句话：真机存在，但没有一份可再分发的几何。
+  const lic = m.license ? `，${m.license}` : '，没有可再分发的几何';
+  const licEn = m.license ? `, ${m.license}` : ', no redistributable geometry';
+  return {
+    zh: `── 取材：${who}（几何：${real ? '真实网格' : '生成件'}${lic}）`
+      + (m.note ? ` —— ${m.note}` : ''),
+    en: `── Sourced from: ${who} (geometry: ${real ? 'real mesh' : 'generated'}${licEn})`,
+  };
 }
 
 function bodyPlanOf(theme: ThemeDef): string {
@@ -332,6 +366,16 @@ function buildArchive(): void {
       tag.className = 'sb-entry__tagline';
       tag.textContent = theme.tagline;
       info.appendChild(tag);
+    }
+
+    // 取材行走 `setBi`，不手搭 DOM：汉字那 0.045em 的左边距补偿由它按**内容**打，
+    // 手搭一遍就会漏掉（/passport 上刚发现过同一个 bug）。
+    const machine = machineLine(theme);
+    if (machine) {
+      const line = document.createElement('p');
+      line.className = 'sb-entry__machine';
+      setBi(line, machine);
+      info.appendChild(line);
     }
 
     const tension = tensionOf(theme);

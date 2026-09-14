@@ -118,6 +118,16 @@
 
 .sb-entry__tagline { margin: 0 0 0.8em; color: var(--sb-ink); }
 
+/* 取材行：这个条目是从哪台真实机器来的（docs/42 §5）。
+   小一号、灰一档 —— 它是署名不是主张，主张是上面那行 tagline。
+   中英并置的那两行由 `setBi` 生成，字号与补偿全部来自 type.css，这里只管位置。 */
+.sb-entry__machine {
+  margin: -0.4em 0 0.8em;
+  font-size: var(--sb-size-small);
+  color: var(--sb-ink-dim);
+  max-width: var(--sb-measure);
+}
+
 /* tension 是这个条目存在的理由 —— 比 tagline 长，所以缩进 + 左侧一条细线 */
 .sb-entry__tension {
   margin: 0 0 1em;

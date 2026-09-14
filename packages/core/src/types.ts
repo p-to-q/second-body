@@ -175,6 +175,34 @@ export interface ThemeDef {
    * 由 `check-parts.ts` 判错兜住（运行时仍然宽容，未知值按 'rig'，P2）。
    */
   bodyPlan?: BodyPlanId | BodyPlanSpec;
+  /**
+   * 这个条目取材自哪台**真实存在的**机器。没有这个字段 = 它是想象出来的
+   * （docs/26 §H 的「虚」：世界上没有可取的原件）。契约变更由维护者发起，
+   * 裁定与理由在 docs/42 §5 / §7 第 3 条。
+   *
+   * **它存在是为了被检查。** 名字是诗意的、不可查的（「巡逻」不告诉任何人
+   * 它是哪台机器）；这几个字段是可查的，于是 `check:parts` 能问一个名字问不了的
+   * 问题：**声称取自某台机器的条目，索引里的件是不是真的来自那台机器。**
+   * `patrol` 记录写 Spot、身上穿 ANYmal 的矛盾整整存在了一轮，因为没有任何仪表在看。
+   *
+   * `id` / `name` / `nameEn` 一个都不动：seed 码是观众带走的物理痕迹，
+   * 改 id 会让已经发出去的码对不上（docs/26 §D、docs/39 §4.7）。
+   */
+  machine?: {
+    name: string;          // 'Spot'
+    maker: string;         // 'Boston Dynamics'
+    /**
+     * 取到网格的那个 URL，**钉到 commit SHA**。
+     * 缺席是一个判断而不是漏写：这台机器真实存在，但世界上没有一份可以
+     * 再分发的几何（docs/42 §0 第一条的第二档）。这样的条目仍然记着它是谁 ——
+     * 第二档和「虚」的区别就在它敢不敢说自己是谁。
+     */
+    source?: string;
+    license?: string;      // 'BSD-3-Clause'
+    /** 几何是真的还是生成的。第三档就靠这一个字段说实话 */
+    geometry: 'real' | 'generated';
+    note?: string;         // 'DRC/v5 液压那一代，非 2025 电动版'
+  };
 }
 
 export interface PartLibraryIndex {

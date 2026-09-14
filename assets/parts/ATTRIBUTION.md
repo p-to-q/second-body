@@ -20,6 +20,7 @@
 | 来源 | 版权 | 授权 | 附加条件 |
 |---|---|---|---|
 | Unitree G1 | HangZhou YuShu TECHNOLOGY CO.,LTD. ("Unitree Robotics") | BSD-3-Clause（Unitree 变体） | 非背书：不得以 Unitree 的名义为本作品背书 |
+| Boston Dynamics Spot | Clearpath Robotics Inc. | BSD-3-Clause | 非背书：不得以 Boston Dynamics / Clearpath 的名义为本作品背书 |
 | ANYbotics ANYmal C | ANYbotics AG | BSD-3-Clause | 非背书：不得以 ANYbotics 的名义为本作品背书 |
 | Agility Robotics Cassie | Agility Robotics | MIT | — |
 
@@ -53,16 +54,26 @@
 | `shin.compact.real` | Unitree G1 | `unitree_g1/assets/left_knee_link.STL` | BSD-3-Clause（Unitree 变体） | 小腿。探路池验过的那一件 |
 | `foot.compact.real` | Unitree G1 | `unitree_g1/assets/left_ankle_roll_link.STL` | BSD-3-Clause（Unitree 变体） | 脚掌 |
 | `joint.compact.real` | Unitree G1 | `unitree_g1/assets/left_ankle_pitch_link.STL` | BSD-3-Clause（Unitree 变体） | 关节。踝 pitch 的叉形关节块，girth 0.961 ≈ 槽位中位数 0.993 |
-| `spine.patrol.real` | ANYbotics ANYmal C | `anybotics_anymal_c/assets/top_shell.obj` | BSD-3-Clause | 机身上壳。四足机的躯干是一个水平的箱子，不是胸廓 |
-| `head.patrol.real` | ANYbotics ANYmal C | `anybotics_anymal_c/assets/face.obj` | BSD-3-Clause | 前脸。传感器面板 —— 这台机器唯一能被叫做"脸"的部分 |
-| `clavicle.patrol.real` | ANYbotics ANYmal C | `anybotics_anymal_c/assets/hip_l.obj` | BSD-3-Clause | 髋座。四条腿从机身伸出去的那一节，四条一模一样 |
-| `upperArm.patrol.real` | ANYbotics ANYmal C | `anybotics_anymal_c/assets/thigh.obj` | BSD-3-Clause | 前腿上节。**和 thigh 是同一个文件**，因为真机的四条腿就是同一条腿 |
-| `foreArm.patrol.real` | ANYbotics ANYmal C | `anybotics_anymal_c/assets/shank_r.obj` | BSD-3-Clause | 前腿下节。右小腿 |
-| `hand.patrol.real` | ANYbotics ANYmal C | `anybotics_anymal_c/assets/drive.obj` | BSD-3-Clause | 前肢末端。四足机没有手；ANYdrive 执行器 girth 0.681 ≈ hand 中位数 0.624 |
-| `thigh.patrol.real` | ANYbotics ANYmal C | `anybotics_anymal_c/assets/thigh.obj` | BSD-3-Clause | 后腿上节 |
-| `shin.patrol.real` | ANYbotics ANYmal C | `anybotics_anymal_c/assets/shank_l.obj` | BSD-3-Clause | 后腿下节。碳纤维管 + 端头，比生成件瘦得多 |
-| `foot.patrol.real` | ANYbotics ANYmal C | `anybotics_anymal_c/assets/hatch.obj` | BSD-3-Clause | 足垫。机腹检修盖板，扁平 —— 平底的脚；girth 0.706 ≈ foot 中位数 0.534 的 1.3× |
-| `joint.patrol.real` | ANYbotics ANYmal C | `anybotics_anymal_c/assets/lidar.obj` | BSD-3-Clause | 关节。顶上那颗旋转激光雷达，girth 0.999 ≈ joint 中位数 0.993 —— 圆柱形，正好当关节领环 |
+| `spine.patrol.spot` | Boston Dynamics Spot | `boston_dynamics_spot/assets/front_left_hip.obj` | BSD-3-Clause | 机身髋座。**不是 `body_0.obj`**：那块机身实测 0.857×0.234×0.192 m，归一化后 girth 0.273 = spine 中位数 0.842 的 0.32×，而 spine 是 uniform 槽位（SLOT_WIDTH/localGirth），放进去会被撑成一块 1.6 m 长的板子。髋座 girth 0.707 ≈ 0.84×，是这台机器上最大的一块合身的壳 |
+| `head.patrol.spot` | Boston Dynamics Spot | `boston_dynamics_spot/assets/arm_link_wr1.obj` | BSD-3-Clause | 头。腕节 —— Spot 唯一带相机的那一块，也是这台机器唯一能被叫做"脸"的地方；girth 0.915 ≈ head 中位数 0.941 |
+| `clavicle.patrol.spot` | Boston Dynamics Spot | `boston_dynamics_spot/assets/arm_link_sh0.obj` | BSD-3-Clause | 肩座。机械臂从机身伸出去的那一节 |
+| `upperArm.patrol.spot` | Boston Dynamics Spot | `boston_dynamics_spot/assets/front_left_upper_leg_1.obj` | BSD-3-Clause | 前腿上节。真机四条腿同形，前腿当上肢 |
+| `foreArm.patrol.spot` | Boston Dynamics Spot | `boston_dynamics_spot/assets/front_left_lower_leg.obj` | BSD-3-Clause | 前腿下节 |
+| `hand.patrol.spot` | Boston Dynamics Spot | `boston_dynamics_spot/assets/arm_link_fngr_0.obj` | BSD-3-Clause | 手。夹爪的指节 —— 这台机器真的有手；girth 0.668 ≈ hand 中位数 0.624 |
+| `thigh.patrol.spot` | Boston Dynamics Spot | `boston_dynamics_spot/assets/rear_left_upper_leg_1.obj` | BSD-3-Clause | 后腿上节 |
+| `shin.patrol.spot` | Boston Dynamics Spot | `boston_dynamics_spot/assets/rear_left_lower_leg.obj` | BSD-3-Clause | 后腿下节 |
+| `foot.patrol.spot` | Boston Dynamics Spot | `boston_dynamics_spot/assets/front_jaw.obj` | BSD-3-Clause | 足垫。Spot 的脚是腿末端的一个橡胶球，没有单独的网格；取夹爪前颚那一片扁板当平底的脚 —— 这是挑，不是编（和 ANYmal 那次取检修盖板同一类决定） |
+| `joint.patrol.spot` | Boston Dynamics Spot | `boston_dynamics_spot/assets/arm_link_wr0.obj` | BSD-3-Clause | 关节。腕 roll 关节块，girth 0.927 ≈ joint 中位数 0.991 —— 它本来就是一个关节 |
+| `spine.patrol.real` | ANYbotics ANYmal C | `anybotics_anymal_c/assets/top_shell.obj` | BSD-3-Clause | （已被 Spot 换下）机身上壳 |
+| `head.patrol.real` | ANYbotics ANYmal C | `anybotics_anymal_c/assets/face.obj` | BSD-3-Clause | （已被 Spot 换下）前脸传感器面板 |
+| `clavicle.patrol.real` | ANYbotics ANYmal C | `anybotics_anymal_c/assets/hip_l.obj` | BSD-3-Clause | （已被 Spot 换下）髋座 |
+| `upperArm.patrol.real` | ANYbotics ANYmal C | `anybotics_anymal_c/assets/thigh.obj` | BSD-3-Clause | （已被 Spot 换下）前腿上节 |
+| `foreArm.patrol.real` | ANYbotics ANYmal C | `anybotics_anymal_c/assets/shank_r.obj` | BSD-3-Clause | （已被 Spot 换下）前腿下节 |
+| `hand.patrol.real` | ANYbotics ANYmal C | `anybotics_anymal_c/assets/drive.obj` | BSD-3-Clause | （已被 Spot 换下）ANYdrive 执行器代前肢末端 —— 那台机器没有手 |
+| `thigh.patrol.real` | ANYbotics ANYmal C | `anybotics_anymal_c/assets/thigh.obj` | BSD-3-Clause | （已被 Spot 换下）后腿上节 |
+| `shin.patrol.real` | ANYbotics ANYmal C | `anybotics_anymal_c/assets/shank_l.obj` | BSD-3-Clause | （已被 Spot 换下）后腿下节 |
+| `foot.patrol.real` | ANYbotics ANYmal C | `anybotics_anymal_c/assets/hatch.obj` | BSD-3-Clause | （已被 Spot 换下）机腹检修盖板代足垫 |
+| `joint.patrol.real` | ANYbotics ANYmal C | `anybotics_anymal_c/assets/lidar.obj` | BSD-3-Clause | （已被 Spot 换下）顶上那颗旋转激光雷达 |
 | `spine.digitigrade.real` | Agility Robotics Cassie | `agility_cassie/assets/pelvis.obj` | MIT | 骨盆。Cassie 的"躯干"就是这一块，两条腿直接挂上去 |
 | `head.digitigrade.real` | Agility Robotics Cassie | `agility_cassie/assets/hip-yaw.obj` | MIT | 头（代）。Cassie 无头，用同机的髋 yaw 执行器罩当 sensor pod |
 | `clavicle.digitigrade.real` | Agility Robotics Cassie | `agility_cassie/assets/knee-spring.obj` | MIT | 肩座（代膝弹簧板）。girth 0.542 ≈ clavicle 中位数 0.548 |

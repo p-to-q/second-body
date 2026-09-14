@@ -1,8 +1,28 @@
 {
+  "clavicle.patrol.real": {
+    "verdict": "reject",
+    "note": "被 Spot 换下（docs/42 §7 第 2 条）：记录、tagline 和谱系表说的都是 Spot，这十件是 ANYbotics ANYmal C 的几何。不是坏件 —— 它是一个策展决定，而策展决定可能会变，所以文件一件不删（curation.ts 规则 2），只是不进候选池。",
+    "at": "2026-09-13T15:26:41.930Z"
+  },
   "foot.digitigrade.a": {
     "at": "2026-09-12T07:22:25.337Z",
     "note": "互不相连的多物体，散成几根细棍",
     "verdict": "reject"
+  },
+  "foot.patrol.real": {
+    "verdict": "reject",
+    "note": "被 Spot 换下（docs/42 §7 第 2 条）：记录、tagline 和谱系表说的都是 Spot，这十件是 ANYbotics ANYmal C 的几何。不是坏件 —— 它是一个策展决定，而策展决定可能会变，所以文件一件不删（curation.ts 规则 2），只是不进候选池。",
+    "at": "2026-09-13T15:26:41.938Z"
+  },
+  "foreArm.patrol.real": {
+    "verdict": "reject",
+    "note": "被 Spot 换下（docs/42 §7 第 2 条）：记录、tagline 和谱系表说的都是 Spot，这十件是 ANYbotics ANYmal C 的几何。不是坏件 —— 它是一个策展决定，而策展决定可能会变，所以文件一件不删（curation.ts 规则 2），只是不进候选池。",
+    "at": "2026-09-13T15:26:41.934Z"
+  },
+  "hand.patrol.real": {
+    "verdict": "reject",
+    "note": "被 Spot 换下（docs/42 §7 第 2 条）：记录、tagline 和谱系表说的都是 Spot，这十件是 ANYbotics ANYmal C 的几何。不是坏件 —— 它是一个策展决定，而策展决定可能会变，所以文件一件不删（curation.ts 规则 2），只是不进候选池。",
+    "at": "2026-09-13T15:26:41.934Z"
   },
   "head.char.line.a": {
     "at": "2026-09-13T12:40:00.000Z",
@@ -13,6 +33,11 @@
     "at": "2026-09-12T07:22:24.551Z",
     "note": "2-3 个互不相连的独立物体，不是单件",
     "verdict": "reject"
+  },
+  "head.patrol.real": {
+    "verdict": "reject",
+    "note": "被 Spot 换下（docs/42 §7 第 2 条）：记录、tagline 和谱系表说的都是 Spot，这十件是 ANYbotics ANYmal C 的几何。不是坏件 —— 它是一个策展决定，而策展决定可能会变，所以文件一件不删（curation.ts 规则 2），只是不进候选池。",
+    "at": "2026-09-13T15:26:41.928Z"
   },
   "head.softwear.a": {
     "at": "2026-09-12T07:22:25.729Z",
@@ -34,10 +59,20 @@
     "note": "细长塔状不是关节球；girth 0.43 = 槽位中位数的 0.43×",
     "verdict": "reject"
   },
+  "joint.patrol.real": {
+    "verdict": "reject",
+    "note": "被 Spot 换下（docs/42 §7 第 2 条）：记录、tagline 和谱系表说的都是 Spot，这十件是 ANYbotics ANYmal C 的几何。不是坏件 —— 它是一个策展决定，而策展决定可能会变，所以文件一件不删（curation.ts 规则 2），只是不进候选池。",
+    "at": "2026-09-13T15:26:41.939Z"
+  },
   "shin.digitigrade.a": {
     "at": "2026-09-12T07:22:25.139Z",
     "note": "互不相连的多物体；girth 0.86 = 槽位中位数的 2.57×",
     "verdict": "reject"
+  },
+  "shin.patrol.real": {
+    "verdict": "reject",
+    "note": "被 Spot 换下（docs/42 §7 第 2 条）：记录、tagline 和谱系表说的都是 Spot，这十件是 ANYbotics ANYmal C 的几何。不是坏件 —— 它是一个策展决定，而策展决定可能会变，所以文件一件不删（curation.ts 规则 2），只是不进候选池。",
+    "at": "2026-09-13T15:26:41.937Z"
   },
   "spine.autonomous.a": {
     "at": "2026-09-12T07:22:24.349Z",
@@ -49,14 +84,29 @@
     "note": "2-3 个互不相连的独立物体，不是单件",
     "verdict": "reject"
   },
+  "spine.patrol.real": {
+    "verdict": "reject",
+    "note": "被 Spot 换下（docs/42 §7 第 2 条）：记录、tagline 和谱系表说的都是 Spot，这十件是 ANYbotics ANYmal C 的几何。不是坏件 —— 它是一个策展决定，而策展决定可能会变，所以文件一件不删（curation.ts 规则 2），只是不进候选池。",
+    "at": "2026-09-13T15:26:41.925Z"
+  },
   "spine.wheelleg.a": {
     "at": "2026-09-12T07:22:24.146Z",
     "note": "碎片状薄片，girth 0.23 = spine 中位数的 0.27×，不成躯干",
     "verdict": "reject"
   },
+  "thigh.patrol.real": {
+    "verdict": "reject",
+    "note": "被 Spot 换下（docs/42 §7 第 2 条）：记录、tagline 和谱系表说的都是 Spot，这十件是 ANYbotics ANYmal C 的几何。不是坏件 —— 它是一个策展决定，而策展决定可能会变，所以文件一件不删（curation.ts 规则 2），只是不进候选池。",
+    "at": "2026-09-13T15:26:41.935Z"
+  },
   "upperArm.digitigrade.a": {
     "at": "2026-09-12T07:22:24.941Z",
     "note": "互不相连的多物体；girth 0.98 = 槽位中位数的 3.07×",
     "verdict": "reject"
+  },
+  "upperArm.patrol.real": {
+    "verdict": "reject",
+    "note": "被 Spot 换下（docs/42 §7 第 2 条）：记录、tagline 和谱系表说的都是 Spot，这十件是 ANYbotics ANYmal C 的几何。不是坏件 —— 它是一个策展决定，而策展决定可能会变，所以文件一件不删（curation.ts 规则 2），只是不进候选池。",
+    "at": "2026-09-13T15:26:41.931Z"
   }
 }

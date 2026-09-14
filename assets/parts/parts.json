@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-09-13T14:41:27.776Z",
+  "generatedAt": "2026-09-13T15:28:01.413Z",
   "units": "meters",
   "convention": {
     "axis": "+Y",
@@ -57,6 +57,12 @@
       "bodyPlan": {
         "torso": 1.08,
         "limb": 0.98
+      },
+      "machine": {
+        "name": "Figure 03",
+        "maker": "Figure",
+        "geometry": "generated",
+        "note": "无公开描述文件"
       }
     },
     {
@@ -77,7 +83,15 @@
         "lifeLike": 0.45
       },
       "coverage": "full",
-      "bodyPlan": "quadruped"
+      "bodyPlan": "quadruped",
+      "machine": {
+        "name": "Spot",
+        "maker": "Boston Dynamics",
+        "geometry": "real",
+        "source": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/boston_dynamics_spot/",
+        "license": "BSD-3-Clause",
+        "note": "描述包由 Clearpath Robotics 发布；非背书：不得以 Boston Dynamics 的名义为本作品背书"
+      }
     },
     {
       "id": "xeno",
@@ -150,6 +164,14 @@
         "limb": 1.1,
         "torso": 1.05,
         "arm": 1.05
+      },
+      "machine": {
+        "name": "Atlas",
+        "maker": "Boston Dynamics",
+        "geometry": "generated",
+        "source": "https://raw.githubusercontent.com/RobotLocomotion/models/3bd1111/atlas/meshes/",
+        "license": "BSD-3-Clause",
+        "note": "几何还没取，身上是生成件。取之前要写清两件事：版权人是 MIT CSAIL 的 Robot Locomotion Group 而不是 Boston Dynamics；那是 DRC/v5 液压那一代，不是 tagline 唤起的 2025 电动版（docs/42 §7 第 5 条）"
       }
     },
     {
@@ -175,6 +197,12 @@
         "limb": 0.95,
         "torso": 1.12,
         "head": 1.05
+      },
+      "machine": {
+        "name": "NEO",
+        "maker": "1X Technologies",
+        "geometry": "generated",
+        "note": "无公开描述文件；而且**即使拿到也不该换** —— NEO 的全部意义是那件针织外套，而这条流水线第一件事就是丢掉贴图统一套材质，换真网格反而会减少辨识度（docs/42 §4 末）"
       }
     },
     {
@@ -196,7 +224,15 @@
       },
       "coverage": "light",
       "base": "porcelain",
-      "bodyPlan": "stub"
+      "bodyPlan": "stub",
+      "machine": {
+        "name": "G1",
+        "maker": "Unitree Robotics",
+        "geometry": "real",
+        "source": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/unitree_g1/",
+        "license": "BSD-3-Clause（Unitree 变体）",
+        "note": "非背书：不得以 Unitree 的名义为本作品背书"
+      }
     },
     {
       "id": "digitigrade",
@@ -220,6 +256,14 @@
       "bodyPlan": {
         "leg": 1.28,
         "arm": 1.1
+      },
+      "machine": {
+        "name": "Digit",
+        "maker": "Agility Robotics",
+        "geometry": "real",
+        "source": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/agility_cassie/",
+        "license": "MIT",
+        "note": "Digit 本身没有可再分发的描述文件，几何取自同厂同拓扑的 Cassie（docs/33 §2 A）"
       }
     },
     {
@@ -245,6 +289,14 @@
         "kind": "quadruped",
         "limb": 0.85,
         "torso": 1.1
+      },
+      "machine": {
+        "name": "W1",
+        "maker": "LimX Dynamics",
+        "geometry": "generated",
+        "source": "https://raw.githubusercontent.com/limxdynamics/tron1-robot-description/5b97add/wheellegged/WL_P311D/meshes/",
+        "license": "Apache-2.0",
+        "note": "W1 本身没有描述文件，路探到的是同厂轮足四足 WL_P311D，算代用件（docs/42 §7 第 6 条）。几何还没取"
       }
     },
     {
@@ -269,6 +321,12 @@
       "bodyPlan": {
         "kind": "stub",
         "head": 1.5
+      },
+      "machine": {
+        "name": "BDX Droid",
+        "maker": "Disney Research",
+        "geometry": "generated",
+        "note": "只有社区复刻（Open Duck Mini，Apache-2.0）。复刻品不是那台机器，比生成件更远不是更近（docs/42 §7 第 7 条）"
       }
     },
     {
@@ -294,6 +352,12 @@
         "kind": "quadruped",
         "limb": 0.7,
         "torso": 1.12
+      },
+      "machine": {
+        "name": "aibo",
+        "maker": "Sony",
+        "geometry": "generated",
+        "note": "只有第三方商业素材，来源不可核"
       }
     },
     {
@@ -319,6 +383,12 @@
         "kind": "radial",
         "limb": 0.75,
         "torso": 1.15
+      },
+      "machine": {
+        "name": "Moflin",
+        "maker": "Casio",
+        "geometry": "generated",
+        "note": "无任何公开三维"
       }
     },
     {
@@ -345,6 +415,12 @@
         "head": 1.9,
         "arm": 0.6,
         "leg": 0.5
+      },
+      "machine": {
+        "name": "Loona",
+        "maker": "KEYi Tech",
+        "geometry": "generated",
+        "note": "无任何公开三维"
       }
     },
     {
@@ -369,6 +445,12 @@
       "bodyPlan": {
         "kind": "radial",
         "limb": 1.15
+      },
+      "machine": {
+        "name": "Ballie",
+        "maker": "Samsung",
+        "geometry": "generated",
+        "note": "只有第三方商业素材"
       }
     },
     {
@@ -394,6 +476,14 @@
         "kind": "column",
         "arm": 1.45,
         "leg": 0.92
+      },
+      "machine": {
+        "name": "Stretch 3",
+        "maker": "Hello Robot",
+        "geometry": "generated",
+        "source": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/hello_robot_stretch_3/",
+        "license": "Apache-2.0",
+        "note": "Apache-2.0 多一条「注明改动」。几何还没取，身上是生成件"
       }
     },
     {
@@ -419,6 +509,12 @@
         "kind": "quadruped",
         "limb": 0.45,
         "torso": 1.35
+      },
+      "machine": {
+        "name": "Waymo Driver",
+        "maker": "Waymo",
+        "geometry": "generated",
+        "note": "Waymo Open Dataset 是传感器数据不是网格，且另有条款"
       }
     },
     {
@@ -986,6 +1082,33 @@
         "provider": "harvest",
         "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/anybotics_anymal_c/assets/hip_l.obj",
         "recipeId": "clavicle.patrol.real"
+      }
+    },
+    {
+      "id": "clavicle.patrol.spot",
+      "slot": "clavicle",
+      "tier": 1,
+      "file": "clavicle.patrol.spot.glb",
+      "family": "patrol",
+      "localGirth": 0.7562,
+      "triCount": 1593,
+      "aabb": {
+        "min": [
+          -0.31394390697958313,
+          0,
+          -0.37810907315286724
+        ],
+        "max": [
+          0.31394390697958313,
+          1,
+          0.37810907315286724
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/boston_dynamics_spot/assets/arm_link_sh0.obj",
+        "recipeId": "clavicle.patrol.spot"
       }
     },
     {
@@ -1714,6 +1837,33 @@
       }
     },
     {
+      "id": "foot.patrol.spot",
+      "slot": "foot",
+      "tier": 1,
+      "file": "foot.patrol.spot.glb",
+      "family": "patrol",
+      "localGirth": 0.8694,
+      "triCount": 116,
+      "aabb": {
+        "min": [
+          -0.43469038972136603,
+          0,
+          -0.35996581926938687
+        ],
+        "max": [
+          0.43469038972136603,
+          1,
+          0.35996581926938687
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/boston_dynamics_spot/assets/front_jaw.obj",
+        "recipeId": "foot.patrol.spot"
+      }
+    },
+    {
       "id": "foot.petbot.a",
       "slot": "foot",
       "tier": 1,
@@ -2103,6 +2253,33 @@
       }
     },
     {
+      "id": "foreArm.patrol.spot",
+      "slot": "foreArm",
+      "tier": 1,
+      "file": "foreArm.patrol.spot.glb",
+      "family": "patrol",
+      "localGirth": 0.1748,
+      "triCount": 4969,
+      "aabb": {
+        "min": [
+          -0.08740501113925596,
+          0,
+          -0.05407879879146703
+        ],
+        "max": [
+          0.08740501113925596,
+          1,
+          0.05407879879146703
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/boston_dynamics_spot/assets/front_left_lower_leg.obj",
+        "recipeId": "foreArm.patrol.spot"
+      }
+    },
+    {
       "id": "foreArm.porcelain.a",
       "slot": "foreArm",
       "tier": 1,
@@ -2405,6 +2582,33 @@
         "provider": "harvest",
         "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/anybotics_anymal_c/assets/drive.obj",
         "recipeId": "hand.patrol.real"
+      }
+    },
+    {
+      "id": "hand.patrol.spot",
+      "slot": "hand",
+      "tier": 1,
+      "file": "hand.patrol.spot.glb",
+      "family": "patrol",
+      "localGirth": 0.6679,
+      "triCount": 1650,
+      "aabb": {
+        "min": [
+          -0.3339640491958373,
+          0,
+          -0.24935148167363505
+        ],
+        "max": [
+          0.3339640491958373,
+          1,
+          0.24935148167363505
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/boston_dynamics_spot/assets/arm_link_fngr_0.obj",
+        "recipeId": "hand.patrol.spot"
       }
     },
     {
@@ -3130,6 +3334,33 @@
         "provider": "harvest",
         "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/anybotics_anymal_c/assets/face.obj",
         "recipeId": "head.patrol.real"
+      }
+    },
+    {
+      "id": "head.patrol.spot",
+      "slot": "head",
+      "tier": 1,
+      "file": "head.patrol.spot.glb",
+      "family": "patrol",
+      "localGirth": 0.9147,
+      "triCount": 1158,
+      "aabb": {
+        "min": [
+          -0.4573351237525559,
+          0,
+          -0.423764763328959
+        ],
+        "max": [
+          0.4573351237525559,
+          1,
+          0.423764763328959
+        ]
+      },
+      "symmetry": "none",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/boston_dynamics_spot/assets/arm_link_wr1.obj",
+        "recipeId": "head.patrol.spot"
       }
     },
     {
@@ -3942,6 +4173,33 @@
       }
     },
     {
+      "id": "joint.patrol.spot",
+      "slot": "joint",
+      "tier": 1,
+      "file": "joint.patrol.spot.glb",
+      "family": "patrol",
+      "localGirth": 0.9275,
+      "triCount": 182,
+      "aabb": {
+        "min": [
+          -0.4637440107425153,
+          0,
+          -0.36277352214117864
+        ],
+        "max": [
+          0.4637440107425153,
+          1,
+          0.36277352214117864
+        ]
+      },
+      "symmetry": "none",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/boston_dynamics_spot/assets/arm_link_wr0.obj",
+        "recipeId": "joint.patrol.spot"
+      }
+    },
+    {
       "id": "joint.petbot.a",
       "slot": "joint",
       "tier": 1,
@@ -4748,6 +5006,33 @@
         "provider": "harvest",
         "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/anybotics_anymal_c/assets/shank_l.obj",
         "recipeId": "shin.patrol.real"
+      }
+    },
+    {
+      "id": "shin.patrol.spot",
+      "slot": "shin",
+      "tier": 1,
+      "file": "shin.patrol.spot.glb",
+      "family": "patrol",
+      "localGirth": 0.1755,
+      "triCount": 4994,
+      "aabb": {
+        "min": [
+          -0.08777123325296793,
+          0,
+          -0.05407879879146703
+        ],
+        "max": [
+          0.08777123325296793,
+          1,
+          0.05407879879146703
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/boston_dynamics_spot/assets/rear_left_lower_leg.obj",
+        "recipeId": "shin.patrol.spot"
       }
     },
     {
@@ -5588,6 +5873,33 @@
       }
     },
     {
+      "id": "spine.patrol.spot",
+      "slot": "spine",
+      "tier": 1,
+      "file": "spine.patrol.spot.glb",
+      "family": "patrol",
+      "localGirth": 0.7069,
+      "triCount": 4978,
+      "aabb": {
+        "min": [
+          -0.3534348582415235,
+          0,
+          -0.33219397564622943
+        ],
+        "max": [
+          0.3534348582415235,
+          1,
+          0.33219397564622943
+        ]
+      },
+      "symmetry": "none",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/boston_dynamics_spot/assets/front_left_hip.obj",
+        "recipeId": "spine.patrol.spot"
+      }
+    },
+    {
       "id": "spine.petbot.a",
       "slot": "spine",
       "tier": 1,
@@ -6002,6 +6314,33 @@
         "provider": "harvest",
         "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/anybotics_anymal_c/assets/thigh.obj",
         "recipeId": "thigh.patrol.real"
+      }
+    },
+    {
+      "id": "thigh.patrol.spot",
+      "slot": "thigh",
+      "tier": 1,
+      "file": "thigh.patrol.spot.glb",
+      "family": "patrol",
+      "localGirth": 0.2948,
+      "triCount": 4976,
+      "aabb": {
+        "min": [
+          -0.12158574175237281,
+          0,
+          -0.14741966002380444
+        ],
+        "max": [
+          0.12158574175237281,
+          1,
+          0.14741966002380444
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/boston_dynamics_spot/assets/rear_left_upper_leg_1.obj",
+        "recipeId": "thigh.patrol.spot"
       }
     },
     {
@@ -6727,6 +7066,33 @@
         "provider": "harvest",
         "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/anybotics_anymal_c/assets/thigh.obj",
         "recipeId": "upperArm.patrol.real"
+      }
+    },
+    {
+      "id": "upperArm.patrol.spot",
+      "slot": "upperArm",
+      "tier": 1,
+      "file": "upperArm.patrol.spot.glb",
+      "family": "patrol",
+      "localGirth": 0.2951,
+      "triCount": 4979,
+      "aabb": {
+        "min": [
+          -0.1217078157902768,
+          0,
+          -0.14754173406170842
+        ],
+        "max": [
+          0.1217078157902768,
+          1,
+          0.14754173406170842
+        ]
+      },
+      "symmetry": "mirror",
+      "source": {
+        "provider": "harvest",
+        "model": "https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad/boston_dynamics_spot/assets/front_left_upper_leg_1.obj",
+        "recipeId": "upperArm.patrol.spot"
       }
     },
     {

@@ -135,6 +135,8 @@ const SOURCES = [
 // 「真实网格能不能过流水线」和「和生成件混在一起会不会打架」。答案是能、会。
 //
 // 下面这张 ADOPTED 是**入库**：三个物种各 10 个槽位，整具换成真实网格，产物进
+// （`patrol` 有两具：Spot 是现在穿的那一具，ANYmal C 是被换下的那一具 ——
+//  文件不删、表里也不删，排除写在 `curation.json` 里，理由见那一节的注释）
 // `assets/parts/`。分界线是 docs/26 §H 那一句：**真实存在的机器用真实网格，
 // 不存在的东西用生成件。** 混搭打的不是「真实 vs 生成」，是「硬表面 vs 软表面」——
 // 所以不按槽位穿插，按物种整体换。
@@ -157,6 +159,14 @@ const ORIGINS = {
     // BSD-3 第 3 条是**非背书条款**：描述性地说「这是 G1 的躯干几何」可以，
     // 暗示 Unitree 合作或赞助不行。/about 的署名段和这份注释是同一句话的两处落点。
     caveat: '非背书：不得以 Unitree 的名义为本作品背书',
+  },
+  'spot': {
+    dir: 'boston_dynamics_spot',
+    robot: 'Boston Dynamics Spot',
+    // 描述包由 Clearpath Robotics 发布，BSD-3-Clause 原文在机器人子目录里。
+    holder: 'Clearpath Robotics Inc.',
+    license: 'BSD-3-Clause',
+    caveat: '非背书：不得以 Boston Dynamics / Clearpath 的名义为本作品背书',
   },
   'anymal_c': {
     dir: 'anybotics_anymal_c',
@@ -223,23 +233,40 @@ const ADOPTED = [
   // 关节块 girth 0.961，几乎正好 —— 而且它本来就是一个关节。
   { id: 'joint.compact.real',    slot: 'joint',    family: 'compact', origin: 'unitree_g1', asset: 'left_ankle_pitch_link.STL', why: '关节。踝 pitch 的叉形关节块，girth 0.961 ≈ 槽位中位数 0.993' },
 
-  // ── patrol = ANYmal C ────────────────────────────────────────────────────
-  // 上一条线实测：real.anymal 的小腿配 patrol **基本不打架**，而且修正了比例
-  // （Rodin 编的机器狗腿一直偏粗）。选 ANYmal 而不是 Spot，是因为 ANYmal 在
-  // Menagerie 里给了整机每一块（含 base/face/drive），Spot 只给了腿。
-  { id: 'spine.patrol.real',    slot: 'spine',    family: 'patrol', origin: 'anymal_c', asset: 'top_shell.obj', why: '机身上壳。四足机的躯干是一个水平的箱子，不是胸廓' },
-  { id: 'head.patrol.real',     slot: 'head',     family: 'patrol', origin: 'anymal_c', asset: 'face.obj',      why: '前脸。传感器面板 —— 这台机器唯一能被叫做"脸"的部分' },
-  { id: 'clavicle.patrol.real', slot: 'clavicle', family: 'patrol', origin: 'anymal_c', asset: 'hip_l.obj',     why: '髋座。四条腿从机身伸出去的那一节，四条一模一样' },
-  { id: 'upperArm.patrol.real', slot: 'upperArm', family: 'patrol', origin: 'anymal_c', asset: 'thigh.obj',     why: '前腿上节。**和 thigh 是同一个文件**，因为真机的四条腿就是同一条腿' },
-  { id: 'foreArm.patrol.real',  slot: 'foreArm',  family: 'patrol', origin: 'anymal_c', asset: 'shank_r.obj',   why: '前腿下节。右小腿' },
-  // 这台机器的 `foot.obj` 把足和护套捆在一个文件里，归一化后 6:1（girth 0.167）——
-  // 放进 uniform 的 hand/foot 会被放大 3 倍变成杆子（见 ADOPTED 上方那条规矩，有截图为证）。
-  // 所以这两个槽位取同机上尺度对得上的件，并在这里说明白：这是挑，不是将就，也不是它真的没有脚。
-  { id: 'hand.patrol.real',     slot: 'hand',     family: 'patrol', origin: 'anymal_c', asset: 'drive.obj',     why: '前肢末端。四足机没有手；ANYdrive 执行器 girth 0.681 ≈ hand 中位数 0.624' },
-  { id: 'thigh.patrol.real',    slot: 'thigh',    family: 'patrol', origin: 'anymal_c', asset: 'thigh.obj',     why: '后腿上节' },
-  { id: 'shin.patrol.real',     slot: 'shin',     family: 'patrol', origin: 'anymal_c', asset: 'shank_l.obj',   why: '后腿下节。碳纤维管 + 端头，比生成件瘦得多' },
-  { id: 'foot.patrol.real',     slot: 'foot',     family: 'patrol', origin: 'anymal_c', asset: 'hatch.obj',     why: '足垫。机腹检修盖板，扁平 —— 平底的脚；girth 0.706 ≈ foot 中位数 0.534 的 1.3×' },
-  { id: 'joint.patrol.real',    slot: 'joint',    family: 'patrol', origin: 'anymal_c', asset: 'lidar.obj',     why: '关节。顶上那颗旋转激光雷达，girth 0.999 ≈ joint 中位数 0.993 —— 圆柱形，正好当关节领环' },
+  // ── patrol = Boston Dynamics Spot ────────────────────────────────────────
+  // 记录一直写着 Spot（docs/31 §1 第 7 行，tagline「一个不该直立的东西直立了」
+  // 说的也是那台唯一被普通人见过的机器狗），身上穿的却是 ANYmal C。
+  // 换掉 ANYmal 的那句理由 ——「Spot 只给了腿」—— 在钉住的 SHA 上是**假的**：
+  // `boston_dynamics_spot/assets/` 有 54 个文件，机身、四条腿各三节、外加一整条
+  // 机械臂（sh0 → el → wr → fngr）。两个说法互相抵消时，去看实物再改记录，
+  // 不要改记录去迁就实物（docs/42 §0 第二条、§7 第 2 条）。
+  { id: 'spine.patrol.spot',    slot: 'spine',    family: 'patrol', origin: 'spot', asset: 'front_left_hip.obj',           why: '机身髋座。**不是 `body_0.obj`**：那块机身实测 0.857×0.234×0.192 m，归一化后 girth 0.273 = spine 中位数 0.842 的 0.32×，而 spine 是 uniform 槽位（SLOT_WIDTH/localGirth），放进去会被撑成一块 1.6 m 长的板子。髋座 girth 0.707 ≈ 0.84×，是这台机器上最大的一块合身的壳' },
+  { id: 'head.patrol.spot',     slot: 'head',     family: 'patrol', origin: 'spot', asset: 'arm_link_wr1.obj',             why: '头。腕节 —— Spot 唯一带相机的那一块，也是这台机器唯一能被叫做"脸"的地方；girth 0.915 ≈ head 中位数 0.941' },
+  { id: 'clavicle.patrol.spot', slot: 'clavicle', family: 'patrol', origin: 'spot', asset: 'arm_link_sh0.obj',             why: '肩座。机械臂从机身伸出去的那一节' },
+  { id: 'upperArm.patrol.spot', slot: 'upperArm', family: 'patrol', origin: 'spot', asset: 'front_left_upper_leg_1.obj',   why: '前腿上节。真机四条腿同形，前腿当上肢' },
+  { id: 'foreArm.patrol.spot',  slot: 'foreArm',  family: 'patrol', origin: 'spot', asset: 'front_left_lower_leg.obj',     why: '前腿下节' },
+  // Spot 和 ANYmal 的差别正在这里：它**真的有手**（可选机械臂的夹爪），
+  // 所以 hand / joint 不再需要拿执行器和雷达去代。
+  { id: 'hand.patrol.spot',     slot: 'hand',     family: 'patrol', origin: 'spot', asset: 'arm_link_fngr_0.obj',          why: '手。夹爪的指节 —— 这台机器真的有手；girth 0.668 ≈ hand 中位数 0.624' },
+  { id: 'thigh.patrol.spot',    slot: 'thigh',    family: 'patrol', origin: 'spot', asset: 'rear_left_upper_leg_1.obj',    why: '后腿上节' },
+  { id: 'shin.patrol.spot',     slot: 'shin',     family: 'patrol', origin: 'spot', asset: 'rear_left_lower_leg.obj',      why: '后腿下节' },
+  { id: 'foot.patrol.spot',     slot: 'foot',     family: 'patrol', origin: 'spot', asset: 'front_jaw.obj',                why: '足垫。Spot 的脚是腿末端的一个橡胶球，没有单独的网格；取夹爪前颚那一片扁板当平底的脚 —— 这是挑，不是编（和 ANYmal 那次取检修盖板同一类决定）' },
+  { id: 'joint.patrol.spot',    slot: 'joint',    family: 'patrol', origin: 'spot', asset: 'arm_link_wr0.obj',             why: '关节。腕 roll 关节块，girth 0.927 ≈ joint 中位数 0.991 —— 它本来就是一个关节' },
+
+  // ── patrol 的上一具：ANYmal C。**文件一件不删，索引也不摘。** ─────────────
+  // 它们仍然由这张表生成（`--adopt` 重跑一次结果一样），排除发生在 `curation.json`：
+  // 那十条 reject 的 note 写着为什么。curation 的规矩第 2 条就是"不进候选池，但文件不删 ——
+  // 判断可能会变"，而这正是一个可能会变的判断：哪天 ANYmal 自己成为一个条目，它们原地复活。
+  { id: 'spine.patrol.real',    slot: 'spine',    family: 'patrol', origin: 'anymal_c', asset: 'top_shell.obj', why: '（已被 Spot 换下）机身上壳' },
+  { id: 'head.patrol.real',     slot: 'head',     family: 'patrol', origin: 'anymal_c', asset: 'face.obj',      why: '（已被 Spot 换下）前脸传感器面板' },
+  { id: 'clavicle.patrol.real', slot: 'clavicle', family: 'patrol', origin: 'anymal_c', asset: 'hip_l.obj',     why: '（已被 Spot 换下）髋座' },
+  { id: 'upperArm.patrol.real', slot: 'upperArm', family: 'patrol', origin: 'anymal_c', asset: 'thigh.obj',     why: '（已被 Spot 换下）前腿上节' },
+  { id: 'foreArm.patrol.real',  slot: 'foreArm',  family: 'patrol', origin: 'anymal_c', asset: 'shank_r.obj',   why: '（已被 Spot 换下）前腿下节' },
+  { id: 'hand.patrol.real',     slot: 'hand',     family: 'patrol', origin: 'anymal_c', asset: 'drive.obj',     why: '（已被 Spot 换下）ANYdrive 执行器代前肢末端 —— 那台机器没有手' },
+  { id: 'thigh.patrol.real',    slot: 'thigh',    family: 'patrol', origin: 'anymal_c', asset: 'thigh.obj',     why: '（已被 Spot 换下）后腿上节' },
+  { id: 'shin.patrol.real',     slot: 'shin',     family: 'patrol', origin: 'anymal_c', asset: 'shank_l.obj',   why: '（已被 Spot 换下）后腿下节' },
+  { id: 'foot.patrol.real',     slot: 'foot',     family: 'patrol', origin: 'anymal_c', asset: 'hatch.obj',     why: '（已被 Spot 换下）机腹检修盖板代足垫' },
+  { id: 'joint.patrol.real',    slot: 'joint',    family: 'patrol', origin: 'anymal_c', asset: 'lidar.obj',     why: '（已被 Spot 换下）顶上那颗旋转激光雷达' },
 
   // ── digitigrade = Cassie ─────────────────────────────────────────────────
   // docs/33 §6：Digit 本身没有可用授权，Cassie 是同厂同拓扑的鸟腿且是 MIT。

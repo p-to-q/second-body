@@ -204,6 +204,53 @@ export async function checkParts(): Promise<number> {
     }
   }
 
+  /**
+   * **声称取自某台机器的条目，身上是不是那台机器的件 —— 这是错，不是警告。**
+   *
+   * 为什么必须是错：`patrol` 的记录写着 Boston Dynamics Spot，穿的却是
+   * ANYbotics ANYmal C，整整一轮没有人发现（docs/42 §0 第二条）。件数一件不少、
+   * 契约全绿、画面上是一具没有任何毛病的四足机 —— 只是不是它声称的那一台。
+   * 名字查不了（「巡逻」不告诉任何人它是哪台机器），`machine` 字段查得了，
+   * 这一条就是那次查（docs/42 §5 第 4 条、§7 第 3 条）。
+   *
+   * 三问，都只看**活着的**件（被 `curation.json` reject 的件运行时不出现，
+   * 所以拿它们判物种身上穿什么是错的）：
+   *
+   *   1. `geometry: 'real'` 就必须有 `source`（钉到 SHA 的那个 URL），否则无从查起；
+   *   2. `geometry: 'real'` 的条目，索引里它自己的真实件必须**全部**来自那个 URL；
+   *   3. `geometry: 'generated'` 的条目身上不该有真实件 —— 有就是它在少说一件事。
+   *
+   * 第 2 条还兜住反过来的那一半：`machine.source` 指到一台索引里一件都没有的机器时，
+   * 这个物种就是"声称真几何、身上一件真件都没有"，同样报错。
+   */
+  const liveParts = index.parts.filter((p) => !rejectedIds.has(p.id));
+  for (const t of index.themes ?? []) {
+    const m = t.machine;
+    if (!m) continue;                       // 没有 machine = docs/26 §H 的「虚」，无从查也不必查
+    const real = liveParts.filter((p) => p.family === t.id && p.source?.provider === 'harvest');
+    if (m.geometry === 'generated') {
+      if (real.length) {
+        errs.push(`${t.id}: machine.geometry='generated'，索引里却有 ${real.length} 件真实网格`
+          + `（${real.map((p) => p.id).join(', ')}）—— 记录说它没有几何，身上却穿着几何`);
+      }
+      continue;
+    }
+    if (!m.source) {
+      errs.push(`${t.id}: machine.geometry='real' 但没有 machine.source —— `
+        + `没有那个钉到 SHA 的 URL，"这具身体是不是那台机器"这个问题就查不了`);
+      continue;
+    }
+    const wrong = real.filter((p) => !(p.source?.model ?? '').startsWith(m.source!));
+    if (!real.length || wrong.length) {
+      const got = [...new Set(real.map((p) => (p.source?.model ?? '').replace(/\/[^/]*$/, '/')))];
+      errs.push(`${t.id}: 记录说取材自 ${m.maker} ${m.name}（${m.source}），`
+        + (real.length
+          ? `但索引里 ${wrong.length}/${real.length} 件真实件来自别处：${got.join(' , ')} —— `
+          : `索引里却一件真实网格都没有 —— `)
+        + `记录和几何互相抵消时，去看实物再改记录（docs/42 §7 第 2 条）`);
+    }
+  }
+
   console.log(`  策展: ${summary(cur)}`);
 
   for (const w of warns) console.warn('  ⚠ ' + w);

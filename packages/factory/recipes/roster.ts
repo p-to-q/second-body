@@ -24,7 +24,7 @@
  *   humanLike  0 = 完全不像人        1 = 人形
  *   lifeLike   0 = 像工具/家具       1 = 像活的
  */
-import type { Tier } from '../../core/src/types.ts';
+import type { ThemeDef, Tier } from '../../core/src/types.ts';
 import type { BodyPlanId, BodyPlanSpec } from '../../core/src/bodyplan.ts';
 
 export type RosterKind = 'archetype' | 'guest' | 'character';
@@ -68,6 +68,13 @@ export interface RosterEntry {
   tierOfVariant: Record<string, Tier>;
   /** 取材说明。取材 ≠ 复制，写清楚出处是为了让自己保持诚实 */
   reference?: string;
+  /**
+   * 取材自哪台真实存在的机器。表在下面（`MACHINE`），字段定义在
+   * `ThemeDef.machine`（冻结契约），裁定在 docs/42 §7 第 3 条。
+   * `reference` 是**写给人看的一句话**，这个字段是**给机器查的几条事实** ——
+   * 两者不重复：一句话查不了，几条事实读不动。
+   */
+  machine?: ThemeDef['machine'];
   /**
    * 换一批随机。seed 由 id 决定，原样重跑必然复现同一个坏结果；
    * 加 salt 是"我看过了，这个不行，换一个"的显式记录，比偷偷改 id 好。
@@ -133,6 +140,96 @@ const A = (
  * 记在这里而不是偷偷改 id：下一个人要知道"这个条目试过一次，不行"。
  */
 const RE_ANCHOR: Record<string, number> = { digitigrade: 1, wheelleg: 1, autonomous: 1 };
+
+/** 取件来源一律钉 SHA，和 `scripts/harvest.mjs` 是同一个数（那里是权威，这里跟着它走）。 */
+const MENAGERIE = 'https://raw.githubusercontent.com/google-deepmind/mujoco_menagerie/8161bba264d7fa7c99ca301e91e7fb44737676ad';
+
+/**
+ * 每个条目取材自哪台**真实存在的**机器（docs/42 §1 的对表，§7 第 3 条的裁定）。
+ *
+ * 三档，分界线是 docs/26 §H 加的那一档（docs/42 §0 第一条）：
+ *
+ *   实·有几何   `geometry: 'real'` —— 真机存在，索引里的件就是那台机器的原厂网格
+ *   实·无几何   `geometry: 'generated'` —— 真机存在，但世界上没有一份可再分发的几何，
+ *               所以 `source` / `license` 缺席，身上是生成件。**它仍然记着自己是谁**，
+ *               而这正是它和「虚」的区别：第二档是一条**可以被推翻的记录**，
+ *               哪天厂商放出描述文件，这一行就升到第一档；写成「想象」它就永远不会被重查。
+ *   虚          **没有这个字段**：`porcelain` / `xeno` / `coral` / `field`。
+ *               `porcelain` 在这一档是 docs/42 §7 第 1 条的裁定 —— 它是形态空间的原点，
+ *               原点不该同时是一件产品。
+ *
+ * `geometry: 'generated'` 而 `source` 在的那几条（athlete / wheelleg / manipulator）说的是
+ * 第三件事：**路已经探到，件还没取。** 取了就把这一格改成 'real'，`check:parts` 当场验。
+ */
+const MACHINE: Record<string, ThemeDef['machine']> = {
+  compact: {
+    name: 'G1', maker: 'Unitree Robotics', geometry: 'real',
+    source: `${MENAGERIE}/unitree_g1/`,
+    license: 'BSD-3-Clause（Unitree 变体）',
+    note: '非背书条款：不得以 Unitree 的名义为本作品背书',
+  },
+  patrol: {
+    name: 'Spot', maker: 'Boston Dynamics', geometry: 'real',
+    source: `${MENAGERIE}/boston_dynamics_spot/`,
+    license: 'BSD-3-Clause',
+    // 2026-09-13 重取：这一格此前写着 Spot，身上穿的却是 ANYmal C，
+    // 而换掉 Spot 的那句理由（「Spot 只给了腿」）在钉住的 SHA 上是假的（docs/42 §7 第 2 条）。
+    note: '描述包由 Clearpath Robotics 发布；非背书条款同样适用',
+  },
+  digitigrade: {
+    name: 'Digit', maker: 'Agility Robotics', geometry: 'real',
+    source: `${MENAGERIE}/agility_cassie/`,
+    license: 'MIT',
+    // Digit 自己没有可用授权（docs/33 §2 A，docs/42 复核仍然成立）。
+    note: '几何取自同厂同拓扑的 Cassie —— Digit 本身没有可再分发的描述文件',
+  },
+  athlete: {
+    name: 'Atlas', maker: 'Boston Dynamics', geometry: 'generated',
+    source: 'https://raw.githubusercontent.com/RobotLocomotion/models/3bd1111/atlas/meshes/',
+    license: 'BSD-3-Clause',
+    // 取之前要把两件事写进 ATTRIBUTION：版权人是 MIT CSAIL 的 Robot Locomotion Group
+    // 而不是 Boston Dynamics；那是 DRC/v5 液压那一代，不是 tagline 唤起的 2025 电动版
+    // （docs/42 §3 的保留意见、§7 第 5 条）。还有一条技术前提：那批网格是 .gltf + 外挂 .bin。
+    note: '几何还没取；版权人是 MIT CSAIL，且是 DRC/v5 液压那一代',
+  },
+  wheelleg: {
+    name: 'W1', maker: 'LimX Dynamics', geometry: 'generated',
+    source: 'https://raw.githubusercontent.com/limxdynamics/tron1-robot-description/5b97add/wheellegged/WL_P311D/meshes/',
+    license: 'Apache-2.0',
+    // W1 本身没有描述文件（逐个仓库查过 45 个）。和 Cassie 代 Digit 同类，
+    // 而这一次更有必要：它是全 roster 里唯一零自有件的条目，缺的正是一个轮子（docs/42 §7 第 6 条）。
+    note: '几何还没取；路探到的是同厂轮足四足 WL_P311D，代用件',
+  },
+  manipulator: {
+    name: 'Stretch 3', maker: 'Hello Robot', geometry: 'generated',
+    source: `${MENAGERIE}/hello_robot_stretch_3/`,
+    license: 'Apache-2.0',
+    note: '几何还没取；Apache-2.0 多一条「注明改动」',
+  },
+
+  // ── 实·无几何：真机存在，没有任何一份授权干净的几何（docs/42 §3 逐个 URL 查过）──
+  industrial: { name: 'Figure 03', maker: 'Figure', geometry: 'generated', note: '无公开描述文件' },
+  softwear: {
+    name: 'NEO', maker: '1X Technologies', geometry: 'generated',
+    // 反向建议：即使哪天拿到 CAD 也不该换 —— 这条流水线第一件事就是丢掉贴图统一套材质，
+    // 一件被剥掉表面的 NEO 只剩一具普通人形骨架（docs/42 §4 末）。
+    note: '无公开描述文件；即使拿到也不该换 —— 它的意义在那件针织外套上',
+  },
+  droid: {
+    name: 'BDX Droid', maker: 'Disney Research', geometry: 'generated',
+    // 社区复刻（Open Duck Mini，Apache-2.0）授权干净、几何可用，但用它填这一格
+    // 等于让「真实机器用真实网格」去接受一件模仿另一台机器的东西（docs/42 §7 第 7 条）。
+    note: '只有社区复刻件 —— 复刻不是那台机器',
+  },
+  petbot: { name: 'aibo', maker: 'Sony', geometry: 'generated', note: '只有第三方商业素材，来源不可核' },
+  furball: { name: 'Moflin', maker: 'Casio', geometry: 'generated', note: '无任何公开三维' },
+  screenface: { name: 'Loona', maker: 'KEYi Tech', geometry: 'generated', note: '无任何公开三维' },
+  orb: { name: 'Ballie', maker: 'Samsung', geometry: 'generated', note: '只有第三方商业素材，来源不可核' },
+  autonomous: {
+    name: 'Waymo Driver', maker: 'Waymo', geometry: 'generated',
+    note: 'Open Dataset 是传感器数据不是网格，且另有条款',
+  },
+};
 
 /**
  * 哪些条目不是人形（docs/18-BODY-PLANS.md）。
@@ -375,6 +472,7 @@ export const CHARACTERS: RosterEntry[] = [
 
 for (const e of ARCHETYPES) if (RE_ANCHOR[e.id]) e.seedSalt = RE_ANCHOR[e.id];
 for (const e of ROSTER_ALL_FOR_PLAN()) if (BODY_PLAN[e.id]) e.bodyPlan = BODY_PLAN[e.id];
+for (const e of ROSTER_ALL_FOR_PLAN()) if (MACHINE[e.id]) e.machine = MACHINE[e.id];
 
 function ROSTER_ALL_FOR_PLAN(): RosterEntry[] { return [...ARCHETYPES, ...GUESTS, ...CHARACTERS]; }
 

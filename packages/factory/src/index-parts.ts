@@ -61,6 +61,9 @@ export async function buildIndex(): Promise<PartLibraryIndex> {
       id: t.id, kind: t.kind, name: t.name, nameEn: t.nameEn, tagline: t.tagline, taglineEn: t.taglineEn,
       palette: t.palette, source: t.source, axes: t.axes, coverage: t.coverage, base: t.base,
       bodyPlan: t.bodyPlan,
+      // 取材的那台真实机器（docs/42 §7 第 3 条）。写进索引是为了让它**可查** ——
+      // `check:parts` 拿它去比索引里的件是不是真的来自那台机器，档案页拿它显示署名行。
+      machine: t.machine,
     })),
     materials: MATERIALS,
     parts: indexed.slice().sort((a, b) => a.id.localeCompare(b.id)),
