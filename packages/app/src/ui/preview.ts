@@ -119,6 +119,11 @@ export function mountPreview(opts: {
   cameraOn: () => boolean;
   /** 上半身是正当取景（docs/49 §落地）。缺省 false = 这一版之前的行为：不裁切、腿出画照样说话 */
   framing?: () => boolean;
+  /**
+   * 画面里**其余**被看见的人（docs/50 §6.2）：`bodied` = 他有没有身体。缺省 = 单人，只画 `pose` 那一个。
+   * 有身体的画 0.5 透明度，没有身体的（超过上限、海报）画 0.2 —— 小屏说实话：他确实被看见了，只是没有身体。
+   */
+  others?: () => ReadonlyArray<{ pose: RawPose; bodied: boolean }>;
 }): Preview | null {
   if (!wantsPreview(opts.flags)) return null;
 
@@ -171,6 +176,15 @@ export function mountPreview(opts: {
   function paint(pose: RawPose | null): void {
     if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // 其余的人先画、画淡：主身体那条线永远压在最上面，和单人时一个像素都不差
+    for (const o of opts.others?.() ?? []) {
+      if (o.pose !== pose) strokeSkeleton(o.pose, o.bodied ? 0.46 : 0.18);
+    }
+    strokeSkeleton(pose, 0.92);
+  }
+
+  function strokeSkeleton(pose: RawPose | null, alpha: number): void {
+    if (!ctx) return;
     const pts = pose?.screen;
     if (!pts?.length) return;
     // `screen` 是图像归一化坐标（0..1，原点左上）。乘一下就是画布坐标 ——
@@ -182,7 +196,7 @@ export function mountPreview(opts: {
     };
     ctx.lineWidth = 1.5 * dpr;
     ctx.lineCap = 'round';
-    ctx.strokeStyle = 'rgba(255,255,255,0.92)';
+    ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
     ctx.beginPath();
     for (const [a, b] of EDGES) {
       const p = at(a), q = at(b);

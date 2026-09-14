@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>多人入镜 · SEE-ME SEE-U</title>
+<link rel="stylesheet" href="../src/ui/type.css">
+<style>
+  body { padding: var(--sb-safe); }
+  .row { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: var(--sb-gutter); margin-top: 1.5em; }
+  canvas { width: 100%; background: #0a0b0d; border: 1px solid var(--sb-rule); display: block; }
+  #num div { padding: 0.3em 0; border-bottom: 1px solid var(--sb-rule); font-variant-numeric: tabular-nums; font-family: ui-monospace, monospace; font-size: 12px; white-space: pre-wrap; }
+  .bar { display: flex; gap: 1em; align-items: baseline; flex-wrap: wrap; margin-top: 1em; }
+  button, select { font: inherit; }
+  figcaption { margin-top: 0.6em; color: var(--sb-ink-dim); }
+</style>
+</head>
+<body>
+<main>
+  <p class="sb-label">DEV · 多人入镜</p>
+  <h1>画面里的几个人，谁是谁、谁拿到身体、身体站在哪</h1>
+  <p style="max-width:var(--sb-measure)">
+    跟踪器（<code>core/src/people.ts</code>）每一帧在想什么。左上是画面里的点，颜色 = 轨迹 id（粗 = 主身体，细 = 伴随，虚 = 没有身体）；
+    中间是舞台俯视（身体站在哪，米）；下面是最近 20 秒每条轨迹的时间线。
+    没有摄像头时播<strong>合成</strong>的场景 —— 和 <code>core/test/people.test.ts</code> 喂的是同一种人形，每一帧打乱输出顺序。
+  </p>
+  <div class="bar">
+    <label>场景 <select id="scene"></select></label>
+    <label>上限 <select id="cap"><option>1</option><option selected>2</option><option>3</option></select></label>
+    <button id="cam" type="button">用摄像头</button>
+    <span id="src" class="sb-label"></span>
+  </div>
+  <div class="row">
+    <figure style="margin:0">
+      <canvas id="view" width="640" height="360"></canvas>
+      <canvas id="stage" width="640" height="90" style="margin-top:8px"></canvas>
+      <canvas id="line" width="640" height="120" style="margin-top:8px"></canvas>
+      <figcaption>时间线：每一行一条轨迹，粗 = 主身体，细 = 伴随身体，淡 = 被看见但没有身体；空白 = 丢失 / 已死</figcaption>
+    </figure>
+    <div id="num"></div>
+  </div>
+</main>
+<script type="module" src="./people.ts"></script>
+<script type="module" src="./devnav.ts"></script>
+</body>
+</html>

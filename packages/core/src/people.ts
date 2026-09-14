@@ -479,6 +479,18 @@ export function lineup(people: readonly LineupInput[], aspect = 16 / 9): Map<num
   return out;
 }
 
+/**
+ * 整具骨架横向平移 `dx` 米（主身体在多人时的站位）。返回新对象，不改输入 —— 输入是生命力 / 稳定器的状态链上的那一份。
+ * `dx === 0` 原样返回同一个对象（单人那条路不分配）。
+ */
+export function shiftSkeleton<S extends { bones: Array<{ p0: [number, number, number]; p1: [number, number, number] }>; joints: Record<string, [number, number, number]> }>(sk: S, dx: number): S {
+  if (!sk || !Number.isFinite(dx) || dx === 0) return sk;
+  const joints: Record<string, [number, number, number]> = {};
+  for (const k in sk.joints) { const v = sk.joints[k]; joints[k] = [v[0] + dx, v[1], v[2]]; }
+  const bones = sk.bones.map((b) => ({ ...b, p0: [b.p0[0] + dx, b.p0[1], b.p0[2]] as [number, number, number], p1: [b.p1[0] + dx, b.p1[1], b.p1[2]] as [number, number, number] }));
+  return { ...sk, joints, bones };
+}
+
 /** 非主身体的整体色：按会话种子与轨迹 id 从 `PEOPLE.tints` 里挑。确定、永远不是白色 */
 export function tintFor(seed: number, id: number): readonly [number, number, number] {
   const h = Math.imul((seed ^ Math.imul(id, 0x9e3779b9)) >>> 0, 0x85ebca6b) >>> 13;

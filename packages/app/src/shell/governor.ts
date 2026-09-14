@@ -16,6 +16,7 @@
  *   4 `post`       关后期（和控件条「渲染」、降级阶梯第 1 级同一个开关）
  *   5 `dpr`        像素比降到 `GOVERNOR.dprShed`
  *   6 `ui`         读数与小屏幕停止刷新（它们不驱动身体）
+ *   7 `people`     只留主身体，伴随身体溶掉（docs/50 §5.4）。单人时是 no-op。放在最后：放下一个人的身体是观众最看得出来的
  *
  * ## 判据
  *
@@ -39,9 +40,9 @@
  */
 import { GOVERNOR } from '../../../core/src/tuning.ts';
 
-export type GovernorStep = 'ink' | 'swaps' | 'inference' | 'post' | 'dpr' | 'ui';
+export type GovernorStep = 'ink' | 'swaps' | 'inference' | 'post' | 'dpr' | 'ui' | 'people';
 
-export const GOVERNOR_LADDER: readonly GovernorStep[] = ['ink', 'swaps', 'inference', 'post', 'dpr', 'ui'];
+export const GOVERNOR_LADDER: readonly GovernorStep[] = ['ink', 'swaps', 'inference', 'post', 'dpr', 'ui', 'people'];
 
 export interface GovernorSample {
   /** 这一帧的时刻（毫秒） */

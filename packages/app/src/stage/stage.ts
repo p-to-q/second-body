@@ -102,6 +102,11 @@ export interface Stage {
    * @param opts.hold 帧循环在降级：直接切到位、跟随冻结
    */
   setShot(shot: Shot, opts?: { reduced?: boolean; hold?: boolean }): void;
+  /**
+   * 台上一组身体横向占多宽（米，含身体本身的宽度之外的那一段）。0 = 单人（缺省）。
+   * 多人时取景的包围盒宽度至少是它（docs/50 §4.3），相机距离照旧不动。
+   */
+  setGroupWidth(meters: number): void;
   /** 景别此刻的进度（0 全景 … 1 中景，线性）与跟随偏移（米）。HUD / 截图取证用 */
   readonly shot: Readonly<ShotState>;
   /** 当前取景依据的包围盒（HUD / 截图取证用） */
@@ -205,6 +210,8 @@ function dirLight(dir: readonly [number, number, number], aim: THREE.Vector3): T
 }
 
 export function createStage(opt: StageOptions = {}): Stage {
+  /** 多人时整组身体的横向跨度（米）。0 = 单人 */
+  let groupWidth = 0;
   const flags = readFlags(opt.search ?? (typeof location !== 'undefined' ? location.search : ''));
   const baseUrl = (opt.baseUrl ?? '/parts/').replace(/\/?$/, '/');
   let postEnabled = opt.post ?? !flags.nopost;
@@ -898,8 +905,14 @@ export function createStage(opt: StageOptions = {}): Stage {
 
     get shot() { return shotState; },
 
+    setGroupWidth(m) {
+      groupWidth = Number.isFinite(m) && m > 0 ? m : 0;
+    },
+
     frame(skeleton) {
       const b = boundsOfSkeleton(skeleton);
+      // 多人（docs/50 §4.3）：画面至少框住整组身体。单人时 groupWidth = 0，这一行什么都不改
+      if (b && groupWidth > 0) b.width = Math.max(b.width, groupWidth);
       if (b) aimAt(b);
       // 中景的两个输入：身高，和上半身相对站姿的偏移
       const J = skeleton?.joints;

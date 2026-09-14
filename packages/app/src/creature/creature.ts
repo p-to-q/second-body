@@ -137,6 +137,8 @@ export interface Companion {
   tint: readonly [number, number, number];
   dx: number;
   dz: number;
+  /** 额外的整体缩放 0..1（开场团块还没长出零件时是 0：伴随身体跟着主身体一起长出来）。缺省 1 */
+  scale?: number;
 }
 
 interface Swap {
@@ -503,7 +505,7 @@ export function createCreature(opt: CreatureOptions): Creature {
       const primaryN = instances.length;
       tints.length = 0;
       for (const c of companionsMax > 0 ? companions : []) {
-        const cp = presenceScale(c.presence);
+        const cp = presenceScale(c.presence) * Math.max(0, Math.min(1, Number.isFinite(c.scale) ? c.scale! : 1));
         if (cp <= 1e-3 || !c.skeleton) continue;
         for (const key of ALL_SLOT_KEYS) {
           const pick = genome.slots?.[key];

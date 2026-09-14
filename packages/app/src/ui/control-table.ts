@@ -144,12 +144,14 @@ export const CONTROLS: readonly ControlDef[] = [
     url: { param: 'framing', write: (v) => (v === 'auto' || !isFramingPolicy(v) ? null : v) },
   },
   {
-    // 人数（docs/50）。和取景同一组：它回答的也是"画面里框进几个人"。热切，不重载 ——
-    // worker 在两帧之间按新的 numPoses 重建图，跟踪器改上限，多出来的身体按"最后来的先让"溶掉。
+    // 人数（docs/50）。和取景同一组：它回答的也是"画面里框进几个人"。
+    // **要重载**：伴随身体的颜色挂在桶的 `instanceColor` 上，而它只在建身体时挂（半路挂上会在帧循环里换管线，
+    // `creature.ts` 那一段）；单人那条路不挂它 —— 于是 1 ↔ 多人是两种身体，和换物种同一个待遇。
     // 写回 URL 时默认值写成删除（地址栏里不留一个等于默认的参数）。随机不抽它：它是现场的决定，不是长相
     id: 'people', kind: 'choice', group: 'framing', key: 'N', options: PEOPLE_OPTIONS, default: String(PEOPLE.defaultCap),
     fromFlags: (f) => String(f.people),
     url: { param: 'people', write: (v) => (parsePeople(String(v)) === null || Number(v) === PEOPLE.defaultCap ? null : String(v)) },
+    reload: () => true,
   },
   {
     id: 'act', kind: 'overlay', group: 'act', key: 'A', options: ARC_ACTS, default: null,
