@@ -410,19 +410,19 @@ export function createPeopleTracker(opts: { cap?: number; aspect?: number } = {}
       // 没配上的观测：先去墓地认亲，认不上才是新人。
       // 认亲按**全局**最近的一对先配（不是按观测顺序先到先得）：两个人先后离开又回来时，先回来的那个不许抢走另一个人的 id
       const free = obs.map((_, i) => i).filter((i) => !matchedO.has(i));
-      const pairs: Array<[number, number, number]> = [];
+      const kin: Array<[number, number, number]> = [];
       for (const oi of free) {
         const o = obs[oi];
         ghosts.forEach((g, gi) => {
           const d = Math.hypot((o.cx - g.cx) * aspect, o.cy - g.cy) / Math.max(PEOPLE.minScale, g.scale);
           const r = Math.abs(Math.log(o.scale / Math.max(PEOPLE.minScale, g.scale)));
           const p = descriptorDistance(o.desc, g.desc);
-          if (d <= PEOPLE.reattachTorso && r <= PEOPLE.gateScale && !(Number.isFinite(p) && p > PEOPLE.reattachPose)) pairs.push([d, oi, gi]);
+          if (d <= PEOPLE.reattachTorso && r <= PEOPLE.gateScale && !(Number.isFinite(p) && p > PEOPLE.reattachPose)) kin.push([d, oi, gi]);
         });
       }
-      pairs.sort((a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2]);
+      kin.sort((a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2]);
       const usedO = new Set<number>(), usedG = new Set<number>();
-      for (const [, oi, gi] of pairs) {
+      for (const [, oi, gi] of kin) {
         if (usedO.has(oi) || usedG.has(gi) || tracks.length >= MAX_TRACKS) continue;
         usedO.add(oi); usedG.add(gi);
         const g = ghosts[gi];
