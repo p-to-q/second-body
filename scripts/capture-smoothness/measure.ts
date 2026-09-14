@@ -155,6 +155,11 @@ if (tracing) await send('Tracing.start', {
 });
 const clickPerf = await evalJs(`(performance.mark('probe:click'), performance.now())`);
 if (mode === 'swap') {
+  // HOVER=1 → 观众先把手移到「摄像头」那一行上（悬停预取），停 HOVER_MS 再按
+  if (process.env.HOVER === '1') {
+    await evalJs(`document.querySelectorAll('.sb-exits .sb-exit')[2].dispatchEvent(new PointerEvent('pointerenter'))`);
+    await sleep(Number(process.env.HOVER_MS ?? 1500));
+  }
   await evalJs(`(window.__probe.click = performance.now(), document.querySelectorAll('.sb-exits .sb-exit')[2].click())`);
 } else {
   await evalJs(`window.__probe.click = performance.now()`);
