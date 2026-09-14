@@ -187,7 +187,10 @@ if (mode === 'swap') {
     await evalJs(`document.querySelectorAll('.sb-exits .sb-exit')[2].dispatchEvent(new PointerEvent('pointerenter'))`);
     await sleep(Number(process.env.HOVER_MS ?? 1500));
   }
-  await evalJs(`(window.__probe.click = performance.now(), document.querySelectorAll('.sb-exits .sb-exit')[2].click())`);
+  // NOCLICK=1 → 只记下"按下"的时刻，不按。深链（`?theme=`）没有展签，开机就是摄像头 ——
+  // 那时再按「摄像头」那一行是**关**摄像头，量出来的是回放，不是改前那一场的摄像头稳态
+  if (process.env.NOCLICK === '1') await evalJs(`window.__probe.click = performance.now()`);
+  else await evalJs(`(window.__probe.click = performance.now(), document.querySelectorAll('.sb-exits .sb-exit')[2].click())`);
 } else {
   await evalJs(`window.__probe.click = performance.now()`);
 }
