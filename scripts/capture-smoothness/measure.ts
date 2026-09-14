@@ -12,8 +12,9 @@ mkdirSync(`${out}/shots`, { recursive: true });
 const profile = `${HERE}/profile-${warm === '1' ? 'warm' : Date.now()}`;
 if (warm !== '1') rmSync(profile, { recursive: true, force: true });
 const port = 9350 + Math.floor(Math.random() * 100);
+// HEADED=1 → 真窗口（不带 --headless）：分清"真卡死"还是"只在无头 Chrome 里卡"
 const chrome = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', [
-  '--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
+  ...(process.env.HEADED === '1' ? [] : ['--headless=new']), `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
   '--enable-unsafe-webgpu', '--enable-features=WebGPU', '--use-angle=metal', '--ignore-gpu-blocklist',
   '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream',
   `--use-file-for-fake-video-capture=${HERE}/figure.y4m`,
@@ -195,6 +196,45 @@ if (mode === 'swap') {
   await evalJs(`window.__probe.click = performance.now()`);
 }
 console.log('clicked', clickPerf);
+
+// ── 看门狗（docs/48 §10.6）：按下之后页面超过 WATCHDOG_MS（默认 2000，0 = 关）没出一帧 = 这一场失败。
+// 卡死的页面上 Runtime.evaluate 永远不返回（截图也一样），脚本会一直挂到 hard timeout —— 那不是结论。
+// 所以心跳只在上一次返回之后才发，另一个定时器看"rAF 计数最后一次增长是什么时候"。
+// 判定卡死时先要一个 Debugger.pause 的栈（JS 在跑的死循环能被打断；卡在原生等待里拿不到，也照实写下来）。
+const watchdogMs = Number(process.env.WATCHDOG_MS ?? 2000);
+if (watchdogMs > 0) {
+  let lastCount = -1;
+  let lastAdvance = Date.now();
+  let inflight = false;
+  const beat = setInterval(() => {
+    if (inflight) return;
+    inflight = true;
+    void evalJs('window.__probe.raf.length').then((n: number) => {
+      inflight = false;
+      if (typeof n === 'number' && n > lastCount) { lastCount = n; lastAdvance = Date.now(); }
+    });
+  }, 250);
+  const dog = setInterval(async () => {
+    const stalled = Date.now() - lastAdvance;
+    if (stalled <= watchdogMs) return;
+    clearInterval(dog); clearInterval(beat);
+    console.log(`STALL no frame for ${stalled}ms at ${((Date.now() - tNav) / 1000).toFixed(1)}s after navigate (watchdog ${watchdogMs}ms)`);
+    const paused = new Promise<any>((res) => {
+      listeners.push((m) => { if (m.method === 'Debugger.paused') res(m.params); });
+      setTimeout(() => res(null), 4000);
+    });
+    void send('Debugger.enable');
+    void send('Debugger.pause');
+    const p = await paused;
+    const frames = p ? p.callFrames.slice(0, 25).map((f: any) =>
+      `${f.functionName || '(anon)'} ${String(f.url).split('/').pop()}:${f.location.lineNumber + 1}:${f.location.columnNumber + 1}`) : [];
+    const report = p ? `paused reason=${p.reason}\n${frames.join('\n')}` : 'Debugger.pause got no answer in 4s — main thread is not running JS (native wait / GPU / sync IPC)';
+    console.log(report);
+    writeFileSync(`${out}/stall.txt`, `${report}\n\nconsole tail:\n${consoleLog.slice(-40).join('\n')}\n`);
+    kill();
+    process.exit(3);
+  }, 250);
+}
 
 // Screenshots of the top-left preview for the first 12 s (black-screen check)
 const shots: string[] = [];
