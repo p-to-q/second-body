@@ -25,7 +25,7 @@ import { crossfadeRenders, replaceRenders } from '../src/creature/replace-event.
 import { swapCeiling } from '../src/creature/swap-budget.ts';
 import { swapOneSlot } from '../src/creature/theseus-wire.ts';
 import { REFERENCE_POSE } from '../src/stage/framing.ts';
-import { PLANS_WITHOUT_PARTS, remapSkeleton } from '../../core/src/bodyplan.ts';
+import { PLANS_WITHOUT_PARTS, remapSkeleton, type BodyPlanId } from '../../core/src/bodyplan.ts';
 import { borrowPools } from '../../core/src/borrow.ts';
 import { makeGenome } from '../../core/src/genome.ts';
 import { createTheseus } from '../../core/src/theseus.ts';
@@ -33,7 +33,7 @@ import { createArc } from '../../core/src/arc.ts';
 import { ALL_SLOT_KEYS, IS_LEFT, SLOT_OF_BONE } from '../../core/src/slots.ts';
 import { BUDGET } from '../../core/src/tuning.ts';
 import type {
-  BodyPlanId, Genome, PartLibraryIndex, PartMeta, Skeleton, Slot, SlotKey, SlotPick, ThemeDef, Tier,
+  Genome, PartLibraryIndex, PartMeta, Skeleton, Slot, SlotKey, SlotPick, ThemeDef, Tier,
 } from '../../core/src/types.ts';
 
 const read = (rel: string) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8');
