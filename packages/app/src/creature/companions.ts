@@ -11,7 +11,7 @@ import { buildSkeleton, mediapipeToWorld } from '../../../core/src/skeleton.ts';
 import { createStabilizer, type Stabilizer } from '../../../core/src/stabilize.ts';
 import { clampFold, createRefiner, type Refiner } from '../../../core/src/refine.ts';
 import { createVitality, type Vitality } from '../../../core/src/vitality.ts';
-import { createMotion, type Motion } from '../../../core/src/motion.ts';
+import { createMotion, type MotionMachine as Motion } from '../../../core/src/motion.ts';
 import { createPresence, type PresenceMachine } from '../../../core/src/presence.ts';
 import { createFramingClassifier, decide, stepFollow, stepToward, type FramingClassifier, type Follow } from '../../../core/src/autoframe.ts';
 import { holdLegs } from '../../../core/src/leghold.ts';

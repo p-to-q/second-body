@@ -11,7 +11,11 @@ import { formatPeopleRows } from '../src/shell/hud.ts';
 test('people 行：人数 / 上限 / 预算；每条轨迹一行，主 / 伴 / 无 与没有身体的理由', () => {
   const tr = createPeopleTracker({ cap: 2 });
   let f = tr.current;
-  for (let k = 0; k < 60; k++) f = tr.update([person({ cx: 0.2 }), person({ cx: 0.5 }), person({ cx: 0.8, s: 0.3 })], 1 / 30);
+  // 三个人都在走动（真人会动；一动不动的合成人会被当成海报 —— 那是另一句"没动过"）
+  for (let k = 0; k < 90; k++) {
+    const w = 0.12 * Math.sin(k / 9);
+    f = tr.update([person({ cx: 0.2 + w }), person({ cx: 0.5 - w }), person({ cx: 0.8 + w * 0.5, s: 0.3 })], 1 / 30);
+  }
   const rows = formatPeopleRows({ frame: f, cap: 3, bodies: 2, outlineYields: true, shed: false });
   assert.match(rows[0], /^2\/3 人 · 身体上限 2（预算） · 描边让位$/);
   assert.equal(rows.length, 1 + f.tracks.length);

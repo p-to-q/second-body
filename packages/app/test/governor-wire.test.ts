@@ -29,7 +29,7 @@ test('调速器接线: 放到第 n 级 = 前 n 个开关拨成"放下"，只拨�
   assert.deepEqual(calls, [['swaps', false]], '拿回一级只拨那一个');
   calls.length = 0;
   apply(GOVERNOR_LADDER.length);
-  assert.deepEqual(calls.map((c) => c[0]), ['swaps', 'inference', 'post', 'dpr', 'ui']);
+  assert.deepEqual(calls.map((c) => c[0]), ['swaps', 'inference', 'post', 'dpr', 'ui', 'people']);
   assert.ok(calls.every((c) => c[1] === true));
 });
 
@@ -55,6 +55,8 @@ test('调速器接线: 每一级都登记了它拨的是哪个开关，而且那
     post: read('../src/ui/control-table.ts') + main,
     dpr: main,
     ui: main,
+    // 多人（docs/50 §5.4）：开关是 main.ts 里 `people` 那一块的 `shed` 位，帧循环里按它把伴随身体的预算压到 0
+    people: main,
   };
   const block = /wireGovernor\(\{([\s\S]*?)\n\s*\}\)/.exec(main)?.[1] ?? '';
   assert.ok(block, 'main.ts 里要有 wireGovernor({ ... }) 那一处接线');
