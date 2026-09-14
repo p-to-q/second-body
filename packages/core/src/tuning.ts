@@ -1273,6 +1273,18 @@ export const AUTOFRAME = {
   previewDeadZone: 0.03,
   previewBand: 0.05,
   previewOmega: 4.0,
+
+  // ── 连续性（docs/49 §6.3）──
+  /**
+   * 每 16ms 最多变多少。**这是守卫，不是旋钮**：`core/test/autoframe-continuity.test.ts` 用随机决策序列逐帧核对，
+   * 调快了某个弹簧、它红了，就是在说"这个变化读起来会是一次跳"。减少动态不受它约束（6.3 写明的例外）。
+   *  - `progress`：景别进度**缓动之后**（smoothstep 峰值斜率 1.5 × 16ms / `shotSeconds` = 0.024）
+   *  - `zoom` / `center`：小屏裁切的放大倍数 / 窗口中心（画面归一化）
+   *  - `legHold`：腿混向站姿的权重（缓动之后）
+   *  - `lateral`：身体的横向根偏移（米）
+   *  - `fovDeg` / `pan`：舞台相机的竖直视角（度）/ 移轴平移（米）
+   */
+  maxStep: { progress: 0.03, zoom: 0.03, center: 0.02, legHold: 0.06, lateral: 0.03, fovDeg: 1.5, pan: 0.012 },
 };
 
 /**
