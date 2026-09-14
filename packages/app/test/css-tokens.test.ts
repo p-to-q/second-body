@@ -166,6 +166,15 @@ test('CSS：各角的墨，首屏翻了、组件取的是自己那一角', () =>
       }
     }
   }
+  // 左上那句话的中文行不写自己的颜色，吃的是 type.css 的 `.sb-zh { color: var(--sb-ink) }` ——
+  // 只重指 --sb-on-stage 不够：2026-09-14 无头 Chrome 实测「纸」场景下它是 #dfe4ea 压在 0.90 的底上，1.15:1。
+  // 所以这一句（和右上那一列一样）连 --sb-ink 也要重指到自己这一角。
+  for (const [f, region] of [['ui/preview.css', 'tl'], ['ui/corner.css', 'tr']] as const) {
+    const src = stripComments(readFileSync(join(UI, f), 'utf8'));
+    if (!new RegExp(`--sb-ink\\s*:\\s*var\\(\\s*${REGION_TOKENS[region].on}\\s*\\)`).test(src)) {
+      problems.push(`${f} 没有让 --sb-ink 取 ${REGION_TOKENS[region].on} —— 里面的 .sb-zh 会停在全局浅墨上`);
+    }
+  }
   assert.deepEqual(problems, [], problems.join('\n'));
 });
 

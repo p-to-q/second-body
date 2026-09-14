@@ -97,6 +97,10 @@
      只挂在这一句上，不挂在 .sb-see 上：屏幕那圈边不跟画面走 */
   --sb-on-stage: var(--sb-on-stage-tl);
   --sb-on-stage-dim: var(--sb-on-stage-dim-tl);
+  /* 中文那一行不写自己的颜色，吃的是 type.css 的 `.sb-zh { color: var(--sb-ink) }`。
+     不重指它的话，这句话的主行永远是全局浅墨：「纸」场景下实测 1.15:1，看不见 */
+  --sb-ink: var(--sb-on-stage-tl);
+  --sb-ink-dim: var(--sb-on-stage-dim-tl);
   margin: calc(var(--sb-gutter) * 0.4) 0 0;
   font-size: var(--sb-size-small);
   line-height: var(--sb-lh-body);
