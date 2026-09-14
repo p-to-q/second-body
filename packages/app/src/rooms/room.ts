@@ -106,10 +106,10 @@ export function mountRoom(options: RoomOptions): Room {
   const body = document.createElement('div');
   body.className = 'room-body';
 
-  // 页脚标记跟在 body 后面：房间的内容全部进 body，异步填进来也不会跑到标记下面
   page.append(head, body);
-  mountFooterMark(page);
   mount.append(page);
+  // 页脚标记挂在 document.body 的最后：房间的内容全部进 `body` 那一格，异步填进来也不会跑到标记下面
+  mountFooterMark();
 
   const setStateImpl = (text: BiText | null): void => {
     if (!text) { stateEl.textContent = ''; stateEl.hidden = true; return; }

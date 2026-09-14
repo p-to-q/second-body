@@ -49,6 +49,18 @@ test('颜色跟着页面的墨走：蒙版 + 令牌，没有写死的颜色；�
   assert.match(css, /aspect-ratio/, '没有按 viewBox 的宽高比占位 —— 加载前后会跳');
 });
 
+test('/about 的巨题用同一张示意图替掉作品名：名字留给读屏、墨和「看我看你」左对齐、进场动效照旧', () => {
+  const about = read('../src/about/about.ts');
+  const head = about.slice(about.indexOf('function head()'), about.indexOf('function statementSection'));
+  assert.match(head, /diagramNode\(null\)/, '巨题没有换成示意图（或者图没有标成装饰，读屏会把名字念两遍）');
+  assert.match(head, /sb-diagram--flush/, '图没有做墨的左对齐 —— 左边会比「看我看你」多出一截留白');
+  assert.match(head, /sb-visually-hidden/, '作品名从 h1 里消失了 —— 读屏和搜索读不到这一页叫什么');
+  assert.match(head, /ed-rise/, '巨题的进场动效没了');
+  const css = read('../src/ui/footer-mark.css');
+  // 左移量和 viewBox 里墨的左留白是同一个数：(2.05 − 0.5) / 633.8
+  assert.match(css, /\.sb-diagram--flush\s*\{\s*margin-left:\s*calc\(-100%\s*\*\s*1\.55\s*\/\s*633\.8\)/, '左移量和 viewBox 的墨留白不一致');
+});
+
 test('标记对读屏说得出它是什么；重复挂载只挂一次', () => {
   const ts = read('../src/ui/footer-mark.ts');
   assert.match(ts, /role['"]?,\s*['"]img['"]|role="img"|setAttribute\('role', 'img'\)/, '没有 role=img');

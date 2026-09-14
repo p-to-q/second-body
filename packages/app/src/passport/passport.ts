@@ -365,7 +365,7 @@ for (const s of STAMPS) root.append(stampBlock(s));
 const foot = el('footer', 'sb-foot');
 foot.append(biBlock(COPY.passport.foot, 'p'));
 root.append(el('hr', 'sb-rule'), foot);
-mountFooterMark(root);
+mountFooterMark();
 
 // 这一页原本是条死路：读完之后走不回作品，也走不到别的房间
 mountNav();

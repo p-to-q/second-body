@@ -18,7 +18,8 @@
   z-index: 12;
   display: flex;
   align-items: baseline;
-  gap: 1.6em;
+  /* 两个出口之间 2.4em（≈31px）：原来 1.6em、中英又贴着，读起来是一串分不清哪两个词是一组的字 */
+  gap: 2.4em;
   font-family: var(--sb-grotesk, "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif);
   font-size: var(--sb-size-small, 0.8125rem);
   line-height: 1.4;
@@ -28,7 +29,9 @@
 .sb-devnav__link {
   display: inline-flex;
   align-items: baseline;
-  gap: 0.5em;
+  /* 这里**不再**用 gap 分中英：setBi 同时挂上的 `.sb-bi` 在 type.css 里后加载、同权重，
+     把这个链接算回了 display:block（实测 computed display: block），gap 于是不生效，中英之间 0px。
+     间距改由下面 `.sb-devnav .sb-en` 的 margin-left 承担，不依赖父级是什么 display。 */
   /* `--sb-on-stage-dim` 在纸上**就是** `--sb-ink-dim`（type.css 里同值）；
      在舞台页上它由舞台按场景亮度发布 —— stage.html 的浅灰场景上，
      固定的浅墨读不出来（实测：页头自己也读不出，而出口不许读不出） */
@@ -47,6 +50,8 @@
 .sb-devnav .sb-zh { color: inherit; }
 .sb-devnav .sb-cjk { margin-left: 0; }
 .sb-devnav .sb-en {
+  /* 0.55em（micro 字号下 ≈6px）：和站点右上角「目录 CONTENTS」的中英间距同一个比例 */
+  margin-left: 0.55em;
   color: inherit;
   font-size: var(--sb-size-micro, 0.6875rem);
   letter-spacing: var(--sb-tracking-label, 0.07em);

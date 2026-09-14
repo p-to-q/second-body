@@ -23,6 +23,7 @@ import './archive.css';
 import { mountPageHead } from '../src/ui/page.ts';
 import { withFrom } from '../src/ui/return-to.ts';
 import { mountFooterMark } from '../src/ui/footer-mark.ts';
+import { markNode } from '../src/ui/mark.ts';
 
 interface Item {
   href: string;
@@ -49,9 +50,10 @@ const GROUPS: Group[] = [
   {
     title: '侧室',
     note:
-      '已经展出的房间。**不在目录（/about 右上角那个）里** —— 门开在 /about 的正文里，'
-      + '一个可以被穷举的数通向它的穷举（docs/23 §S9、src/ui/clue.ts）。'
-      + '这里列出来是因为这一页是后台的地图，给我们自己看；线索仍然是观众那一条路。',
+      // 原来这句带着 markdown 的 ** —— 这里是纯文本，星号原样印在了页面上（负责人线上看到的）。
+      // 它说的「不在目录里」也已经不成立：三个侧室在 docs/47 之后进了目录（收起的那一组）
+      '已经展出的房间。观众从 /about 的正文和右上角目录都走得到（docs/23 §S9）；'
+      + '这里列出来，是因为这一页是后台的地图，给我们自己看。',
     items: [
       { href: '/parts', name: '部件档案', answers: '这件作品到现在为止长出了什么？谁是谁？哪些被留下了？' },
       { href: '/roster', name: '物种接触表', answers: '可以变成的身体一共有哪些？一版摆完。' },
@@ -86,9 +88,17 @@ mountPageHead({
   note: '这件作品的每一个可见面，以及它各自能回答的那个问题。',
 });
 
+// 页头左上那一行 12px 的 `SEE-ME SEE-U` 标签换成站里通用的两行字标（`ui/mark.ts`），印到 h1 那一档。
+// 负责人线上看到：这一页的 logo 没有放大、也不是那枚特殊字体 —— 其余文档页和侧室顶上都是这枚字标，唯独工作台目录是一行小字
+const mark = markNode('div', 'start');
+mark.style.setProperty('--sb-mark-size', 'var(--sb-size-h1)');
+mark.style.marginBottom = 'calc(var(--sb-gutter) * 1.25)';
+document.querySelector('.sb-head__work')?.replaceWith(mark);
+
 const page = document.createElement('div');
 page.className = 'sb-page';
-page.style.paddingTop = '0';
+// 页头那条线和第一组「作品」之间原来是 0，题几乎压在线上（负责人：「整页比较紧，和作品离得太近」）
+page.style.paddingTop = 'calc(var(--sb-gutter) * 2.5)';
 document.body.appendChild(page);
 
 for (const group of GROUPS) {
@@ -141,4 +151,4 @@ foot.textContent =
   '排版系统 packages/app/src/ui/type.css · 场景规格 docs/23-SPEC-ui.md · ' +
   '「什么真的跑通了」以 docs/10-SURFACES.md 为准';
 page.appendChild(foot);
-mountFooterMark(page);
+mountFooterMark();

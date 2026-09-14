@@ -436,5 +436,5 @@ async function render(root: HTMLElement): Promise<void> {
 
 const mount = document.querySelector<HTMLElement>('#lineage');
 // 页脚标记挂在渲染**之后**：render 有三个提前 return（存档 / 空 / 离线），每一条路都要落到它
-if (mount) void render(mount).finally(() => mountFooterMark(mount));
+if (mount) void render(mount).finally(() => mountFooterMark());
 mountNav();

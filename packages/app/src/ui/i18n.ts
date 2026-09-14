@@ -319,7 +319,8 @@ export const COPY = {
     workbench: bi('返回工作台', 'Back to the workbench'),
     /** 作为「返回〈来处〉」里的那个名字（`ui/return-to.ts` 的 RETURN_PAGES）。和上一行拼出来是同一句话 */
     home: bi('工作台', 'the workbench'),
-    exit: bi('退出 · 回到作品', 'Back to the work'),
+    // 原来是「退出 · 回到作品」。负责人：更简单，就是「回到作品」—— 和 `about.back` 同一句话
+    exit: bi('回到作品', 'Back to the work'),
   },
 
   /** 不存在的地址（`404.html`）。左上角「回到作品」、右上角目录，就是它全部的出口 */

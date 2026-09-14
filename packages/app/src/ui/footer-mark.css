@@ -1,41 +1,59 @@
 /**
- * 页脚标记的皮肤。形状来自 SVG（蒙版），颜色来自那一页的墨（`--sb-ink`）。
+ * SEE-ME SEE-U 示意图的皮肤。形状来自 SVG（蒙版），颜色来自那一处的墨（`currentColor`）。
  *
- * - 宽度吃满内容那一栏：像产品网站最底下那枚大字标，不是一个角落里的小徽章。
- *   上限 72rem，超宽屏上不至于比正文栏还宽出一截。
- * - `aspect-ratio` 就是裁过的 viewBox（633.8 × 98.1）：图还没到时位置已经占好，页面不跳。
- * - 上面留三倍栏距、下面留一个安全区：它是一页的收尾，不贴着上一段正文，也不贴着屏幕下沿（投影会切边）。
- * - 没有入场动效（docs/23 §0：入场动效不许决定看不看得见）。
+ * - `.sb-diagram`：图本身。宽度吃满父级，`aspect-ratio` 就是裁过的 viewBox（633.8 × 98.1）——
+ *   图还没到时位置已经占好，页面不跳。
+ * - `.sb-diagram--flush`：图里的**墨**和旁边文字左对齐（往左挪掉 viewBox 里那 1.55 个单位的留白，
+ *   比例常量在 `footer-mark.ts` 的 `DIAGRAM_INK_INSET`，这里的数与它逐字相同）。
+ * - `.sb-footmark`：页脚那一枚的位置。
+ * - 没有入场动效（docs/23 §0：入场动效不许决定看不看得见）。巨题上的进场动效来自它所在的 `.ed-rise`，不在这里。
  */
 
-.sb-footmark {
-  display: block;
-  margin: calc(var(--sb-gutter) * 3) 0 0;
-  padding: 0 0 var(--sb-safe);
-  color: var(--sb-ink);
-  /* 页面自己的边距已经给过了，这里不再加左右内边距 */
-}
+/* `--sb-diagram-src` 在这里给缺省值 none；真正的 url 由 footer-mark.ts 写在元素的内联样式上（它带构建哈希，CSS 里写不出来） */
+.sb-diagram { display: none; --sb-diagram-src: none; }
 
-/* 不支持蒙版的浏览器：不画。否则那一格会是一整块实心的墨色矩形。
-   `--sb-footmark-src` 在这里给缺省值 none；真正的 url 由 footer-mark.ts 写在元素的内联样式上（它带构建哈希，CSS 里写不出来） */
-.sb-footmark__mark { display: none; --sb-footmark-src: none; }
-
+/* 不支持蒙版的浏览器：不画（上面那条 display:none）。否则那一格会是一整块实心的墨色矩形 */
 @supports (mask-image: url("")) or (-webkit-mask-image: url("")) {
-  .sb-footmark__mark {
+  .sb-diagram {
     display: block;
     width: 100%;
-    max-width: 72rem;
     aspect-ratio: 633.8 / 98.1;
     background-color: currentColor;
-    -webkit-mask-image: var(--sb-footmark-src);
-    mask-image: var(--sb-footmark-src);
+    -webkit-mask-image: var(--sb-diagram-src);
+    mask-image: var(--sb-diagram-src);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
-    -webkit-mask-size: contain;
-    mask-size: contain;
-    -webkit-mask-position: left bottom;
-    mask-position: left bottom;
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
   }
+}
+
+/* 图替掉文字时，名字仍留在文档里给读屏和搜索：视觉上隐藏，不是 display:none */
+.sb-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* 墨和文字左对齐：宽度不变，整体左移 viewBox 左留白对应的那一截（(2.05 − 0.5) / 633.8 × 自身宽） */
+.sb-diagram--flush { margin-left: calc(-100% * 1.55 / 633.8); }
+
+/* 作品负责人 2026-09-14 看过线上第一版：**再大、基本撑满；离底更近、离上面的字更远**。
+   所以页脚这一枚挂在 body 上（不在页面那一栏里），左右只留安全区的一半，和读数、目录同一条边；
+   上面空出八倍栏距（≈ 一屏的四分之一），下面只留安全区的一半。 */
+.sb-footmark {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  margin: calc(var(--sb-gutter) * 8) 0 0;
+  padding: 0 calc(var(--sb-safe) * 0.5) calc(var(--sb-safe) * 0.5);
+  color: var(--sb-ink);
 }
 
 @media print {
