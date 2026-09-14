@@ -112,6 +112,20 @@ export interface Flags {
    */
   preview: PreviewMode | null;
   /**
+   * ?readout=on|off  左下角那块读数（`ui/readout.ts`）——「它此刻从你身上读到了什么」。
+   * null = 不指定，按场合自己决定（网页版挂、现场不挂）。
+   *
+   * **现场默认不挂，理由和目录那一条不是同一条。** 目录是"装置画面上不该有网站导航"；
+   * 这一块是：左上角那块小屏幕之所以能在现场被 `?preview=on` 要回来，
+   * 是因为它回答的是「它有没有看见我」—— 没有那个答案，「默认零 UI」本身不成立。
+   * 这块读数回答的是「它读到了什么」，**站在装置前面的人对这个答案无能为力**。
+   * 现场不是控制室。讲解 / 评审 / 开放日要它的话，`?kiosk=1&readout=on` 显式打开。
+   *
+   * 认不出来的值（`?readout=1` / `?readout=yes`）**不静默生效也不静默关掉**：
+   * 当没写过，并且打一条 warn —— 规矩和 `?exits=` / `?gl=` / `?arc=` 一样。
+   */
+  readout: ReadoutMode | null;
+  /**
    * ?wave=on|off 选择页的举手滚动（`choose/ring/wave.ts`）。
    * null = 没写，或者写了一个认不出来的值 —— 两种情况都按默认（开）走。
    *
@@ -165,6 +179,31 @@ const PREVIEW_MODES: readonly string[] = ['on', 'off'];
 
 export function isPreviewMode(v: unknown): v is PreviewMode {
   return typeof v === 'string' && PREVIEW_MODES.includes(v);
+}
+
+/**
+ * `?readout=` 的两个合法值。和 `?preview=` 同一套词汇（on / off），
+ * 但**认不出来的时候要喊一声** —— `?preview=` 那一条至今是默默退回默认的，
+ * 而 docs/06 §6 给新开关定的规矩是"写错的值当没写过**并打一条 warn**"。
+ * 两者不一致时照规矩走，不照隔壁走。
+ */
+export type ReadoutMode = 'on' | 'off';
+const READOUT_MODES: readonly string[] = ['on', 'off'];
+
+export function isReadoutMode(v: unknown): v is ReadoutMode {
+  return typeof v === 'string' && READOUT_MODES.includes(v);
+}
+
+/** 同一个坏值只喊一次 —— `readFlags()` 一次启动会被调好几处 */
+const warnedReadout = new Set<string>();
+
+function resolveReadout(raw: string | null): ReadoutMode | null {
+  if (isReadoutMode(raw)) return raw;
+  if (raw !== null && !warnedReadout.has(raw)) {
+    warnedReadout.add(raw);
+    console.warn(`[kiosk] ?readout=${raw} 认不出来，只认 on / off —— 按没写过处理（网页版挂、现场不挂）`);
+  }
+  return null;
 }
 
 /** `?wave=` 认的两个值。别的一律 null */
@@ -376,6 +415,10 @@ export function readFlags(search = location.search): Flags {
     // "参数没生效"就分不开了。挂不挂的默认判断在 `ui/preview.ts` 的 `wantsPreview()`，
     // 不在这里 —— 这里只负责认字。
     preview: isPreviewMode(q.get('preview')) ? (q.get('preview') as PreviewMode) : null,
+    // 认不出来就是 null = 当没写过，**而且喊一声**（见 `resolveReadout` 的注释）。
+    // 挂不挂的默认判断在 `ui/readout-state.ts` 的 `wantsReadout()`，不在这里 ——
+    // 这里只负责认字，和 `?preview=` 同一条分工。
+    readout: resolveReadout(q.get('readout')),
     // 认不出来就是 null = 当没写过（和 ?shading= / ?cam= 同一条规矩）。
     // "默认是哪一条"由消费者决定并打印出来，不在这里替它决定。
     wave: isWaveFlag(q.get('wave')) ? (q.get('wave') as WaveFlag) : null,

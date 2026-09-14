@@ -196,6 +196,33 @@ export const COPY = {
     light: bi('站到亮一点的地方', 'Find a brighter spot'),
   },
 
+  /**
+   * S4 左下角那块读数（`ui/readout.ts`）——「它此刻从你身上读到了什么」。
+   *
+   * 这几个词是**观众读的**，所以它们进这里，不进 `?debug=1` 的 HUD 那一套
+   * 英文缩写（`fps` / `infer` / `tris`）。两套词汇服务两种人：
+   * HUD 上的 `infer 31 Hz` 是给现场调机器的人看的，这里的「推理 · INFERENCE」
+   * 是给一个站在身体前面、想知道它在读自己什么的人看的。
+   *
+   * 中文两个字、英文一个词 —— 定宽的两栏排版靠这条约束成立（`readout.css`）。
+   * 加行之前先量一眼名字那一栏会不会被撑开。
+   */
+  readout: {
+    /** 顶上那一行：这一帧有没有人。它是下面五行为什么全是破折号的答案 */
+    present: bi('有人', 'Someone'),
+    absent: bi('无人', 'No one'),
+    /** 整体置信度（`RawPose.score`）—— 整条链都压在这一个数上 */
+    confidence: bi('置信', 'Confidence'),
+    /** 模型报"看得见"的点数 / 总点数。半个人出画时置信度还很高，这一行不会 */
+    joints: bi('关节', 'Joints'),
+    /** **不是帧率**：每秒重新看你几次（`Capture.fps`） */
+    inference: bi('推理', 'Inference'),
+    /** 无量纲的运动能量。推动整件作品往前走的就是它 */
+    energy: bi('动能', 'Energy'),
+    /** 四肢离骨盆多远。这一块唯一一个形状的量，其余都是速率 */
+    extent: bi('舒展', 'Extent'),
+  },
+
   /** S7 离场 / 留念 */
   leave: {
     keepsake: bi('带走这具身体', 'Take this body with you'),

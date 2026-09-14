@@ -1,0 +1,171 @@
+/**
+ * 左下角那块读数的皮肤 —— **一块有边、有底、有圆角的面板，而 `docs/26 §F`
+ * 的反面清单写着"不用卡片、阴影、圆角、图标、进度条、toast"。**
+ *
+ * 下面这一整段是它为什么仍然成立。**读完再动手删。**
+ * （上一次有人按反面清单删东西之前没读文件头，代价是一整轮返工。）
+ *
+ * ## 一、先说这块面板防的是哪个 bug
+ *
+ * 不是"数字不好看"。是这个：**把面板撤掉，这几个数就会退回作品自己的声音。**
+ *
+ * 撤掉底和边之后，剩下的是六行贴在画面上的字，用的是 `--sb-on-stage`、
+ * 跟着场景亮度翻、和物种名牌（`shell/notice.css`）、和「站到画面里」、
+ * 和右下角那一列**逐字同一套排版**。于是观众读到的不是"这台机器测到了什么"，
+ * 是"**这件作品在说什么**" —— 一件等身的身体底下浮着六个实时变化的数字，
+ * 而且它们和作品说话时用的是同一种字体、同一个墨色、同一个安全区。
+ * 那一刻这件装置就变成了一个仪表盘，而这正是 §F 的反面清单要防的那件事本身。
+ *
+ * **换句话说：无边的读数比有边的读数更违反 §F，而且违反得更彻底** ——
+ * 它不是让作品旁边多了一个网页组件，它是让作品本人开口报数。
+ *
+ * ## 二、§F 是被限定了范围，不是被推翻了
+ *
+ * §F 管的是**作品的物质语言**：作品用什么说话。它给新例外定的那条判据是
+ * "问它是不是被引用进画面的实物"（左上角那块小屏幕是一台监视器，所以圆角过了）。
+ * 这块面板过不了那一条 —— 它不是实物，它根本不想进画面。
+ *
+ * 但那条判据回答的是另一个问题：**一个想成为画面一部分的东西**该不该被批准。
+ * 这块读数要的恰恰相反 —— 它必须一眼读作**不是作品**。
+ * 这是反方向的失败模式，用同一把尺子量会量反。
+ *
+ * `docs/44 §7` 已经把这条线画出来了：「**仪表不是诚实，仪表是工具**」。
+ * `docs/26 §G` 说诚实只住三处（`docs/25` / 立场海报 / `/about` 的状态标记）——
+ * 仪表不是第四处诚实，它是**另一类东西**。§F 约束的是"以作品的声音说出来的一切"，
+ * 而仪表按定义在那个集合之外，并且必须看起来在那个集合之外。
+ *
+ * 所以：**一条边和一块底，在这里不是装饰，是引号。** 它是最便宜的那个装置，
+ * 用来说"以下是测量，不是发言"。§F 在这里不是被违反，是被限定：
+ * 反面清单约束作品的声音；一个必须读作"不是作品"的东西，被要求带一条边界，
+ * 而那条边界只许用这一种做法 —— **一条发丝线 + 一块半透明的地**。
+ *
+ * ## 三、护栏（没有这四条，上面那段就是一个后门）
+ *
+ * 1. **一屏只许有一块观众看得见的仪表**，就是这一块。
+ *    `?debug=1` 的 HUD 是给我们自己的，观众看不到，不占这个名额。
+ * 2. **它只许装测量，不许装作品的决定。** 乐章走到哪儿、第几档、
+ *    此刻是哪个玩法、整条弧线的百分比、忒修斯换到第几件 —— 一个都不许上来。
+ *    `docs/40 §5`：「不要给观众进度条…进度条把一段经历翻译成一个百分比，
+ *    而这件作品的题目正是那种翻译的代价」；`docs/23 §S5`：升档
+ *    「没有文字、没有等级数字」。**装进一个决定的那一刻，它就不再是仪表，
+ *    §F 的整张清单立刻重新生效。** 该装什么写在 `readout.ts` 的文件头。
+ * 3. **它不动。** 没有入场动效、没有过渡、没有强调色、不吃指针事件。
+ *    数字按 4Hz 刷新（`readout.ts` 的 `SAMPLE_SECONDS`），等宽 tabular 对齐，
+ *    值列定宽 —— 一具等身的身体从它底下走过去时，它必须是静的。
+ * 4. **圆角只到 `.sb-readout` 这一个选择器为止**，和小屏幕那次豁免一样。
+ *    别处出现 `border-radius` 不在这次里面。
+ *
+ * ## 四、那块"半透明的灰"为什么不是一个灰
+ *
+ * 它是 `--sb-on-stage`（字色，由 `stage.ts` 的 `publishStageInk()` 按场景亮度翻）
+ * 兑了水：深空上是白兑水 = 一块浅灰纱，白展厅上是黑兑水 = 一块深灰纱。
+ * **两边都是灰，而且两边都和底色分得开。**
+ *
+ * 写死一个灰是不行的，那个 bug 这个仓库犯过三次（见 `type.css` 的
+ * `--sb-ink-strong`），而且 `--sb-stage-ground` 就是因此被整个删掉的：
+ * 任何一个固定的底色都只在几种场景上成立，在别的上面它就是一块补丁。
+ * 用字色兑水的好处是它**不可能**和字撞：底和字永远朝同一个方向跑。
+ *
+ * **没有 backdrop-filter。** 它在一张每帧都在变的 WebGPU 画布上等于每帧多一次
+ * 合成器取回，而这件作品的帧预算写在 `docs/02 P5`。上面那块底已经够了。
+ */
+
+.sb-readout {
+  position: fixed;
+  /* 左边缘和物种名牌（`shell/notice.css`）对齐：同一列里的两样东西，
+     一个是作品说的那一句，一个是仪表，左边对齐才读得出它们是两件事而不是两套版心。 */
+  left: var(--sb-safe);
+  /* **不贴底。** 底下那一格留给物种名牌 —— 它进场后只说 4 秒，
+     但那 4 秒正是观众刚看见身体的 4 秒，仪表不许压在作品唯一的那句话上。
+     3.4rem ≈ 中英并置两行 + 一个 gutter，取法和 `nav.css` 给展签题头让路的那一条相同。 */
+  bottom: calc(var(--sb-safe) + 3.4rem);
+  /* 4 = 和左上角那块小屏幕同一层。两块都是仪表、都不吃指针事件，
+     都在加载态（8）、名牌（9）、字标（10）、右上角那一列（11）之下。 */
+  z-index: 4;
+  pointer-events: none;
+  padding: 0.5rem 0.7rem 0.6rem;
+  /* ↓↓ 见文件头第二节。动它之前先读完那一节。 */
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--sb-on-stage) 12%, transparent);
+  /* 一条发丝线。**不是阴影** —— 阴影在反面清单上，而这里要的只是一条边界，
+     一条线就够把"测量"和"画面"分开。 */
+  border: 1px solid color-mix(in srgb, var(--sb-on-stage) 22%, transparent);
+  /* 视口窄的时候它不许挤掉画面 */
+  max-width: min(20rem, calc(100vw - var(--sb-safe) * 2));
+}
+
+/* 顶上那一行：这一帧有没有人。它是下面五行为什么全是破折号的答案 */
+.sb-readout-state {
+  display: block;
+  font-family: var(--sb-grotesk);
+  font-size: var(--sb-size-small);
+  line-height: var(--sb-lh-body);
+  color: var(--sb-on-stage);
+}
+.sb-readout-state .sb-zh,
+.sb-readout-state .sb-en { display: inline; }
+.sb-readout-state .sb-en {
+  font-size: 0.78em;
+  margin-left: 0.45em;
+  letter-spacing: var(--sb-tracking-label);
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+/* 状态行和数之间的那条线。分区只用线，不用间距也不用卡片（docs/23 §0） */
+.sb-readout-rule {
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--sb-on-stage) 22%, transparent);
+  margin: 0.4rem 0;
+}
+
+/**
+ * 两栏：名字 + 值。
+ *
+ * 名字那一栏是 `max-content` —— 六个标签是固定文本，所以这一栏的宽度是常数。
+ * 值那一栏定宽 6.5ch 的**等宽字**，装得下最长的一种（`120 Hz` / `28/33`）。
+ * 两栏都不随数据变宽，于是**整块面板的宽度是一个常数**：
+ * 数字跳动的时候一个像素都不会回流。这是这一块最要紧的一条排版规矩 ——
+ * 一块会呼吸的面板压在一具等身的身体底下，比它显示什么都更抢眼。
+ */
+.sb-readout-rows {
+  display: grid;
+  grid-template-columns: max-content 6.5ch;
+  gap: 0.15rem 0.9rem;
+  align-items: baseline;
+}
+
+/**
+ * 名字那一栏用**和值一样的墨**（`--sb-on-stage`），不是 `--sb-on-stage-dim`。
+ *
+ * 这是在白展厅场景上实测出来的：`publishStageInk()` 在亮底下把 dim 发成
+ * `#5b6168`，压在这块 12% 的浅灰纱上只有 **2.9:1** —— 13px 的字到这个对比度
+ * 就已经是"看得见但读不动"。层级改由**中英那一步**承担（英文 0.6），
+ * 和 `exits.css` 那条「一行之内中英的那一步必须相同」是同一条。
+ */
+.sb-readout-name {
+  font-family: var(--sb-grotesk);
+  font-size: var(--sb-size-small);
+  line-height: var(--sb-lh-body);
+  color: var(--sb-on-stage);
+}
+.sb-readout-name .sb-zh,
+.sb-readout-name .sb-en { display: inline; color: inherit; }
+.sb-readout-name .sb-en {
+  font-size: 0.78em;
+  margin-left: 0.45em;
+  letter-spacing: var(--sb-tracking-label);
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+/* 值：等宽 + tabular，右对齐。docs/23 §0「数据/标注用等宽 —— 数字要能对齐」 */
+.sb-readout-value {
+  font-family: var(--sb-mono);
+  font-size: var(--sb-size-small);
+  line-height: var(--sb-lh-body);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--sb-on-stage);
+  /* 没有 transition。数字变色/淡入会把一块仪表变成一个动效 */
+}
