@@ -190,6 +190,9 @@ if (mode === 'swap') {
   }
   // NOCLICK=1 → 只记下"按下"的时刻，不按。深链（`?theme=`）没有展签，开机就是摄像头 ——
   // 那时再按「摄像头」那一行是**关**摄像头，量出来的是回放，不是改前那一场的摄像头稳态
+  if (process.env.STEPS === '1') {
+    console.log(`step exits: ${JSON.stringify(await evalJs(`[...document.querySelectorAll('.sb-exits .sb-exit')].map((e, i) => i + ':' + (e.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 30))`))}`);
+  }
   if (process.env.NOCLICK === '1') await evalJs(`window.__probe.click = performance.now()`);
   else await evalJs(`(window.__probe.click = performance.now(), document.querySelectorAll('.sb-exits .sb-exit')[2].click())`);
 } else {
@@ -219,6 +222,12 @@ if (watchdogMs > 0) {
     if (stalled <= watchdogMs) return;
     clearInterval(dog); clearInterval(beat);
     console.log(`STALL no frame for ${stalled}ms at ${((Date.now() - tNav) / 1000).toFixed(1)}s after navigate (watchdog ${watchdogMs}ms)`);
+    // 先看是不是"页面换了"：导航 / 预渲染激活之后 CDP 会话还挂在旧页面上，evaluate 和 pause 都不会回 ——
+    // 看上去和卡死一模一样，而渲染进程其实闲着
+    try {
+      const list = await (await fetch(`http://127.0.0.1:${port}/json`)).json() as { type: string; url: string; id: string }[];
+      console.log(`targets: ${list.filter((t) => t.type === 'page').map((t) => `${t.id.slice(0, 6)} ${t.url}`).join(' | ')} (probe attached to ${target!.webSocketDebuggerUrl.split('/').pop()!.slice(0, 6)})`);
+    } catch { /* */ }
     const paused = new Promise<any>((res) => {
       listeners.push((m) => { if (m.method === 'Debugger.paused') res(m.params); });
       setTimeout(() => res(null), 4000);
@@ -231,6 +240,19 @@ if (watchdogMs > 0) {
     const report = p ? `paused reason=${p.reason}\n${frames.join('\n')}` : 'Debugger.pause got no answer in 4s — main thread is not running JS (native wait / GPU / sync IPC)';
     console.log(report);
     writeFileSync(`${out}/stall.txt`, `${report}\n\nconsole tail:\n${consoleLog.slice(-40).join('\n')}\n`);
+    // NATIVE_SAMPLE=1（macOS）：主线程不在跑 JS 时，用系统的 `sample` 取渲染进程和 GPU 进程的原生栈，各 3 秒
+    if (process.env.NATIVE_SAMPLE === '1') {
+      const { execFileSync } = await import('node:child_process');
+      const ps = execFileSync('ps', ['-Ao', 'pid=,ppid=,command=']).toString().split('\n');
+      const kids = ps.map((l) => /^\s*(\d+)\s+(\d+)\s+(.*)$/.exec(l)).filter((m): m is RegExpExecArray => !!m)
+        .filter((m) => Number(m[2]) === chrome.pid && /--type=(renderer|gpu-process)/.test(m[3]) && !/top-chrome-webui|extension-process/.test(m[3]));
+      await Promise.all(kids.map((m) => new Promise<void>((res) => {
+        const kind = /gpu-process/.test(m[3]) ? 'gpu' : 'renderer';
+        const s = spawn('/usr/bin/sample', [m[1], '3', '-file', `${out}/sample-${kind}-${m[1]}.txt`], { stdio: 'ignore' });
+        s.on('exit', () => res());
+      })));
+      console.log(`native samples: ${kids.length} processes → ${out}/sample-*.txt`);
+    }
     kill();
     process.exit(3);
   }, 250);
