@@ -230,6 +230,25 @@ test('存档 Worker：wrangler.toml 不开日志、不放秘密，限流的数�
   assert.match(toml, /name\s*=\s*"VISIT_RATE"/);
 });
 
+/**
+ * workerd 把 `main` 模块的**每一个具名导出**都当成一个入口（一个 handler 或一个类）。
+ * 导出一个常量，运行时直接起不来：
+ *   `Uncaught TypeError: Incorrect type for map entry 'RATE_KEY': the provided value is
+ *    not of type 'function or ExportedHandler'`
+ * 这是 `wrangler dev` 当场报出来的；node 里直接 import 模块的测试打不到它 ——
+ * 所以要一条单独扫源码的。
+ */
+test('存档 Worker：wrangler.toml 指向的入口模块只导出 default（否则 workerd 起不来）', () => {
+  const toml = readFileSync(resolve(WORKER_DIR, 'wrangler.toml'), 'utf8');
+  const main = toml.match(/^main\s*=\s*"([^"]+)"/m)?.[1];
+  assert.ok(main, 'wrangler.toml 里没有 main');
+  const src = stripComments(readFileSync(resolve(WORKER_DIR, main), 'utf8'));
+  const named = src.split('\n')
+    .filter((l) => /^\s*export\s+/.test(l) && !/^\s*export\s+(default\b|type\b|interface\b)/.test(l));
+  assert.deepEqual(named, [], `入口模块 ${main} 有具名导出，workerd 会把它们当入口并拒绝启动：\n${named.join('\n')}`);
+  assert.match(src, /^export default /m, `入口模块 ${main} 没有 export default`);
+});
+
 // ─────────────────────── 3 · 序号原子 ───────────────────────
 
 test('存档 Worker：四十个同时到的 POST 拿到 1..40，一个不撞', async () => {
