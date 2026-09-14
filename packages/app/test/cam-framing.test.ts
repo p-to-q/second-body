@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  applyCamFraming, framingConstraints, readCamFraming, readCaps, type TrackLike,
+  applyCamFraming, framingConstraints, readCamFraming, readCaps, type CamFramingStatus, type TrackLike,
 } from '../src/capture/cam-framing.ts';
 import { readFlags } from '../src/shell/kiosk.ts';
 import { createFramingClassifier, decide } from '../../core/src/autoframe.ts';
@@ -75,10 +75,16 @@ test('applyCamFraming：成功时读回状态；auto 只读不请求；不支持
 test('applyCamFraming：永不 reject、永不挡启动 —— 请求被拒、同步抛、一直不 resolve、track 不存在、方法本身抛', async () => {
   for (const apply of ['reject', 'throw', 'hang'] as const) {
     const t = fakeTrack({ caps: { faceFraming: [true, false] }, apply });
-    const started = Date.now();
-    const s = await applyCamFraming(t.track, 'off', 30);
-    assert.equal(s.applied, 'failed', apply);
-    assert.ok(Date.now() - started < 1000, `${apply} 把启动挡住了`);
+    // 自己掐一块 1 秒的表：applyCamFraming 要是没有自己的超时，这里拿到的是 'still-waiting' 并且当场红，
+    // 而不是一直挂着、等测试运行器把整条取消（先红后绿第一轮这一发只被取消、没有断言红，docs/49 §6.7）
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const s = await Promise.race([
+      applyCamFraming(t.track, 'off', 30),
+      new Promise<'still-waiting'>((resolve) => { timer = setTimeout(() => resolve('still-waiting'), 1000); }),
+    ]);
+    clearTimeout(timer);
+    assert.notEqual(s, 'still-waiting', `${apply} 把启动挡住了`);
+    assert.equal((s as CamFramingStatus).applied, 'failed', apply);
   }
   assert.equal((await applyCamFraming(null, 'on')).applied, 'unsupported');
   const evil: TrackLike = { getCapabilities: () => { throw new Error('x'); }, getSettings: () => { throw new Error('y'); } };

@@ -41,9 +41,14 @@ test('速度前馈：匀速走时落后得少；停下时冲过去的量不超�
   const lead = drive({ ...BASE, deadZone: 0, band: 1e-6, lead: 0.3, leadMax: 0.1 }, ramp, 240);
   const lagAt = Math.floor(1.5 / DT);
   assert.ok(ramp(lagAt) - lead[lagAt] < ramp(lagAt) - plain[lagAt] - 0.05, `前馈没有减少落后：${(ramp(lagAt) - lead[lagAt]).toFixed(3)} vs ${(ramp(lagAt) - plain[lagAt]).toFixed(3)}`);
-  const long = drive({ ...BASE, deadZone: 0, band: 1e-6, lead: 0.3, leadMax: 0.1 }, ramp, 600);
-  assert.ok(Math.max(...long) <= 2 + 0.1 + 1e-9, `停下时冲过了 ${(Math.max(...long) - 2).toFixed(3)}`);
-  assert.ok(Math.max(...plain, ...drive({ ...BASE, deadZone: 0, band: 1e-6 }, ramp, 600)) <= 2 + 1e-9, '没有前馈时临界阻尼不该过冲');
+  // 冲过去的上限要用一个跟得上目标的弹簧量（ω = 20）：ω = 3 的弹簧自己落后得多，前馈的尖峰被它吃掉，
+  // 那样上限在不在都是绿的（先红后绿第一轮这一发没红，docs/49 §6.7）
+  const fast = { ...BASE, deadZone: 0, band: 1e-6, omega: 20 };
+  const long = drive({ ...fast, lead: 0.3, leadMax: 0.1 }, ramp, 600);
+  const over = Math.max(...long) - 2;
+  assert.ok(over > 0.02, `这个用例里前馈根本没冲过去（${over.toFixed(3)}），量不出上限`);
+  assert.ok(over <= 0.1 + 1e-9, `停下时冲过了 ${over.toFixed(3)}（上限 0.1）`);
+  assert.ok(Math.max(...plain, ...drive(fast, ramp, 600)) <= 2 + 1e-9, '没有前馈时临界阻尼不该过冲');
 });
 
 test('目标去抖：检测噪声（±0.03 均匀）在进弹簧之前被压掉，输出的抖动小一半以上', () => {
