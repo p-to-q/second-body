@@ -94,6 +94,25 @@ test('director: 按住之后弧线不插手；松手回到**当下**那一段，
   assert.equal(director.currentId, 'facing', '不是回到 follow —— 那是把这一场倒回去');
 });
 
+test('director: 按住时告诉玩法"你被钉住了"，松手之后不再钉（`?act=` 采样那一点的依据）', () => {
+  const got: boolean[] = [];
+  const spy = (id: string) => ({
+    id, label: id, kind: 'body' as const,
+    update: (_w: World, _dt: number, ctx?: { pinned: boolean }) => { got.push(ctx?.pinned === true); },
+  });
+  const arc = createArc();
+  const w = fakeWorld(arc.state);
+  const director = createDirector([spy('follow'), spy('echo')]);
+  director.update(w, 1 / 60);
+  assert.equal(got.at(-1), false, '弧线在排的时候不许报"钉住"');
+  director.force('echo', w);
+  director.update(w, 1 / 60);
+  assert.equal(got.at(-1), true, '按住了却没告诉玩法 —— `?act=echo` 会跟着弧线走，而不是钉在第 II 个地名');
+  director.release(w);
+  director.update(w, 1 / 60);
+  assert.equal(got.at(-1), false);
+});
+
 test('director: 弧线归零之后回到第 I 乐章（下一个人必须被跟随）', () => {
   const { arc, w, director } = playThrough(100);
   const dt = 1 / 60;

@@ -66,11 +66,9 @@ export interface ArcState {
   timeToNext: number;
   /** 刚换过段的那一帧为 true —— 上层据此接升档音与形态事件 */
   movementChanged: boolean;
-  /**
-   * 交接的交叉淡入 0..1：进入本段头 `ARC.crossfade` 秒内从 0 爬到 1。
-   * 第 I 乐章恒为 1 —— 它没有上一段可以淡出，给 0 会让开场凭空多一次淡入。
-   */
-  blend: number;
+  // 这里原来有一个 `blend`（交接的交叉淡入，吃 `ARC.crossfade` 4 秒）。
+  // docs/44 §6 裁定四个乐章留名字、删边界，它随之删掉：映射是 `overall` 的连续函数
+  //（`core/src/line.ts`），不再有一个需要被淡化的边界。
   /** 走完了，停住（`ARC.holdAtEnd`）。不循环也不继续升级 */
   held: boolean;
   /** 这一帧弧线在不在走。人不在 = 停表，不是倒退 */
@@ -171,7 +169,6 @@ export function createArc(opt: ArcOptions = {}): ArcMachine {
       timeToNext: movement === last ? (held ? Infinity : Math.max(0, total - elapsed))
         : Math.max(0, end - elapsed),
       movementChanged,
-      blend: movement === 0 ? 1 : clamp01(inMovement / Math.max(1e-6, ARC_TUNING.crossfade)),
       held,
       running,
       tier: movement as Tier,

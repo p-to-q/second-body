@@ -17,6 +17,7 @@ import { createBoneEnergy, createMotion } from '../../core/src/motion.ts';
 import { createEvolution } from '../../core/src/evolution.ts';
 import { createPresence } from '../../core/src/presence.ts';
 import { arcPresent, createArc, type ArcState } from '../../core/src/arc.ts';
+import { speciesDrift } from '../../core/src/line.ts';
 import { makeGenome, toPlaceholderGenome } from '../../core/src/genome.ts';
 import { blendSkeletons, remapSkeleton, type BodyPlan } from '../../core/src/bodyplan.ts';
 import { mulberry32 } from '../../core/src/rng.ts';
@@ -444,9 +445,9 @@ async function boot(): Promise<void> {
   const SPECIES_ARRIVES_AT = 2;
   const speciesArrived = (): boolean =>
     planOverride !== null || arcState.movement >= SPECIES_ARRIVES_AT;
-  /** 拓扑漂移的进度 0..1：到场之后头 `ARC.crossfade` 秒里从人形漂到物种身体 */
+  /** 拓扑漂移的进度 0..1：第 III 乐章开头到第 III 个地名之间从人形漂到物种身体（`core/src/line.ts`） */
   const planDrift = (): number =>
-    (planOverride !== null ? 1 : speciesArrived() ? arcState.blend : 0);
+    (planOverride !== null ? 1 : speciesArrived() ? speciesDrift(arcState.overall) : 0);
 
   /**
    * ── 第 III 乐章那一次到场（B 档物种）─────────────────────────────────────
@@ -639,7 +640,7 @@ async function boot(): Promise<void> {
       // docs/44 §3 那条机制说的是"他刚才在用哪根肢体"，不是"那具身体哪根动得多"。
       boneEnergy.update(humanSk, dt);
       // 拓扑漂移（docs/40 §1：**"逐渐"是这条线的全部技术要求**）。
-      // 第 I / II 乐章 drift = 0，人形；第 III 乐章开头那 `ARC.crossfade` 秒里
+      // 第 I / II 乐章 drift = 0，人形；第 III 乐章开头到第 III 个地名之间
       // 从人形漂到物种自己的方案；之后 drift = 1，一次 remap 就够，零额外开销。
       const drift = planDrift();
       const plan = activePlan();
