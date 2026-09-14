@@ -9,6 +9,8 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { parseTheseus, readFlags } from '../src/shell/kiosk.ts';
 import { makeTheseus } from '../src/creature/theseus-wire.ts';
 import { formatTheseusRow } from '../src/shell/hud.ts';
@@ -66,4 +68,29 @@ test('theseus HUD: §7 那一行三个数都在', () => {
     nextIn: 6, borrowDistance: 0, inGrace: true, justReset: false,
   });
   assert.match(grace, /0\/18 · 借距 d0 · 宽限中/);
+});
+
+/**
+ * docs/40 §5 第 3 条 + docs/44 §7：升档音的挂点从**乐章交接**搬到了**每一次替换**。
+ *
+ * 这一条只能读源码 —— `main.ts` 会拉起 three / WebGPU / DOM，在 node 里跑不起来，
+ * 而要问的本来就是"那一行写在哪儿"。读代码而不是读行为是这个仓库已有的做法
+ *（`body-plans.test.ts` / `css-tokens.test.ts` 同理）。
+ */
+const MAIN_SRC = readFileSync(fileURLToPath(new URL('../src/main.ts', import.meta.url)), 'utf8');
+
+test('theseus 声音: 升档音挂在替换上，不再挂在四个乐章的交接上', () => {
+  // 替换那一段里必须有一声
+  const swapBlock = MAIN_SRC.slice(MAIN_SRC.indexOf('swapped.set('), MAIN_SRC.indexOf('── 分档'));
+  assert.ok(swapBlock.length > 0 && swapBlock.includes('sound.tierUp('),
+    '每一次替换都该有一声（docs/44 §7）—— 没有它，"刚才是不是有什么变了"停在怀疑上');
+  // 而乐章那两条分支里的每一声都必须被 `!theseus` 挡住：
+  // 挡不住 = 同一件事响两遍，而且那四个点按 docs/44 §6 已经不是事件了
+  const arcBlock = MAIN_SRC.slice(MAIN_SRC.indexOf('── 分档'), MAIN_SRC.indexOf('director.update(world'));
+  const cues = arcBlock.split('\n').filter((l) => l.includes('sound.tierUp('));
+  assert.ok(cues.length >= 2, '乐章那一段里原本有两声，这条测试要盯住的就是它们');
+  for (const line of cues) {
+    assert.match(line, /if \(!theseus\) sound\.tierUp\(/,
+      `乐章那一段里还有一声没被挡住（只有 ?theseus=off 才该响）：${line.trim()}`);
+  }
 });
