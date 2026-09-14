@@ -51,6 +51,11 @@ export interface CreatureStats {
   swapsQueued: number;
   /** 还在用占位几何的实例数（资产没到货 / 加载失败） */
   placeholders: number;
+  /**
+   * 桶集合的版本号：建一个桶、拆一个桶各 +1。
+   * `stage/warm-plan.ts` 据此判断直出那条路要不要在空闲里重编（docs/48 §10）。
+   */
+  buckets: number;
 }
 
 export interface Creature {
@@ -182,7 +187,7 @@ export function createCreature(opt: CreatureOptions): Creature {
   const queued: Swap[] = [];
 
   const stats: CreatureStats = {
-    instances: 0, triangles: 0, drawCalls: 0, swapsActive: 0, swapsQueued: 0, placeholders: 0,
+    instances: 0, triangles: 0, drawCalls: 0, swapsActive: 0, swapsQueued: 0, placeholders: 0, buckets: 0,
   };
 
   const tmp = new THREE.Matrix4();
@@ -300,6 +305,7 @@ export function createCreature(opt: CreatureOptions): Creature {
     }
     e.mesh.dispose();          // 只释放 instanceMatrix；geometry/material 是共享的，由库/本模块管
     meshes.delete(key);
+    stats.buckets++;
   }
 
   function entryFor(
@@ -340,6 +346,7 @@ export function createCreature(opt: CreatureOptions): Creature {
       }
       const idx = geo.getIndex();
       const pos = geo.getAttribute('position');
+      stats.buckets++;
       e = {
         mesh, partId, materialId, capacity, idleFrames: 0, outline,
         trisPerInstance: Math.floor((idx ? idx.count : pos ? pos.count : 0) / 3),

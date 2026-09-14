@@ -106,9 +106,18 @@ export interface Stage {
   readonly shot: Readonly<ShotState>;
   /** 当前取景依据的包围盒（HUD / 截图取证用） */
   readonly bounds: BodyBounds;
-  /** 运行时开关后期（HUD / 现场排查用） */
+  /**
+   * 运行时开关后期（HUD / 现场排查 / 降级阶梯 / 调速器）。
+   * 关掉**不拆链**：拿回来的那一帧不重建（docs/48 §10）。链只在 `dispose()` 时释放。
+   */
   setPost(on: boolean): void;
   readonly post: boolean;
+  /**
+   * 在空闲里把**直出**那条路（画布、不走后期）编译一遍。后期开着时直出从来没被画过，
+   * 放下后期那一帧才现编译 —— 实测 273ms + 367ms（docs/48 §10）。什么时候调由 `warm-plan.ts` 决定。
+   * 永不 reject：失败返回 false，拨开关时照旧现编译。
+   */
+  warmDirect(renderer: THREE.Renderer): Promise<boolean>;
   /**
    * 角上字的墨色采样开 / 停（2Hz GPU 读回，`ink-sampler.ts`）。
    * 帧调速器放下的第一级就是它（docs/48 §4）：观众看不见它停了。
@@ -921,7 +930,26 @@ export function createStage(opt: StageOptions = {}): Stage {
 
     setPost(on) {
       postEnabled = on;
-      if (!on) { post?.dispose(); post = null; postFailed = false; }
+      // 不拆链：原来这里是 `post.dispose(); post = null`，拿回后期那一帧整条链重建、重编（docs/48 §10）。
+      // 链占的只是几张随画布大小走的渲染目标；关着的时候 `render()` 不走它，它就不花 GPU 时间。
+      // 建链失败过的那一次仍然允许关了再开时重试（和原来一样）
+      if (!on && !post) postFailed = false;
+    },
+
+    warmDirect(r) {
+      try {
+        adopt(r);
+        const compile = (r as { compileAsync?: (s: THREE.Object3D, c: THREE.Camera) => Promise<void> }).compileAsync;
+        if (typeof compile !== 'function') return Promise.resolve(false);
+        // 编的是渲染器此刻的输出目标 —— 后期开着时它就是没被画过的那条直出
+        return compile.call(r, scene, camera).then(() => true, (e: unknown) => {
+          console.warn('[stage] 直出预编译失败 → 放下后期时照旧现编译', e);
+          return false;
+        });
+      } catch (e) {
+        console.warn('[stage] 直出预编译失败 → 放下后期时照旧现编译', e);
+        return Promise.resolve(false);
+      }
     },
 
     get post() { return postEnabled && post !== null; },

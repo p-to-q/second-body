@@ -42,6 +42,7 @@ import { wireDegrade } from './shell/degrade-wire.ts';
 import { degradeTo, deviceLostAction, getDegradeState } from './shell/degrade.ts';
 import { createDeferral, createGovernor, GOVERNOR_LADDER } from './shell/governor.ts';
 import { wireGovernor } from './shell/governor-wire.ts';
+import { createWarmPlan } from './stage/warm-plan.ts';
 import { createLongTaskCounter } from './shell/long-tasks.ts';
 import { createPoseClock } from './capture/pose-clock.ts';
 import { showBootError } from './shell/boot-error.ts';
@@ -587,6 +588,8 @@ async function boot(): Promise<void> {
   /** 「降级渲染」那一句一个会话只说一次：说过了再说就是闪 */
   let saidReduced = false;
   const governor = createGovernor();
+  /** 什么时候在空闲里把直出那条路编一遍 —— 让调速器放下「后期」只是一次切换（docs/48 §10） */
+  const warmPlan = createWarmPlan();
   const longTasks = createLongTaskCounter();
   /** 推理节拍 → 渲染节拍（`capture/pose-clock.ts`）。身体吃它给的；小屏幕和读数吃采集端的原话 */
   const poseClock = createPoseClock();
@@ -974,6 +977,14 @@ async function boot(): Promise<void> {
     });
     stage.update(p, lastFeatures, dt);
     stage.render(renderer);   // 后期链在舞台里；?nopost=1 时它退化成直出
+
+    // 空闲里预编译直出那条路（docs/48 §10）：桶集合稳定、画面不忙、后期开着时才编，编的时候让出主线程。
+    // 物种身体到场（第 III 乐章）是另一批网格第一次可见，也算内容变了
+    warmPlan.note(creature.stats.buckets * 2 + (speciesBody?.object.visible ? 1 : 0), tMs);
+    if (warmPlan.next(tMs, { postOn: stage.post, calm: governor.jank < GOVERNOR.shedAbove && governor.level < GOVERNOR_LADDER.indexOf('post') })) {
+      warmPlan.started(tMs);
+      void stage.warmDirect(renderer).then((ok) => warmPlan.finished(performance.now(), ok));
+    }
 
     // 左下角那块读数。放在这里而不是上面 `preview?.update()` 旁边，是因为它要的
     // `lastFeatures` 是这一帧**刚算出来**的那一份 —— 放在前面就永远晚一帧，
