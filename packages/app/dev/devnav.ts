@@ -26,8 +26,8 @@
  * 文档流页（目录、降级、声音…）往下读的时候它跟着页头一起走，不压在正文上。
  */
 import './devnav.css';
-import { COPY, setBi } from '../src/ui/i18n.ts';
-import { WORKBENCH_HREF, WORK_HREF, devNavActions, escapeTarget } from './devnav-state.ts';
+import { setBi } from '../src/ui/i18n.ts';
+import { devNavActions, devNavLink, escapeTarget } from './devnav-state.ts';
 
 function mountDevNav(): void {
   const q = new URLSearchParams(location.search);
@@ -38,11 +38,14 @@ function mountDevNav(): void {
   nav.className = 'sb-devnav';
   nav.setAttribute('aria-label', 'Workbench');
 
-  for (const action of devNavActions(location.pathname)) {
+  // 地址和字都从 devnav-state 取：从正文里带着 `?from=` 进来的人，
+  // 左边那条是「返回〈他来的那一页〉」而不是「返回工作台」（docs/23 §S9.1）
+  for (const action of devNavActions(location.pathname, location.search)) {
+    const link = devNavLink(action, location.search);
     const a = document.createElement('a');
     a.className = 'sb-devnav__link';
-    a.setAttribute('href', action === 'workbench' ? WORKBENCH_HREF : WORK_HREF);
-    setBi(a, action === 'workbench' ? COPY.devnav.workbench : COPY.devnav.exit);
+    a.setAttribute('href', link.href);
+    setBi(a, link.label);
     nav.appendChild(a);
   }
   // prepend：它在屏幕右上角，Tab 也应当最先到它，而不是在整页控件之后
@@ -54,7 +57,7 @@ function mountDevNav(): void {
     // 正在一个输入框里：Escape 在那里是"撤掉我刚才打的字"，不是"离开这一页"
     const t = e.target as HTMLElement | null;
     if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
-    const to = escapeTarget(location.pathname);
+    const to = escapeTarget(location.pathname, location.search);
     if (to) location.href = to;
   });
 }

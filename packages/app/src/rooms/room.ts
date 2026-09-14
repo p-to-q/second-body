@@ -33,6 +33,8 @@
 import { COPY, setBi, type BiText } from '../ui/i18n.ts';
 import { markShape } from '../ui/marks.ts';
 import { heroMeta } from '../ui/hero.ts';
+import { fromSearch } from '../ui/return-to.ts';
+import { setBiLinked, type AsidePhrase } from '../ui/aside.ts';
 import '../ui/type.css';
 import '../ui/editorial.css';
 import './room.css';
@@ -42,6 +44,8 @@ export interface RoomOptions {
   title: BiText;
   /** 一行框定：**这个房间对一个没有造过它的人来说是关于什么的。** 一句，不解释画面 */
   lede: BiText;
+  /** 框定那一句里通向目录外页面的短语（`ui/asides.ts`）。省略就是一句普通的话 */
+  ledeAsides?: readonly AsidePhrase[];
   /** 右上那一行状态字（例如「只读」）。省略就没有 */
   state?: BiText | null;
   mount?: HTMLElement;
@@ -54,7 +58,7 @@ export interface Room {
 }
 
 export function mountRoom(options: RoomOptions): Room {
-  const { title, lede, state = null, mount = document.body } = options;
+  const { title, lede, ledeAsides = [], state = null, mount = document.body } = options;
 
   // 文档页那几页在 index.html 里被钉成不滚动的一屏；侧室是要读的，放开。
   document.documentElement.style.cssText = 'overflow:auto;height:auto';
@@ -81,7 +85,7 @@ export function mountRoom(options: RoomOptions): Room {
   foot.className = 'room-hero__foot';
   const ledeEl = document.createElement('p');
   ledeEl.className = 'room-lede';
-  setBi(ledeEl, lede);
+  setBiLinked(ledeEl, lede, ledeAsides);
   const stateEl = document.createElement('p');
   stateEl.className = 'room-state sb-label';
   foot.append(ledeEl, stateEl);
@@ -89,7 +93,8 @@ export function mountRoom(options: RoomOptions): Room {
   const rule2 = document.createElement('hr');
   rule2.className = 'ed-rule';
 
-  head.append(heroMeta('/about'), rule, titleBox, foot, rule2);
+  // 默认回 `/about`（门开在那一页的正文里）；带着合法 `?from=` 进来的回它来的那一页
+  head.append(heroMeta('/about', fromSearch(location.search)), rule, titleBox, foot, rule2);
 
   const body = document.createElement('div');
   body.className = 'room-body';

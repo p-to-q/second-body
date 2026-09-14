@@ -29,19 +29,27 @@
  */
 import { COPY, setBi } from './i18n.ts';
 import { markNode } from './mark.ts';
+import { returnLabel, safeFrom } from './return-to.ts';
 
 /**
  * @param backHref 「回到作品」指向哪儿。`/about` 回首页，其余三页回 `/about` ——
  *   这是四页之间**唯一**允许的差异，因为目录本身就住在 `/about` 上。
+ * @param from 带进来的来处（URL 里的 `?from=`，原样传进来，这里再过一遍白名单）。
+ *   合法时左边那一格换成「返回〈那一页〉」并指回去；不合法或没有，就是上面那条默认。
+ *   只有侧室传它（`rooms/room.ts`）：侧室是唯一会被别的正文页链进来的文档页（docs/23 §S9.1）。
+ *   **仍然是左边一格**，横带的结构不变，中间照旧什么都没有。
  */
-export function heroMeta(backHref: string): HTMLDivElement {
+export function heroMeta(backHref: string, from: string | null = null): HTMLDivElement {
   const meta = document.createElement('div');
   meta.className = 'ed-hero__meta';
 
+  const origin = safeFrom(from);
+  const label = returnLabel(origin);
+
   const back = document.createElement('a');
   back.className = 'ed-hero__back';
-  back.setAttribute('href', backHref);
-  setBi(back, COPY.about.back);
+  back.setAttribute('href', origin && label ? origin : backHref);
+  setBi(back, origin && label ? label : COPY.about.back);
 
   meta.append(back, markNode('span'));
   return meta;
