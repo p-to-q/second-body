@@ -36,6 +36,15 @@
 .sb-dev-row:focus-visible .sb-dev-row__path,
 .sb-dev-row:focus-visible .sb-dev-row__answers { color: var(--sb-ink); }
 
+/* 右上角「回到作品」：这一页有文档流页头（左上两行字标 + 满宽横线），出口跟页头站在同一个框里 ——
+   顶和左边字标的顶齐（都在一个安全区），右端和页头那条横线的右端齐（也是一个安全区）。
+   工作台里的仪器页（满屏画布、浮层页头）照旧用 devnav.css 的半个安全区。
+   `html` 前缀：devnav.css 由 devnav.ts 后加载，同权重会被它盖回去（负责人 2026-09-14） */
+html .sb-devnav {
+  top: var(--sb-safe);
+  right: var(--sb-safe);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .sb-dev-row, .sb-dev-row__name, .sb-dev-row__path, .sb-dev-row__answers { transition: none; }
 }

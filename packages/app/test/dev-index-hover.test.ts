@@ -11,6 +11,16 @@ import { fileURLToPath } from 'node:url';
 
 const read = (rel: string): string => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8');
 
+test('/dev 目录：右上出口和页头同一个框（顶齐字标、右端齐横线），且权重压得过 devnav.css；部件读片列在侧室', () => {
+  const css = read('../dev/index.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  const block = css.match(/html \.sb-devnav\s*\{([^}]*)\}/)?.[1] ?? '';
+  assert.match(block, /top:\s*var\(--sb-safe\)/, '出口的顶没有和左边字标一样在一个安全区');
+  assert.match(block, /right:\s*var\(--sb-safe\)/, '出口的右端没有和页头横线一样在一个安全区');
+  const ts = read('../dev/index.ts');
+  const rooms = ts.slice(ts.indexOf("title: '侧室'"), ts.indexOf("title: '工作台'"));
+  assert.match(rooms, /\/dev\/sheet\.html/, '部件读片没有列在侧室那一组');
+});
+
 test('/dev 目录的每一行有类名，悬停 / 键盘焦点时名字和那句话提亮，不只靠颜色也不靠位移', () => {
   const ts = read('../dev/index.ts');
   assert.match(ts, /import '\.\/index\.css'/, 'dev/index.ts 没有引它自己的样式');
