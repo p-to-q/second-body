@@ -26,6 +26,7 @@
 // 排版系统是硬约束：这一页的 CSS 全靠 --sb-*，所以它必须自己把 type.css 带上 ——
 // 不能指望每个宿主 HTML 都记得 <link> 它（主程序的 index.html 就没有）。
 import '../ui/type.css';
+import { isThemeId } from '../shell/kiosk.ts';
 import { mulberry32 } from '../../../core/src/rng.ts';
 import { cjkClass, COPY, setBi } from '../ui/i18n.ts';
 import { markNode } from '../ui/mark.ts';
@@ -113,8 +114,9 @@ const DEFAULT_IDLE_MS = 30_000;
 // ── URL ─────────────────────────────────────────────────────────────────────
 
 export function themeFromUrl(search: string = location.search): string | null {
+  // 写法判据取自 `shell/kiosk.ts` —— `?theme=` 只有一条规则，不许两处各写一份正则
   const value = new URLSearchParams(search).get('theme');
-  return value && /^[a-z0-9._-]+$/i.test(value) ? value : null;
+  return isThemeId(value) ? value : null;
 }
 
 export function writeThemeToUrl(id: string): void {

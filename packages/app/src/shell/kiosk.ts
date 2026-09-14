@@ -3,6 +3,7 @@
  * P10 现场优先 —— 启动 = 打开一个 URL，不需要在终端敲第二条命令。
  */
 import { BODY_PLANS, type BodyPlanId } from '../../../core/src/bodyplan.ts';
+import { ACTS } from '../acts/index.ts';
 import { isCamFlag } from '../capture/camera-select.ts';
 import { isShadingId, type ShadingId } from '../creature/shading.ts';
 import { getDegradeState } from './degrade.ts';
@@ -13,11 +14,20 @@ export interface Flags {
   debug: boolean;       // ?debug=1  骨架线 + 数值 HUD
   nopost: boolean;      // ?nopost=1 关后期，排查性能（降级阶梯第 1 级也会把它翻成 true）
   mirror: boolean;      // ?mirror=0 关镜像（只用于调试坐标，现场绝不要用）
-  theme: string | null; // ?theme=xeno  跳过选择页
+  /**
+   * ?theme=xeno 跳过选择页。写法不合法（带空格 / 斜杠 / 空值）= null = 当没写过，
+   * 并且打一条 warn —— 规矩和 `?plan=` / `?cam=` 一样。
+   * "这个物种存不存在"不在这里判，见下面 `resolveTheme()`。
+   */
+  theme: string | null;
   seed: number | null;  // ?seed=12345  复现一个具体的身体
   tier: number | null;  // ?tier=2      锁定 tier，调 look dev 用
   kiosk: boolean;       // ?kiosk=1  进入现场模式
-  act: string | null;   // ?act=echo 锁定一个玩法（docs/16）
+  /**
+   * ?act=echo 锁定一个玩法（docs/16）。认不出来的值（`?act=resit`）= null =
+   * 当没写过，并且打一条 warn —— 规矩和 `?plan=` 一样，名单从 `ACTS` 现读。
+   */
+  act: string | null;
   /**
    * ?arc=<秒> 覆盖整条会话弧线的时长（`ARC.total`，默认 180）。
    * 四段按 `ARC.beats` 的比例跟着缩放，所以这**一个**数就是现场唯一要调的旋钮：
@@ -262,6 +272,52 @@ function resolvePlan(raw: string | null): BodyPlanId | null {
   return null;
 }
 
+/**
+ * `?act=`。认不出来就是 null = 当没写过，而且**喊一声**（和 `?plan=` 同一条规矩）。
+ *
+ * 这里原来是 `q.get('act')` 原样透传。于是 `?act=resit`（`resist` 手滑）进 `main.ts`
+ * 的 `director.force()`，那边找不到就**按正常流程排座次** —— 画面上跑的是第 I 乐章
+ * 的 follow，而地址栏里写着一个玩法名，看起来像生效了。
+ * 名单**从 `ACTS` 现读**，不手抄：`acts/index.ts` 的文件头写着"加一个新玩法就在这里
+ * 加一行，没有别的步骤"，抄一份到这里就是给它加了第二步，而那一步迟早会漏。
+ */
+export const ACT_IDS: readonly string[] = ACTS.map((a) => a.id);
+
+function resolveAct(raw: string | null): string | null {
+  if (raw === null || raw.trim() === '') return null;
+  const v = raw.trim();
+  if (ACT_IDS.includes(v)) return v;
+  console.warn(`[kiosk] ?act=${raw} 认不出来，只认 ${ACT_IDS.join(' / ')} —— 按没写过处理（导演按弧线排）`);
+  return null;
+}
+
+/**
+ * `?theme=`。**只判写法，不判在不在**（和 `?cam=` 同一条分工）。
+ *
+ * 这里原来是 `q.get('theme')` 原样透传，而 `choose.ts` 的 `themeFromUrl()` 读同一个
+ * 参数时是**过了这条正则的**。两个读法对同一个参数给出不同答案，`main.ts` 那句
+ * `flags.theme ?? themeFromUrl()` 又让宽的那个先手 —— 于是带空格、带斜杠的值
+ * 只有 `flags.theme` 认，它绕过选择页直奔一个不存在的物种。
+ *
+ * 单独导出 `isThemeId` 是因为 `choose/choose.ts` 的 `themeFromUrl()` 问的是同一个问题 ——
+ * 它本来自己写了一份一模一样的正则，而一条规则抄两份，迟早有一份不再是那条规则。
+ *
+ * 为什么不在这里判"这个物种存不存在"：这里没有物种表（`parts.json` 要 fetch），
+ * 而且那是另一种错 —— 写法不合法是当场就知道的事，物种不存在要等资产到齐，
+ * 由 `choose.ts` 的 `chooseTheme()` 判（读不到条目表时它**认**这个 id，
+ * 因为没有资产也要能开发，ADR-4）。分工和 `?cam=` 逐字一样。
+ */
+export const isThemeId = (v: string | null): v is string =>
+  v !== null && /^[a-z0-9._-]+$/i.test(v);
+
+function resolveTheme(raw: string | null): string | null {
+  if (raw === null || raw.trim() === '') return null;
+  const v = raw.trim();
+  if (isThemeId(v)) return v;
+  console.warn(`[kiosk] ?theme=${raw} 不是一个物种 id（只认字母数字和 . _ -）—— 按没写过处理（照常进选择页）`);
+  return null;
+}
+
 /** MediaPipe 的三个 PoseLandmarker 档位。精度/延迟的实测差异见 docs/24 §3 */
 export type PoseModel = 'lite' | 'full' | 'heavy';
 const POSE_MODELS: readonly string[] = ['lite', 'full', 'heavy'];
@@ -283,11 +339,11 @@ export function readFlags(search = location.search): Flags {
     // 谁读 flags 谁就自动看到降级后的世界，晚初始化的模块也不会漏掉。
     nopost: q.get('nopost') === '1' || getDegradeState().nopost,
     mirror: q.get('mirror') !== '0',
-    theme: q.get('theme'),
+    theme: resolveTheme(q.get('theme')),
     seed: num('seed'),
     tier: num('tier'),
     kiosk: q.get('kiosk') === '1',
-    act: q.get('act'),
+    act: resolveAct(q.get('act')),
     arc: resolveArc(q.get('arc')),
     theseus: resolveTheseus(q.get('theseus')),
     plan: resolvePlan(q.get('plan')),

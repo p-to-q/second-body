@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isPreviewMode, parseArcSeconds, readFlags } from '../src/shell/kiosk.ts';
+import { ACT_IDS, isPreviewMode, isThemeId, parseArcSeconds, readFlags } from '../src/shell/kiosk.ts';
 import { wantsPreview } from '../src/ui/preview-state.ts';
 
 test('flags: 默认值 —— 镜像开、其余关', () => {
@@ -25,8 +25,36 @@ test('flags: 数值参数非法时退回 null 而不是 NaN', () => {
   assert.equal(readFlags('?seed=0').seed, 0, 'seed=0 是合法的，不能被当成假值丢掉');
 });
 
-test('flags: theme 原样透传', () => {
+test('flags: ?theme= 只认一段 id，写法不对的值 = 当没写过', () => {
+  // 和 `?plan=` / `?scene=` 同一条规矩。这一层只判**写法** —— 手上还没有
+  // parts.json，答不了"库里有没有这个物种"。那一问在 `main.ts` 拿到索引之后喊。
+  // 而且 `choose.ts` 的 `themeFromUrl()` 读的是同一个参数、用的是同一条判据
+  //（`isThemeId`）：两个读法对同一个参数给出不同答案，就是这条修掉的 bug ——
+  // `main.ts` 那句 `flags.theme ?? themeFromUrl()` 会让宽的那个先手。
   assert.equal(readFlags('?theme=char.dumpling').theme, 'char.dumpling');
+  assert.equal(readFlags('?theme=xeno').theme, 'xeno');
+  assert.equal(readFlags('').theme, null);
+  assert.equal(readFlags('?theme=').theme, null, 'Number("") 那个陷阱的字符串版：空值不是 id');
+  assert.equal(readFlags('?theme=../evil').theme, null, '路径穿越不是一个物种 id');
+  assert.equal(readFlags('?theme=char dumpling').theme, null, '带空格的值不是物种 id');
+
+  assert.ok(isThemeId('char.dumpling'));
+  assert.ok(!isThemeId(''));
+  assert.ok(!isThemeId(null));
+});
+
+test('flags: ?act= 只认 ACTS 里真有的玩法，写错的值 = 当没写过', () => {
+  // `?act=resit` 以前原样透传：`director.force()` 返回 false、导演照常按弧线排，
+  // 而地址栏里明明白白写着 resit —— "我写了参数"和"参数没生效"分不开（P21）。
+  assert.ok(ACT_IDS.includes('echo'), '名单取自 ACTS，不是抄的第二份');
+  assert.ok(ACT_IDS.includes('untether'), '它 canEnter 恒为 false，但 ?act= 进得去');
+  assert.equal(readFlags('?act=echo').act, 'echo');
+  assert.equal(readFlags('?act=untether').act, 'untether');
+  assert.equal(readFlags('').act, null);
+  assert.equal(readFlags('?act=').act, null);
+  assert.equal(readFlags('?act=resit').act, null, 'resist 拼错了一个字母，不许静默变成默认玩法');
+  assert.equal(readFlags('?act=Echo').act, null, '大小写不宽容：和 ?wave= 同一条规矩');
+  assert.equal(readFlags('?act=toString').act, null, '原型链上的键不能被当成合法玩法');
 });
 
 test('flags: 加载态与目录默认都在，各自有一个关掉的写法', () => {
