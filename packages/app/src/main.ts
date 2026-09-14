@@ -660,7 +660,14 @@ async function boot(): Promise<void> {
     // 借件的种子由会话种子和第几件推出来，**不摇裸骰子**（P1）：
     // 同一个 seed 的同一场，第 7 件换成谁，每次都一样。
     const step = theseus?.update(
-      { elapsed: arcState.elapsed, present: arcPresent(p), energy: boneEnergy.current },
+      {
+        elapsed: arcState.elapsed,
+        present: arcPresent(p),
+        energy: boneEnergy.current,
+        // 逐骨的那一份决定**换哪一件**，整具这一个决定**换多快**（docs/44 §3 的裁定）。
+        // 两边喂的都是**人的**骨架算出来的读数，不是重映射之后那具身体的。
+        overallEnergy: lastFeatures?.energy ?? 0,
+      },
       dt,
     );
     // 整体尺度（docs/44 §5 第 5 条）。`bodyRoot` 的原点就是地面，所以按它缩放

@@ -3,8 +3,13 @@
  * 数值在 `tuning.ts` 的 `THESEUS` 块（这个文件里一个常数都不声明）。
  *
  * ── 它是什么 ────────────────────────────────────────────────────────────────
- * 进：弧线走了多少秒、人在不在、每根骨头这一刻动得多凶、一个种子。
+ * 进：弧线走了多少秒、人在不在、每根骨头这一刻动得多凶、整具动得多凶、一个种子。
  * 出：**这一帧要不要换一件，换哪一件**。仅此而已。
+ *
+ * 动作在这里有**两个**出口，而且是两个旋钮（§3 的裁定）：
+ * `motionBiasGain` 决定换哪一件（逐骨的 `energy`），
+ * `motionRateGain` 决定换多快（整具的 `overallEnergy`）。
+ * 后者只加不减，而且额度按乐章计、段与段之间不结转 —— 见 `dueAt()`。
  *
  * 它**不**负责换成谁的件（§4 借件距离那条线在别处，这里只给出一个 0..4 的数给 HUD），
  * 不负责碎裂与装配动画（§7），不负责声音（§7）。
@@ -76,6 +81,15 @@ export interface TheseusInput {
   present: boolean;
   /** 每根骨头这一刻的运动能量。没有就当全零（站着不动的人照样走完这条线） */
   energy?: BoneEnergy | null;
+  /**
+   * 整具身体这一刻的运动量 —— 直接喂 `MotionFeatures.energy`（无量纲：
+   * 完全静止 0.00，单手挥 0.19，整具摇摆 0.29，双臂大幅挥手 0.77，实测见
+   * `tuning.ts` 的 `motionRateGain`）。
+   *
+   * 上面那个逐骨的 `energy` 决定**换哪一件**，这个决定**换多快**（§3 的裁定）。
+   * 没有就当 0：站着不动的人走基准速率，**不是更慢的速率**。
+   */
+  overallEnergy?: number | null;
 }
 
 export interface TheseusMachine {
@@ -238,12 +252,46 @@ export function buildSchedule(
   return out;
 }
 
+/**
+ * 排期里第 `index` 件属于第几段（§2 的 `perBeat`）。
+ *
+ * `buildSchedule` 是按段依次撒点的，而溢出这一场的那几件是**从尾部整体丢掉**的
+ * （那里的 `break`），所以"按序号数过去"这个前缀映射是精确的，不是近似。
+ *
+ * 它是 §3 裁定里第 2 条硬线的基础：加速额度按段计，第 k 段的件只能在
+ * 第 k 段的窗口里被提前，于是"后面几段被提前"这件事不是靠钳一个数拦住的，
+ * 而是根本无从发生。
+ */
+export function movementOfEvent(index: number, perBeat: readonly number[] = T.perBeat): number {
+  let acc = 0;
+  for (let k = 0; k < perBeat.length; k++) {
+    acc += Math.max(0, Math.round(fin(perBeat[k])));
+    if (index < acc) return k;
+  }
+  return Math.max(0, perBeat.length - 1);
+}
+
 export function createTheseus(opt: TheseusOptions): TheseusMachine {
   const total = Number.isFinite(opt.total) && (opt.total as number) > 0
     ? (opt.total as number) : ARC.total;
   const rate = Number.isFinite(opt.rate) && (opt.rate as number) > 0 ? (opt.rate as number) : 1;
   const quiet = quietSlotKeys();
-  const firstBound = movementBounds(total, ARC.beats)[0];
+  const bounds = movementBounds(total, ARC.beats);
+  const firstBound = bounds[0];
+
+  const graceNow = (): number => Math.max(0, fin(T.graceSeconds));
+  const movementStart = (k: number): number => (k <= 0 ? 0 : bounds[k - 1]);
+  /** 现在的秒数落在第几段 */
+  const movementAt = (t: number): number => {
+    for (let k = 0; k < bounds.length; k++) if (t < bounds[k]) return k;
+    return Math.max(0, bounds.length - 1);
+  };
+  /**
+   * 第 k 段的加速下限：宽限和段首里**更晚**的那一个。
+   * 宽限在这里再挡一道，是因为 `?arc=60` 时前两段整段都落在 20 秒宽限里
+   * （§10.5 第 3 条就是被这个配置挖穿的），而宽限是 §2 里最硬的那条线。
+   */
+  const floorOf = (k: number): number => Math.max(graceNow(), movementStart(k));
 
   let rng: Rng = mulberry32(0);
   let schedule: number[] = [];
@@ -260,6 +308,13 @@ export function createTheseus(opt: TheseusOptions): TheseusMachine {
   let lastNow = 0;
   let scaleDir = 1;
   let currentEnergy: BoneEnergy | null = null;
+  /**
+   * **每一段自己的加速额度（秒）**，段与段之间不结转 —— §3 裁定的第 2 条硬线
+   * 就住在这个数组的形状里：第 k 段攒下的提前量只能花在第 k 段的件上，
+   * 所以一个一直在蹦的人改的是"这一段之内有多密"，
+   * 而不是"第二乐章什么时候开始"。
+   */
+  let lead: number[] = [];
 
   function hardReset(seed?: number): void {
     rng = mulberry32(seed === undefined ? 0 : seed >>> 0);
@@ -270,6 +325,7 @@ export function createTheseus(opt: TheseusOptions): TheseusMachine {
     for (const key of ALL_SLOT_KEYS) { lastAt[key] = 0; nth[key] = 0; }
     inFlight = [];
     lastFiredAt = -Infinity;
+    lead = bounds.map(() => 0);
     events = 0;
     fired = null;
     away = 0;
@@ -280,6 +336,24 @@ export function createTheseus(opt: TheseusOptions): TheseusMachine {
   }
   hardReset(opt.seed);
 
+  /**
+   * 第 `i` 件**加速之后**的到点时刻（§3 的裁定）。
+   *
+   * 两条硬线都长在这三行里：
+   * - `t - lead[k]` 里的 `lead` 恒 ≥ 0，而下限又先被 `Math.min(t, …)` 压到不晚于
+   *   基准时刻 —— 所以这个函数**永远不会返回一个比 `t` 晚的数**。
+   *   站着不动的人（`lead` 全是 0）走的就是原来那条排期，逐件逐秒一致。
+   *   那个 `Math.min` 不是保险丝：`?theseus=10` 会把第 III 段的件缩到第 I 段的窗口里，
+   *   这时段首比它的基准时刻还晚，少了这一压就成了**减速**。
+   * - 下限是**这一件自己那一段**的段首，所以第 k+1 段的件再怎么加速也进不了第 k 段。
+   */
+  function dueAt(i: number): number {
+    const t = schedule[i];
+    const k = movementOfEvent(i);
+    const floor = Math.min(t, floorOf(k));
+    return Math.max(t - Math.max(0, lead[k] ?? 0), floor);
+  }
+
   function replacedCount(): number {
     let n = 0;
     for (const key of ALL_SLOT_KEYS) if (nth[key] > 0) n++;
@@ -287,7 +361,9 @@ export function createTheseus(opt: TheseusOptions): TheseusMachine {
   }
 
   function snapshot(now: number): TheseusState {
-    const next = cursor < schedule.length ? schedule[cursor] : Infinity;
+    // HUD 的"下一件 ~3.4s"读的是**加速之后**的到点时刻。读基准时刻的话，
+    // 现场调速率的那个人手里的表会和他眼睛看到的对不上（§7 最后那一段）
+    const next = cursor < schedule.length ? dueAt(cursor) : Infinity;
     return {
       fired,
       replaced: replacedCount(),
@@ -356,9 +432,20 @@ export function createTheseus(opt: TheseusOptions): TheseusMachine {
       // 交接完成的从在飞列表里退掉
       if (inFlight.length) inFlight = inFlight.filter((end) => end > now);
 
+      // ── 加速（§3 的裁定）────────────────────────────────────────────────
+      // 攒的是**这一段**的额度，而且只在这一段的窗口里攒（宽限之前一秒都不攒 ——
+      // 否则 20 秒那一刻手里已经握着十几秒提前量，第一件会掉进宽限里）。
+      // 段与段之间不结转：动得多的人改的是一段之内的疏密，不是把后面几段提前。
+      const rateGain = Math.max(0, fin(T.motionRateGain));
+      const overall = Math.max(0, fin(input?.overallEnergy));
+      if (rateGain > 0 && overall > 0) {
+        const k = movementAt(now);
+        if (now >= floorOf(k)) lead[k] = (lead[k] ?? 0) + rateGain * overall * step;
+      }
+
       // 一帧最多发一件。`minGap ≥ MORPH.crossfade` 时这两道闸其实只有一道会响，
       // 但两道都要在：`minGap` 是可调的，而"整个人炸开"那条老规矩不可调（docs/05 §3）
-      while (cursor < schedule.length && schedule[cursor] <= now) {
+      while (cursor < schedule.length && dueAt(cursor) <= now) {
         if (now - lastFiredAt < Math.max(0, fin(T.minGap))) break;      // 太密：等下一帧
         if (inFlight.length >= Math.max(1, Math.floor(fin(T.maxConcurrent, 3)))) break;
         const slot = pick(now);
