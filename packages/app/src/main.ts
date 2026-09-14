@@ -134,7 +134,7 @@ async function boot(): Promise<void> {
   // ── 2. 渲染器与舞台 ──────────────────────────────────────────────────────
   loading.begin('render');
   const renderer = new THREE.WebGPURenderer({ antialias: true });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setPixelRatio(Math.min(devicePixelRatio, GOVERNOR.dprMax));
   renderer.setSize(innerWidth, innerHeight);
   // 渲染器造出来了 —— 这是这一档里唯一一个 init() 之前就成立的真事实。
   // 报它是因为 init() 是一个不可分割的长 await：没有这一格，慢机器上
@@ -654,7 +654,7 @@ async function boot(): Promise<void> {
     swaps: (shed) => { swapShed = shed; },
     inference: (shed) => { inferHz = shed ? GOVERNOR.inferenceHzShed : CAPTURE.targetHz; (capture as { setCadence?(hz: number): void }).setCadence?.(inferHz); },
     post: (shed) => stage.setPost(postWanted && !shed),
-    dpr: (shed) => renderer.setPixelRatio(shed ? Math.min(devicePixelRatio, GOVERNOR.dprShed) : Math.min(devicePixelRatio, 2)),
+    dpr: (shed) => renderer.setPixelRatio(shed ? Math.min(devicePixelRatio, GOVERNOR.dprShed) : Math.min(devicePixelRatio, GOVERNOR.dprMax)),
     ui: (shed) => { uiShed = shed; },
   });
 
