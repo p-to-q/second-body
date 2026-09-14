@@ -74,6 +74,26 @@ test('半个人出了一边：报那一侧；身体停在跨出去那一刻的�
   assert.ok(Math.abs(last(s).x.x - s[firstEdge].x.x) < 0.15, `停住之后又挪了 ${(last(s).x.x - s[firstEdge].x.x).toFixed(3)} 米`);
 });
 
+test('整个人走出一边、检测还在（躯干点全不可信、坐标在边外）：照样报那一侧；身体停在边上，人还在边外时不回中线', () => {
+  const ev = lateralEvidence(at(1.08))!;
+  assert.equal(ev.side, 'left');
+  assert.equal(ev.trusted, false);
+  const s0 = run(hold(3, () => at(0.8)));
+  const s = run(hold(4, () => at(1.08)), {}, last(s0));
+  assert.ok(s.every((k) => k.why === 'hold-edge'), `人还在边外却：${[...new Set(s.map((k) => k.why))]}`);
+  assert.ok(Math.abs(last(s).x.x - last(s0).x.x) < 0.15, `人还在边外，身体挪了 ${(last(s).x.x - last(s0).x.x).toFixed(3)}`);
+});
+
+test('躯干坐标在画内、但一个点都不可信（被桌子整个挡住）：当成跟丢 —— 停 1 秒再回中线', () => {
+  const hidden = person({ ...WHOLE, cx: 0.3, vis: 0.1 });
+  assert.equal(lateralEvidence(hidden)?.side, null);
+  const s0 = run(hold(3, () => at(0.3)));
+  const s = run(hold(3, () => hidden), {}, last(s0));
+  assert.equal(s[10].why, 'hold-lost');
+  assert.equal(last(s).why, 'center');
+  assert.ok(Math.abs(last(s).x.x) < 0.2, `挡住 3 秒还没回中线：${last(s).x.x}`);
+});
+
 test('快速左右晃（2Hz、±0.06 画面宽）：身体不跟着抖，侧边一次都不报', () => {
   const s = run([...hold(1, () => at(0.5)), ...hold(6, (i) => at(0.5 + 0.06 * Math.sin(2 * Math.PI * 2 * i * DT)))]);
   const tail = s.slice(60);

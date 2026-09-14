@@ -131,13 +131,38 @@ export const SCRIPTS: Record<string, Segment[]> = {
     { seconds: 1, from: { ...WHOLE, cx: 0.95 }, to: { ...WHOLE, cx: 0.7 } },
     { seconds: 3, from: { ...WHOLE, cx: 0.7 } },
   ],
-  /** 坐近 → 站起来（头出上边）→ 退后 → 再坐近；中途控件条换一次策略、调速器砍一次工作量 */
+  /**
+   * 坐近 → 站起来（头出上边）→ 退后 → 再坐近；**再坐近那一段调速器正在砍工作量（hold）**——
+   * 景别 full → upper 恰好在 hold 里发生，那正是 §6.2 S2 那一帧切的路径
+   */
   sitstand: [
     { seconds: 3, from: SEATED },
     { seconds: 0.4, from: SEATED, to: STOOD_UP_CLOSE }, { seconds: 1.6, from: STOOD_UP_CLOSE },
-    { seconds: 1.2, from: STOOD_UP_CLOSE, to: WHOLE, hold: true }, { seconds: 2.8, from: WHOLE, hold: true },
-    { seconds: 1.0, from: WHOLE, to: SEATED }, { seconds: 2, from: SEATED },
-    { seconds: 1.5, from: SEATED, policy: 'full' }, { seconds: 2.5, from: SEATED },
+    { seconds: 1.2, from: STOOD_UP_CLOSE, to: WHOLE }, { seconds: 2.8, from: WHOLE },
+    { seconds: 1.0, from: WHOLE, to: SEATED, hold: true }, { seconds: 3, from: SEATED, hold: true },
+    { seconds: 2.5, from: SEATED },
+  ],
+  /** 坐在笔记本前 → 往后退到整个人进画 → 再走近。上半身 → 退后中那一刻小屏退回整幅：§6.2 S1 那一帧跳完的路径 */
+  stepback: [
+    { seconds: 3, from: SEATED },
+    { seconds: 1.5, from: SEATED, to: WHOLE }, { seconds: 3, from: WHOLE },
+    { seconds: 1.0, from: WHOLE, to: SEATED }, { seconds: 3, from: SEATED },
+  ],
+  /**
+   * 坐在笔记本前、小屏已经放大，光线塌了两秒又回来。分类器保持上半身（坏光不判模式），小屏的话变成「站到亮一点的地方」——
+   * **放大着的时候来了一句告警**：§6.2 S1 那一帧退回整幅的路径（退后那条路反而不经过它：`active` 先变 false，弹簧先收回去了）
+   */
+  light: [
+    { seconds: 4, from: SEATED },
+    { seconds: 2, from: { ...SEATED, score: 0.58 } },
+    { seconds: 4, from: SEATED },
+  ],
+  /** 坐着不动，控件条上依次换成 上半身 → 全身 → 自动（`?framing=` 热切，§6.3 一「控件条换策略」） */
+  policy: [
+    { seconds: 3, from: SEATED },
+    { seconds: 2.5, from: SEATED, policy: 'upper' },
+    { seconds: 2.5, from: SEATED, policy: 'full' },
+    { seconds: 3, from: SEATED, policy: 'auto' },
   ],
   /** 画里两个人一左一右，`numPoses = 1` 的 MediaPipe 在两人之间来回跳 */
   two: [

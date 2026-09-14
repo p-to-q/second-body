@@ -647,11 +647,17 @@ export interface LateralEvidence {
   side: Side | null;
   /** 追踪质量够（`qualityScale ≥ 1`）。不够 = 冻结，不往一个坏光下的坐标漂 */
   quality: boolean;
+  /**
+   * 至少一个躯干点可信地在画内。false = 位置全靠 MediaPipe 外推：**侧边照样报**（人确实在那一侧的边外），
+   * 但位置不作数 —— 没有侧边时控制器把它当成跟丢。
+   */
+  trusted: boolean;
 }
 
 /**
- * 一帧 → 横向证据。`null` = 没有横向证据：没有人、没有 `screen`（回放录制）、躯干点里可信地在画内的不到两个
- *（一个几乎整个在画外、全靠 MediaPipe 外推出来的躯干，位置不作数）。
+ * 一帧 → 横向证据。`null` = 没有横向证据：没有人、没有 `screen`（回放录制）、两肩连坐标都没有。
+ * 躯干点一个都不可信时照样返回（`trusted: false`）：整个人走出一边、检测还在的那几秒，正是最该报侧边的时候
+ *（第一版要求"至少一个可信点"，取证时间线里侧边只报了 0.25 秒，然后身体在人还站在边外时回了中线，docs/49 §6.6）。
  *
  * 越界按**坐标**算，不按可信点数：MediaPipe 对画外的点给低可见度，数可信点的话半个人出了左边也数不出一个（docs/49 §6.2 S4）。
  */
@@ -665,9 +671,8 @@ export function lateralEvidence(pose: RawPose | null | undefined, aspect = 16 / 
   if (!has(sL) || !has(sR)) return null;
   const hips = has(hL) && has(hR);
   const torso = hips ? [sL, sR, hL, hR] : [sL, sR];
-  // 至少一个躯干点可信地在画内。要两个的话，胯中点一出左边（最需要报侧边的那一刻）证据就没了：
-  // 画外的肩和胯可见度都只有 0.2，剩下的正好只有画内那一只肩
-  if (!torso.some((l) => trustedLandmark(l) && inFrame(l))) return null;
+  // 位置可不可信：至少一个躯干点可信地在画内（画外的肩和胯可见度只有 0.2，胯中点一出左边就只剩画内那一只肩）
+  const trusted = torso.some((l) => trustedLandmark(l) && inFrame(l));
   const x = hips ? (hL.x + hR.x) / 2 : (sL.x + sR.x) / 2;
   const scale = torsoScale(sL, sR, hips ? hL : null, hips ? hR : null, aspect);
   const xs = torso.map((l) => l.x * aspect);
@@ -681,7 +686,7 @@ export function lateralEvidence(pose: RawPose | null | undefined, aspect = 16 / 
   const edge = outL >= f && outR < f ? 0 : outR >= f && outL < f ? 1 : null;
   // 画面的哪条边 → 观众的哪一侧：按 MIRROR_X 折，和身体往哪边走同一个符号（docs/04 §1 唯一定义处）
   const side: Side | null = edge === null ? null : MIRROR_X * (edge - 0.5) > 0 ? 'right' : 'left';
-  return { x, scale, out: Math.max(outL, outR), side, quality: qualityScale(score) >= 1 };
+  return { x, scale, out: Math.max(outL, outR), side, quality: qualityScale(score) >= 1, trusted };
 }
 
 /** 横向根偏移此刻在做什么。HUD 与工作台原样显示 */
@@ -739,7 +744,8 @@ export function stepLateral(s: LateralState, input: LateralInput, dt: number): L
   if (!input.enabled) {
     target = 0; accepted = NaN; scale = NaN; pending = NaN; pendingFor = 0; lost = 0;
     why = 'yield'; goal = 0;
-  } else if (!ev) {
+  } else if (!ev || (!ev.side && !ev.trusted)) {
+    // 没有证据，或者位置全靠外推、又不在任何一边外（被桌子整个挡住）：跟丢
     lost += t;
     pending = NaN; pendingFor = 0;
     if (lost >= T.lateralHoldSeconds) { target = 0; accepted = NaN; scale = NaN; why = 'center'; goal = 0; } else { why = 'hold-lost'; goal = NaN; }

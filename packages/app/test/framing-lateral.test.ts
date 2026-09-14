@@ -26,6 +26,8 @@ test('引导：从观众自己的左 / 右边走出去 → 那一侧的话；排
   assert.deepEqual(seeState({ camera: true, pose: at(-0.03) }), { state: 'partial', reason: 'side', side: 'right' });
   // 画外点可见度给高（MediaPipe 有时就这么自信）：可信点数也够「往后退一点」了，仍然说那一侧
   assert.equal(seeState({ camera: true, pose: person({ ...WHOLE, cx: -0.03, visOut: 0.9 }) }).reason, 'side');
+  // 整个人都走出去了、检测还在（躯干点一个都不可信）：照样说那一侧 —— 第一版这里闭嘴，人被晾在边外
+  assert.deepEqual(seeState({ camera: true, pose: at(1.08) }), { state: 'partial', reason: 'side', side: 'left' });
   // 回来那一侧的话：往左出去 → 往右回来
   assert.ok(COPY.preview.outLeft && COPY.preview.outRight && COPY.preview.outLeft !== COPY.preview.outRight);
 });
