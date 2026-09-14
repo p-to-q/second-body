@@ -23,6 +23,9 @@ const chrome = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chro
 ], { stdio: 'ignore' });
 const kill = () => { try { chrome.kill('SIGKILL'); } catch { /* */ } };
 process.on('exit', kill);
+// 被 kill 的时候也要带走 Chrome：否则那个孤儿 Chrome 占着 profile-warm，下一次起的 Chrome 直接交给它然后退出
+//（症状只有一行 "no chrome"，实测踩过）
+for (const sig of ['SIGTERM', 'SIGINT'] as const) process.on(sig, () => { kill(); process.exit(130); });
 setTimeout(() => { console.log('hard timeout'); kill(); process.exit(2); }, (Number(recS) + 150) * 1000);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
