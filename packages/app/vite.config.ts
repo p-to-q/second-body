@@ -1,3 +1,4 @@
+import { shouldShip } from './build/ship-filter.ts';
 import { defineConfig, type Plugin } from 'vite';
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
@@ -271,7 +272,8 @@ function shipAssets(): Plugin {
           // assets/sound/licenses/ 是授权证据（四张下载页截图，约 660KB），
           // 留在仓库里给人查，**不进运行时** —— 素材本身才 8KB，
           // 把证据一起打进去等于让产物为一件观众永远不会加载的东西变大 80 倍。
-          filter: (src) => !src.endsWith('_metas.json') && !src.includes('/sound/licenses'),
+          // 哪些绝不进 dist（含观众剪影原图与装置本机存档）见 build/ship-filter.ts
+          filter: shouldShip,
         });
       }
     },
