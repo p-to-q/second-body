@@ -18,6 +18,7 @@ import { SOUND } from '../../../core/src/tuning.ts';
 import type { Rng, Tier } from '../../../core/src/types.ts';
 import { makeNoiseBuffer } from './noise.ts';
 import type { SoundSignal } from './signal.ts';
+import { timbreOf } from './timbre.ts';
 import { voiceOf, type Voice } from './voice.ts';
 
 export type LayerId = 'room' | 'body' | 'event' | 'wait';
@@ -47,23 +48,6 @@ function presenceAmount(s: SoundSignal): number {
   if (s.presence === 'ENTERING') return t;
   if (s.presence === 'LEAVING') return 1 - t;
   return 0;
-}
-
-/** 当前玩法对身体层音色的修正。`follow` 是基线，所以它没有条目（tuning 里也没有） */
-function actColor(actId: string | null): {
-  tilt: number; q: number; gain: number; tau: number; detune: number; echo: number;
-} {
-  const a = SOUND.acts;
-  if (actId === 'resist') {
-    return { tilt: a.resist.tiltMul, q: 1, gain: a.resist.gainMul, tau: a.resist.tauMul, detune: 0, echo: 0 };
-  }
-  if (actId === 'facing') {
-    return { tilt: 1, q: a.facing.qMul, gain: a.facing.gainMul, tau: 1, detune: a.facing.detune, echo: 0 };
-  }
-  if (actId === 'echo') {
-    return { tilt: 1, q: 1, gain: 1, tau: 1, detune: 0, echo: a.echo.mix };
-  }
-  return { tilt: 1, q: 1, gain: 1, tau: 1, detune: 0, echo: 0 };
 }
 
 /**
@@ -226,7 +210,7 @@ export function buildSoundGraph(ctx: BaseAudioContext, opts: GraphOptions): Soun
     levels.room = roomGain / SOUND.room.aliveGain;
 
     // 身体：速度驱动增益，玩法驱动音色。没有人就没有身体声 —— 身体不在那儿了
-    const c = actColor(s.actId);
+    const c = timbreOf(s);
     const speedN = clamp(s.speed / SOUND.body.speedRef, 0, 1.4);
     const target = (SOUND.body.minGain + (SOUND.body.gain - SOUND.body.minGain) * speedN) * c.gain * here;
     const tau = SOUND.body.tau * c.tau;
