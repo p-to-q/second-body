@@ -679,6 +679,9 @@ async function boot(): Promise<void> {
     dpr: (shed) => renderer.setPixelRatio(shed ? Math.min(devicePixelRatio, GOVERNOR.dprShed) : Math.min(devicePixelRatio, GOVERNOR.dprMax)),
     ui: (shed) => { uiShed = shed; },
   });
+  // 调试探针（只在 ?debug=1 下挂）：直接拨到第几级，量"拨开关本身"是不是一次长任务（docs/48 §10）。
+  // 调速器自己下一次变级时 `wireGovernor` 只拨和它不一样的那几个，所以拨乱了也会被收回来
+  if (flags.debug) (globalThis as Record<string, unknown>).__governorProbe = { apply: (l: number) => applyGovernor(l) };
 
   // ── 6. 一帧（docs/06 §1） ────────────────────────────────────────────────
   const loop = createFrameLoop((dt, tMs) => {
