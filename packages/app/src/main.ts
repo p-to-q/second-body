@@ -58,7 +58,7 @@ import { mountLoading } from './shell/loading.ts';
 import { showNotice } from './shell/notice.ts';
 import { isVacantPosition, vacancyOnShow } from './shell/vacancy.ts';
 import { mountNav } from './ui/nav.ts';
-import { announceStageShown } from './ui/page-transition.ts';
+import { announceStageShown, registerFreezable, revealSettled, transitionIdle } from './ui/page-transition.ts';
 import { adoptPrepaint } from './choose/ring/first-screen.ts';
 import { mountControls, type Controls } from './ui/controls.ts';
 import { cornerColumn } from './ui/corner.ts';
@@ -112,6 +112,9 @@ async function boot(): Promise<void> {
   //
   // **它必须在目录之前建**：目录要不要挂上来就铺开，答案就是"展签在不在"，
   // 而那个答案只有它知道。用它的返回值，不要在这里把它的条件重写一遍。
+  // 从别的页淡进来的那 240ms 里不起 WebGPU（环在 mountEntry 里、舞台在下面）：着色器编译卡住合成器，
+  // 淡入就一帧都画不出来（docs/47 §4.3）。没有过渡时当场落定，现场开机不受影响
+  await revealSettled();
   const entry = mountEntry(flags);
 
   // 右上角那一列：目录 → 设置 → 控件，三节同流（`ui/corner.ts`）。
@@ -1194,6 +1197,9 @@ async function boot(): Promise<void> {
 
   loop.start();
   announceStageShown();
+  // 换页截图之前把舞台冻成一张图：同一个任务里画一帧再拷走（ui/page-transition.ts）。
+  // 只多画那一帧，不碰帧循环的节奏
+  registerFreezable({ canvas: renderer.domElement, render: () => stage.render(renderer) });
 
   // ── 右下角那一列（`ui/exits.ts`）────────────────────────────────────────────
   // 选完物种之后观众此前没有任何出口：换物种只能改地址栏，而现场没有地址栏。
@@ -1273,6 +1279,8 @@ async function boot(): Promise<void> {
       // 手移上来就开始取模型、建图（worker 里，不问权限）。按下时那十几 MB 和那几百毫秒已经花过了
       cameraIntent: () => { void import('./capture/webcam.ts').then((m) => m.prewarmPose(flags.model ?? undefined)).catch(() => {}); },
       setCamera: async (on) => {
+        // 选择页 → 舞台的交棒还没收完就不拿摄像头（docs/47 §4.2、docs/48 §10.6）：过渡期间渲染被挂起
+        await transitionIdle();
         await swapCapture(on ? 'webcam' : 'replay');
         return cameraOn;
       },
@@ -1286,7 +1294,7 @@ async function boot(): Promise<void> {
   // （同一次 `createCapture('webcam')`、同一次权限请求），两个按钮并排贴在同一个角上
   // 只会让观众以为它们不一样。`?exits=0` 下这条老路一个字都没变。
   if (entry && !exits) {
-    mountCameraButton(async () => swapCapture('webcam'));
+    mountCameraButton(async () => { await transitionIdle(); return swapCapture('webcam'); });
   }
 
   console.info(

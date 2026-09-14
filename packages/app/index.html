@@ -8,13 +8,28 @@
     令牌到了之后由 first-screen.css 接手，这一行只管样式表到达之前 */
  html.sb-first-screen,html.sb-first-screen body{background:#fafafa}
  canvas{display:block}
- /* 跨页过渡整个关着：跨页快照在无头 Chrome 上每一类跳都量出过整帧纯白（docs/47 §4.3）。
-    这一页换景只靠上面那一行底色 —— 第一帧就是对的颜色，不需要任何动画 */
+ /* 跨页过渡（docs/47）。type.css 里也有一份，但这一页的样式表是脚本带进来的，晚于第一帧。
+    叠层的底 = 这一页第一帧的底：缺省透明会透出白 */
+ @view-transition{navigation:auto}
+ ::view-transition{background:#0e0f12}
+ html.sb-first-screen::view-transition{background:#fafafa}
+ @media (prefers-reduced-motion: reduce){@view-transition{navigation:none}}
 </style>
 <script>
  // 第一帧的底色：ui/transitions.ts 的 groundFor() 在这里的一份抄本（测试逐条对）。
  // 这一刻还没有任何模块，所以只能抄。main.ts 的 adoptPrepaint() 接过这一份 hold。
  (function(){var q=new URLSearchParams(location.search);if(q.get('selftest')!=='1'&&!q.get('theme'))document.documentElement.classList.add('sb-first-screen')})();
+ // 跨页过渡落定（ui/page-transition.ts 的 revealSettled）。main.ts 等它之后才起 WebGPU：
+ // 着色器编译会把合成器卡住，淡入的那 240ms 于是一帧都没有，读作一刀切（docs/47 §4.3）。
+ // 看门狗 = SETTLE_MS。没有 pagereveal 的浏览器、没有过渡的进入（地址栏、重载、现场）当场落定；
+ // 1500ms 兜底：这一句永远不许让开机停住。
+ (function(){var done,p=new Promise(function(r){done=r});window.sbRevealSettled=p;setTimeout(done,1500);
+  if(!('onpagereveal' in window)){done();return}
+  addEventListener('pagereveal',function(e){var v=e.viewTransition;if(!v){done();return}
+   // 门槛（ui/transitions.ts 的 transitionAllowed 的抄本，只抄首页能判的几条）：?vt=off、现场、前进后退
+   var q=new URLSearchParams(location.search),n=window.navigation,tr=!!(n&&n.activation&&n.activation.navigationType==='traverse');
+   if(q.get('vt')==='off'||q.get('kiosk')==='1'||tr){try{v.skipTransition()}catch(x){}done();return}
+   var t=setTimeout(function(){v.skipTransition()},630);v.finished.finally(function(){clearTimeout(t);done()}).catch(function(){})},{once:true})})();
 </script></head>
 <body><script type="module">
  // 两条路，都是字面量 import —— 打包器照样能静态分析，两个 chunk 互不牵连。

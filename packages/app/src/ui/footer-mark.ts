@@ -21,6 +21,7 @@
  *
  * **不挂**：舞台和选择页（那是作品本身的画面）、工作台里的各台仪器（满屏画布）、404。
  */
+import { declareShared } from './page-transition.ts';
 import markUrl from './footer-mark.svg?url';
 import './footer-mark.css';
 
@@ -67,6 +68,8 @@ export function mountFooterMark(parent: Element = document.body): HTMLElement {
   }
   const footer = document.createElement('footer');
   footer.className = 'sb-footmark';
+  // 页脚那张图在每一张挂它的页上是同一件东西：换页时它不动（docs/47）
+  declareShared(footer, 'footer');
   const mark = diagramNode();
   mark.classList.add('sb-diagram--flush');
   footer.append(mark);

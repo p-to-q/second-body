@@ -1,4 +1,5 @@
 import { shouldShip } from './build/ship-filter.ts';
+import { blockRender } from './build/render-blocking.ts';
 import { defineConfig, type Plugin } from 'vite';
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
@@ -260,6 +261,15 @@ function anchorWriter(): Plugin {
 // 'sound' 里是四个离散接触音，共约 8KB —— 见 assets/sound/README.md。
 const SHIPPED = ['parts', 'refs', 'demo', 'fonts', 'sound'];
 
+/** 展出页与工作台页的入口脚本挡住第一帧，首页除外。理由在 `build/render-blocking.ts` */
+function renderBlockingEntries(): Plugin {
+  return {
+    name: 'sb-render-blocking-entries',
+    apply: 'build',
+    transformIndexHtml: { order: 'post', handler: (html, ctx) => blockRender(html, ctx.filename) },
+  };
+}
+
 function shipAssets(): Plugin {
   return {
     name: 'sb-ship-assets',
@@ -288,7 +298,7 @@ export default defineConfig({
   // dev 下 assets/ 整个作为静态根（/raw/ 在 anchor 渲染时要用）；
   // build 时改由 shipAssets() 只复制 SHIPPED 里那几个目录。
   publicDir: process.env.NODE_ENV === 'production' ? false : resolve(__dirname, '../../assets'),
-  plugins: [demoIndex(), anchorWriter(), shipAssets()],
+  plugins: [demoIndex(), anchorWriter(), shipAssets(), renderBlockingEntries()],
   server: { port: 5173, host: true, fs: { allow: [ROOT] } },
   // 姿态推理的 worker（`capture/pose-worker.ts`）必须是 ES module worker：
   // MediaPipe 在 module worker 里走 `import()` 加载 wasm 胶水层，而经典胶水层只是一个顶层 `var`，
