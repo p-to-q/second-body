@@ -16,3 +16,12 @@ declare module '*.css' {
   const css: void;
   export default css;
 }
+
+/**
+ * `import.meta.env.DEV` —— 只用这一个字段：dev server 上才存在的中间件（`/__curate`）
+ * 在生产构建里连请求带分支一起摇掉。和上面同一个理由，不整个引 `vite/client`。
+ * node 测试不加载用到它的页面模块，所以运行时不会读到 undefined。
+ */
+interface ImportMeta {
+  readonly env: { readonly DEV: boolean };
+}

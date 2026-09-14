@@ -157,6 +157,9 @@ async function readJson<T>(url: string): Promise<T | null> {
  * 从工作台点进来的人读到的是「坏了」。docs/47 导航审计）
  */
 async function probeCurateWriteback(): Promise<boolean> {
+  // 中间件只在 vite dev 上有。生产构建里这是常量 false，请求连同分支一起被摇掉 ——
+  // 线上和 `vite preview` 不再每开一次页就换一条 404（docs/51 · C3）
+  if (!import.meta.env.DEV) return false;
   try {
     const r = await fetch('/__curate?probe', { method: 'POST' });
     return r.status === 204;
