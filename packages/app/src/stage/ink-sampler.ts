@@ -34,12 +34,13 @@ export const INK_GRID_H = 36;
 
 /**
  * 每个角由哪些元素组成。多个匹配取并集。
- * 读数（`.sb-readout`）故意不在：它有自己的底，而且正在另一条线上重做。
+ * 读数（`.sb-readout`）算进左下角：它的上半截跟着这一角的墨变透或变实（`readout.css` 文件头第二节第 4 条），
+ * 所以要量的正是它身后 —— 一具白身体走到面板后面，这一角就该翻成浅场景那一档。
  */
 export const INK_REGION_SELECTORS: Record<InkRegion, string> = {
   tr: '.sb-corner',
   br: '.sb-exits, .sb-notice--bottom-right',
-  bl: '.sb-notice--bottom-left',
+  bl: '.sb-notice--bottom-left, .sb-readout',
   tl: '.sb-see-word',
 };
 

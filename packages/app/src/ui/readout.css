@@ -25,6 +25,13 @@
  * 只剩字；白场景上它是一块半透明的深灰。**字的对比度在纯黑和纯白两个极端的身后都要过 4.5:1**
  * —— 身体可以是任何颜色，这两个极端把它们全包住（`test/readout.test.ts` 算，不靠看）。
  *
+ * 4. **第四次（同日晚）：上半截跟着场景走，底条不走。** 负责人在线上看了：逆光底下透明度不够，
+ *    深场景上上面那块要偏灰、更透；不管什么场景，上面那块和底下「读数 / 收起」那一条要明显拉开 ——
+ *    原来只有白展厅和纸上看得出上下两截。五个场景并排比了四种底（深灰更透 / 灰 12% / 灰 22% / 跟场景墨算），
+ *    选了跟场景墨算的那一种：深场景上是一块 0.42 的灰，浅场景上是 0.79 的深灰，底条始终 98% 的黑。
+ *    第 3 条那个坑（白纸上身体走过面板后面、数字消失）靠的是**采样框包住读数自己**：
+ *    身后亮了，左下角那一侧就翻成浅场景那一档，底跟着变实。测试按采样器的回差带扫纯黑到纯白每一档。
+ *
  * 它不再和左上角那块监视器是同一种物质：监视器里放的是画面，它有资格是一块黑屏；
  * 这块只放几行字，它该退后。**同一列、同宽**这两条保留 —— 左边两块东西仍然站在一条竖线上。
  *
@@ -62,12 +69,16 @@
   pointer-events: none;
   /* ↓↓ 见文件头第二节。一块底，没有边 */
   border-radius: 6px;
-  /* 上淡下深：顶上 84%，到底 90%；底下那一条再深一档（见 .sb-readout-bar）。
-     作品负责人要底再深一点、带梯度 —— 更深也是告警色能读出来的前提：
-     身后是白纸时，红字要 ≥ 84% 的底才过 4.5:1（测试按最淡的那一端算）。 */
+  /* 上半截跟着左下角的场景墨走（文件头第二节第 4 条）。第一行是不支持相对颜色语法时的退路。
+     第二行：屏幕色兑 26% 场景墨 —— 深场景上场景墨是浅的，兑出来是一块**灰**；浅场景上是深的，兑出来仍是深灰。
+     不透明度从兑出来那块颜色的 r 通道算：灰（r≈66）→ 0.42，深灰（r≈15）→ 0.79。
+     上淡下深各差 0.1。三个数由 test/readout.test.ts 读出来按浏览器的算法重算，调了测试自己跟着变。 */
   background: linear-gradient(180deg,
     color-mix(in srgb, var(--sb-screen) 84%, transparent),
     color-mix(in srgb, var(--sb-screen) 90%, transparent));
+  background: linear-gradient(180deg,
+    rgb(from color-mix(in srgb, var(--sb-screen) 74%, var(--sb-on-stage-bl)) r g b / calc(0.9 - 0.0072 * r)),
+    rgb(from color-mix(in srgb, var(--sb-screen) 74%, var(--sb-on-stage-bl)) r g b / calc(1 - 0.0072 * r)));
   /* 底下那一条自己有一块更深的底，圆角由这里裁 */
   overflow: hidden;
   color: var(--sb-screen-ink);
@@ -141,7 +152,8 @@
  */
 .sb-readout-bar {
   appearance: none;
-  background: color-mix(in srgb, var(--sb-screen) 96%, transparent);
+  /* 接近不透明的黑，**不跟场景走**：上半截在深场景上变成透的灰，这一条要在任何场景上都和它拉得开 */
+  background: color-mix(in srgb, var(--sb-screen) 98%, transparent);
   border: 0;
   border-top: 1px solid color-mix(in srgb, var(--sb-screen-ink) 16%, transparent);
   margin: 0;

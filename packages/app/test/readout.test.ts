@@ -18,7 +18,8 @@ import { isReadoutMode, readFlags, type Flags } from '../src/shell/kiosk.ts';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { COPY } from '../src/ui/i18n.ts';
-import { NEUTRAL_LOOK, overlayGroundLuma, stageInk } from '../src/stage/look.ts';
+import { NEUTRAL_LOOK, overlayGroundLuma, STAGE_INK, stageInk } from '../src/stage/look.ts';
+import { INK_BAND, INK_CROSSOVER } from '../src/stage/ink-regions.ts';
 import { SCENE_IDS, SCENES, applyScene } from '../src/stage/scenes.ts';
 import type { Landmark, MotionFeatures, RawPose } from '../../core/src/types.ts';
 
@@ -152,6 +153,7 @@ const CSS = strip(read('../src/ui/readout.css'));
 const TYPE = strip(read('../src/ui/type.css'));
 const PREVIEW = strip(read('../src/ui/preview.css'));
 const NOTICE = strip(read('../src/shell/notice.css'));
+const SAMPLER = read('../src/stage/ink-sampler.ts');
 const TS = strip(read('../src/ui/readout.ts'));
 
 /** 一个选择器第一次出现时那一整块的正文 */
@@ -195,43 +197,86 @@ test('readout: 数字不比名字大 —— 放大的亮数字是仪表盘的语
   assert.doesNotMatch(name, /font-size\s*:/, '名字单独定了字号，两者不再一样大');
 });
 
-test('readout: 底是深灰半透明，字色是一个墨；不跟场景翻，也没有写死的颜色', () => {
+/**
+ * 上半截那块底**跟着左下角的场景墨走**（readout.css 文件头第二节，2026-09-14 第四次）：
+ * 深场景上是一块更透的灰，浅场景上是一块更实的深灰；最底下那一条始终接近不透明的黑。
+ *
+ * CSS 里写的是 `rgb(from color-mix(in srgb, var(--sb-screen) M%, var(--sb-on-stage-bl)) r g b / calc(K - S * r))`。
+ * 这里把那三个数读出来，**照浏览器的算法重算一遍**，而不是抄一个结果 —— 调了 CSS 测试自己跟着变。
+ */
+function topVeil(css: string): { mix: number; k: number; s: number }[] {
+  const re = /rgb\(from color-mix\(in srgb,\s*var\(--sb-screen\)\s*([\d.]+)%,\s*var\(--sb-on-stage-bl\)\)\s*r g b \/ calc\(([\d.]+)\s*-\s*([\d.]+)\s*\*\s*r\)\)/g;
+  return [...block(css, '.sb-readout').matchAll(re)].map((m) => ({ mix: Number(m[1]) / 100, k: Number(m[2]), s: Number(m[3]) }));
+}
+/** 某一侧的场景墨下，上半截最淡那一端的颜色（0..255 sRGB）和不透明度 */
+function veilFor(side: 'onDark' | 'onLight'): { rgb: number[]; alpha: number } {
+  const stops = topVeil(CSS);
+  const screen = channels(token('--sb-screen')).map((c) => c * 255);
+  const ink = channels(STAGE_INK[side].on).map((c) => c * 255);
+  const worst = stops.map((st) => {
+    const rgb = screen.map((c, i) => st.mix * c + (1 - st.mix) * ink[i]);
+    return { rgb, alpha: Math.min(1, Math.max(0, st.k - st.s * rgb[0])) };
+  });
+  return worst.reduce((a, b) => (b.alpha < a.alpha ? b : a));
+}
+
+test('readout: 上半截跟着左下角的场景墨走，底下那一条接近不透明；没有写死的颜色', () => {
   const panel = block(CSS, '.sb-readout');
-  const bg = panel.match(/background:\s*([^;]+);/)?.[1] ?? '';
-  assert.match(bg, /var\(--sb-screen\)/, '底不是 --sb-screen 兑的半透明深灰');
-  assert.doesNotMatch(bg, /var\(--sb-(?!screen\))/, '底里混进了 --sb-screen 以外的颜色');
+  assert.equal(topVeil(CSS).length, 2, '上半截的梯度不再是两端各一个「从场景墨算出来的灰」—— 这条测试要跟着重写');
   assert.match(panel, /color:\s*var\(--sb-screen-ink\)/);
-  assert.doesNotMatch(CSS, /--sb-on-stage/, '又跟着场景翻了 —— 白纸场景上身体走过时数字会消失（实测）');
-  assert.doesNotMatch(CSS, /--sb-screen-dim|opacity\s*:/, '用了暗墨或透明度做层级 —— 白纸场景上小字会掉到 4.5:1 以下');
+  // 不支持相对颜色语法的浏览器退回一条固定的深灰梯度（写在前面，被后一条覆盖）
+  assert.match(panel, /background:\s*linear-gradient\(180deg,\s*color-mix\(in srgb,\s*var\(--sb-screen\)/, '没有给旧浏览器的退路');
+  // 深场景上要**明显更透**：作品负责人说逆光底下透明度不够
+  assert.ok(veilFor('onDark').alpha <= 0.5, `深场景上上半截还有 ${veilFor('onDark').alpha.toFixed(2)} 的不透明度，负责人要更透`);
+  assert.ok(veilFor('onLight').alpha < 0.84, '浅场景上上半截没有比原来（84%）更透');
+  // 底下那一条：和上半截在任何场景上都拉得开
+  const bar = block(CSS, '.sb-readout-bar');
+  const barPct = Number(bar.match(/background:\s*color-mix\(in srgb,\s*var\(--sb-screen\)\s*([\d.]+)%/)?.[1]);
+  assert.ok(barPct >= 96, `底下那一条只有 ${barPct}% —— 在深场景上和上半截分不开`);
+  assert.ok(barPct / 100 - veilFor('onDark').alpha >= 0.4, '深场景上底条和上半截的不透明度差不到 0.4');
+  assert.doesNotMatch(CSS, /--sb-screen-dim|opacity\s*:/, '用了暗墨或透明度做层级 —— 小字会掉到 4.5:1 以下');
   assert.doesNotMatch(CSS, /#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})(?![0-9a-fA-F])/, 'readout.css 里写死了一个颜色');
+  // 左下角的采样框要包住读数自己：身后亮了（一具白身体走到面板后面），那一角才会翻成浅场景那一档
+  assert.match(SAMPLER, /bl:\s*'[^']*\.sb-readout/, 'ink-sampler 的左下角没有量读数面板身后');
 });
 
-test('readout: 身后是纯黑、纯白、还是五套场景里任何一套，字都过 4.5:1', () => {
-  // 三个底并排比出来的结论（readout.css 文件头第二节）：跟着场景翻的纱在白纸场景上，
-  // 身体一走到面板后面数字就没了。所以这里不只量场景，还量**两个极端的身后** ——
-  // 身体可以是任何颜色，纯黑和纯白把它们全包住。
-  // 梯度按**最淡的那一端**算：字在最淡处能读，在深处只会更好读
-  const pcts = [...block(CSS, '.sb-readout').matchAll(/var\(--sb-screen\)\s*([\d.]+)%/g)].map((m) => Number(m[1]));
-  assert.ok(pcts.length, 'readout.css 的 background 换了写法，这条测试要跟着重写');
-  const alpha = Math.min(...pcts) / 100;
-  const screen = channels(token('--sb-screen'));
-  // 满墨，以及两种告警色 —— 告警色也得在最淡处、身后纯白时读得出
-  const inks: Array<[string, number]> = [
-    ['墨', luma(channels(token('--sb-screen-ink')))],
-    ['红（告警）', luma(channels(token('--sb-alarm')))],
-    ['琥珀（警告）', luma(channels(token('--sb-caution')))],
-  ];
+test('readout: 身后从纯黑到纯白每一档，按采样器会选的那一侧算，满墨都过 4.5:1', () => {
+  // 采样器按亮度在两侧之间翻（带回差）。最坏情况是亮度停在回差带里、侧没翻过去：
+  // 深侧一直用到带的上沿，浅侧从带的下沿用起。按均匀的身后算（采样本来就是取平均）
+  // ink-regions.ts：亮度 > hi 才翻深墨（浅场景那一档），< lo 才翻回浅墨 —— 深侧最远用到 hi，浅侧最远用到 lo
+  const inkL = luma(channels(token('--sb-screen-ink')));
+  const thin: string[] = [];
+  let checked = 0;
+  for (let g = 0; g <= 255; g += 5) {
+    const behind = toLinear(g / 255);
+    const sides: Array<'onDark' | 'onLight'> = [];
+    if (behind <= INK_BAND.hi) sides.push('onDark');
+    if (behind >= INK_BAND.lo) sides.push('onLight');
+    checked += sides.length;
+    for (const side of sides) {
+      const v = veilFor(side);
+      const onPanel = luma(v.rgb.map((c) => (v.alpha * c + (1 - v.alpha) * g) / 255));
+      const c = contrast(inkL, onPanel);
+      if (c < 4.5) thin.push(`身后 ${g} · ${side}: ${c.toFixed(2)}:1`);
+    }
+  }
+  assert.ok(checked > 52, '扫描一档都没量到 —— INK_BAND 的字段名变了？');
+  assert.deepEqual(thin, [], `读不动：\n${thin.join('\n')}`);
+});
 
+test('readout: 告警色在五套场景和纯黑纯白上都读得出（≥ 3:1，另有代码文字兜底）', () => {
+  // 告警不只靠颜色：底下那一行写着 ALM 01 这样的代码。所以颜色按界面元素的 3:1 算，满墨才按正文的 4.5:1
   const behind: Array<[string, number]> = [['纯黑身后', 0], ['纯白身后', 1]];
   for (const id of SCENE_IDS) behind.push([id, overlayGroundLuma(applyScene(NEUTRAL_LOOK, SCENES[id]))]);
-
   const thin: string[] = [];
   for (const [name, bg] of behind) {
-    const bgGamma = toGamma(bg);
-    const onPanel = luma(screen.map((c) => alpha * c + (1 - alpha) * bgGamma));
-    for (const [label, ink] of inks) {
-      const c = contrast(ink, onPanel);
-      if (c < 4.5) thin.push(`${name} · ${label}: ${c.toFixed(2)}:1`);
+    const side = bg > INK_CROSSOVER ? 'onLight' : 'onDark';
+    const v = veilFor(side);
+    const g = toGamma(bg) * 255;
+    const onPanel = luma(v.rgb.map((c) => (v.alpha * c + (1 - v.alpha) * g) / 255));
+    for (const [label, tok] of [['红（告警）', '--sb-alarm'], ['琥珀（警告）', '--sb-caution']] as const) {
+      const c = contrast(luma(channels(token(tok))), onPanel);
+      if (c < 3) thin.push(`${name} · ${label}: ${c.toFixed(2)}:1`);
     }
   }
   assert.deepEqual(thin, [], `读不动：\n${thin.join('\n')}`);
