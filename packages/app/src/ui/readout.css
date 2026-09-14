@@ -197,6 +197,8 @@
   font-size: var(--sb-size-micro);
   letter-spacing: var(--sb-tracking-label);
 }
+/* 没有告警时代码格是空的：不给它留位置，否则「正常」前面平白多出一截缩进 */
+.sb-readout-alarm .sb-readout-code:empty { display: none; }
 .sb-readout-alarm .sb-zh,
 .sb-readout-alarm .sb-en { display: inline; color: inherit; }
 .sb-readout-alarm .sb-en {

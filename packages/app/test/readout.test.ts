@@ -17,6 +17,7 @@ import { CAPTURE, PREVIEW as PREVIEW_TUNING } from '../../core/src/tuning.ts';
 import { isReadoutMode, readFlags, type Flags } from '../src/shell/kiosk.ts';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { COPY } from '../src/ui/i18n.ts';
 import { NEUTRAL_LOOK, overlayGroundLuma, stageInk } from '../src/stage/look.ts';
 import { SCENE_IDS, SCENES, applyScene } from '../src/stage/scenes.ts';
 import type { Landmark, MotionFeatures, RawPose } from '../../core/src/types.ts';
@@ -358,8 +359,17 @@ test('readout 告警: 不闪 —— 进入要憋 1 秒，撤掉要憋 2 秒，�
 test('readout 告警: 同时越界时底下只说最重的一条', () => {
   const a = assess({ pose: framed(0.97, 33, PREVIEW_TUNING.outOfFramePoints), features: FEATURES, inferenceHz: 5 });
   assert.equal(a.code, 'ALM02', `推理停滞比部分出画重，却报了 ${a.code}`);
-  assert.equal(a.levels.joints, 'warn');
+  assert.equal(a.levels.joints, 'ok', '出画不给关节那一行上色 —— 33/33 涂成琥珀是自相矛盾');
   assert.equal(a.levels.inference, 'alarm');
+});
+
+test('readout 告警: 告警行的英文是一个词的状态字 —— 句子会在窄板上被切掉', () => {
+  // 截图上 'Partly out of frame' 被切成 PARTLY OU、'Tracking lost' 只剩 TRACKING。
+  // node 量不了版面，所以量字数：这一行定宽不折行，英文 ≤ 5 个字母才放得下（最窄 200px 的板上实测）。
+  for (const [code, t] of Object.entries(COPY.readout.alarms)) {
+    assert.ok(t.en.length <= 5, `${code} 的英文「${t.en}」有 ${t.en.length} 个字母 —— 会被切掉`);
+    assert.ok(!/\s/.test(t.en), `${code} 的英文「${t.en}」是一句话，不是一个状态字`);
+  }
 });
 
 test('readout 告警: 告警行永远占着高度，DOM 里一直在', () => {

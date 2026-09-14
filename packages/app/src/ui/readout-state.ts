@@ -293,7 +293,10 @@ export function assess(input: ReadoutInput, inferred = true): Assessment {
     if (seen !== null && total > 0 && seen < total / 2) {
       levels.joints = 'alarm'; hit.add('ALM01');
     } else if (pose!.screen?.length && outOfFrame(pose!.screen) >= PREVIEW.outOfFramePoints) {
-      levels.joints = 'warn'; hit.add('WRN12');
+      // **出画不给「关节」那一行上色。** 出画的点照样是看得见的点：截图上 33/33 被涂成琥珀，
+      // 读起来是"全都看见了，但有问题"—— 一行数和它的颜色自相矛盾。出画这件事没有哪一行在量，
+      // 所以它只出现在最底下那一行的代码里。
+      hit.add('WRN12');
     }
     if (qualityScale(score) < 1) { levels.confidence = 'warn'; hit.add('WRN11'); }
   }

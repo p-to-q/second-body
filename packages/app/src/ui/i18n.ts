@@ -234,11 +234,13 @@ export const COPY = {
      * 什么时候触发、阈值从哪来，见 `readout-state.ts` 的 `AlarmCode` 那张表。
      */
     alarms: {
-      ALM01: bi('关节丢失', 'Tracking lost'),
-      ALM02: bi('推理停滞', 'Inference stalled'),
-      WRN11: bi('置信偏低', 'Low confidence'),
-      WRN12: bi('部分出画', 'Partly out of frame'),
-      WRN13: bi('推理偏慢', 'Inference slow'),
+      // 英文是数控板上那种**一个词的状态字**，不是句子：这一行定宽不折行，
+      // 句子（'Partly out of frame'）在 200–240px 的板上会被切成 PARTLY OU。中文承重，英文只点题。
+      ALM01: bi('关节丢失', 'Lost'),
+      ALM02: bi('推理停滞', 'Stall'),
+      WRN11: bi('置信偏低', 'Low'),
+      WRN12: bi('部分出画', 'Out'),
+      WRN13: bi('推理偏慢', 'Slow'),
     },
   },
 
