@@ -59,8 +59,16 @@
 }
 .room-specimen:first-child { border-top: 0; }
 
-/* 记号那一格：它是这一行唯一的图形，所以它自己居中，别的都左对齐 */
-.room-specimen__mark { display: flex; align-items: center; justify-content: center; }
+/* 记号那一格：它是这一行唯一的图形，所以它自己居中，别的都左对齐。
+   **竖直方向对齐的是右边标题的第一行**，不是整行的基线：flex 格子没有文字基线，按基线对齐时它的底边被抬到文字基线上，
+   记号就比标题高出一截（负责人 2026-09-14，九枚都是）。所以它贴行顶、高度等于标题那一行的行盒、在里面居中 */
+.room-specimen__mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: start;
+  height: calc(var(--sb-size-h2) * var(--sb-lh-h2));
+}
 
 .room-specimen__id {
   font-family: var(--sb-mono);

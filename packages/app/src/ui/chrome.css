@@ -96,7 +96,11 @@
 }
 
 /* 覆盖态下三行压成两行：作品名 · 页面名，然后说明 */
-.sb-head--overlay .sb-head__work { display: inline; margin: 0; }
+/* 浮层页头压在画面上，墨跟**场景**走（`--sb-on-stage`，舞台按背景亮度发布；没有舞台的页上它就是 --sb-ink）。
+   原来固定用纸页的浅墨：/dev/stage.html 的浅灰场景上浅字压浅底，淡出之后基本读不出（负责人 2026-09-14） */
+.sb-head--overlay { color: var(--sb-on-stage); }
+.sb-head--overlay .sb-head__title { color: var(--sb-on-stage); }
+.sb-head--overlay .sb-head__work { display: inline; margin: 0; color: var(--sb-on-stage-dim); }
 .sb-head--overlay .sb-head__title {
   display: inline;
   font-size: var(--sb-size-small);
@@ -107,8 +111,8 @@
 .sb-head--overlay .sb-head__en { display: none; }
 .sb-head--overlay .sb-head__note {
   font-size: var(--sb-size-small);
-  /* 原来 ink-dim 再乘 0.72：舞台的深底上基本读不出（负责人 2026-09-14）。说明只用暗墨，不再叠一层透明 */
-  color: var(--sb-ink-dim);
+  /* 原来 ink-dim 再乘 0.72：舞台背景上基本读不出（负责人 2026-09-14）。说明只用场景暗墨，不再叠一层透明 */
+  color: var(--sb-on-stage-dim);
 }
 .sb-head--overlay .sb-head__rule { display: none; }
 
