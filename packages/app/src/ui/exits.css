@@ -52,6 +52,15 @@
 }
 .sb-exits > * { pointer-events: auto; }
 
+/* 这一列压在实时画面上，身体会从它底下走过去 —— 墨按**右下角底下的像素**翻
+   （stage/ink-regions.ts 的 `br`）。悬停退的那一档 --sb-ink-dim 也跟着这一角走。 */
+.sb-exits {
+  --sb-on-stage: var(--sb-on-stage-br);
+  --sb-on-stage-dim: var(--sb-on-stage-dim-br);
+  --sb-ink-strong: var(--sb-ink-strong-br);
+  --sb-ink-dim: var(--sb-on-stage-dim-br);
+}
+
 .sb-exit {
   appearance: none;
   background: none;

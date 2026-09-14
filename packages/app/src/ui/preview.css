@@ -93,6 +93,10 @@
  * 不需要任何显示/隐藏的开关 —— 没有字就没有高度。
  */
 .sb-see-word {
+  /* 屏幕自己是黑的，但这句话在屏幕**下面**，压在画面上 —— 按左上角那块底的像素翻（`tl`）。
+     只挂在这一句上，不挂在 .sb-see 上：屏幕那圈边不跟画面走 */
+  --sb-on-stage: var(--sb-on-stage-tl);
+  --sb-on-stage-dim: var(--sb-on-stage-dim-tl);
   margin: calc(var(--sb-gutter) * 0.4) 0 0;
   font-size: var(--sb-size-small);
   line-height: var(--sb-lh-body);

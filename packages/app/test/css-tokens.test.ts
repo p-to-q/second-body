@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { REGION_TOKENS } from '../src/stage/ink-regions.ts';
 
 /**
  * CSS 令牌的**存在性**。
@@ -98,7 +99,12 @@ test('CSS：每一个 var(--sb-*) 都有地方定义它', () => {
   // 这几个由 JS 在运行时写进行内样式（stage.ts 的 publishStageInk），
   // 文本里也有缺省值，所以它们本来就该在 declared 里 —— 列出来是为了
   // 万一将来有人把缺省值删了，这条断言会指着它说话。
-  const runtime = ['--sb-on-stage', '--sb-on-stage-dim', '--sb-ink-strong'];
+  const runtime = [
+    '--sb-on-stage', '--sb-on-stage-dim', '--sb-ink-strong',
+    // 各角那一份（stage/ink-regions.ts 按像素发布）。缺省值丢了的话，
+    // 没有舞台的页面、或者读不到像素的那一刻，角上的字是未定义色
+    ...Object.values(REGION_TOKENS).flatMap((t) => [t.on, t.dim, t.strong]),
+  ];
   for (const n of runtime) {
     assert.ok(declared.has(n), `${n} 只在运行时被写入，CSS 里没有缺省值 —— 舞台不在场的页面上它是未定义的`);
   }
@@ -129,6 +135,32 @@ test('CSS："跟着底色翻"的令牌，亮底那一侧必须也有人翻', () 
     assert.ok(firstScreen.includes(n), `first-screen.css 没有翻 ${n}`);
     assert.ok(stage.includes(n), `stage.ts 的 publishStageInk 没有发布 ${n}`);
   }
+});
+
+test('CSS：各角的墨，首屏翻了、组件取的是自己那一角', () => {
+  // 各角令牌由舞台写成行内样式。首屏不翻它们的话，首屏上角里的字会拿到
+  // 舞台量到的墨 —— 而那几秒底下是纸，不是舞台画布。
+  const firstScreen = stripComments(readFileSync(join(UI, 'choose/ring/first-screen.css'), 'utf8'));
+  const consumers: Record<keyof typeof REGION_TOKENS, string[]> = {
+    tr: ['ui/corner.css'],
+    br: ['ui/exits.css', 'shell/notice.css'],
+    bl: ['shell/notice.css'],
+    tl: ['ui/preview.css'],
+  };
+  const problems: string[] = [];
+  for (const [region, t] of Object.entries(REGION_TOKENS) as Array<[keyof typeof REGION_TOKENS, typeof REGION_TOKENS.tr]>) {
+    for (const n of [t.on, t.dim, t.strong]) {
+      if (!new RegExp(`${n}\\s*:[^;]*!important`).test(firstScreen)) problems.push(`first-screen.css 没有翻 ${n}`);
+    }
+    for (const f of consumers[region]) {
+      const src = stripComments(readFileSync(join(UI, f), 'utf8'));
+      // 取用 = 把全局那个名字重新指到这一角：`--sb-on-stage: var(--sb-on-stage-tr)`
+      if (!new RegExp(`--sb-on-stage\\s*:\\s*var\\(\\s*${t.on}\\s*\\)`).test(src)) {
+        problems.push(`${f} 没有让 --sb-on-stage 取 ${t.on}`);
+      }
+    }
+  }
+  assert.deepEqual(problems, [], problems.join('\n'));
 });
 
 /**

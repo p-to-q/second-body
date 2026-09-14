@@ -15,10 +15,12 @@ import {
 
 const contrast = (a: number, b: number): number => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 
-test('墨色滞回带：从两套墨的 3:1 边界推出来，而且以 0.166 为中心', () => {
+test('墨色滞回带：从两套墨的 3:1 边界推出来，而且以对比度相等的交点为中心', () => {
   const pale = hexLuma(STAGE_INK.onDark.on);
   const deep = hexLuma(STAGE_INK.onLight.on);
-  assert.ok(Math.abs(INK_CROSSOVER - 0.166) < 0.002, `交点 ${INK_CROSSOVER}`);
+  // 交点处两套墨的对比度相等 —— 用定义量，不抄一个数（抄过：look.ts 原注释写的 0.166
+  // 喂的是 0.7231 / 0.0106，而 #dfe4ea / #1a1d21 真正的亮度是 0.771 / 0.0121，交点是 0.176）
+  assert.ok(Math.abs(contrast(pale, INK_CROSSOVER) - contrast(deep, INK_CROSSOVER)) < 1e-9, `交点 ${INK_CROSSOVER}`);
   assert.ok(Math.abs(contrast(pale, INK_BAND.hi) - 3) < 1e-9, '带的上沿应该正好是浅墨的 3:1');
   assert.ok(Math.abs(contrast(deep, INK_BAND.lo) - 3) < 1e-9, '带的下沿应该正好是深墨的 3:1');
   assert.ok(INK_BAND.lo < INK_CROSSOVER && INK_CROSSOVER < INK_BAND.hi);

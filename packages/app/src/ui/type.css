@@ -133,6 +133,27 @@
   --sb-on-stage: #dfe4ea;
   --sb-on-stage-dim: #9aa0a6;
 
+  /* 各角自己的那一份（右上 / 右下 / 左下 / 左上小屏下那句话）。
+     舞台按**那个角底下渲染出来的像素**翻（stage/ink-regions.ts），写进根的行内样式；
+     读不到像素、或者根本没有舞台时，它们就是全局那一份 —— 缺省值只是一个 var()。 */
+  --sb-on-stage-tr: var(--sb-on-stage);
+  --sb-on-stage-dim-tr: var(--sb-on-stage-dim);
+  --sb-ink-strong-tr: var(--sb-ink-strong);
+  --sb-on-stage-br: var(--sb-on-stage);
+  --sb-on-stage-dim-br: var(--sb-on-stage-dim);
+  --sb-ink-strong-br: var(--sb-ink-strong);
+  --sb-on-stage-bl: var(--sb-on-stage);
+  --sb-on-stage-dim-bl: var(--sb-on-stage-dim);
+  --sb-ink-strong-bl: var(--sb-ink-strong);
+  --sb-on-stage-tl: var(--sb-on-stage);
+  --sb-on-stage-dim-tl: var(--sb-on-stage-dim);
+  --sb-ink-strong-tl: var(--sb-ink-strong);
+
+  /* 纸上的墨。控件面板里的选项格是**有底的**（--sb-paper），那里的字跟纸走，不跟画面走。
+     右上角那一列把 --sb-ink 换成了画面墨，格子里要换回来 —— 在根上取一份原值。 */
+  --sb-paper-ink: var(--sb-ink);
+  --sb-paper-ink-dim: var(--sb-ink-dim);
+
   /* ── 仪表：左上角那块小屏幕 + 左下角那块读数 ─────────────────────
      **一块自发光的屏不跟场景翻。** 数控机床的读数屏在白车间里也是黑的 ——
      它亮不亮是它自己的事，不是房间的事。所以这三个令牌只有深底这一侧，
