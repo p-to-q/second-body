@@ -1,71 +1,55 @@
 /**
- * 左下角那块读数的皮肤 —— **一块数控读数屏**，和左上角那块小屏幕是同一类东西。
+ * 左下角那块读数的皮肤 —— **一块灰色半透明的读数板**，样子取自原来调试时的那块 HUD。
  *
- * ## 一、它为什么有底、有边、有圆角（`docs/26 §F` 的反面清单）
+ * ## 一、它为什么有底（`docs/26 §F` 的反面清单）
  *
- * 反面清单约束的是**作品的声音**。把这块的底和边撤掉，剩下的五行字就用上了
- * 作品说话时的字体、墨色、安全区 —— 一件等身的身体底下浮着六个跳动的数，
- * 读起来是**作品本人在报数**。那比一块面板更违反 §F。
- * 仪表按定义不在作品的声音里，而且**必须看起来不在**（`docs/44 §7`：
- * 仪表不是诚实，仪表是工具）。所以底和边在这里是引号，不是装饰。
+ * 反面清单约束的是**作品的声音**。把底撤掉，这几行字就用上了作品说话时的
+ * 字体、墨色、安全区 —— 一件等身的身体底下浮着几个跳动的数，读起来是作品本人在报数。
+ * 仪表必须看起来不是作品（`docs/44 §7`：仪表不是诚实，仪表是工具），底就是那对引号。
+ * 但**只要一块底，不要边**：边是第二层引号，多余，而且让它从"一片纱"变成"一块板"。
  *
- * ## 二、它为什么是一块**黑的**屏，而不是一层跟着场景翻的纱
+ * ## 二、这块底为什么是深灰半透明，而不是跟着场景翻的纱 —— 实测出来的
  *
- * 上一版的底是字色兑 12% 的水：深空上一层浅灰纱，白展厅上一层深灰纱。
- * 它在两边都"分得开"，但它读作一层**贴膜**，不读作一块**仪表**。三件事让它换了：
+ * 2026-09-14 这块面板改过两次，作品负责人两次都说了为什么不对，第三次是比出来的：
  *
- * 1. 作品负责人看了现场：底的灰要再深一点，而且要更像数控。
- * 2. **左上角那块屏幕已经是一块自发光的黑屏**（`preview.css`，"一块没有信号的
- *    屏幕就是黑的"）。一上一下两块仪表用两种物质，是两套系统；用同一种，
- *    是同一台机器的两块面板。
- * 3. 原来单页调试（`dev/figure.html` 的 HUD、`shell/hud.ts`）一直就是深底亮字的
- *    等宽读数 —— 这件作品自己的调试台早就长成了数控的样子，这里只是把它请上来。
+ * 1. 最早是字色兑 12% 的水（深场景一层浅灰纱、白场景一层深灰纱），外加一条发丝边。
+ *    负责人：灰可以再深、要更像数控。
+ * 2. 于是改成一块 82% 的黑屏，配发丝边、10px 圆角、放大的亮数字，和左上角监视器同一种物质。
+ *    负责人：**边不要；数字放大很丑；整块太抢注意力；底要灰色半透明**；更喜欢原来调试时的那块板。
+ * 3. 三个底并排比（同一块读数、一具假身体从它后面走过、深场景和白纸场景各一遍）：
+ *    A 字色兑 14%、B 字色兑 20%、C 深灰 0.6。**深场景上三个都读得出；白纸场景上，
+ *    A 和 B 在身体走过面板后面的那一段里数字直接消失** —— 兑水的纱跟着场景翻成浅灰、
+ *    字翻成深墨，而身体是深的，深墨压深身体。只有 C 在两种场景、身后有没有身体时都读得出。
  *
- * 一块发光的屏**不跟房间翻**：白车间里的数控屏也是黑的。所以颜色全部来自
- * `type.css` 的 `--sb-screen*`，没有一处 `--sb-on-stage`。不透明度用现成的
- * `--sb-layer-panel`（0.82，"面板盖住作品的时候，作品还该在"）——
- * 身体从它后面走过时隐约透得出来，但字永远站在一块深底上。
- * 五套场景下数值过 7:1、标签过 4.5:1、边缘和画面分得开，**是算出来的**
- * （`test/readout.test.ts` 从这份文件和 `type.css` 里读数去算，不抄一份）。
+ * 所以底是 `--sb-screen` 兑到 70%（原来那块调试板是 0.72）：深场景上它几乎化进去，
+ * 只剩字；白场景上它是一块半透明的深灰。**字的对比度在纯黑和纯白两个极端的身后都要过 4.5:1**
+ * —— 身体可以是任何颜色，这两个极端把它们全包住（`test/readout.test.ts` 算，不靠看）。
  *
- * **没有 backdrop-filter。** 每帧都在变的 WebGPU 画布上，它等于每帧多一次合成器取回
- * （`docs/02 P5` 的帧预算）。
+ * 它不再和左上角那块监视器是同一种物质：监视器里放的是画面，它有资格是一块黑屏；
+ * 这块只放几行字，它该退后。**同一列、同宽**这两条保留 —— 左边两块东西仍然站在一条竖线上。
  *
- * ## 三、它和谁对齐
+ * ## 三、排版：字全部一样大
  *
- * - **和左上角那块屏幕同一列、同一宽、同一圆角、同一圈发丝边**：
- *   左边缘 `--sb-safe × 0.5`（所有仪表都贴这条线：小屏幕、`?debug=1` 的 HUD），
- *   宽 `--sb-see-w`，圆角 10px，`inset 1px var(--sb-screen-edge)`。上下两块于是镜像。
- * - **面板里的字落在 `--sb-safe` 那条线上**：内边距正好半个安全区。
- *   边框贴仪表线，字贴作品的线 —— 名牌、「站到画面里」、右下角那一列的字，
- *   全在 `--sb-safe` 上。一块东西同时对上两套线，靠的就是这半个安全区。
- * - **贴底，和左上角那块贴顶一样是 `--sb-safe × 0.5`**。名牌只说 4 秒，
- *   让它在那 4 秒里站到读数上面（`shell/notice.css` 最后一条），
- *   而不是让常驻的读数永远悬在半空给它留格子。
+ * 等宽、三栏（名字｜数｜单位）、小数点竖成一条线、单位另起一栏 —— 这些是数控的。
+ * 但**数字不比名字大**：放大的亮数字是"仪表盘"的语气，而这件作品不想要一块仪表盘抢身体的注意力。
+ * 层级只靠一件事：**英文代号和单位小一号**。不靠变暗、不靠透明 —— 白纸场景上那两招都会让
+ * 小字掉到 4.5:1 以下。
  *
- * ## 四、排版：数控读数屏的三栏
+ * ## 四、护栏
  *
- * `名字 | 数 | 单位`。数右对齐、定宽、等宽 tabular —— 个位竖成一条线；
- * 单位另起一栏（`readout-state.ts` 的 `splitUnit`），不然 `31 Hz` 和 `0.878` 对不齐。
- * 字号三档：**数最大**（跟着屏幕高缩放），名字和单位小一档、暗一档。
- * 一块读数屏上人先读数，再读那是什么数。
+ * 1. **一屏只许一块观众看得见的仪表**。`?debug=1` 的 HUD 不算。
+ * 2. **只装测量，不装作品的决定**（乐章、档位、弧线百分比、忒修斯换到第几件都不上来，见 `readout.ts`）。
+ * 3. **它不动。** 数 4Hz 刷新、栏宽定死不回流、没有过渡。唯一吃指针的是最底下「显示 / 收起」那一条；
+ *    面板贴底、那一条在最底下，所以开合时键一个像素都不动。收起不跨观众留存（docs/40 §3）。
+ * 4. **没有外边，数字不放大** —— 这两条是作品负责人明确否掉过的，测试钉着，别再加回来。
+ * 5. **圆角只到 `.sb-readout` 为止**（和左上角 `.sb-see-screen` 是两次各自的豁免）。
  *
- * ## 五、护栏（没有这几条，第一节就是一个后门）
- *
- * 1. **一屏只许一块观众看得见的仪表**，就是这一块。`?debug=1` 的 HUD 不算。
- * 2. **只装测量，不装作品的决定** —— 乐章、档位、弧线百分比、忒修斯换到第几件
- *    一个都不许上来。该装什么写在 `readout.ts` 的文件头。
- * 3. **它不动。** 没有入场、没有过渡、没有强调色。数按 4Hz 刷新，栏宽定死，
- *    跳动时一个像素都不回流。**唯一吃指针的是最底下那一条**（显示 / 收起），
- *    点下去是一次硬切 —— 屏幕切页不淡入。收起键在最底下，面板贴底，
- *    所以**开合时那个键一个像素都不动**（`nav.css`：会换位置的开关，人会以为点错了）。
- * 4. **收起不跨观众留存。** 不写 localStorage。`docs/40 §3`：任何跨观众的状态
- *    都当 bug —— 画廊里跑网页版的那台笔记本，上一个人收起的面板不该替下一个人收着。
- * 5. **圆角只到 `.sb-readout` 为止**，和小屏幕那次豁免同一个数。
+ * **没有 backdrop-filter**：每帧都在变的 WebGPU 画布上它等于每帧多一次合成器取回（`docs/02 P5`）。
  */
 
 .sb-readout {
   position: fixed;
+  /* 和左上角那块屏幕同一列、同宽：左边两样东西站在一条竖线上 */
   left: calc(var(--sb-safe) * 0.5);
   bottom: calc(var(--sb-safe) * 0.5);
   width: var(--sb-see-w);
@@ -75,33 +59,23 @@
   display: flex;
   flex-direction: column;
   pointer-events: none;
-  /* ↓↓ 见文件头第一、二节 */
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--sb-screen) calc(var(--sb-layer-panel) * 100%), transparent);
-  box-shadow: inset 0 0 0 1px var(--sb-screen-edge);
+  /* ↓↓ 见文件头第二节。一块底，没有边 */
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--sb-screen) 70%, transparent);
   color: var(--sb-screen-ink);
-  /* 下面那条"窄屏"规则按面板自己的宽度判，不按视口 */
-  container-type: inline-size;
   font-family: var(--sb-mono);
+  font-size: var(--sb-size-small);
+  line-height: 1.5;
   font-variant-numeric: tabular-nums;
 }
 
-.sb-readout-body {
-  padding: 0.7rem calc(var(--sb-safe) * 0.5) 0.5rem;
-}
+.sb-readout-body { padding: 0.6rem 0.875rem 0.4rem; }
 .sb-readout-body[hidden] { display: none; }
 
-/* 顶上那一行：这一帧有没有人。没人的时候整行退到暗的那一档 */
-.sb-readout-state {
-  margin: 0;
-  font-size: var(--sb-size-small);
-  line-height: var(--sb-lh-body);
-  color: var(--sb-screen-dim);
-}
-.sb-readout.is-present .sb-readout-state { color: var(--sb-screen-ink); }
+/* 顶上那一行：这一帧有没有人。有没有人只由那两个字说，不靠变暗（见文件头第三节） */
+.sb-readout-state { margin: 0 0 0.25rem; }
 
-/* 中英：中文承重；英文是通道代号，全大写、等宽、小一档。
-   **不用 opacity 压暗** —— 11px 的字在深底上再乘 0.6 就掉到 4.5:1 以下。层级靠字号和那一档暗墨 */
+/* 中文照常；英文代号与单位小一号，全大写 —— 这是整块板上唯一的层级 */
 .sb-readout-state .sb-zh,
 .sb-readout-state .sb-en,
 .sb-readout-name .sb-zh,
@@ -113,28 +87,21 @@
 .sb-readout-state .sb-en,
 .sb-readout-name .sb-en,
 .sb-readout-title .sb-en,
-.sb-readout-action .sb-en {
+.sb-readout-action .sb-en,
+.sb-readout-unit {
   font-size: var(--sb-size-micro);
-  margin-left: 0.5em;
   letter-spacing: var(--sb-tracking-label);
   text-transform: uppercase;
 }
-
-/* 屏内的两条发丝线从**屏自己的墨**兑出来，不用 --sb-rule：白纸场景下那 18% 透底把地抬成
-   深灰，#2a3038 反而比地还暗，线就没了（实测截图上两条都看不见）。
-   墨兑水的线永远比它底下的地亮一档，不管地被房间抬亮了多少。 */
-.sb-readout-rule {
-  border: 0;
-  border-top: 1px solid color-mix(in srgb, var(--sb-screen-ink) 16%, transparent);
-  margin: 0.45rem 0 0.35rem;
-}
+.sb-readout-state .sb-en,
+.sb-readout-name .sb-en,
+.sb-readout-title .sb-en,
+.sb-readout-action .sb-en { margin-left: 0.5em; }
 
 /**
- * 三栏：名字 | 数 | 单位。
- *
- * 名字那一栏吃掉剩下的宽度（`minmax(0, 1fr)`）；数定宽 6ch、单位定宽 2.4ch。
- * 面板本身是定宽的（`--sb-see-w`），于是**每一栏的宽度都是常数** ——
- * 数字跳动时一个像素都不回流。一块会呼吸的面板压在等身的身体底下，比它显示什么都抢眼。
+ * 三栏：名字 | 数 | 单位。名字吃掉剩下的宽度，数定宽 6ch、单位定宽 2.4ch，
+ * 面板本身定宽 —— 每一栏宽度都是常数，数字跳动时一个像素都不回流。
+ * ch 按这块板的字号算（等宽字、13px），和数字本身同一个字号，所以 6ch 正好装 6 位。
  */
 .sb-readout-rows {
   display: grid;
@@ -142,35 +109,13 @@
   column-gap: 0.45rem;
   align-items: baseline;
 }
-
-.sb-readout-name {
-  font-size: var(--sb-size-small);
-  line-height: 1.55;
-  color: var(--sb-screen-dim);
-  white-space: nowrap;
-  overflow: hidden;
-}
-
-/* 数：整块屏上最大、最亮的东西。跟着屏幕高走 —— 150px 的屏上 14px，1080 上约 16px，封顶 17px */
-.sb-readout-value {
-  font-size: clamp(0.875rem, calc(var(--sb-see-h) * 0.075), 1.0625rem);
-  line-height: 1.55;
-  text-align: right;
-  color: var(--sb-screen-ink);
-  /* 没有 transition。数字变色 / 淡入会把一块仪表变成一个动效 */
-}
-
-.sb-readout-unit {
-  font-size: var(--sb-size-micro);
-  letter-spacing: var(--sb-tracking-label);
-  color: var(--sb-screen-dim);
-}
+.sb-readout-name { white-space: nowrap; overflow: hidden; }
+/* 数：**不放大、不加亮** —— 和名字同一个字号、同一个墨（文件头第三节） */
+.sb-readout-value { text-align: right; }
 
 /**
- * 最底下那一条：题 + 显示 / 收起。**全宽都是按钮**，整条都能点。
- *
- * 它是这块屏上唯一吃指针的东西。展开时上面有一条线把它和读数分开；
- * 收起时整块屏只剩这一条，线也就不需要了。
+ * 最底下那一条：题 + 显示 / 收起。全宽都是按钮。
+ * 上面那条线是这块板上**唯一**一条线，而且是板里面的分隔，不是边。
  */
 .sb-readout-bar {
   appearance: none;
@@ -184,42 +129,21 @@
   justify-content: space-between;
   align-items: baseline;
   gap: 0.5rem;
-  padding: 0.5rem calc(var(--sb-safe) * 0.5) 0.55rem;
+  padding: 0.45rem 0.875rem 0.5rem;
   font: inherit;
-  font-size: var(--sb-size-small);
-  line-height: var(--sb-lh-body);
-  color: var(--sb-screen-ink);
+  color: inherit;
   text-align: left;
   cursor: pointer;
   pointer-events: auto;
 }
-/* 收起时那条线**变透明，不删掉**。删掉的话这一条矮 1px，贴底的面板里它就往下挪 1px ——
-   实测 835 → 836。「开合时那个键一个像素都不动」差的就是这一个像素。 */
+/* 收起时那条线**变透明，不删掉** —— 删掉那一条会矮 1px，贴底的面板里键就挪了（实测 835 → 836） */
 .sb-readout.is-collapsed .sb-readout-bar { border-top-color: transparent; }
-
 .sb-readout-title { font-weight: var(--sb-weight-head); }
-.sb-readout-action { color: var(--sb-screen-dim); }
 
-/* 手放上来 / 键盘聚焦：开合键只变亮，不上色、不加线、不位移（和右上角那两节同一条） */
-.sb-readout-bar:hover .sb-readout-action,
-.sb-readout-bar:focus-visible .sb-readout-action { color: var(--sb-screen-ink); }
-/* 键盘用户要看得见焦点在哪 —— 一圈暗墨细线，收在面板里面，不画到圆角外 */
-.sb-readout-bar:focus-visible {
-  outline: 1px solid var(--sb-screen-dim);
-  outline-offset: -4px;
-}
-
-/**
- * **窄屏：内边距让给字。**
- *
- * 字落在 `--sb-safe` 那条线上要花 48px 内边距；屏幕在矮视口里最窄 200px（`--sb-see-h` 的下限 150 × 4/3），
- * 剩 152px 装不下「置信 CONF」+ 6 位数 + 单位 —— 实测英文代号被切成 `CON` `JOI` `ENE`，
- * 底边那一条的「读数 / READOUT」折成两行。**对齐让位给读得出。**
- * 220px 以下内边距降到 12px，字不再压在安全区那条线上，但每一格都完整。
- * 这个阈值是量出来的：三栏加底边那一条，最宽的内容要 ~172px，加 48px 内边距 = 220px。
- * 先写成 250 的时候，1440×900 那台笔记本（面板 240px）也被判成窄屏，字白白离开了那条线。
- */
-@container (max-width: 219px) {
-  .sb-readout-body { padding-inline: 0.75rem; }
-  .sb-readout-bar { padding-inline: 0.75rem; }
-}
+/* 手放上来 / 键盘聚焦：那条线加深一档。不变色、不加下划线、不位移 ——
+   字已经是满墨，再"提亮"没有余地；线变深是唯一不动字的回执 */
+.sb-readout-bar:hover,
+.sb-readout-bar:focus-visible { border-top-color: color-mix(in srgb, var(--sb-screen-ink) 40%, transparent); }
+.sb-readout.is-collapsed .sb-readout-bar:hover,
+.sb-readout.is-collapsed .sb-readout-bar:focus-visible { border-top-color: transparent; }
+.sb-readout-bar:focus-visible { outline: 1px solid var(--sb-screen-ink); outline-offset: -4px; }

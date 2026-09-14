@@ -115,7 +115,7 @@ export function mountReadout(options: ReadoutOptions): Readout | null {
   const root = document.createElement('aside');
   root.className = 'sb-readout';
 
-  // ── 读数本体：状态行 · 一条线 · 五行三栏 ─────────────────────────────────
+  // ── 读数本体：状态行 · 五行三栏（**中间不画线**：整块板只有底边那一条） ─────
   const body = document.createElement('div');
   body.className = 'sb-readout-body';
   body.id = 'sb-readout-body';
@@ -124,9 +124,6 @@ export function mountReadout(options: ReadoutOptions): Readout | null {
   state.className = 'sb-readout-state';
   // 中英并置一律走 setBi：`sb-cjk` 由它按**内容**打，手搭 DOM 会漏掉那 0.045em 补偿
   setBi(state, COPY.readout.absent);
-
-  const rule = document.createElement('hr');
-  rule.className = 'sb-readout-rule';
 
   const rows = document.createElement('div');
   rows.className = 'sb-readout-rows';
@@ -143,7 +140,7 @@ export function mountReadout(options: ReadoutOptions): Readout | null {
     rows.append(name, value, unit);
     cells.set(key, { value, unit });
   }
-  body.append(state, rule, rows);
+  body.append(state, rows);
 
   // ── 最底下那一条：题 + 显示 / 收起 ───────────────────────────────────────
   const bar = document.createElement('button');
