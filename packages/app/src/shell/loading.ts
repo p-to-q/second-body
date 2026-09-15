@@ -28,14 +28,39 @@
  * `shell/degrade.ts` 降级时会打 `sb:degrade` 事件，这里接住它，把那一行换成
  * 「画面会简单一点，它照样会动起来」—— 观众读到的是**结果**，不是"降级"这个词。
  * 启动彻底失败走 `boot-error.ts`，那一屏会先把这一层摘掉（两块浮层不许叠在一起）。
+ *
+ * ## 字标先到，其余后到（作品负责人 2026-09-15 裁定）
+ *
+ * 左上角挂的是 `ui/mark.ts` 那两行字（选择页左上角、`/about` 页头同一份组件），
+ * 不是另起一个 logo：它一出现就该和后面选择页上那一份读起来是**同一件东西**，
+ * 差一笔都不许。它跟着这一层的淡入一起出现，不再等三档进度——先有名字，
+ * 再有细节，是这个屏该有的顺序。
+ *
+ * 细节（百分比、三档、总进度线）晚 `DETAIL_DELAY_MS` 才展开：字标先站稳，
+ * 剩下的东西再铺开，两次出现不挤成一下。
+ *
+ * 缓存命中时这一层可能一闪而过——字标刚出现就被摘掉，观众根本没读到。
+ * 所以只要它露过面（过了宽限期），就至少露 `MIN_SHOW_MS`：这是一段**刻意的
+ * 停留**，不是没找到信号硬凑的等待，`finish()` 因此在最少展示时长上会晚收，
+ * 不会晚开始（不阻塞后面的舞台/摄像头）。
  */
 import { COPY, setBi, type BiText } from '../ui/i18n.ts';
+import { markNode } from '../ui/mark.ts';
 import type { Flags } from './kiosk.ts';
 import '../ui/type.css';
 import './loading.css';
 
 /** 这么快就好了的话，观众不该看见任何东西（见文件头第 3 条） */
 const GRACE_MS = 600;
+
+/**
+ * 露过面就至少露这么久：字标一闪就摘等于没出现过。
+ * 只在真的到了 `is-on`（过了 `GRACE_MS`）之后才计时——瞬间加载的路径完全不受影响。
+ */
+const MIN_SHOW_MS = 900;
+
+/** 字标先站稳，细节再展开的那一拍。和 `type.css` 的 `--sb-dur-move`（420ms）同一个数——这也是一次"挪到位" */
+const DETAIL_DELAY_MS = 420;
 
 /** 出场动效 180ms（docs/23 §0），放完再从 DOM 里摘掉 */
 const LEAVE_MS = 180;
@@ -91,18 +116,27 @@ export function mountLoading(flags: Flags): Loading {
   layer.setAttribute('role', 'status');
   layer.setAttribute('aria-live', 'polite');
 
+  // 字标：和选择页左上角、`/about` 页头同一个组件。它是这一屏第一件、也是
+  // 最先站稳的东西，不跟着 `is-detailed` 走——见文件头「字标先到，其余后到」
+  const mark = markNode('div', 'start');
+  mark.classList.add('sb-loading-mark');
+  layer.append(mark);
+
   const inner = document.createElement('div');
   inner.className = 'sb-loading-inner';
 
+  // 细节：百分比 + 三档 + 总进度线，晚 `DETAIL_DELAY_MS` 才展开（`is-detailed`）。
+  // 作品名已经是左上角那一份字标在说，这里不再说第二遍（entry.ts 同一条规矩：
+  // 同一个名字在一屏上说两遍，读起来是版面在结巴）
+  const details = document.createElement('div');
+  details.className = 'sb-loading-details';
+
   const head = document.createElement('div');
   head.className = 'sb-load-head';
-  const work = document.createElement('span');
-  work.className = 'sb-label';
-  work.textContent = `${COPY.title.zh} · ${COPY.title.en}`;
   const pct = document.createElement('span');
   pct.className = 'sb-load-pct';
   pct.textContent = '0%';
-  head.append(work, pct);
+  head.append(pct);
 
   const rows = new Map<LoadStageId, Row>();
   const list = document.createElement('div');
@@ -127,7 +161,8 @@ export function mountLoading(flags: Flags): Loading {
   const note = document.createElement('p');
   note.className = 'sb-load-note';
 
-  inner.append(head, list, bar, note);
+  details.append(head, list, bar, note);
+  inner.append(details);
   layer.append(inner);
   document.body.append(layer);
 
@@ -135,8 +170,15 @@ export function mountLoading(flags: Flags): Loading {
   let shown = 0;          // §进度只许前进：已经念出口的百分比不许退回去
   let finished = false;
   let degraded = false;
+  /** 这一层真的露出来的那一刻（`is-on` 落地时）。没露过面就还是 -1 —— 见 `finish()` 的快路径 */
+  let shownAt = -1;
 
-  const graceTimer = window.setTimeout(() => layer.classList.add('is-on'), GRACE_MS);
+  let detailTimer: number | undefined;
+  const graceTimer = window.setTimeout(() => {
+    layer.classList.add('is-on');
+    shownAt = performance.now();
+    detailTimer = window.setTimeout(() => layer.classList.add('is-detailed'), DETAIL_DELAY_MS);
+  }, GRACE_MS);
 
   /** 慢网那两句。降级的那句优先级更高 —— 它解释的是画面本身会变 */
   const noteTimers = [
@@ -179,6 +221,7 @@ export function mountLoading(flags: Flags): Loading {
 
   function cleanup(): void {
     clearTimeout(graceTimer);
+    clearTimeout(detailTimer);
     for (const t of noteTimers) clearTimeout(t);
     removeEventListener('sb:degrade', onDegrade);
   }
@@ -212,8 +255,17 @@ export function mountLoading(flags: Flags): Loading {
       console.info(`[loading] 加载完成，耗时 ${Math.round(performance.now() - t0)}ms`);
       // 宽限期内就结束的：一帧都没画过，直接摘掉，不要放一次没人看见的淡出
       if (!layer.classList.contains('is-on')) { layer.remove(); return; }
-      layer.classList.add('is-leaving');
-      setTimeout(() => layer.remove(), LEAVE_MS);
+      // 真的到齐了，不再是"99% 假装还没到"——见 render() 里那条注释，那条只管中途
+      pct.textContent = '100%';
+      fill.style.width = '100%';
+      const leave = (): void => {
+        layer.classList.add('is-leaving');
+        setTimeout(() => layer.remove(), LEAVE_MS);
+      };
+      // 露过面就至少露 MIN_SHOW_MS：这是刻意的停留，不是没信号硬凑的等待，
+      // 所以只晚收，不晚开始——舞台、摄像头照常往下走，等的只有这一层自己摘掉
+      const wait = MIN_SHOW_MS - (performance.now() - shownAt);
+      if (wait > 0) setTimeout(leave, wait); else leave();
     },
   };
 }
