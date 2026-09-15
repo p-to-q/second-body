@@ -71,13 +71,10 @@ const MIN_SHOW_MS = 900;
  * 没有编造任何进度——三档还是只在真信号到齐时才到 100%（见文件头第 2 条），
  * 这一条只管"到了之后别立刻走"，不改到达那一刻本身。
  */
-const DONE_HOLD_MS = 700;
+const DONE_HOLD_MS = 1000;
 
 /** 字标先站稳，细节再展开的那一拍。和 `type.css` 的 `--sb-dur-move`（420ms）同一个数——这也是一次"挪到位" */
 const DETAIL_DELAY_MS = 420;
-
-/** 出场动效 180ms（docs/23 §0），放完再从 DOM 里摘掉 */
-const LEAVE_MS = 180;
 
 /** 慢到这里开始说人话。8 秒这个数来自 docs/23 §S0 的「冷启动 > 8 秒（慢网）」 */
 const SLOW_MS = 8_000;
@@ -272,10 +269,17 @@ export function mountLoading(flags: Flags): Loading {
       // 真的到齐了，不再是"99% 假装还没到"——见 render() 里那条注释，那条只管中途
       pct.textContent = '100%';
       fill.style.width = '100%';
-      const leave = (): void => {
-        layer.classList.add('is-leaving');
-        setTimeout(() => layer.remove(), LEAVE_MS);
-      };
+      // **直接摘掉，不做淡出**（作品负责人 2026-09-15 追加要求）。
+      //
+      // 原来这里有一步 180ms 的透明度淡出（`is-leaving`），本意是"出比进快"（docs/23 §0）。
+      // 但选择页在这一刻早就已经在这一层底下了——`chooseTheme(...).then()`
+      // 先叫 `loading.finish()`，选择页才第一次真正露面（main.ts 那段注释：
+      // "选择页已经在屏幕上了"）。这一层的底是不透明的 `--sb-paper`，淡出的那 180ms 里
+      // 底下已经站稳的选择页（连同它左上角同一份字标）就会跟这一层的字标短暂叠在一起——
+      // 两份视觉上一样的东西压在同一个位置，读作"重叠"，不是过渡。
+      // 直接摘掉没有这个问题：这一层消失的那一帧，底下本来就有的东西照样在，
+      // 字标那个位置因此**没有变化**，读作"一直都在"，不是"先叠后收"。
+      const leave = (): void => { layer.remove(); };
       // 两条下限取更大的那个：MIN_SHOW_MS 保证"这一层至少露了多久"（缓存命中时管用）；
       // DONE_HOLD_MS 保证"真到 100% 之后至少停这么久"（冷启动早就过了 MIN_SHOW_MS，
       // 不加这一条的话数字刚跳到 100% 画面就换了）。都只晚收，不晚开始——

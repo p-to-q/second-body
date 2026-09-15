@@ -26,11 +26,8 @@
 
 .sb-loading.is-on { opacity: 1; }
 
-/* 出比进快（§0） */
-.sb-loading.is-leaving {
-  opacity: 0;
-  transition: opacity 180ms cubic-bezier(.4, 0, 1, 1);
-}
+/* 没有「出场」的那一步：直接从 DOM 里摘掉，不淡出（loading.ts 的 `finish()` 有完整理由）——
+   底下的选择页这一刻早就已经在了，淡出的那 180ms 只会让它和这一层的字标短暂叠在一起。 */
 
 /* 字标：贴左上安全区，和选择页 `.sb-brand`、`/about` 页头同一个位置口径。
    跟着 `.sb-loading` 的淡入一起出现，不单独再等一拍——它是这一屏第一件东西。
