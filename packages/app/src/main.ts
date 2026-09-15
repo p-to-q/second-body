@@ -124,12 +124,19 @@ async function boot(): Promise<void> {
   // 只在真要挂东西的时候才建，否则空的 fixed 元素会吃掉指针事件。
   const corner = flags.nav ? cornerColumn() : undefined;
 
+  // 铺开是**展签版式的一部分** —— `shell/entry.css` 只在够宽时才为它让出右边一栏
+  // （`@media (max-width: 620px)` 那条，跨文件对应关系写在这条注释和那条注释里）。
+  // 620px 以下展签不再让位，这时候如果还铺开，目录会整片压在展签上——
+  // 装置现场之外，手机和不少旧笔记本的视口都落在这一档，这正是被投诉的那个 bug。
+  // 只在挂载这一刻判一次：nav.ts 的 toggle/点外面/Escape 都不看这个值，
+  // 之后开合概不受影响。
+  const entryHasRoomForNav = typeof matchMedia === 'function'
+    && matchMedia('(min-width: 621px)').matches;
+
   let controls: Controls | null = null;
   const nav = mountNav({
     mount: corner,
-    // 铺开是**展签版式的一部分** —— `shell/entry.css` 为它让出了右边一栏。
-    // 深链和现场没有展签，也就没有那一栏：那时候铺开的目录是整片压在作品上的。
-    startOpen: entry?.shown === true,
+    startOpen: entry?.shown === true && entryHasRoomForNav,
     enabled: flags.nav, overlay: true,
   });
 
