@@ -503,3 +503,41 @@ docs/13 §6 记的是"标签页 → 选择页 → 舞台，100 个请求 2.06 MB
 5. **小屏的 `title` 看不见**：这一块指针穿透（`pointer-events: none`），悬停不出字。它只给无障碍与检查用；看得见的说明在 HUD。
 6. **`dev/framing-sim.ts` 手抄了 main.ts 的接线顺序。** main.ts 改了，模拟不会自动跟；取证数字只对当前这一版成立。
 7. **回放录制仍然没有 `screen`**（§5.7 第 4 条）：`?demo=1` 上横向与侧边话都演示不了。
+
+## 7 · 中景更快跟（2026-09-15，第四轮反馈）
+
+> 反馈原话（译）：①（重申）左右晃/出画时舞台上的身体看起来没有跟——追了一遍接线（`main.ts` →
+> `lateralEvidence(live)` → `stepLateral` → `shiftSkeleton` → `stage.frame`），逐段核对和 §6.4 落地的
+> 设计一致，没有找到额外的接线 bug；§6.8 第 2 条那句"没接过真人摄像头"依然成立，本轮同样只在
+> 合成证据上验证，**这件事需要作品负责人自己拿真摄像头对着 `?debug=1` 的 HUD `framing` 行核一遍**
+> （逐帧读数：横向偏移 / 侧 / 余量），才能判断是这一层真的没反应，还是余量 / 死区在特定取景下算出来
+> 很小、动作因此不明显。② 作品负责人追加要求：全景那一档的迟钝是故意的（不抢"等身 + 相机距离不动"
+> 那条主张的戏），但中景（`shot === 'upper'`）已经是自适应取景，不该被同一条主张管，应该更快、更小
+> 死区。③ Google/Chrome 相机自带的 auto framing：`?camframing=auto|on|off`（`capture/cam-framing.ts`）
+> 已经在读 `getSettings().faceFraming` 并让分类器把"腿不在"当成预期（§6.3 三）——这一条**已经做了**，
+> 不是新需求；本轮没有再改它，因为它的读方向是"识别摄像头在裁"，不是"跟随摄像头的裁切位置"，
+> 两者不是同一件事，误把后者读成前者会造成迷惑。
+
+### 7.1 落地
+
+只动 `core/src/autoframe.ts`（`LateralInput.upper` 一个新字段）、`core/src/tuning.ts`
+（`lateralDeadZoneUpper` = 2cm、`lateralOmegaUpper` = 5.5，全景那两个数不变）、`main.ts`
+（`stepLateral()` 传 `upper: framing.shot === 'upper'`）。全景一像素都不变——`upper` 缺省时
+`input.upper` 是 falsy，走的还是原来那两个常数，`core/test/autoframe-lateral.test.ts` 的旧断言原样通过。
+
+`core/test/autoframe-continuity.test.ts` 的横向守卫原来没有把 `upper` 传进 `stepLateral()`，
+新常数因此完全不在它的随机序列覆盖范围里——**补上了**（`upper: f.shot === 'upper'`），
+再跑一遍确认 ω = 5.5 没有让任何一帧的变化超过 `AUTOFRAME.maxStep.lateral`（21 个随机种子全绿）。
+
+`autoframe-lateral.test.ts` 新增一条：同一个 0.01 画面宽的小步位移，全景（死区 5cm）不动，
+中景（死区 2cm）该动；同一个大步位移，半秒时中景比全景更接近目标（ω 更高）。
+
+### 7.2 仍然没做的、可能还不对的（并入 §6.8 的清单）
+
+8. **中景更快这条同样没接过真人摄像头**——ω = 5.5、死区 2cm 是按"应该比全景明显"的判断选的，
+   不是量出来的；如果现场读成"抖"或者"冲过头"，先看 HUD 的 `framing` 行里 `why` 是不是长时间停在
+   `follow`（正常）还是在 `hold-*` 之间跳（那是证据本身不稳，不是弹簧的问题）。
+9. **中景更快跟和摄像头自己的 auto framing 会不会打架，没有验证过。** 两边都在动同一件事的不同层：
+   我们的中景跟随挪的是**身体在画面里的位置**，摄像头的 auto framing 挪的是**送进 MediaPipe 的那帧
+   画面本身**。理论上互不冲突（我们读的坐标已经是摄像头裁完之后的），但从没有在一台真的开着系统
+   auto framing 的摄像头上试过这个组合。
