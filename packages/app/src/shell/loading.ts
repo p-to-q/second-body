@@ -59,6 +59,20 @@ const GRACE_MS = 600;
  */
 const MIN_SHOW_MS = 900;
 
+/**
+ * 三档**真的**到齐（`finish()` 被调用）之后，再停这么久才走（作品负责人 2026-09-15 追加要求）。
+ *
+ * 和 `MIN_SHOW_MS` 管的是两件不同的事：`MIN_SHOW_MS` 保证"这一层至少露了多久"，
+ * 冷启动这种早就超过它的加载不会再被它拖住——三档真的到 100% 的那一刻，`finish()` 几乎立刻
+ * 就走，观众看见的是数字刚跳到 100% 画面就换了，读起来像"卡了一下就切走"，不像"到了"。
+ * 这一条管的是**到齐那一刻本身**：不管加载花了 300ms 还是 30 秒，真到 100% 之后都停这么久，
+ * 让百分比和三个"已就绪"有机会被看清楚，再往下走。
+ *
+ * 没有编造任何进度——三档还是只在真信号到齐时才到 100%（见文件头第 2 条），
+ * 这一条只管"到了之后别立刻走"，不改到达那一刻本身。
+ */
+const DONE_HOLD_MS = 700;
+
 /** 字标先站稳，细节再展开的那一拍。和 `type.css` 的 `--sb-dur-move`（420ms）同一个数——这也是一次"挪到位" */
 const DETAIL_DELAY_MS = 420;
 
@@ -262,10 +276,12 @@ export function mountLoading(flags: Flags): Loading {
         layer.classList.add('is-leaving');
         setTimeout(() => layer.remove(), LEAVE_MS);
       };
-      // 露过面就至少露 MIN_SHOW_MS：这是刻意的停留，不是没信号硬凑的等待，
-      // 所以只晚收，不晚开始——舞台、摄像头照常往下走，等的只有这一层自己摘掉
-      const wait = MIN_SHOW_MS - (performance.now() - shownAt);
-      if (wait > 0) setTimeout(leave, wait); else leave();
+      // 两条下限取更大的那个：MIN_SHOW_MS 保证"这一层至少露了多久"（缓存命中时管用）；
+      // DONE_HOLD_MS 保证"真到 100% 之后至少停这么久"（冷启动早就过了 MIN_SHOW_MS，
+      // 不加这一条的话数字刚跳到 100% 画面就换了）。都只晚收，不晚开始——
+      // 舞台、摄像头照常往下走，等的只有这一层自己摘掉
+      const wait = Math.max(MIN_SHOW_MS - (performance.now() - shownAt), DONE_HOLD_MS);
+      setTimeout(leave, wait);
     },
   };
 }
