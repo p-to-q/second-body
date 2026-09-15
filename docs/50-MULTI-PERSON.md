@@ -400,6 +400,29 @@ draw call：任何人数下 = 一具身体（共用桶，`people-budget.test.ts`
 （`main.ts`），只在真摄像头开着时才推进；回放期间（默认展示、`?demo=1`、摄像头丢线
 retreat 回放的那几秒）探测完全不动，`peopleCap` 停在探测开始前的那个数。
 
+**更严重的第二个回归，同一次报告，藏在第一个后面：** 上面那条验证路径本身用的是
+"`setPeople(2)` 之后"的状态——那一刻起 `capture.latestAll()` 走 `synthPeople()`
+（`people-synth.ts`），它把 `screen` 从 `world` 现算出来，所以两个人（含"第一个人"）
+都有 `screen`。但 `setPeople(2)` **之前**、也就是 `peopleCap` 还没被探测确认到 2 的
+那整段默认时间（几乎所有观众一开始都在这段时间里），`latestAll()` 走的是
+`this.#people <= 1` 那条分支，返回**原始录制帧**——两条真实录制
+（`pose-jumpingjacks` / `pose-walkturn`）都没有 `screen`（`pose-synthetic` 才有）。
+`people.ts` 的 `observePerson()` 对没有 `screen` 的姿态硬性返回 `null`（几何身份匹配
+非它不可）。`probeCapable`（`peopleAuto` 默认开）把 `multi` 从"`flags.people > 1`"
+改成了"`flags.people > 1 || probeCapable`"，也就是**默认必为 true**——于是观众还没碰
+摄像头的默认展示，从第一帧就被送进 `people.tracker.update()`，而它因为收不到任何
+`screen` 永远选不出主身体，`crowd.primary` 恒为 `null`，`live` 恒为 `null`，
+`poseClock` 永远停在 `empty`——回放驱动的身体因此**完全不出场**（不是变慢、变卡，
+是从来没有过）。两条真实录制里抽到哪一条全凭 `pickClip()` 的随机结果，
+`pose-synthetic`（有 `screen`）恰好没事，另外两条（多数情况）必现。
+
+**已修**（`main.ts` 的 `live`计算）：只在**真的确认**了不止一个人（`peopleCap > 1`，
+不是"探测能力打开"）时才信跟踪器给的主身体；`peopleCap === 1`（默认展示、探测还没
+真的升档）时直接走 `capture.latest()`，和这一版多人功能落地之前完全同一条路，不需要
+`screen`。用 `?demo=1&theme=guest.keynote&debug=1&clip=jumpingjacks`（强制挑没有
+`screen` 的那条）复现：改前 HUD 常驻 `pose=empty`、`无人`；改后 `pose=live`，身体正常
+出场跳预设动作。
+
 ### 8.2 没做（按收益排序）
 
 1. **§1.2 的推理表**，然后按它定 `PEOPLE.defaultCap` / `defaultCapKiosk`（命令在 §1.2）。

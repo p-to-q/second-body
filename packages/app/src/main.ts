@@ -848,7 +848,17 @@ async function boot(): Promise<void> {
       }
     }
 
-    const live = crowd ? (crowd.tracks.find((t) => t.id === crowd.primary && t.missing === 0)?.pose ?? null) : capture.latest();
+    // 只在真的确认了不止一个人（`peopleCap > 1`）时才信跟踪器给的"主身体"——
+    // `people.ts` 的 `observePerson()` 硬性要求 `pose.screen`（几何身份匹配靠它），
+    // 而回放录制的两条真实素材（`pose-jumpingjacks` / `pose-walkturn`）从来没有
+    // `screen`（`pose-synthetic` 才有，docs/49 §6.2 同一件事）。`peopleAuto` 默认把
+    // `multi` 打开之后，观众还没开摄像头的默认展示会被无差别地送进这条跟踪器——
+    // 跟踪器因为没有 `screen` 永远选不出主身体，`crowd.primary` 恒为 null，
+    // 身体因此永远不出场。单人（`peopleCap === 1`，探测还没真的确认第二个人）时
+    // 走原来那条路，一个字不变：直接信 `capture.latest()`，不需要几何身份。
+    const live = people && crowd && peopleCap > 1
+      ? (crowd.tracks.find((t) => t.id === crowd.primary && t.missing === 0)?.pose ?? null)
+      : capture.latest();
     // 主身体的人丢了一阵又被认回来：姿态时钟和滤波器不许在"之前"和"之后"之间插值（docs/50 §2.4）——
     // 中间可能隔着一次换姿势，甚至是另一个人被认成了他。插过去的结果是一具摊在地上的星形（2026-09-14 无头取证撞到的）
     if (people && crowd?.tracks.some((t) => t.primary && t.reacquired)) {
