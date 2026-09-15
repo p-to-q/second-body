@@ -39,7 +39,7 @@
 import type { RawPose } from '../../../core/src/types.ts';
 import { cropZoomLimit, stepCrop, CROP_FULL, type Crop } from '../../../core/src/autoframe.ts';
 import type { Flags } from '../shell/kiosk.ts';
-import { COPY, setBi } from './i18n.ts';
+import { COPY, setBi, type BiText } from './i18n.ts';
 import { createSeeWatch, cropActive, displaySide, wantsPreview, type SeeReading } from './preview-state.ts';
 import './preview.css';
 
@@ -131,6 +131,13 @@ export function mountPreview(opts: {
    *（docs/49 §6.3 三；这一块指针穿透，悬停也不出字 —— 看得见的说明在 `?debug=1` 的 HUD 上）。
    */
   cameraFraming?: () => boolean;
+  /**
+   * 自动探测确认了一个新人（`core/src/people-probe.ts`，docs/50 §6.3 修订）：非 null 时在小屏下面
+   * 单独一行说"看到了第几个人"。和上面 `word`（「它有没有看见我」）是两件不同的事，
+   * 所以是独立的一行，不复用同一段文字——那句话此刻可能正在说别的事（往后退一点 / 站到亮一点的地方）。
+   * 缺省 = 单人 / 探测没开：这一行永远不出现。
+   */
+  notice?: () => BiText | null;
 }): Preview | null {
   if (!wantsPreview(opts.flags)) return null;
 
@@ -157,12 +164,17 @@ export function mountPreview(opts: {
   const word = document.createElement('p');
   word.className = 'sb-see-word';
 
+  // 「看到了第二 / 三个人」——独立于上面那句「它有没有看见我」，理由见 `notice` 参数的注释
+  const noticeEl = document.createElement('p');
+  noticeEl.className = 'sb-see-note';
+
   screen.append(canvas);
-  root.append(screen, word);
+  root.append(screen, word, noticeEl);
   (opts.mount ?? document.body).append(root);
 
   const watch = createSeeWatch();
   let shown: SeeReading | null = null;
+  let shownNotice: BiText | null = null;
   /** 上一次画进画布的那一帧的时间戳。推理是 30Hz，画面可以是 120Hz —— 不重画同一帧 */
   let drawnAt = -1;
   let attached: HTMLVideoElement | null = null;
@@ -233,6 +245,14 @@ export function mountPreview(opts: {
     );
   }
 
+  /** 「看到了第二 / 三个人」：`null` 就清空——它是一句一段时间之后自己收起的话，不是一个常驻状态 */
+  function sayNotice(n: BiText | null): void {
+    if (shownNotice === n) return;
+    shownNotice = n;
+    if (!n) { noticeEl.textContent = ''; return; }
+    setBi(noticeEl, n);
+  }
+
   /** 摄像头自己在取景：只挂属性，不出字 */
   let camNoted = false;
   function noteCameraFraming(on: boolean): void {
@@ -280,6 +300,7 @@ export function mountPreview(opts: {
       const upper = opts.framing?.() ?? false;
       const seen = watch.update({ camera, pose, upperIsIntended: upper }, dt);
       say(seen);
+      sayNotice(opts.notice?.() ?? null);
       applyCrop(cropActive({
         upperIsIntended: upper,
         reduced: opts.reduced?.() ?? false,
