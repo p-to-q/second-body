@@ -137,11 +137,24 @@ interface Row {
   started: boolean;
 }
 
+export interface MountLoadingOptions {
+  /**
+   * 这一次开机会不会立展签（`wantsEntry(flags)`，main.ts 传进来——`mountEntry()`
+   * 这时候还没调用，但要不要展签是纯读 flags 的判断，不需要等它）。
+   *
+   * 有展签时**这一层不挂字标**：展签自己有一份"巨题变字标"的动画
+   * （`entry.ts` 的 `morph(title, 'mark', …)`），加载态如果也做一遍同样的
+   * 大变小，观众会同时看见两份 SEE-ME SEE-U 的动画叠在一起——那不是"效果好"，
+   * 是"看不懂哪个才是真的"。字标动画只该属于一条路，见文件头「字标落定」那一节。
+   */
+  hasEntry?: boolean;
+}
+
 /**
  * 挂上加载态。`?loading=0` 时返回一个空实现 —— 拿不准这一层会不会打扰画面时，
  * 现场可以用它一键关掉，而不需要改代码或回滚（硬约束里写明了这条退路）。
  */
-export function mountLoading(flags: Flags): Loading {
+export function mountLoading(flags: Flags, opts: MountLoadingOptions = {}): Loading {
   if (typeof document === 'undefined' || !flags.loading) return NOOP;
 
   const layer = document.createElement('div');
@@ -150,12 +163,17 @@ export function mountLoading(flags: Flags): Loading {
   layer.setAttribute('role', 'status');
   layer.setAttribute('aria-live', 'polite');
 
-  // 字标：和选择页左上角、`/about` 页头同一个组件。它是这一屏第一件、也是
-  // 最先站稳的东西，不跟着 `is-detailed` 走——见文件头「字标先到，其余后到」。
-  // 一开始是**大的**（`is-big`）——退场时才缩小挪到角落，见文件头「字标落定」那一节
-  const mark = markNode('div', 'start');
-  mark.classList.add('sb-loading-mark', 'is-big');
-  layer.append(mark);
+  // 字标：和选择页左上角、`/about` 页头同一个组件。**只在没有展签时才挂**——
+  // 见 `MountLoadingOptions.hasEntry` 的注释；有展签时那份"大变小"的动画已经
+  // 是展签自己的事，这一层不重复一遍。没有展签（深链、`?demo=1`、现场）时它是
+  // 这一屏第一件、也是最先站稳的东西，不跟着 `is-detailed` 走——先有名字，
+  // 再有细节。一开始是**大的**（`is-big`）——退场时才缩小挪到角落，见文件头
+  // 「字标落定」那一节
+  const mark = opts.hasEntry ? null : markNode('div', 'start');
+  if (mark) {
+    mark.classList.add('sb-loading-mark', 'is-big');
+    layer.append(mark);
+  }
 
   const inner = document.createElement('div');
   inner.className = 'sb-loading-inner';
@@ -301,6 +319,9 @@ export function mountLoading(flags: Flags): Loading {
       // 摘掉时因此没有跳变。
       const leave = (): void => {
         layer.classList.remove('is-detailed');
+        // 没有字标（`opts.hasEntry`）：细节收起之后直接摘掉，没有大变小、没有闪一下——
+        // 那两步是字标自己的退场，这一层没有字标就没有什么好退场的
+        if (!mark) { setTimeout(() => layer.remove(), SETTLE_DETAILS_MS); return; }
         setTimeout(() => {
           mark.classList.remove('is-big');
           setTimeout(() => {

@@ -57,7 +57,7 @@ import { showBootError } from './shell/boot-error.ts';
 import { createSlowLoop } from './slow/slow.ts';
 import { createVisitReporter } from './archive/visit.ts';
 import { enterKiosk, readFlags } from './shell/kiosk.ts';
-import { mountCameraButton, mountEntry } from './shell/entry.ts';
+import { mountCameraButton, mountEntry, wantsEntry } from './shell/entry.ts';
 import { mountLoading } from './shell/loading.ts';
 import { showNotice } from './shell/notice.ts';
 import { isVacantPosition, vacancyOnShow } from './shell/vacancy.ts';
@@ -99,7 +99,16 @@ async function boot(): Promise<void> {
   // 在这之前，从打开 URL 到身体出现之间观众看到的是一块黑屏。它挂在最前面，
   // 但 600ms 宽限期内一帧都不画 —— 快的时候观众仍然不该看见这个场景。
   // `?loading=0` 返回空实现，所以下面的调用点不需要写 if。
-  const loading = mountLoading(flags);
+  //
+  // `wantsEntry(flags)` 在这里判一次、传给它：`mountEntry()` 这时候还没调用
+  // （它要等 `revealSettled()` 之后，见下面），但"要不要展签"是纯读 flags 的判断，
+  // 不需要等那一步。加载态需要提前知道结果——展签在场时它自己已经不显字标
+  // （`html.sb-entry-up`），但**它自己的字标动画**（大变小、闪一下）是另一件事：
+  // 展签那条路已经有 `morph(title, 'mark', …)` 在把巨题变成字标（`entry.ts`），
+  // 加载态如果也做一遍同样的"变大变小"，观众会同时看见两份 SEE-ME SEE-U 的动画
+  // 叠在一起（2026-09-15 真人测出来的）。所以有展签时加载态**不挂字标**，
+  // 让唯一的那份动画只属于展签→选择页那条路。
+  const loading = mountLoading(flags, { hasEntry: wantsEntry(flags) });
   // index.html 在第一帧之前按 URL 开上的纸底（docs/47）。展签 / 选择页各自 hold 住之后才放
   const releasePrepaint = adoptPrepaint();
 

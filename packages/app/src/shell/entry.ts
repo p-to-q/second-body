@@ -71,7 +71,7 @@ export interface Entry {
  * 深链 = "我知道我要什么"，别拿展签挡路。
  * `?debug` / `?nopost` 这种纯排查开关不算意图，所以不在这张表里。
  */
-function wantsEntry(flags: Flags): boolean {
+export function wantsEntry(flags: Flags): boolean {
   return !flags.kiosk && !flags.demo && !flags.theme && !flags.act && !flags.plan;
 }
 
