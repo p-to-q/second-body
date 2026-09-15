@@ -203,6 +203,15 @@ export const COPY = {
     outRight: bi('往左一点，回到画面里', 'Move left, back into frame'),
     /** 摄像头自己在取景时挂在小屏上的 `title`（不是常驻的字，docs/49 §6.3 三） */
     camFraming: bi('摄像头自己在取景：腿被它裁掉不算出画', 'The camera is framing itself: legs it crops out are not counted'),
+    /**
+     * 自动探测确认了一个新人、给了他一具身体（`core/src/people-probe.ts`，docs/50 §6.3 修订）。
+     * 只在**确认之后**出现（不是每一次一晃而过的检测），过一会儿自己收起（`PEOPLE.probeHintSeconds`）——
+     * 它是一句"我们看到了"，不是一个常驻的人数读数（那是 §6.1 明确不做的事）。
+     */
+    peopleNoticed: {
+      2: bi('看到了第二个人，给了一具身体', 'Noticed a second person — gave them a body'),
+      3: bi('看到了第三个人，给了一具身体', 'Noticed a third person — gave them a body'),
+    },
   },
 
   /**

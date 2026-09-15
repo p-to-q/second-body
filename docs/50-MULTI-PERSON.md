@@ -301,6 +301,29 @@ draw call：任何人数下 = 一具身体（共用桶，`people-budget.test.ts`
   3. 现场：装置的首要观众是站在站位线上的**一个**人（docs/49 §5.1）；多人是策展决定，`?kiosk=1&people=2` 一个参数就开。
   4. §10 的实测如果显示两人档在一个人时代价可以忽略，第 3 条改成现场默认 2 —— 那一行实测是这个默认值唯一的依据。
 
+> **2026-09-15 修订：网页版加了一层背景自动探测，默认值本身不改。**
+>
+> 上面第 2 条的顾虑是真的，但"默认值焊死在 1"把它变成了另一个问题：真的有两个人一起站到
+> 摄像头前，除非有人知道要去按「人数」，身体永远只有一具。作品负责人的方向（2026-09-15）：
+> 网页版仍然从 1 起步（不回归"多数访客独自一人"这个常见情形，也不违反 §1.2 的推理成本），
+> 但 `flags.peopleAuto` 时（`?people=` 没写、且不是 `?kiosk=1`——显式选择和现场都不碰）
+> 背景里按 `PEOPLE.probeIntervalSeconds` 定期把 `numPoses` 抬一档看一眼：`core/src/people-probe.ts`
+> 的纯状态机 `stepProbe()` 决定要不要把这一档当真——见到的人要**稳稳地被跟踪器选中、连续在场
+> 够久**（`PEOPLE.probeConfirmSeconds`，复用 `people.ts` 自己那套滞回/`leak()`，不是另一套置信度）
+> 才升档；没等到就退回原来那一档；升过档之后那具身体久没人坐（`PEOPLE.probeDeescalateSeconds`），
+> 也会退回去，不是"来过一次就永远多付一档的检测器成本"。
+>
+> 第 2 条的顾虑因此被**正面处理**，不是回避：真正升档的那一刻，小屏下面出一句
+> "看到了第二 / 三个人"（`COPY.preview.peopleNoticed`，`PEOPLE.probeHintSeconds` 之后自己收起）——
+> 读作"我们注意到了、这是有意的"，不是观众自己发现画面里凭空多出一具身体。
+> 桶容量（`creature.ts` 的 `companionsMax`）在探测打开的那一刻、开机时就按 `PEOPLE.hardMax`
+> 留够（docs/50 §5.1：桶本来就不分人，多留的实例格闲着不花代价）——这样探测真的确认时不用
+> 半路重建管线，`plan.bodies` 只是一个数字，重算是热的（`replanPeople()`）。
+> 试探窗口本身（tracker.cap 临时抬一档）不会让任何一具身体被画出来——`plan.bodies` 只在
+> **确认**（或退档）那一刻才跟着改，一次擦肩而过因此看不见任何变化，不会有"先长出来又溶掉"
+> 的坏味道。现场（`?kiosk=1`）与显式 `?people=`（哪怕就是写 `1`）完全不受这一段影响。
+> 落地细节见 §8.1，还没做的部分见 §8.2。
+
 ---
 
 ## 7 · 边界：每条一个决定、一个测试
@@ -346,8 +369,26 @@ draw call：任何人数下 = 一具身体（共用桶，`people-budget.test.ts`
 | `?people=1\|2\|3`、控件「人数」· N（重载）、HUD 的 people 几行、小屏画其余的人 | `shell/kiosk.ts`、`ui/control-table.ts`、`ui/i18n.ts`、`shell/hud.ts`、`ui/preview.ts` | `people-flag` / `people-hud` / `control-table` |
 | 工作台 `/dev/people.html`：六个合成场景、轨迹时间线、舞台俯视、门限 | `dev/people.{html,ts}`，目录里一行 | — |
 | 取证脚本（raw CDP）与合成假摄像头 | `scripts/people/{measure.ts,figures.py}` | — |
+| **自动探测**（2026-09-15，§6.3 修订）：背景定期抬一档 `numPoses` 看一眼，稳稳地被选中够久才真的升档，没等到 / 久没人坐退回来；升档时小屏下面出提示，桶容量开机按 `hardMax` 留够 | `core/src/people-probe.ts`（纯状态机）；接线在 `main.ts` 的 `peopleProbe` / `peopleCap` / `liveCap`；`flags.peopleAuto` 在 `shell/kiosk.ts`；提示文案 `ui/i18n.ts` 的 `COPY.preview.peopleNoticed`，渲染在 `ui/preview.ts` | `core/test/people-probe.test.ts` 6 条（升档需要持续入选、擦肩不升档、顶格不再探、退档）；`app/test/people-flag.test.ts` 的 `peopleAuto` 一条；无头 Chrome `?demo=1`（不带 `?people=`）跑通一次真实升档，日志见下 |
 
-**默认值：网页和现场都是 1。** 推理那张表（§1.2）没跑，按 §6.3 的裁定，证据之前不改。
+**默认值本身：网页和现场都还是 1。** 推理那张表（§1.2）仍然没跑，按 §6.3 原来的裁定，证据之前不改
+——自动探测改变的是**运行中**会不会升到 2、3，不是这个默认值。
+
+**探测常数怎么定的**（`tuning.ts` 的 `PEOPLE`，都没有实测支撑，是工程判断，不是量出来的数）：
+`probeIntervalSeconds=12`（稳态时多久探一次：太勤会撞上 §1.2 的检测器成本，太懒等于"过一会儿"变成"很久"）、
+`probeWindowSeconds=3.0`（一扇窗口要盖住"转正 0.3s + 持续入选 1.2s"再留抖动余量）、
+`probeConfirmSeconds=1.2`（转正之后还要连续拿到身体多久才算数，直接回应 §0 第 2 条"路人擦肩而过"的顾虑）、
+`probeDeescalateSeconds=20`（升过档之后，身体空着多久收回这一档）、`probeHintSeconds=4`（提示留多久）。
+这几个数没有跑过 §10 那种无头取证；如果现场观察到升档太勤/太懒，先调这几个数，不要改判据本身。
+
+**[实测]** `npm run build && npx vite preview`，`/?theme=porcelain&seed=7&debug=1&demo=1&loading=0`
+（不带 `?people=`，回放走 `pose-jumpingjacks` 默认片段）。约 12 秒后控制台打出
+`[people] 探测把上限确认到 2`，HUD 的 `people` 行从 `0/1 人 · 身体上限 1` 变成
+`2/2 人 · 身体上限 2 · 描边让位`，画面上主身体旁边长出一具更淡的伴随身体。
+这条路径下"第二个人"是回放自带的合成机制（`capture.setPeople()` 一旦被调用，
+`replay.ts` 就会用同一段录制合成出第二个人，docs/50 §7「回放合成的人」）——
+探测确认之后就会去调用它；在真摄像头前验证需要真的有第二个人站进画面，这一版没有再跑一次（§10 的无头取证是单人
+/ 两人一开始就固定在 URL 里，不是运行中动态升档，留给下一轮）。
 
 ### 8.2 没做（按收益排序）
 
@@ -360,6 +401,19 @@ draw call：任何人数下 = 一具身体（共用桶，`people-budget.test.ts`
 7. **主身体交接时颜色一帧切**：接班的伴随身体从差异色一帧变回原色、拿回描边。
 8. `companions.ts` 没有 node 单测（它只依赖 core，测得起）：交接、`retire`、`reacquired` 清状态各一条。
 9. 舞台跟随 docs/52（拖动、转视角、拽零件）：计划写好了，一行没写。
+10. **自动探测的常数没有实测**（§6.3 修订）：`probeIntervalSeconds` / `probeWindowSeconds` /
+    `probeConfirmSeconds` / `probeDeescalateSeconds` 都是工程判断，不是像 §1.2 那样量出来的数；
+    §1.2 的推理表如果跑出来，这几个数也该跟着重新过一遍（比如检测器代价如果比预想的高，
+    `probeIntervalSeconds` 该更大）。
+11. **探测升到 3 不解除第 2 条那个 LOD 缺口**：`peopleCap` 可以被探测确认到 3，但
+    `people-budget.ts` 的 `planPeople()` 该放不下第三具照样放不下——预算逻辑没有因为
+    "这一次是探测升上去的"而放宽。也就是说三个人一起站到摄像头前，网页版仍然可能只给两具身体
+    （和 §5.3 表里"忒修斯开着 / 关着都放不下第三具"是同一条限制），第 2 条的 LOD 做完之前，
+    这不是探测这条线能单独解决的事。
+12. **探测在真摄像头前的升档没有跑无头取证**：§6.3 修订那条 [实测] 用的是 `?demo=1` 的合成第二人
+    （回放调用 `capture.setPeople()` 会自己合成一个），验证的是"确认之后预算 / 桶 / 提示这条链接对了"；
+    真的有第二个人站到摄像头前、探测把 `numPoses` 抬高之后 MediaPipe 会不会在这台机器上按时给出
+    第二份姿态（§1.2 讨论的检测器重跑代价），这一版没有另开一次真人取证去量。
 
 ## 9 · 先红后绿
 

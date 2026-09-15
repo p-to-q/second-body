@@ -117,6 +117,28 @@
   color: var(--sb-on-stage-dim);
 }
 
+/* ── 「看到了第二 / 三个人」（docs/50 §6.3 修订）──────────────────────────────
+ * 正常时它也是空的，同一条纪律：没有字就没有高度，不占位。
+ * 比上面那句话更淡（`-dim`）——它不是"哪里不对"，是一句一段时间后自己收起的旁白，
+ * 该比"往后退一点"那种要观众当场做点什么的话更安静。只用墨色深浅，不用警示色（docs/26 §F）。
+ */
+.sb-see-note {
+  --sb-on-stage: var(--sb-on-stage-dim-tl);
+  --sb-ink: var(--sb-on-stage-dim-tl);
+  --sb-ink-dim: var(--sb-on-stage-dim-tl);
+  margin: calc(var(--sb-gutter) * 0.2) 0 0;
+  font-size: var(--sb-size-small);
+  line-height: var(--sb-lh-body);
+  color: var(--sb-on-stage);
+}
+
+.sb-see-note .sb-zh,
+.sb-see-note .sb-en { display: block; }
+.sb-see-note .sb-en {
+  font-size: 0.78em;
+  letter-spacing: var(--sb-tracking-label);
+}
+
 /* 状态不好的时候，屏幕自己也要有一点差别 —— 但**只用墨色深浅，不用警示色**。
    §F：全站只有一处用颜色承担语义，而这里不是那一处。
    一块沉下去的屏幕加一句话，已经把"现在不太对"说完了。 */

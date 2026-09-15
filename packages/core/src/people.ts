@@ -254,7 +254,8 @@ export function bestAssignment(cost: readonly (readonly number[])[], nTracks: nu
   return { pairs, total: best };
 }
 
-const leak = (held: number, on: boolean, dt: number): number => (on ? held + dt : Math.max(0, held - 2 * dt));
+/** 漏桶：`on` 时攒，不在时以两倍速度漏。`people-probe.ts` 的探测窗口复用同一套滞回，不另起一套置信度 */
+export const leak = (held: number, on: boolean, dt: number): number => (on ? held + dt : Math.max(0, held - 2 * dt));
 
 export function createPeopleTracker(opts: { cap?: number; aspect?: number } = {}): PeopleTracker {
   const aspect = opts.aspect ?? 16 / 9;

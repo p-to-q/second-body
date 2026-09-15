@@ -31,6 +31,15 @@ test('?people= 只认 1..hardMax 的整数；别的当没写过，走场合默�
   assert.ok(PEOPLE.defaultCapKiosk >= 1 && PEOPLE.defaultCapKiosk <= PEOPLE.hardMax);
 });
 
+test('peopleAuto（docs/50 §6.3 修订）：网页版默认开，显式 ?people= 或 ?kiosk=1 都关掉它', () => {
+  assert.equal(readFlags('').peopleAuto, true, '网页版、没写 ?people=：自动探测默认开');
+  assert.equal(readFlags('?people=1').peopleAuto, false, '显式写了 1（哪怕和默认值一样）也该关掉探测');
+  assert.equal(readFlags('?people=2').peopleAuto, false, '显式选了别的数，探测不该在背后再把它改掉');
+  assert.equal(readFlags('?people=abc').peopleAuto, true, '认不出来的值等于没写过，探测照常开');
+  assert.equal(readFlags('?kiosk=1').peopleAuto, false, '现场：这一版不碰，人数策略维持原样');
+  assert.equal(readFlags('?kiosk=1&people=2').peopleAuto, false, '现场 + 显式人数：两条理由都成立');
+});
+
 test('控件「人数」：每个选项写进 URL 再用 readFlags 读回来是同一个值；默认值写成删除', () => {
   const c = CONTROLS.find((x) => x.id === 'people');
   assert.ok(c, '控件表里没有人数这一项');

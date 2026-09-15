@@ -202,6 +202,15 @@ export interface Flags {
    * 认不出来的值（`?people=4` / `?people=two`）按没写过处理并喊一声 —— 规矩和 `?framing=` 一样。
    */
   people: number;
+  /**
+   * 网页版默认开的自动探测（`core/src/people-probe.ts`，docs/50 §6.3 修订）：背景里定期抬一档
+   * `numPoses` 看看是不是真的来了第二、第三个人，观众不用自己去按「人数」。
+   *
+   * `?people=` **写了值**（哪怕就是写 `1`）= 观众 / 策展自己选的数，探测不该在背后把它悄悄改掉 ——
+   * 显式的选择永远赢，这里就是 false。`?kiosk=1` 现场是策展决定（`?kiosk=1&people=2`），
+   * 这一版不碰现场的人数策略，探测同样为 false。两者都不是才为 true：网页版、没写 `?people=`。
+   */
+  peopleAuto: boolean;
 }
 
 /** `?people=` 认的值：1..`PEOPLE.hardMax` 的整数。别的一律 null = 当没写过 */
@@ -539,6 +548,8 @@ export function readFlags(search = location.search): Flags {
     camframing: resolveCamFraming(q.get('camframing')),
     hall: q.get('hall') === '1',
     people: resolvePeople(q.get('people'), q.get('kiosk') === '1'),
+    // 没写 `?people=` 且不是现场，才自动探测；写了值（包括显式 `?people=1`）或现场都不碰
+    peopleAuto: parsePeople(q.get('people')) === null && q.get('kiosk') !== '1',
   };
 }
 
