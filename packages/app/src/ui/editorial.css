@@ -221,6 +221,17 @@ a.ed-link:focus-visible { background-size: 100% 1px; }
   text-decoration: none;
   transition: color 180ms;
 }
+/* `.ed a`（上面「链接：下划线从左长出来」那一条）给了这个下划线，但那条规矩
+   假设的是**一行**链接——`<a>` 的宽度就是那一行文字的宽度。这里是两行不等宽的字
+   （中文比英文宽），`<a>` 本身是 `display: block`，宽度因此撑到两行里更宽的那一行，
+   划线跟着 `<a>` 走，于是划线读起来是"作品陈述"那一行的宽度，尽管它画在最下面、
+   视觉上贴着"BACK TO ABOUT"（2026-09-15 真人测出来的）。关掉这里的划线，改在
+   `.sb-en` 自己身上画（见下面那条）——选择器写成 `a.ed-hero__back` 而不是
+   `.ed-hero__back`，纯类选择器（0,1,0）比 `.ed a`（0,1,1）优先级低，写不过它 */
+a.ed-hero__back {
+  box-shadow: none;
+  background-image: none;
+}
 .ed-hero__back .sb-zh,
 .ed-hero__back .sb-en { display: block; }
 .ed-hero__back .sb-zh { color: var(--sb-ink); font-weight: var(--sb-weight-head); }
@@ -239,11 +250,13 @@ a.ed-link:focus-visible { background-size: 100% 1px; }
  * `exits.css` 的同一段），而这里根本不是那一种。两条规矩管两件事。
  */
 .ed-hero__back .sb-en {
+  display: inline-block;   /* 缩到自己文字的宽度——划线（下面那条）才贴着它，不贴着上面那行中文 */
   font-size: var(--sb-size-micro);
   margin-top: 0.35em;
   letter-spacing: var(--sb-tracking-label);
   text-transform: uppercase;
   opacity: 0.6;
+  box-shadow: inset 0 -1px 0 var(--sb-rule);
 }
 /* 悬停只提亮，不位移不加线 —— 和右上角那两节同一条规矩 */
 .ed-hero__back:hover .sb-zh,
