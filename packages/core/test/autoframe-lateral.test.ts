@@ -19,13 +19,13 @@ import { person, WHOLE, type PersonSpec } from './framing-people.ts';
 const DT = 1 / 30;
 const at = (cx: number, extra: PersonSpec = {}): RawPose => person({ ...WHOLE, cx, ...extra });
 
-interface Opts { room?: number | ((i: number) => number); enabled?: (i: number) => boolean }
+interface Opts { room?: number | ((i: number) => number); enabled?: (i: number) => boolean; upper?: boolean }
 function run(frames: Array<RawPose | null>, opts: Opts = {}, from: LateralState = LATERAL_REST): LateralState[] {
   const out: LateralState[] = [];
   let s = from;
   frames.forEach((f, i) => {
     const room = typeof opts.room === 'function' ? opts.room(i) : opts.room ?? 2;
-    s = stepLateral(s, { evidence: lateralEvidence(f), room, enabled: opts.enabled?.(i) ?? true }, DT);
+    s = stepLateral(s, { evidence: lateralEvidence(f), room, enabled: opts.enabled?.(i) ?? true, upper: opts.upper }, DT);
     out.push(s);
   });
   return out;
@@ -150,6 +150,21 @@ test('上半身中景 + 左右晃：余量在推近的那一秒里连续收窄�
   assert.ok(s[89].x.x > 0.8, `前三秒没跟到：${s[89].x.x}`);
   assert.ok(Math.abs(last(s).x.x - 0.35) < 1e-6, `推近之后没有收回余量里：${last(s).x.x}`);
   assert.ok(maxPer16(s.map((k) => k.x.x)) <= AUTOFRAME.maxStep.lateral + 1e-9, '收窄那一秒里跳了');
+});
+
+test('中景（upper）：死区更小、弹簧更快——同一小步位移，中景比全景先跟上，也更快到位', () => {
+  // 0.01 画面宽的躯干位移（≈ 3.2cm，见文件头换算）：落在全景死区（5cm）里、
+  // 超出中景死区（2cm）——只有中景该动（作品负责人 2026-09-15 追加要求：
+  // 中景不受"等身+相机距离不动"那条主张约束）
+  const full = run(hold(1, () => at(0.51)), { upper: false });
+  const upper = run(hold(1, () => at(0.51)), { upper: true });
+  assert.ok(Math.abs(last(full).x.x) < 1e-6, `全景死区内不该动：${last(full).x.x}`);
+  assert.ok(Math.abs(last(upper).x.x) > Math.abs(last(full).x.x), `中景该比全景更跟这一步：中景 ${last(upper).x.x.toFixed(4)} · 全景 ${last(full).x.x.toFixed(4)}`);
+  // 更大的一步：两档最终都跟到同一个目标，但中景更快到（角频率更高）
+  const bigFull = run(hold(2, () => at(0.7)), { upper: false });
+  const bigUpper = run(hold(2, () => at(0.7)), { upper: true });
+  assert.ok(Math.abs(bigUpper[14].x.x) > Math.abs(bigFull[14].x.x), `半秒时中景该比全景更接近目标：中景 ${bigUpper[14].x.x.toFixed(3)} · 全景 ${bigFull[14].x.x.toFixed(3)}`);
+  assert.ok(maxPer16(upper.map((k) => k.x.x)) <= AUTOFRAME.maxStep.lateral + 1e-9, '中景死区/弹簧改快之后跳过守卫上限');
 });
 
 test('光线塌了（score 掉到质量线以下）：冻结，不往坏光下的坐标漂', () => {

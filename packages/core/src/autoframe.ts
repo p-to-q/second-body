@@ -722,6 +722,12 @@ export interface LateralInput {
    */
   enabled: boolean;
   aspect?: number;
+  /**
+   * 此刻是不是中景（`FramingDecision.shot === 'upper'`）。中景死区更小、弹簧更快
+   * （`AUTOFRAME.lateralDeadZoneUpper` / `lateralOmegaUpper`）——全景那一档的迟钝
+   * 是为了不抢"等身 + 相机距离不动"这条主张的戏，中景本身已经是自适应取景，不受它约束。
+   */
+  upper?: boolean;
 }
 
 /**
@@ -773,8 +779,10 @@ export function stepLateral(s: LateralState, input: LateralInput, dt: number): L
   }
   // 回中线 / 让位时不要死区：死区会让身体停在离中线还有 5cm 的地方（和景别回全景同一条理由）
   const centering = why === 'center' || why === 'yield';
+  const deadZone = centering ? 0 : input.upper ? T.lateralDeadZoneUpper : T.lateralDeadZone;
+  const omega = input.upper ? T.lateralOmegaUpper : T.lateralOmega;
   const x = stepFollow(s.x, goal, t, {
-    deadZone: centering ? 0 : T.lateralDeadZone, band: centering ? 1e-6 : T.lateralBand, omega: T.lateralOmega,
+    deadZone, band: centering ? 1e-6 : T.lateralBand, omega,
     range: Math.max(0, Number.isFinite(input.room) ? input.room : 0),
     maxSpeed: T.lateralMaxSpeed, lead: T.lateralLead, leadMax: T.lateralLeadMax, jitter: T.lateralJitter,
   });

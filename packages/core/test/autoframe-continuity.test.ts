@@ -112,7 +112,7 @@ test('连续性：身体的横向根偏移在任何序列下（人乱跳、出�
       const ev = f.present ? lateralEvidence(person({ ...WHOLE, cx })) : null;
       // 余量随景别连续地在 0.35 与 1.2 之间变（和舞台一样是连续的）
       const room = 0.35 + 0.85 * (0.5 + 0.5 * Math.sin(t * 0.7));
-      const n = stepLateral(s, { evidence: ev, room, enabled: !f.hold }, f.dt);
+      const n = stepLateral(s, { evidence: ev, room, enabled: !f.hold, upper: f.shot === 'upper' }, f.dt);
       note(wl, per16(n.x.x - s.x.x, f.dt), `seed ${seed} t=${t.toFixed(2)}s why=${n.why}`);
       s = n;
     }

@@ -847,7 +847,11 @@ async function boot(): Promise<void> {
     }
     // 横向根偏移：吃**原话**（和小屏同一份），夹在舞台此刻的横向余量里（随景别连续变化）。
     // 台上有伴随身体时让位 —— 站位归 lineup；两个都是弹簧，加起来是连续的
-    lateral = stepLateral(lateral, { evidence: lateralEvidence(live), room: stage.lateralRoom, enabled: !crowdOut?.companions.length }, dt);
+    lateral = stepLateral(lateral, {
+      evidence: lateralEvidence(live), room: stage.lateralRoom, enabled: !crowdOut?.companions.length,
+      // 中景死区更小、弹簧更快：进中景已经是自适应取景，不受全景那条"相机距离不动"的主张约束
+      upper: framing.shot === 'upper',
+    }, dt);
     const shiftX = (crowdOut?.primaryX ?? 0) + lateral.x.x;
 
     if (raw) {
