@@ -858,6 +858,8 @@ async function boot(): Promise<void> {
       evidence: lateralEvidence(live), room: stage.lateralRoom, enabled: !crowdOut?.companions.length,
       // 中景死区更小、弹簧更快：进中景已经是自适应取景，不受全景那条"相机距离不动"的主张约束
       upper: framing.shot === 'upper',
+      // 我们自己的证据质量不够时的兜底：摄像头确认在自己取景就信它，回中线（`camFraming` 本帧已经算过一次）
+      cameraFraming: camFraming,
     }, dt);
     const shiftX = (crowdOut?.primaryX ?? 0) + lateral.x.x;
 

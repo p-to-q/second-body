@@ -19,13 +19,19 @@ import { person, WHOLE, type PersonSpec } from './framing-people.ts';
 const DT = 1 / 30;
 const at = (cx: number, extra: PersonSpec = {}): RawPose => person({ ...WHOLE, cx, ...extra });
 
-interface Opts { room?: number | ((i: number) => number); enabled?: (i: number) => boolean; upper?: boolean }
+interface Opts {
+  room?: number | ((i: number) => number); enabled?: (i: number) => boolean; upper?: boolean;
+  cameraFraming?: boolean;
+}
 function run(frames: Array<RawPose | null>, opts: Opts = {}, from: LateralState = LATERAL_REST): LateralState[] {
   const out: LateralState[] = [];
   let s = from;
   frames.forEach((f, i) => {
     const room = typeof opts.room === 'function' ? opts.room(i) : opts.room ?? 2;
-    s = stepLateral(s, { evidence: lateralEvidence(f), room, enabled: opts.enabled?.(i) ?? true, upper: opts.upper }, DT);
+    s = stepLateral(s, {
+      evidence: lateralEvidence(f), room, enabled: opts.enabled?.(i) ?? true, upper: opts.upper,
+      cameraFraming: opts.cameraFraming,
+    }, DT);
     out.push(s);
   });
   return out;
@@ -172,6 +178,16 @@ test('光线塌了（score 掉到质量线以下）：冻结，不往坏光下�
   const s = run(hold(2, () => at(0.6, { score: 0.58 })), {}, last(s0));
   assert.ok(s.every((k) => k.why === 'hold-light'));
   assert.ok(Math.abs(last(s).x.x - last(s0).x.x) < 0.02, `坏光下漂了 ${(last(s).x.x - last(s0).x.x).toFixed(3)}`);
+});
+
+test('光线塌了 + 摄像头确认在自己取景：判别条件命中，回中线而不是冻在原地（作品负责人 2026-09-15 追加要求）', () => {
+  const s0 = run(hold(3, () => at(0.4)));
+  const s = run(hold(2, () => at(0.6, { score: 0.58 })), { cameraFraming: true }, last(s0));
+  assert.ok(s.every((k) => k.why === 'center'), `该一路是 center，实际 ${[...new Set(s.map((k) => k.why))]}`);
+  assert.ok(Math.abs(last(s).x.x) < 0.05, `该回到中线附近，实际 ${last(s).x.x.toFixed(3)}`);
+  // 出画那一侧不受这个字段影响：那是不同的判别条件（见 LateralInput.cameraFraming 的注释）
+  const edge = run(hold(2, () => at(1.05)), { cameraFraming: true });
+  assert.equal(last(edge).why, 'hold-edge', 'cameraFraming 不该改变出画那一支的行为');
 });
 
 test('多人：台上有伴随身体时让位（站位归 lineup），连续地弹回 0', () => {
