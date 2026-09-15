@@ -822,7 +822,13 @@ async function boot(): Promise<void> {
 
     // 自动探测（docs/50 §6.3 修订）：喂这一帧真的选中了几个人，结果影响**下一帧**的
     // tracker.cap / worker numPoses —— 决策天然晚一帧，和调速器采样同一个节奏，不逼帧循环里 await 任何东西。
-    if (peopleProbe && people) {
+    //
+    // **只在真摄像头开着时探测**（`cameraOn`）。回放（`?demo=1`、按摄像头之前的默认展示、
+    // 摄像头丢了自动退回的那几秒）没有真人——`ReplayCapture.latestAll()` 在 `setPeople(n>1)`
+    // 之后会**合成**另外几个人（`people-synth.ts`），那是给工作台 / 演示用的，不该在观众
+    // 还没按「用我的摄像头」之前的默认画面里自己冒出来。这一条不加的话，展签之前的默认展示
+    // 每隔 `probeIntervalSeconds` 就会凭空多出一两具合成的身体——2026-09-15 真人测出来的回归。
+    if (peopleProbe && people && cameraOn) {
       const step = stepProbe(peopleProbe.state, { dt, selectedCount: crowd?.selected.length ?? 0 });
       peopleProbe.state = step.state;
       // 活的上限（tracker.cap / numPoses）跟 target 走：探测窗口里它比 peopleCap 高一档，
