@@ -29,14 +29,35 @@
 /* 没有「出场」的那一步：直接从 DOM 里摘掉，不淡出（loading.ts 的 `finish()` 有完整理由）——
    底下的选择页这一刻早就已经在了，淡出的那 180ms 只会让它和这一层的字标短暂叠在一起。 */
 
-/* 字标：贴左上安全区，和选择页 `.sb-brand`、`/about` 页头同一个位置口径。
-   跟着 `.sb-loading` 的淡入一起出现，不单独再等一拍——它是这一屏第一件东西。
-   `--sb-mark-size` 取 h1：这一刻它是唯一的作品身份，旁边没有巨题替它撑住 */
+/* 字标：贴左上安全区，和选择页 `.sb-brand`、`/about` 页头同一个位置口径——
+   这是它**落定之后**的位置。跟着 `.sb-loading` 的淡入一起出现，不单独再等一拍。
+   `--sb-mark-size` 取 h1：这一刻它是唯一的作品身份，旁边没有巨题替它撑住。
+   `transform-origin: top left` 让缩放锚在这个角落上，`is-big` 退场时的位移/放大
+   才会平滑地收回同一个点，不会边缩边跳 */
 .sb-loading-mark {
   position: absolute;
   left: var(--sb-safe);
   top: var(--sb-safe);
   --sb-mark-size: var(--sb-size-h1);
+  transform-origin: top left;
+  transition: transform var(--sb-dur-move) var(--sb-ease-enter);
+}
+
+/* 一开始是大的：挪到画面中段、放大 2.3 倍——这一屏它是主角，不是已经缩在
+   角落等着被忽略的图标（loading.ts 文件头「字标落定，其余才回来」）。
+   `is-big` 一摘掉就用上面那条 transition 收回本来的位置和大小 */
+.sb-loading-mark.is-big {
+  transform: translate(26vw, 34vh) scale(2.3);
+}
+
+/* 落定之后闪一下：说"到位了"，不是重新出现 */
+@keyframes sb-mark-settle-flash {
+  0%, 100% { opacity: 1; }
+  45% { opacity: 0.25; }
+}
+.sb-loading-mark.is-settled {
+  /* 200ms，和 loading.ts 的 SETTLE_FLASH_MS 同一个数——这一层就在这段时间之后摘掉 */
+  animation: sb-mark-settle-flash 200ms ease-out;
 }
 
 .sb-loading-inner { max-width: var(--sb-measure); }

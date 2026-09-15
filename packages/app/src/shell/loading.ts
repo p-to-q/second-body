@@ -43,6 +43,22 @@
  * 所以只要它露过面（过了宽限期），就至少露 `MIN_SHOW_MS`：这是一段**刻意的
  * 停留**，不是没找到信号硬凑的等待，`finish()` 因此在最少展示时长上会晚收，
  * 不会晚开始（不阻塞后面的舞台/摄像头）。
+ *
+ * ## 到齐之后：字标落定，其余才回来（作品负责人 2026-09-15 第三次裁定）
+ *
+ * 字标一开始是**大的**（`is-big`，挪到画面中段、放大），不是它最终在角落的那个
+ * 身份——这一屏在它出场的时候是主角，不是一个已经缩在角落等着被忽略的图标。
+ * 真到齐、停满 `DONE_HOLD_MS` 之后，退场分三步，**每一步等上一步真的做完**：
+ *
+ *   1. 细节（百分比/三档/进度线）先收起（复用 `.sb-loading-details` 自己
+ *      的 240ms 淡出）——先按*文件头第一条`裁定，退场时不该还有别的东西在动，
+ *      抢字标的戏。
+ *   2. 字标从大变小、挪到它在选择页/`/about` 上那个最终角落位置
+ *      （`SETTLE_MOVE_MS`，和 `--sb-dur-move` 同一个数：这是一次"挪到位"）。
+ *   3. 到位之后闪一下（`SETTLE_FLASH_MS`）——说的是"定住了"，不是重新出现。
+ *
+ * 三步都做完，这一层才整个摘掉。选择页此刻早就在底下、字标落在同一个位置，
+ * 摘掉的那一帧因此没有变化——底下的物种名、说明这才第一次被观众看见。
  */
 import { COPY, setBi, type BiText } from '../ui/i18n.ts';
 import { markNode } from '../ui/mark.ts';
@@ -75,6 +91,13 @@ const DONE_HOLD_MS = 1000;
 
 /** 字标先站稳，细节再展开的那一拍。和 `type.css` 的 `--sb-dur-move`（420ms）同一个数——这也是一次"挪到位" */
 const DETAIL_DELAY_MS = 420;
+
+/** 退场第一步：细节收起。和 `.sb-loading-details` 自己的淡出时长（`--sb-dur-enter`，240ms）同一个数 */
+const SETTLE_DETAILS_MS = 240;
+/** 退场第二步：字标从大变小、挪到最终角落位置。和 `type.css` 的 `--sb-dur-move`（420ms）同一个数 */
+const SETTLE_MOVE_MS = 420;
+/** 退场第三步：到位之后闪一下 */
+const SETTLE_FLASH_MS = 200;
 
 /** 慢到这里开始说人话。8 秒这个数来自 docs/23 §S0 的「冷启动 > 8 秒（慢网）」 */
 const SLOW_MS = 8_000;
@@ -128,9 +151,10 @@ export function mountLoading(flags: Flags): Loading {
   layer.setAttribute('aria-live', 'polite');
 
   // 字标：和选择页左上角、`/about` 页头同一个组件。它是这一屏第一件、也是
-  // 最先站稳的东西，不跟着 `is-detailed` 走——见文件头「字标先到，其余后到」
+  // 最先站稳的东西，不跟着 `is-detailed` 走——见文件头「字标先到，其余后到」。
+  // 一开始是**大的**（`is-big`）——退场时才缩小挪到角落，见文件头「字标落定」那一节
   const mark = markNode('div', 'start');
-  mark.classList.add('sb-loading-mark');
+  mark.classList.add('sb-loading-mark', 'is-big');
   layer.append(mark);
 
   const inner = document.createElement('div');
@@ -269,21 +293,26 @@ export function mountLoading(flags: Flags): Loading {
       // 真的到齐了，不再是"99% 假装还没到"——见 render() 里那条注释，那条只管中途
       pct.textContent = '100%';
       fill.style.width = '100%';
-      // **直接摘掉，不做淡出**（作品负责人 2026-09-15 追加要求）。
-      //
-      // 原来这里有一步 180ms 的透明度淡出（`is-leaving`），本意是"出比进快"（docs/23 §0）。
-      // 但选择页在这一刻早就已经在这一层底下了——`chooseTheme(...).then()`
-      // 先叫 `loading.finish()`，选择页才第一次真正露面（main.ts 那段注释：
-      // "选择页已经在屏幕上了"）。这一层的底是不透明的 `--sb-paper`，淡出的那 180ms 里
-      // 底下已经站稳的选择页（连同它左上角同一份字标）就会跟这一层的字标短暂叠在一起——
-      // 两份视觉上一样的东西压在同一个位置，读作"重叠"，不是过渡。
-      // 直接摘掉没有这个问题：这一层消失的那一帧，底下本来就有的东西照样在，
-      // 字标那个位置因此**没有变化**，读作"一直都在"，不是"先叠后收"。
-      const leave = (): void => { layer.remove(); };
+      // 退场三步，每一步等上一步真的做完（文件头「字标落定，其余才回来」）：
+      // 细节先收起 → 字标从大变小挪到角落 → 到位闪一下 → 整层摘掉。
+      // 底是不透明的 `--sb-paper`，这三步全程盖住底下——选择页早就已经在那儿了
+      // （`chooseTheme(...).then()` 先叫 `loading.finish()`），但观众看不见它，
+      // 直到这一层真的摘掉的那一帧。字标落的角落和选择页自己那一份完全同一个位置，
+      // 摘掉时因此没有跳变。
+      const leave = (): void => {
+        layer.classList.remove('is-detailed');
+        setTimeout(() => {
+          mark.classList.remove('is-big');
+          setTimeout(() => {
+            mark.classList.add('is-settled');
+            setTimeout(() => layer.remove(), SETTLE_FLASH_MS);
+          }, SETTLE_MOVE_MS);
+        }, SETTLE_DETAILS_MS);
+      };
       // 两条下限取更大的那个：MIN_SHOW_MS 保证"这一层至少露了多久"（缓存命中时管用）；
       // DONE_HOLD_MS 保证"真到 100% 之后至少停这么久"（冷启动早就过了 MIN_SHOW_MS，
       // 不加这一条的话数字刚跳到 100% 画面就换了）。都只晚收，不晚开始——
-      // 舞台、摄像头照常往下走，等的只有这一层自己摘掉
+      // 舞台、摄像头照常往下走，等的只有这一层自己摘掉（含退场那三步）
       const wait = Math.max(MIN_SHOW_MS - (performance.now() - shownAt), DONE_HOLD_MS);
       setTimeout(leave, wait);
     },
