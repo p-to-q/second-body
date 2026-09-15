@@ -728,6 +728,16 @@ export interface LateralInput {
    * 是为了不抢"等身 + 相机距离不动"这条主张的戏，中景本身已经是自适应取景，不受它约束。
    */
   upper?: boolean;
+  /**
+   * 摄像头此刻**确认**在自己取景（`capture/cam-framing.ts` 的 `getSettings().faceFraming === true`，
+   * 不是"支持"，是"正在"）。判别条件：只在**我们自己的证据质量不够**（`hold-light`，光线塌了 /
+   * 分辨率不够）时才看它——质量够、或者已经判成了出画（`hold-edge`），这个字段不改变行为。
+   *
+   * 极端情况下的兜底（作品负责人 2026-09-15 追加要求）：我们自己读不准的时候，
+   * 摄像头的取景比我们冻在一个低置信度坐标上更稳——回中线，不硬撑一个不可信的位置。
+   * **不是去追它裁到哪**：我们读不到它裁切窗口的坐标（docs/49 §1.3），能读到的只有"它在裁"这一件事。
+   */
+  cameraFraming?: boolean;
 }
 
 /**
@@ -755,6 +765,11 @@ export function stepLateral(s: LateralState, input: LateralInput, dt: number): L
     lost += t;
     pending = NaN; pendingFor = 0;
     if (lost >= T.lateralHoldSeconds) { target = 0; accepted = NaN; scale = NaN; why = 'center'; goal = 0; } else { why = 'hold-lost'; goal = NaN; }
+  } else if (!ev.side && !ev.quality && input.cameraFraming) {
+    // 判别条件 + 兜底：我们自己的质量读数不够，但摄像头确认在自己取景——
+    // 信它更稳，回中线好过冻在一个低置信度的坐标上（见 LateralInput.cameraFraming 的注释）
+    lost = 0;
+    target = 0; accepted = NaN; scale = NaN; why = 'center'; goal = 0;
   } else if (ev.side || !ev.quality) {
     lost = 0;
     why = ev.side ? 'hold-edge' : 'hold-light';
